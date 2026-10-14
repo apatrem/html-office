@@ -10,7 +10,7 @@ Create and revise a presentation with an LLM, refine it in a browser, and delive
 
 V1 uses semantic HTML for content, CSS variables for branding, named layouts, JSON-driven charts with SVG caches, and an embedded editor. Canvas: 1,280 ×720 px. First manual movement detaches a template slide and freezes every element's geometry, preserving neighbours.
 
-The DOM is the current model; undo uses HTML snapshots. Stable identifiers support preservation checks, but do not enable concurrent conflict resolution. V2 requires a separate mutation/history architecture; it cannot simply attach collaboration to V1. See [ADR-001](decisions/001-v1-dom-et-migrations.md).
+The DOM is the current model; undo uses HTML snapshots. Stable identifiers support preservation checks, but do not enable concurrent conflict resolution. V2 requires a separate mutation/history architecture; it cannot simply attach collaboration to V1. See [ADR-001](decisions/001-v1-dom-and-migrations.md).
 
 ## Delivered capabilities
 
@@ -20,7 +20,7 @@ The DOM is the current model; undo uses HTML snapshots. Stable identifiers suppo
 - Inert preflight before execution, recognised script digests, network-limited rendering, and preservation comparison against stable references.
 - Explicit migrations: `pack` preserves engine/theme/guide; `upgrade` replaces engine/guide with a backup; theme replacement is opt-in.
 - Thumbnail layout preservation, rebinding after undo/redo, and refresh after delayed chart loading.
-- A versioned, inert guide embedded before technical blocks; complete chart examples and compatible distribution links. See [ADR-002](decisions/002-guide-embarque.md).
+- A versioned, inert guide embedded before technical blocks; complete chart examples and compatible distribution links. See [ADR-002](decisions/002-embedded-guide.md).
 - Pinned ECharts 6.1.0 with SHA-384 SRI/anonymous CORS, SVG fallback, and offline embedding.
 - English documentation, UI, templates, and fictional examples. Public MIT repository, release archive, and CI.
 

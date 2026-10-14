@@ -1,4 +1,4 @@
-// Lignes : série temporelle longue (> 6 périodes).
+// Lines: long time series (> 6 periods).
 import { base, axisCat, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
 
 export default {

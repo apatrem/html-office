@@ -1,4 +1,4 @@
-// Stacked bars (ou 100 %) : composition par catégorie.
+// Stacked bars (or 100 %): composition by category.
 import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
 
 export default {

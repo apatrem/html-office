@@ -1,6 +1,6 @@
 {
   "name": "html-slides",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Standalone HTML presentations with semantic content, data-driven charts, an embedded browser editor, and a self-contained format guide.",
   "author": {
     "name": "Pierre Supau"

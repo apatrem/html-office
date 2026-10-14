@@ -67,7 +67,7 @@ Do not save `data-ui` nodes, thumbnails, Moveable/Selecto controls, `contentedit
 
 Canvas: 1,280 × 720 px. Examples below are templates; replace any `…` with deck data. JSON examples in the final section are complete and valid. Their figures are illustrative, not evidence for a real project.
 
-Format 1 · Documentation 0.7.0 · Skill 0.7.0.
+Format 1 · Documentation 0.7.1 · Skill 0.7.1.
 
 Layouts : `default`, `top-left`, `mid-left`, `section`, `quote`, `panel-14`, `panel-13`, `panel-12`, `panel-23`, `three-lines`, `cover`, `end`.
 Shapes: `rect`, `round`, `ellipse`, `triangle`, `diamond`, `hexagon`, `parallelogram`, `pentagon`, `chevron`, `arrow-r`, `arrow-l`, `arrow-u`, `arrow-d`.
@@ -184,7 +184,7 @@ Inert parsing precedes rendering. Active content, scripts outside permitted zone
 
 `--since` compares deletions, relative order, parents, layouts, detachment, coordinates, and rendered geometry (1.5 px tolerance). `--allow e12,e13` permits specified elements; `--allow s04` permits recomposing that slide. Keep a reference with stable identifiers.
 
-The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; non-geometric styles, inline styled spans/fonts; non-theme span classes; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
+The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
 
 # Catalogue
 

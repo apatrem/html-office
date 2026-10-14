@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconstruit tout, régénère les exemples, lance les tests et empaquette le plugin.
+# Rebuilds everything, regenerates the examples, runs the tests and packages the plugin.
 set -e
 cd "$(dirname "$0")/.."
 T=plugin/skills/html-slides/tools

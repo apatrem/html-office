@@ -4,7 +4,7 @@ A skill for creating and editing a presentation in one HTML file. The file inclu
 
 ## Get started
 
-Download `html-slides.plugin` from the [0.7.0 release](https://github.com/apatrem/html-slides/releases/tag/v0.7.0). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
+Download `html-slides.plugin` from the [0.7.1 release](https://github.com/apatrem/html-slides/releases/tag/v0.7.1). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
 
 Ask your agent: “Create an html-slides presentation about organising a community garden.” It prepares the storyline, builds the HTML/PDF, checks the slides, and reviews the screenshots.
 

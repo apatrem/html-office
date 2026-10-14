@@ -1,5 +1,5 @@
-// Gabarits de l'éditeur : nouvelles slides (une par mise en page) et éléments à insérer.
-// Tout est écrit avec les classes du catalogue, comme le ferait Claude.
+// Editor templates: new slides (one per layout) and elements to insert.
+// Everything uses catalogue classes, as an LLM would.
 
 export const LAYOUTS = [
   ['default', 'Title only'], ['top-left', 'Impact title'], ['mid-left', 'Left title'], ['section', 'Section divider'],
@@ -40,7 +40,7 @@ const SAMPLE = {
 export const CHART_TYPES = [['column', 'Columns'], ['hbar', 'Horizontal bars'], ['stacked', 'Stacked bars'], ['line', 'Lines'],
   ['waterfall', 'Waterfall'], ['bubble', 'Bubbles'], ['gantt', 'Gantt']];
 
-// [libellé, html, largeur, hauteur]
+// [label, html, width, height]
 export const ELEMENTS = {
   text: ['Text box', '<div class="body"><p>Text</p></div>', 400, 64],
   box: ['Box', '<div class="box"><h3>Title</h3><p>Text</p></div>', 336, 152],
@@ -52,7 +52,7 @@ export const ELEMENTS = {
   rule: ['Rule', '<div class="rule"></div>', 400, 8],
   table: ['Table', '<table class="t"><tr><th>Item</th><th class="n">Value</th><th class="n">Share</th></tr><tr><td>Row 1</td><td class="n">0</td><td class="n">0 %</td></tr><tr><td>Row 2</td><td class="n">0</td><td class="n">0 %</td></tr><tr class="tot"><td>Total</td><td class="n">0</td><td class="n">100 %</td></tr></table>', 560, 176]
 };
-// Formes : <div class="shape" data-shape="…">texte facultatif</div>. [clé, libellé, largeur, hauteur]
+// Shapes: <div class="shape" data-shape="…">optional text</div>. [key, label, width, height]
 export const SHAPES = [
   ['rect', 'Rectangle', 192, 104], ['round', 'Rounded rectangle', 192, 104], ['ellipse', 'Ellipse', 136, 136],
   ['triangle', 'Triangle', 152, 128], ['diamond', 'Diamond', 152, 128], ['hexagon', 'Hexagon', 176, 112],

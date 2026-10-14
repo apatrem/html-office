@@ -1,4 +1,4 @@
-// Rendu des graphiques : ECharts (CDN, version fixée) si disponible, sinon copie SVG.
+// Chart rendering: ECharts (CDN, pinned version) when available, otherwise the cached SVG.
 import { ECHARTS_URL, ECHARTS_INTEGRITY } from './model.js';
 import column from '../charts/column.js';
 import hbar from '../charts/hbar.js';
@@ -46,7 +46,7 @@ export function readData(fig) {
 
 export function validate(fig) {
   const def = registry[fig.dataset.type];
-  if (!def) return [`Unknown chart type « ${fig.dataset.type} »`];
+  if (!def) return [`Unknown chart type "${fig.dataset.type}"`];
   const { data, error } = readData(fig);
   if (error) return [error];
   return def.validate(data);
@@ -71,7 +71,7 @@ export function renderChart(fig) {
   fig.prepend(head);
   const plot = el('div', 'hs-plot');
   head.after(plot);
-  const errs = error ? [error] : (def ? def.validate(data) : [`Unknown type « ${fig.dataset.type} »`]);
+  const errs = error ? [error] : (def ? def.validate(data) : [`Unknown type "${fig.dataset.type}"`]);
   if (errs.length) {
     fig.classList.remove('live');
     plot.appendChild(el('div', 'hs-chart-msg', 'Invalid chart: ' + errs.join(' ; ')));
@@ -103,7 +103,7 @@ export function resizeCharts(root) {
   root.querySelectorAll('figure.chart').forEach(fig => { const i = instances.get(fig); if (i) i.resize(); });
 }
 
-// Met à jour la copie SVG de chaque graphique affiché par ECharts.
+// Updates the cached SVG of every chart drawn by ECharts.
 export function refreshCaches(root) {
   root.querySelectorAll('figure.chart.live').forEach(fig => {
     const svg = fig.querySelector(':scope > .hs-plot svg');

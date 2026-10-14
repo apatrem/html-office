@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reconstruit le moteur puis le deck d'exemple, son PDF et ses captures.
+# Rebuilds the engine, then the example deck, its PDF and its screenshots.
 set -e
 cd "$(dirname "$0")/.."
 T=plugin/skills/html-slides/tools

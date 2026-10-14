@@ -6,6 +6,8 @@ The 0.6.1 baseline passed 39 regression tests plus the editor workflow and 27 ex
 
 Release 0.7.0 replaces all distributed decks with fictional English topics. Local verification passed all 39 regression tests and the complete editor workflow, with zero checker errors on all 27 slides. Screenshots were reviewed and the PDFs contain the expected 9 and 18 pages. The public repository starts with a fresh history: earlier local example decks and historical planning notes are not published.
 
+Release 0.7.1 (prepared, not yet published) keeps drafts after the download fallback, flags drafts made from another version of a file, strips restored drafts of code and external resources, rejects more external-resource attributes and CSS fetches in the inert check, and limits trusted engines to published releases plus the current build. Local verification passed all 44 regression tests and the complete editor workflow, with zero checker errors on all 27 example slides.
+
 File System Access is tested with a simulated writable target; actual Chromium downloads/reopening are tested too. Direct saving on another workstation remains a manual check.
 
 ## Five task comparisons

@@ -1,9 +1,10 @@
-// Parse sans navigateur : aucune balise ni ressource du document n'est exécutée.
-// Ce module et parse5 sont regroupés dans le plugin par build.mjs.
+// Parses without a browser: no tag or resource of the document is executed.
+// build.mjs bundles this module and parse5 into the plugin.
 import { parse } from 'parse5';
 import { createHash } from 'node:crypto';
-import {FORMAT_VERSION} from '../src/format.js';
+import {FORMAT_VERSION, ACTIVE_TAGS, attributeProblem, styleProblem, assetProblem} from '../src/format.js';
 
+const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const attr = (n, k) => n.attrs?.find(a => a.name === k)?.value;
 const children = n => (n.childNodes || []).filter(n => n.tagName);
 const text = n => (n.childNodes || []).map(n => n.value || text(n)).join('');
@@ -20,7 +21,7 @@ export function inspectHTML(html, trusted) {
   const out = [];
   const add = (n, msg) => out.push({level:'error',slide:slideOf(n) || '-',id:attr(n,'data-id') || null,msg});
   const zones = ['deck','engine','assets','theme','charte'];
-  for (const id of zones) if (nodes.filter(n=>attr(n,'id')===id).length !== 1) add(doc, `Zone « ${id} » missing or duplicated`);
+  for (const id of zones) if (nodes.filter(n=>attr(n,'id')===id).length !== 1) add(doc, `Zone "${id}" missing or duplicated`);
   const main = nodes.find(n=>attr(n,'id')==='deck');
   if (main?.tagName !== 'main' || main.parentNode?.tagName !== 'body') add(doc, 'deck must be a main element directly inside body');
   if (!children(main || {}).some(n=>n.tagName==='section' && classes(n).includes('slide'))) add(doc,'The deck must contain at least one slide');
@@ -28,7 +29,7 @@ export function inspectHTML(html, trusted) {
   const metadata={};
   for (const name of DOC_META) {
     const found=nodes.filter(n=>n.tagName==='meta' && attr(n,'name')===name);
-    if (found.length>1) add(doc,`Duplicate metadata « ${name} »`);
+    if (found.length>1) add(doc,`Duplicate metadata "${name}"`);
     if (found.length) {
       metadata[name]=attr(found[0],'content');
       if (found[0].parentNode?.tagName!=='head') add(found[0],'Documentation metadata must be in head');
@@ -47,38 +48,31 @@ export function inspectHTML(html, trusted) {
   }
   for (const name of DOC_META.slice(3)) if (metadata[name]) {
     try { if (new URL(metadata[name]).protocol!=='https:') throw new Error(); }
-    catch { add(doc,`HTTPS URL required for « ${name} »`); }
+    catch { add(doc,`HTTPS URL required for "${name}"`); }
   }
   for (const n of nodes) {
     for (const a of n.attrs || []) {
-      const value = a.value.replace(/[\u0000-\u0020]/g,'');
-      if (/^on/i.test(a.name) || a.name==='srcdoc') add(n,`Forbidden attribute « ${a.name} »`);
-      if (/^(javascript|vbscript):/i.test(value)) add(n,'Executable URLs are forbidden');
-      if (a.name==='src' || a.name==='href' && n.namespaceURI !== 'http://www.w3.org/1999/xhtml') {
-        if (value && !value.startsWith('#') && !/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,/i.test(value)) add(n,'External resources are forbidden');
-      }
-      if (a.name==='href' && /^data:/i.test(value)) add(n,'data: links are forbidden');
+      const problem = attributeProblem(a.prefix ? `${a.prefix}:${a.name}` : a.name, a.value, n.namespaceURI === HTML_NS);
+      if (problem) add(n, problem);
     }
-    if (['iframe','frame','frameset','object','embed','applet','base','link','form','animate','set','animatetransform','animatemotion'].includes(n.tagName.toLowerCase())) add(n,`Forbidden tag <${n.tagName}>`);
+    if (ACTIVE_TAGS.includes(n.tagName.toLowerCase())) add(n,`Forbidden tag <${n.tagName}>`);
     if (n.tagName==='meta' && attr(n,'http-equiv')) add(n,'meta http-equiv is forbidden');
     if (inDeck(n) && attr(n,'data-ui') !== undefined) add(n,'data-ui is reserved for the engine');
     if (n.tagName==='style' && !(n.parentNode?.tagName==='head' && ['theme','charte'].includes(attr(n,'id')))) add(n,'Styles outside theme zones are forbidden');
+    else if (n.tagName==='style') { const problem = styleProblem(text(n)); if (problem) add(n, problem); }
     if (n.tagName==='script') {
       const id=attr(n,'id'), body=n.parentNode?.tagName==='body';
       if (attr(n,'src') !== undefined) add(n,'External script tags are forbidden');
       if (body && (id==='engine' || id==='echarts')) {
-        if (!(trusted[id] || []).includes(scriptHash(text(n)))) add(n,`Unrecognised script « ${id} »; plugin engine required`);
+        if (!(trusted[id] || []).includes(scriptHash(text(n)))) add(n,`Unrecognised script "${id}"; plugin engine required`);
       } else if (attr(n,'type')==='application/json' && (body && id==='assets' || inDeck(n) && n.parentNode?.tagName==='figure' && classes(n.parentNode).includes('chart'))) {
         try {
           const data=JSON.parse(text(n));
           if (id==='assets') {
             if (!data || typeof data!=='object' || Array.isArray(data)) add(n,'assets must be a JSON object');
             else for (const [key,a] of Object.entries(data)) {
-              if (!/^[a-zA-Z][\w-]*$/.test(key)) add(n,'Invalid asset identifier');
-              if (!a || typeof a!=='object' || typeof a.data!=='string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(a.data)) add(n,`Invalid asset « ${key} »`);
-              else if (a.kind==='font') {
-                if (!/^[\w -]+$/.test(a.family || '') || !/^font\/(woff2?|otf|ttf)$/.test(a.type || '') || a.weight !== undefined && !/^\d{3}$/.test(String(a.weight)) || a.style !== undefined && !/^(normal|italic|oblique)$/.test(a.style)) add(n,`Invalid font « ${key} »`);
-              } else if (!/^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(a.type || '')) add(n,`Invalid asset type « ${key} »`);
+              const problem = assetProblem(key, a);
+              if (problem) add(n, problem);
             }
           }
         } catch { add(n,'Invalid JSON'); }
@@ -89,7 +83,7 @@ export function inspectHTML(html, trusted) {
   return {doc, main, out, n:children(main || {}).filter(n=>classes(n).includes('slide')).length};
 }
 
-// Compare la structure et les positions explicites sans dépendre de l'ordre des attributs.
+// Compares structure and explicit positions independently of attribute order.
 export function snapshot(html) {
   const doc=parse(html);
   const main=[...walk(doc)].find(n=>attr(n,'id')==='deck');
@@ -137,12 +131,12 @@ export function compareSnapshots(a,b,allow=new Set()) {
 export function replaceParsedZone(html, id, content) {
   const doc=parse(html,{sourceCodeLocationInfo:true});
   const n=[...walk(doc)].find(n=>attr(n,'id')===id);
-  if (!n?.sourceCodeLocation?.endTag) throw new Error(`Zone « ${id} » not found`);
+  if (!n?.sourceCodeLocation?.endTag) throw new Error(`Zone "${id}" not found`);
   const l=n.sourceCodeLocation;
   return html.slice(0,l.startTag.endOffset)+content+html.slice(l.endTag.startOffset);
 }
 
-// Une migration renouvelle le guide avec le moteur ; pack garde leur version.
+// A migration renews the guide with the engine; pack keeps their version.
 export function replaceDocumentation(html, fragment) {
   const doc=parse(html,{sourceCodeLocationInfo:true});
   const head=[...walk(doc)].find(n=>n.tagName==='head');

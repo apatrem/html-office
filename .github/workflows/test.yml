@@ -28,5 +28,5 @@ jobs:
       - run: npm test
       - name: Validate distributed examples
         run: |
-          node plugin/skills/html-slides/tools/check.mjs decks/community-garden.html
-          node plugin/skills/html-slides/tools/check.mjs decks/catalogue.html
+          node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html
+          node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/catalogue.html

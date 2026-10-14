@@ -1,5 +1,5 @@
-// Éditeur : sélection (Selecto), déplacement et redimensionnement avec aimantation (Moveable),
-// alignement, texte en place, mise en forme prise dans la charte, panneau de données, clavier.
+// Editor: selection (Selecto), moving and resizing with snapping (Moveable),
+// alignment, in-place text, theme formatting, data panel, keyboard.
 import Moveable from 'moveable';
 import Selecto from 'selecto';
 import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, undo, redo,
@@ -20,7 +20,7 @@ export const editingMode = () => document.body.classList.contains('hs-editing');
 export const selection = () => targets.filter(el => el.isConnected);
 const refresh = () => { if (moveable && selection().length) moveable.updateRect(); };
 
-// ---------- sélection ----------
+// ---------- selection ----------
 function setTargets(list) {
   list = list.filter(el => el && el.isConnected);
   const slide = list.length ? slideOf(list[0]) : null;
@@ -37,7 +37,7 @@ function setTargets(list) {
   selecto.setSelectedTargets(list);
   notify();
 }
-// Contexte pour la barre d'outils : slide seule, ou élément(s) sélectionné(s) / en cours d'écriture
+// Toolbar context: slide only, or selected element(s) / element being typed in
 function notify() {
   const els = editing ? [editing.el] : selection();
   emit('selection', {
@@ -49,7 +49,7 @@ function notify() {
 const tableOf = el => (el.matches('table') ? el : el.querySelector(':scope > table'));
 export function clearSel() { if (moveable) setTargets([]); }
 
-// ---------- gestes Moveable : détachement, positions, annulation ----------
+// ---------- Moveable gestures: detaching, positions, undo ----------
 function startGesture(list) {
   const slide = slideOf(list[0]);
   const wasDetached = slide.hasAttribute('data-detached');
@@ -62,7 +62,7 @@ function endGesture() {
   gesture = null;
   if (!g) return;
   if (!g.moved) {
-    // simple clic : on ne détache pas la slide
+    // simple click: the slide is not detached
     if (!g.wasDetached) { g.slide.removeAttribute('data-detached'); items(g.slide).forEach(el => el.removeAttribute('style')); }
     refresh();
     return;
@@ -129,7 +129,7 @@ function initSelecto() {
     setTargets(list);
     if (e.isDragStart && selection().length) {
       e.inputEvent.preventDefault();
-      // n'enchaîner le déplacement que si le bouton est encore enfoncé (sinon un simple clic laisserait un geste ouvert)
+      // chain the drag only while the button is still down (otherwise a simple click would leave a gesture open)
       moveable.waitToChangeTarget().then(() => { if (buttonDown) moveable.dragStart(e.inputEvent); });
     }
   });
@@ -165,7 +165,7 @@ export function stopText() {
   if (editingMode() && el.isConnected) setTargets([el]); else notify();
 }
 
-// Sélection de texte non vide dans l'élément en cours d'édition
+// Non-empty text selection in the element being edited
 function textRange() {
   if (!editing) return null;
   const s = getSelection();
@@ -173,7 +173,7 @@ function textRange() {
   const r = s.getRangeAt(0);
   return !r.collapsed && editing.el.contains(r.commonAncestorContainer) ? r : null;
 }
-// Couleur appliquée à une partie du texte : chaque nœud texte touché est enveloppé d'un <span class="c-…">.
+// Colour applied to part of the text: every text node touched is wrapped in a <span class="c-…">.
 function wrapColor(range, cls) {
   const root = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -201,9 +201,9 @@ function wrapColor(range, cls) {
   }
 }
 
-// ---------- mise en forme d'éléments (classes de la charte) ----------
+// ---------- element formatting (theme classes) ----------
 function formatEls(fn) {
-  if (editing) { fn(editing.el); markDirty(); return; } // historique à la fin du texte, brouillon immédiat
+  if (editing) { fn(editing.el); markDirty(); return; } // history when the text ends, draft immediately
   const els = selection();
   if (!els.length) return banner('Select one or more elements first.', [], 2500);
   apply({ type: 'mutate', slide: selSlide, els, fn });
@@ -316,7 +316,7 @@ export function setCurrent(slide) {
   slide.classList.add('hs-focus');
   emit('current', slide);
 }
-// Slide courante : la dernière touchée, sinon celle qui occupe le centre de l'écran.
+// Current slide: the last one touched, otherwise the one at the centre of the screen.
 export function currentSlide() {
   if (state.current && state.current.isConnected) return state.current;
   const mid = innerHeight / 2;
@@ -325,7 +325,7 @@ export function currentSlide() {
   return s;
 }
 
-// ---------- insertion d'éléments ----------
+// ---------- inserting elements ----------
 const fromHTML = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 function placeNew(slide, el, w, h) {
   const taken = items(slide).filter(x => x !== el).map(getPos);
@@ -367,8 +367,8 @@ export function insertShape(key) {
   setTargets([r.el]);
 }
 
-// ---------- tableaux : lignes et colonnes ----------
-// Agit sur la cellule où se trouve le curseur (écriture en cours), sinon sur la dernière ligne / colonne.
+// ---------- tables: rows and columns ----------
+// Acts on the cell holding the caret (while typing), otherwise on the last row / column.
 export function tableOp(kind) {
   const host = editing ? editing.el : selection()[0];
   const table = host && tableOf(host);
@@ -382,13 +382,13 @@ export function tableOp(kind) {
   let focus = null;
   const fn = () => {
     if (kind === 'row+') {
-      // modèle : la ligne courante, ou la première ligne de données si l'on est dans l'en-tête
+      // template: the current row, or the first data row when the caret is in the header
       const model = row.querySelector('th') ? (rows.find(r => !r.querySelector('th') && !r.classList.contains('tot')) || row) : row;
       const nr = model.cloneNode(true);
       nr.classList.remove('tot');
       if (!nr.getAttribute('class')) nr.removeAttribute('class');
       [...nr.cells].forEach(c => { c.textContent = ''; c.appendChild(document.createElement('br')); });
-      // pas de ligne ajoutée sous la ligne de total : elle reste la dernière
+      // no row added below the total row: it stays last
       (row.classList.contains('tot') ? row.before(nr) : row.after(nr));
       focus = nr.cells[Math.min(col, nr.cells.length - 1)];
     } else if (kind === 'row-') {
@@ -408,14 +408,14 @@ export function tableOp(kind) {
       rows.forEach(r => { const c = r.cells[Math.min(col, r.cells.length - 1)]; if (c) c.remove(); });
       focus = row.cells[Math.max(0, col - 1)] || null;
     }
-    // slide détachée : agrandir le cadre si le tableau déborde
+    // detached slide: enlarge the frame if the table overflows
     if (host.hasAttribute('style')) {
       const p = getPos(host), hh = Math.ceil(host.offsetHeight), ww = Math.ceil(host.offsetWidth);
       if (hh > p.h || ww > p.w) setPos(host, { ...p, h: Math.max(p.h, hh), w: Math.max(p.w, ww) });
     }
   };
   if (editing) {
-    fn(); // enregistré avec l'écriture en cours (une seule étape d'annulation)
+    fn(); // recorded with the text being typed (a single undo step)
     markDirty();
     if (focus) { const r = document.createRange(); r.selectNodeContents(focus); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
   } else {
@@ -440,7 +440,7 @@ export async function insertChart(type) {
   setTargets([r.el]);
   openData(r.el);
 }
-// Image choisie sur le disque : réduite à 1 600 px de large au plus, WebP si possible, intégrée au fichier.
+// Image picked from disk: reduced to at most 1,600 px wide, WebP when possible, embedded in the file.
 async function shrink(file) {
   const toB64 = blob => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
   if (file.type === 'image/svg+xml') {
@@ -486,7 +486,7 @@ export function insertImage() {
   input.click();
 }
 
-// ---------- opérations sur les slides ----------
+// ---------- slide operations ----------
 function deckOp(fn) {
   if (editing) stopText();
   clearSel();
@@ -555,7 +555,7 @@ export function footerPanel() {
   input.focus();
 }
 
-// ---------- panneau de données ----------
+// ---------- data panel ----------
 export function dataPanel() {
   const fig = selection().find(el => el.matches('figure.chart'));
   if (!fig) return banner('Select a chart.', [], 2500);
@@ -640,12 +640,12 @@ function openData(fig) {
 // ---------- clavier ----------
 function onKey(e) {
   const mod = e.metaKey || e.ctrlKey, k = e.key;
-  if (k === 'Alt' && moveable) moveable.snappable = false; // Alt : déplacement libre, sans aimantation
-  if (k === 'Shift' && moveable) moveable.keepRatio = true; // Maj : garder les proportions
+  if (k === 'Alt' && moveable) moveable.snappable = false; // Alt: free move, no snapping
+  if (k === 'Shift' && moveable) moveable.keepRatio = true; // Shift: keep proportions
   if (mod && k.toLowerCase() === 's') { e.preventDefault(); H.save(); return; }
   if (editing) {
     if (k === 'Escape') editing.el.blur();
-    return; // Cmd+B / Cmd+I natifs dans le texte
+    return; // native Cmd+B / Cmd+I in text
   }
   if (e.target.closest && e.target.closest('input, textarea, .hs-panel')) return;
   if (document.body.classList.contains('hs-present')) {
@@ -709,7 +709,7 @@ export function init(handlers) {
   });
   addEventListener('resize', refresh);
   addEventListener('scroll', refresh, { passive: true });
-  // en défilant (sans sélection), la slide au centre de l'écran devient la slide courante
+  // while scrolling (without selection), the slide at the centre of the screen becomes current
   let raf = 0;
   addEventListener('scroll', () => {
     if (raf || !editingMode() || editing || selection().length) return;
