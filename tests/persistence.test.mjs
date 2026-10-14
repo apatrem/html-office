@@ -1,0 +1,109 @@
+import test, { before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { chromium } from 'playwright';
+import { ASSETS, asset, setZone } from '../plugin/skills/html-slides/tools/lib.mjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+fs.mkdirSync(path.join(root,'work'),{recursive:true});
+const dir = fs.mkdtempSync(path.join(root, 'work/persistence-'));
+const plain = path.join(dir, 'plain.html');
+let browser;
+before(async () => {
+  execFileSync(process.execPath, [path.join(root, 'plugin/skills/html-slides/tools/deck.mjs'), 'new', plain, '--footer', 'Original']);
+  fs.writeFileSync(path.join(dir,'charts.html'), setZone(fs.readFileSync(path.join(root,'decks/community-garden.html'),'utf8'),'engine',asset('engine.js')));
+  browser = await chromium.launch();
+});
+after(async () => { await browser?.close(); fs.rmSync(dir, {recursive:true, force:true}); });
+async function open(t, file = plain) {
+  const ctx = await browser.newContext({viewport:{width:1100,height:850},acceptDownloads:true});
+  t.after(() => ctx.close());
+  const page = await ctx.newPage();
+  page.on('dialog', d => d.accept('Image de test'));
+  await page.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/,r => r.fulfill({path:path.join(ASSETS,'echarts.min.js'),contentType:'application/javascript',headers:{'access-control-allow-origin':'*'}}));
+  await page.goto(pathToFileURL(file).href);
+  await page.waitForFunction(() => window.deckEngine);
+  await page.evaluate(() => window.deckEngine.ready);
+  await page.keyboard.press('e');
+  return page;
+}
+async function footer(page, value) {
+  await page.locator('.hs-ctx button',{hasText:'Footer'}).click();
+  await page.locator('.hs-panel input').first().fill(value);
+  await page.locator('.hs-panel button',{hasText:'Apply'}).click();
+}
+test('draft restores metadata, images and slide navigation after reload', async t => {
+  const p = await open(t);
+  await footer(p, 'Nouveau pied');
+  await p.evaluate(async () => {
+    const c=document.createElement('canvas'); c.width=100;c.height=50;
+    const blob=await new Promise(r=>c.toBlob(r));
+    await window.deckEngine.insertImageFile(new File([blob],'image.png',{type:'image/png'}));
+  });
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'), 'Nouveau pied');
+  await p.waitForFunction(()=>document.querySelector('#deck img')?.naturalWidth === 100);
+  await p.keyboard.press('e');
+  await p.waitForFunction(()=>document.querySelectorAll('.hs-thumb').length === 1);
+  assert.equal(await p.locator('.hs-thumb').count(), 1);
+});
+test('save uses the selected file and keeps later edits dirty, including a second queued save', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{
+    window.__writes=[];window.__pickers=0;
+    window.showSaveFilePicker=async()=>{window.__pickers++;return {name:'chosen.html',createWritable:async()=>({
+      write:async html=>{window.__writes.push(html);await new Promise(r=>window.__release=r);}, close:async()=>{}
+    })};};
+  });
+  await p.keyboard.press('Control+s');await p.waitForFunction(()=>window.__writes.length===1);
+  await footer(p,'Pendant la sauvegarde');
+  await p.keyboard.press('Control+s');
+  assert.equal(await p.evaluate(()=>window.__writes.length),1);
+  await p.evaluate(()=>window.__release());
+  await p.waitForFunction(()=>window.__writes.length===2);
+  assert.equal(await p.locator('.hs-save.dirty').count()>0,true);
+  assert.equal(await p.evaluate(()=>window.__writes[0].includes('Pendant la sauvegarde')),false);
+  assert.ok(await p.evaluate(()=>localStorage.getItem('html-slides:'+location.pathname)));
+  await p.evaluate(()=>window.__release());await p.waitForFunction(()=>!document.querySelector('.hs-save.dirty'));
+  assert.equal(await p.evaluate(()=>window.__pickers),1);
+  assert.equal(await p.evaluate(()=>window.__writes[1].includes('Pendant la sauvegarde')),true);
+  assert.equal(await p.evaluate(()=>localStorage.getItem('html-slides:'+location.pathname)),null);
+});
+test('cancelled picker and failed write preserve edits and draft', async t => {
+  const p=await open(t);await footer(p,'À garder');
+  await p.evaluate(()=>{window.showSaveFilePicker=async()=>{throw new DOMException('cancel','AbortError');};});
+  await p.keyboard.press('Control+s');
+  assert.ok(await p.evaluate(()=>localStorage.getItem('html-slides:'+location.pathname)));
+  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({createWritable:async()=>{throw new Error('disk full');}});});
+  await p.keyboard.press('Control+s');
+  await p.waitForFunction(()=>document.querySelector('.hs-banner')?.textContent.includes('Save failed'));
+  assert.equal(await p.locator('.hs-save.dirty').count()>0,true);
+  assert.ok(await p.evaluate(()=>localStorage.getItem('html-slides:'+location.pathname)));
+});
+test('chart JSON with a closing script tag survives download and reopening', async t => {
+  const p=await open(t,path.join(dir,'charts.html'));
+  await p.locator('#s04').scrollIntoViewIfNeeded();
+  await p.locator('#s04 > figure.chart').dblclick({position:{x:200,y:200}});
+  const title='Un texte </script><script>window.bad=1</script> de test';
+  await p.locator('.hs-panel input').first().fill(title);
+  await p.locator('.hs-panel button',{hasText:'Apply'}).click();
+  await p.evaluate(()=>{delete window.showSaveFilePicker;});
+  const dl=p.waitForEvent('download');await p.keyboard.press('Control+s');
+  const saved=path.join(dir,'saved.html');await (await dl).saveAs(saved);
+  const q=await open(t,saved);
+  assert.equal(await q.evaluate(()=>window.bad),undefined);
+  assert.equal(await q.evaluate(()=>JSON.parse(document.querySelector('#s04 figure.chart > script').textContent).title),title);
+  assert.deepEqual(await q.evaluate(()=>window.deckEngine.validateCharts().flatMap(x=>x.errors)),[]);
+});
+test('a text-only deck can insert its first chart', async t => {
+  const p=await open(t);
+  await p.locator('.hs-top button',{hasText:'Chart'}).click();
+  await p.locator('.hs-menu button',{hasText:'Columns'}).click();
+  await p.locator('.hs-panel').waitFor({state:'visible'});
+  assert.equal(await p.locator('#deck figure.chart.live').count(),1);
+});

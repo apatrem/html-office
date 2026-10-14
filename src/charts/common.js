@@ -1,0 +1,92 @@
+// Outils partagés par les types de graphiques.
+
+export const nf = (d = 1, fixed = false) => new Intl.NumberFormat('en-US', { maximumFractionDigits: d, minimumFractionDigits: fixed ? d : 0 });
+
+// decimals fixe le nombre de décimales affichées (sinon : jusqu'à 1 décimale).
+export function fmt(v, data) {
+  if (v === null || v === undefined || v === '') return '';
+  const s = nf(data.decimals ?? 1, data.decimals !== undefined).format(v);
+  return (data.prefix || '') + s + (data.suffix || '');
+}
+
+export function base(theme) {
+  return {
+    animation: false,
+    textStyle: { fontFamily: theme.font, color: theme.ink, fontSize: 13 },
+    grid: { left: 8, right: 24, top: 28, bottom: 8, containLabel: true }
+  };
+}
+
+// Libellés de catégories : retour à la ligne automatique selon le nombre de catégories.
+export const axisCat = (theme, extra = {}) => {
+  const n = (extra.data || []).length || 1;
+  return {
+    type: 'category',
+    axisTick: { show: false },
+    axisLine: { lineStyle: { color: theme.ink } },
+    ...extra,
+    axisLabel: { color: theme.t2, fontSize: 12.5, interval: 0, width: Math.max(56, Math.floor(680 / n) - 12), overflow: 'break',
+      lineHeight: 16, ...(extra.axisLabel || {}) }
+  };
+};
+
+export const axisVal = (theme, extra = {}) => ({
+  type: 'value',
+  splitLine: { show: false },
+  axisLine: { show: false },
+  axisTick: { show: false },
+  axisLabel: { show: false },
+  ...extra
+});
+
+// Couleurs des séries : accent, puis série 2, série 3, puis teintes neutres.
+export const seriesColor = (theme, i) => [theme.acc, theme.mid, theme.lig, theme.bd, theme.t2][i % 5];
+
+export function req(data, keys) {
+  const err = [];
+  if (!isObject(data)) return ['Data must be a JSON object'];
+  for (const k of keys) if (data[k] === undefined || data[k] === null || data[k] === '') err.push(`Missing field « ${k} »`);
+  if (data.unit !== undefined && (typeof data.unit !== 'string' || !data.unit.trim())) err.push('unit: non-empty text required');
+  if (data.decimals !== undefined && (!Number.isInteger(data.decimals) || data.decimals < 0 || data.decimals > 20)) err.push('decimals: integer between 0 and 20 required');
+  return err;
+}
+export const isObject = d => !!d && typeof d === 'object' && !Array.isArray(d);
+export const finite = v => typeof v === 'number' && Number.isFinite(v);
+export function records(d, key, err) {
+  if (!Array.isArray(d[key]) || !d[key].length) { err.push(`« ${key} »: non-empty array required`); return []; }
+  if (d[key].some(x => !isObject(x))) { err.push(`« ${key} »: each entry must be an object`); return []; }
+  return d[key];
+}
+
+// Tables génériques catégories × séries, partagées par colonnes, barres, empilées, lignes.
+export const categoryTable = {
+  columns: d => ['Category', ...(d.series || []).map(s => s.name || '')],
+  toRows: d => (d.categories || []).map((c, i) => [c, ...(d.series || []).map(s => s.values?.[i] ?? '')]),
+  fromRows(rows, headers, d) {
+    const series = headers.slice(1).map((name, j) => ({ ...(d.series?.[j] || {}), name, values: rows.map(r => num(r[j + 1])) }));
+    return { ...d, categories: rows.map(r => r[0]), series };
+  },
+  canAddColumn: true
+};
+
+export function validateCategory(d) {
+  const err = req(d, ['unit', 'categories', 'series']);
+  if (!isObject(d)) return err;
+  const ss = records(d, 'series', err);
+  if (!Array.isArray(d.categories) || !d.categories.length || d.categories.some(c => typeof c !== 'string' || !c.trim()))
+    err.push('categories: non-empty array of labels required');
+  else {
+    ss.forEach((s, i) => {
+      if (!Array.isArray(s.values) || s.values.length !== d.categories.length)
+        err.push(`series ${i + 1}: ${s.values?.length ?? 0} values for ${d.categories.length} categories`);
+      if (Array.isArray(s.values) && s.values.some(v => v !== null && !finite(v))) err.push(`series ${i + 1}: finite numbers or null (missing value) required`);
+    });
+  }
+  return err;
+}
+
+export function num(v) {
+  if (v === '' || v === null || v === undefined) return null;
+  const n = Number(String(v).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : NaN;
+}

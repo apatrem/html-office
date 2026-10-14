@@ -1,0 +1,1 @@
+var t="6.1.0",s=`https://cdn.jsdelivr.net/npm/echarts@${t}/dist/echarts.min.js`,r="sha384-C2iskrW/uPW46KzOjrvJIQo4YkV8lkD+QS0CrDN18IIPIpT/g2USu8bTP3nvmIAD";export{r as ECHARTS_INTEGRITY,s as ECHARTS_URL,t as ECHARTS_VERSION};

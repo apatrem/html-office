@@ -1,0 +1,19 @@
+{
+  "name": "html-slides",
+  "version": "0.7.0",
+  "description": "Standalone HTML presentations with semantic content, data-driven charts, an embedded browser editor, and a self-contained format guide.",
+  "author": {
+    "name": "Pierre Supau"
+  },
+  "license": "MIT",
+  "keywords": [
+    "slides",
+    "deck",
+    "presentation",
+    "html",
+    "consulting",
+    "echarts"
+  ],
+  "homepage": "https://github.com/apatrem/html-slides",
+  "repository": "https://github.com/apatrem/html-slides"
+}

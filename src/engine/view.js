@@ -1,0 +1,563 @@
+// Affichage : mise à l'échelle, chrome (pied de page, cadre), barre d'outils,
+// mode présentation, bandeaux.
+import { state, slides } from './model.js';
+import { LAYOUTS, CHART_TYPES } from './templates.js';
+import { resizeCharts } from './charts.js';
+
+export const isStatic = () => !!window.__DECK_STATIC;
+
+export function ui(tag, cls, text) {
+  const e = document.createElement(tag);
+  e.setAttribute('data-ui', '');
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// ---------- échelle ----------
+export const SIDE_W = 196; // largeur du panneau des miniatures (mode édition)
+export function fit() {
+  const present = document.body.classList.contains('hs-present');
+  const editing = document.body.classList.contains('hs-editing') && !present && !isStatic();
+  const side = editing ? SIDE_W : 0;
+  // barre supérieure : libellés masqués par paliers quand la fenêtre est étroite (comme Bento)
+  if (editing) document.querySelectorAll('.hs-top, .hs-ctx').forEach(squeeze);
+  let s = 1;
+  if (present) s = Math.min(innerWidth / 1280, innerHeight / 720);
+  else if (!isStatic()) s = Math.min(1, (document.documentElement.clientWidth - side - 40) / 1280);
+  state.main.style.setProperty('--s', s.toFixed(4));
+  const bars = document.querySelector('.hs-ctx');
+  const y = editing && bars ? Math.ceil(bars.getBoundingClientRect().bottom) : 0;
+  state.main.style.paddingTop = editing ? y + 16 + 'px' : '';
+  state.main.style.paddingLeft = editing ? side + 'px' : '';
+  const sb = document.querySelector('.hs-side');
+  if (sb) sb.style.top = y + 'px';
+}
+
+// Barre trop large pour la fenêtre : masquer les libellés par paliers (hauteur constante, pas de saut du contenu)
+export function squeeze(bar) {
+  bar.classList.remove('compact', 'tiny');
+  if (bar.scrollWidth > bar.clientWidth + 1) bar.classList.add('compact');
+  if (bar.scrollWidth > bar.clientWidth + 1) bar.classList.add('tiny');
+}
+
+// ---------- chrome généré par le thème ----------
+export function chrome(slide) {
+  slide.querySelectorAll(':scope > .hs-foot, :scope > .hs-sheet').forEach(n => n.remove());
+  const layout = slide.dataset.layout || 'default';
+  const all = slides();
+  const n = all.indexOf(slide) + 1;
+  if (layout === 'cover' || layout === 'end') { slide.appendChild(ui('div', 'hs-sheet')); return; }
+  if (slide.hasAttribute('data-nofoot')) return;
+  const foot = ui('div', 'hs-foot');
+  foot.appendChild(ui('span', '', layout === 'section' ? '' : (state.main.dataset.footer || '')));
+  foot.appendChild(ui('span', '', String(n)));
+  slide.appendChild(foot);
+}
+export function chromeAll() { slides().forEach(chrome); }
+
+// ---------- présentation ----------
+let cur = 0;
+export function present(on) {
+  const all = slides();
+  if (on) {
+    const vis = all.findIndex(s => s.getBoundingClientRect().bottom > 80);
+    cur = Math.max(0, vis);
+    document.body.classList.add('hs-present');
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  } else {
+    document.body.classList.remove('hs-present');
+    if (document.fullscreenElement) document.exitFullscreen?.();
+  }
+  show();
+}
+export function go(d) { const all = slides(); cur = Math.max(0, Math.min(all.length - 1, cur + d)); show(); }
+function show() {
+  const all = slides(), on = document.body.classList.contains('hs-present');
+  all.forEach((s, i) => s.classList.toggle('hs-current', on && i === cur));
+  fit();
+  if (on) resizeCharts(all[cur]); else { resizeCharts(state.main); all[cur]?.scrollIntoView({ block: 'center' }); }
+}
+
+// ---------- bandeau ----------
+export function banner(text, actions = [], ms = 0) {
+  document.querySelectorAll('.hs-banner').forEach(b => b.remove());
+  const b = ui('div', 'hs-banner');
+  b.appendChild(ui('span', '', text));
+  actions.forEach(([label, fn]) => {
+    const btn = ui('button', '', label);
+    btn.onclick = () => { b.remove(); fn(); };
+    b.appendChild(btn);
+  });
+  document.body.appendChild(b);
+  if (ms) setTimeout(() => b.remove(), ms);
+  return b;
+}
+
+// ---------- menus déroulants ----------
+// entries : [libellé, fn, clé, icône]
+export function menu(anchor, entries, current) {
+  document.querySelectorAll('.hs-menu').forEach(m => m.remove());
+  const m = ui('div', 'hs-menu');
+  m.addEventListener('pointerdown', e => e.preventDefault());
+  entries.forEach(([label, fn, key, icon]) => {
+    if (!fn) { m.appendChild(ui('div', 'hs-menu-sep')); return; }
+    const b = ui('button', key && key === current ? 'on' : '');
+    b.innerHTML = (icon || '') + '<span></span>';
+    b.lastChild.textContent = label;
+    b.onclick = () => { m.remove(); fn(); };
+    m.appendChild(b);
+  });
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  const top = r.bottom + m.offsetHeight + 8 > innerHeight ? Math.max(8, r.top - m.offsetHeight - 4) : r.bottom + 4;
+  Object.assign(m.style, { top: top + 'px', left: Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px' });
+  const off = e => { if (!m.contains(e.target) && e.target !== anchor) { m.remove(); document.removeEventListener('pointerdown', off, true); } };
+  setTimeout(() => document.addEventListener('pointerdown', off, true));
+}
+
+// ---------- icônes (traits 16 px) ----------
+const I = d => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+export const ICONS = {
+  left: I('<path d="M2 2v12M5 5h8M5 10h5"/>'), hcenter: I('<path d="M8 2v12M3 5h10M5 10h6"/>'), right: I('<path d="M14 2v12M3 5h8M6 10h5"/>'),
+  top: I('<path d="M2 2h12M5 5v8M10 5v5"/>'), vcenter: I('<path d="M2 8h12M5 3v10M10 5v6"/>'), bottom: I('<path d="M2 14h12M5 3v8M10 6v5"/>'),
+  distx: I('<path d="M2 2v12M14 2v12"/><rect x="6" y="5" width="4" height="6"/>'), disty: I('<path d="M2 2h12M2 14h12"/><rect x="5" y="6" width="6" height="4"/>'),
+  front: I('<rect x="2" y="2" width="8" height="8" stroke-dasharray="2 2"/><rect x="6" y="6" width="8" height="8" fill="currentColor" fill-opacity=".25"/>'),
+  back: I('<rect x="6" y="6" width="8" height="8" stroke-dasharray="2 2"/><rect x="2" y="2" width="8" height="8" fill="currentColor" fill-opacity=".25"/>'),
+  tl: I('<path d="M2 4h12M2 7h8M2 10h12M2 13h7"/>'), tc: I('<path d="M2 4h12M4 7h8M2 10h12M5 13h6"/>'), tr: I('<path d="M2 4h12M6 7h8M2 10h12M7 13h7"/>'),
+  clear: I('<path d="M3 13h6M6 3l-3 10M6 3h6M11 9l4 4M15 9l-4 4"/>'),
+  undo: I('<path d="M5 3L2 6l3 3M2 6h8a4 4 0 010 8H7"/>'), redo: I('<path d="M11 3l3 3-3 3M14 6H6a4 4 0 000 8h3"/>'),
+  text: I('<path d="M3 3h10M8 3v10M6 13h4"/>'), shape: I('<rect x="2" y="2" width="7" height="7"/><circle cx="11" cy="11" r="3.5"/>'),
+  block: I('<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M4.5 6.5h5M4.5 9.5h7"/>'),
+  image: I('<rect x="2" y="3" width="12" height="10" rx="1"/><circle cx="6" cy="6.5" r="1.2"/><path d="M2.5 12l3.5-3.5 2.5 2.5 2-2 3 3"/>'),
+  table: I('<rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6.5h12M2 10h12M6.5 3v10"/>'),
+  chart: I('<path d="M2 14h12M4 12V8M7 12V4M10 12V7M13 12V5"/>'),
+  print: I('<path d="M4 6V2h8v4M4 12H2.5V6.5h11V12H12"/><rect x="4" y="9.5" width="8" height="4.5"/>'),
+  save: I('<path d="M3 2h8l2 2v10H3z"/><path d="M5 2v4h5V2M5 14V9.5h6V14"/>'),
+  play: I('<rect x="1.5" y="2.5" width="13" height="9" rx="1"/><path d="M6.5 5v4l3.5-2z" fill="currentColor"/><path d="M6 14h4M8 11.5V14"/>'),
+  pen: I('<path d="M10.5 2.5l3 3L6 13H3v-3z"/><path d="M9 4l3 3"/>'),
+  done: I('<path d="M3 8.5l3 3 7-7"/>'), help: I('<circle cx="8" cy="8" r="6"/><path d="M6.3 6.2a1.8 1.8 0 113 1.4c-.8.5-1.3.9-1.3 1.9M8 11.6v.1"/>'),
+  copy: I('<rect x="5" y="5" width="9" height="9" rx="1"/><path d="M11 5V2H2v9h3"/>'), trash: I('<path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v5M9.2 6.5v5"/>'),
+  plus: I('<path d="M8 3v10M3 8h10"/>'), layout: I('<rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M2 6h12M7 6v7.5"/>'),
+  foot: I('<rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M4 11h5M11.5 11h.5"/>'), relayout: I('<path d="M2.5 8a5.5 5.5 0 109.5-3.8M12.5 1.5v3h-3"/>'),
+  data: I('<rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M2 6h12M2 9.5h12M6 6v7.5M10 6v7.5"/>'),
+  rowAdd: I('<rect x="2" y="2" width="12" height="7" rx="1"/><path d="M2 5.5h12M8 11v4M6 13h4"/>'), rowDel: I('<rect x="2" y="2" width="12" height="7" rx="1"/><path d="M2 5.5h12M6 13h4"/>'),
+  colAdd: I('<rect x="2" y="2" width="7" height="12" rx="1"/><path d="M5.5 2v12M11 8h4M13 6v4"/>'), colDel: I('<rect x="2" y="2" width="7" height="12" rx="1"/><path d="M5.5 2v12M11 8h4"/>'),
+  arrange: I('<rect x="2" y="2" width="6" height="5"/><rect x="8" y="9" width="6" height="5"/><path d="M2 11.5h3M11 4.5h3"/>')
+};
+const SHAPE_ICON = {
+  rect: '<rect x="2" y="4" width="12" height="8"/>', round: '<rect x="2" y="4" width="12" height="8" rx="2.5"/>', ellipse: '<ellipse cx="8" cy="8" rx="6" ry="5"/>',
+  triangle: '<path d="M8 3l6 10H2z"/>', diamond: '<path d="M8 2l6 6-6 6-6-6z"/>', hexagon: '<path d="M5 3h6l3 5-3 5H5L2 8z"/>',
+  parallelogram: '<path d="M5 4h9l-3 8H2z"/>', pentagon: '<path d="M2 4h9l3 4-3 4H2z"/>', chevron: '<path d="M2 4h9l3 4-3 4H2l3-4z"/>',
+  'arrow-r': '<path d="M2 6h7V3l5 5-5 5v-3H2z"/>', 'arrow-l': '<path d="M14 6H7V3L2 8l5 5v-3h7z"/>',
+  'arrow-u': '<path d="M6 14V7H3l5-5 5 5h-3v7z"/>', 'arrow-d': '<path d="M6 2v7H3l5 5 5-5h-3V2z"/>'
+};
+
+// ---------- barres d'outils ----------
+// Organisation inspirée de Bento : une barre supérieure (annuler, insérer, PDF, enregistrer),
+// une barre contextuelle juste dessous (slide, ou élément sélectionné), les miniatures à gauche,
+// et une pastille en bas à droite (éditer, présenter) hors mode édition.
+function button(parent, icon, label, title, fn, cls = '') {
+  const b = ui('button', cls);
+  b.innerHTML = (icon || '') + (label ? '<span class="hs-lbl"></span>' : '');
+  if (label) b.querySelector('.hs-lbl').textContent = label;
+  b.title = title;
+  b.onclick = e => { e.preventDefault(); fn(b); };
+  parent.appendChild(b);
+  return b;
+}
+const sep = parent => parent.appendChild(ui('span', 'hs-sep'));
+const noFocusSteal = el => el.addEventListener('pointerdown', e => { if (!e.target.closest('input, textarea')) e.preventDefault(); });
+
+export function toolbar(h) {
+  // 1. barre supérieure (mode édition)
+  const top = ui('div', 'hs-top hs-toolbar');
+  noFocusSteal(top);
+  const title = ui('span', 'hs-title', (document.title || 'Presentation').trim());
+  title.title = document.title || '';
+  top.appendChild(title);
+  button(top, ICONS.undo, '', 'Undo (Cmd+Z)', h.undo);
+  button(top, ICONS.redo, '', 'Redo (Cmd+Shift+Z)', h.redo);
+  sep(top);
+  button(top, ICONS.text, 'Text', 'Add a text box', () => h.insert('text'));
+  button(top, ICONS.shape, 'Shape', 'Add a shape: rectangle, ellipse, triangle, chevron, arrow…', b => menu(b, [
+    ...h.shapes.map(([k, l]) => [l, () => h.insertShape(k), null, `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round">${SHAPE_ICON[k]}</svg>`]),
+    ['-'],
+    [h.elements.arrowR[0], () => h.insert('arrowR')], [h.elements.arrowD[0], () => h.insert('arrowD')], [h.elements.rule[0], () => h.insert('rule')]
+  ]), 'hs-dd');
+  button(top, ICONS.block, 'Block', 'Add a box, callout, or key figure', b => menu(b,
+    ['box', 'tint', 'callout', 'kpi'].map(k => [h.elements[k][0], () => h.insert(k)])), 'hs-dd');
+  button(top, ICONS.image, 'Image', 'Add an image from disk (embedded in the file)', h.insertImage);
+  button(top, ICONS.table, 'Table', 'Add a table (editable rows and columns)', () => h.insert('table'));
+  button(top, ICONS.chart, 'Chart', 'Add a chart (replace the sample data)', b => menu(b,
+    CHART_TYPES.map(([k, l]) => [l, () => h.insertChart(k)])), 'hs-dd');
+  top.appendChild(ui('span', 'hs-spacer'));
+  button(top, ICONS.print, 'PDF', 'Print or save as PDF', () => window.print());
+  const save1 = button(top, ICONS.save, 'Save', 'Save to file (Cmd+S)', h.save, 'hs-save');
+  const edit1 = button(top, ICONS.done, 'Done', 'Exit edit mode (E)', h.toggleEdit, 'hs-mode');
+  button(top, ICONS.help, '', 'Shortcuts and help (?)', helpPanel, 'hs-help');
+
+  // 2. barre contextuelle : slide courante, ou élément(s) sélectionné(s)
+  const ctx = ui('div', 'hs-ctx hs-toolbar');
+  noFocusSteal(ctx);
+  const grp = (show, label) => { const g = ui('span', 'hs-group'); g.dataset.show = show; if (label) g.appendChild(ui('span', 'hs-label', label)); ctx.appendChild(g); return g; };
+  const swatch = (parent, v, title, fn, empty) => {
+    const b = button(parent, '', '', title, fn, 'hs-sw' + (empty ? ' empty' : ''));
+    if (!empty) b.style.background = `var(${v})`;
+    return b;
+  };
+
+  let g = grp('slide');
+  const label = ui('span', 'hs-label hs-cur', 'Slide');
+  g.appendChild(label);
+  button(g, ICONS.layout, 'Layout', 'Change the slide layout', b =>
+    menu(b, LAYOUTS.map(([k, l]) => [l, () => h.setLayout(k), k]), h.currentLayout()), 'hs-dd');
+  button(g, ICONS.relayout, 'Reset layout', 'Remove manual positions and restore the automatic layout', h.relayout);
+  button(g, ICONS.foot, 'Footer', 'Footer text and visibility on this slide', h.footer);
+  button(g, ICONS.copy, 'Duplicate slide', 'Duplicate the current slide', h.dupSlide);
+  button(g, ICONS.trash, 'Delete slide', 'Delete the current slide', h.delSlide);
+  g.appendChild(ui('span', 'hs-hint', 'Click an element to format it · double-click to type'));
+
+  g = grp('el', 'Text');
+  button(g, '<b>B</b>', '', 'Bold (Cmd+B)', h.bold);
+  button(g, '<i style="font-family:Georgia,serif">I</i>', '', 'Italic (Cmd+I)', h.italic);
+  button(g, 'A<small>−</small>', '', 'Decrease text size', () => h.size(-1));
+  button(g, 'A<small>+</small>', '', 'Increase text size', () => h.size(1));
+  button(g, ICONS.tl, '', 'Align text left', () => h.textAlign('ta-l'));
+  button(g, ICONS.tc, '', 'Centre text', () => h.textAlign('ta-c'));
+  button(g, ICONS.tr, '', 'Align text right', () => h.textAlign('ta-r'));
+  g = grp('el', 'Colour');
+  swatch(g, '--ink', 'Ink (default colour)', () => h.color('c-ink'));
+  swatch(g, '--acc', 'Accent', () => h.color('c-acc'));
+  swatch(g, '--mid', 'Mid blue', () => h.color('c-mid'));
+  swatch(g, '--alert', 'Alert', () => h.color('c-alert'));
+  swatch(g, '--t2', 'Secondary grey', () => h.color('c-t2'));
+  swatch(g, '--bg', 'White (on dark backgrounds)', () => h.color('c-bg'));
+  g = grp('el', 'Fill');
+  swatch(g, '', 'No fill', () => h.fill('bg-none'), true);
+  swatch(g, '--callout', 'Tinted fill', () => h.fill('bg-tint'));
+  swatch(g, '--lig', 'Light fill', () => h.fill('bg-lig'));
+  swatch(g, '--mid', 'Mid blue fill', () => h.fill('bg-mid'));
+  swatch(g, '--acc', 'Accent fill', () => h.fill('bg-acc'));
+  swatch(g, '--alert', 'Alert fill', () => h.fill('bg-alert'));
+  swatch(g, '--ink', 'Dark fill', () => h.fill('bg-dark'));
+  button(g, ICONS.clear, '', 'Clear formatting (restore catalogue defaults)', h.clearFormat);
+  g = grp('el');
+  button(g, ICONS.arrange, 'Arrange', 'Align, distribute, and change stacking order', b => menu(b, [
+    ['Align left', () => h.align('left'), null, ICONS.left], ['Centre horizontally', () => h.align('hcenter'), null, ICONS.hcenter],
+    ['Align right', () => h.align('right'), null, ICONS.right], ['-'],
+    ['Align top', () => h.align('top'), null, ICONS.top], ['Centre vertically', () => h.align('vcenter'), null, ICONS.vcenter],
+    ['Align bottom', () => h.align('bottom'), null, ICONS.bottom], ['-'],
+    ['Distribute horizontally', () => h.distribute('x'), null, ICONS.distx], ['Distribute vertically', () => h.distribute('y'), null, ICONS.disty], ['-'],
+    ['Bring forward (Cmd+])', () => h.zorder(1), null, ICONS.front], ['Send backward (Cmd+[)', () => h.zorder(-1), null, ICONS.back]
+  ]), 'hs-dd');
+  g = grp('chart');
+  button(g, ICONS.data, 'Data', 'Edit the selected chart data', h.data);
+  g = grp('table', 'Table');
+  button(g, ICONS.rowAdd, 'Row', 'Insert a row below the current row', () => h.table('row+'));
+  button(g, ICONS.rowDel, '', 'Delete the current row', () => h.table('row-'));
+  button(g, ICONS.colAdd, 'Column', 'Insert a column to the right', () => h.table('col+'));
+  button(g, ICONS.colDel, '', 'Delete the current column', () => h.table('col-'));
+  g = grp('el');
+  button(g, ICONS.copy, '', 'Duplicate the element (Cmd+D)', h.dupEl);
+  button(g, ICONS.trash, '', 'Delete the element (Delete)', h.delEl);
+
+  // 3. pastille en bas à droite (hors mode édition) : éditer, présenter, PDF, enregistrer
+  const pill = ui('div', 'hs-pill hs-toolbar');
+  const edit2 = button(pill, ICONS.pen, 'Edit', 'Toggle edit mode (E)', h.toggleEdit, 'hs-mode');
+  button(pill, ICONS.play, 'Present', 'Presentation mode (P)', () => present(true), 'hs-main');
+  button(pill, ICONS.print, '', 'Print or save as PDF', () => window.print(), 'hs-view-only');
+  const save2 = button(pill, ICONS.save, '', 'Save to file (Cmd+S)', h.save, 'hs-save hs-view-only');
+
+  document.body.append(top, ctx, pill);
+  const setContext = c => {
+    ctx.dataset.ctx = c.kind;
+    ctx.classList.toggle('has-chart', !!c.chart);
+    ctx.classList.toggle('has-table', !!c.table);
+    if (document.body.classList.contains('hs-editing')) squeeze(ctx);
+  };
+  setContext({ kind: 'slide' });
+  return {
+    edit: [edit1, edit2], save: [save1, save2],
+    setLabel: t => { label.textContent = t; },
+    setDirty: d => [save1, save2].forEach(b => b.classList.toggle('dirty', d)),
+    setContext
+  };
+}
+
+// ---------- miniatures (mode édition) ----------
+export function sidebar(h) {
+  const side = ui('div', 'hs-side');
+  const list = ui('div', 'hs-thumbs');
+  side.appendChild(list);
+  const add = button(side, ICONS.plus, 'New slide', 'Add a slide after the current one (choose a layout)', b =>
+    menu(b, LAYOUTS.map(([k, l]) => [l, () => h.newSlide(k)])), 'hs-add');
+  add.addEventListener('pointerdown', e => e.preventDefault());
+  document.body.appendChild(side);
+  const map = new Map(); // slide → vignette
+  let drag = null;
+
+  const mini = slide => {
+    const c = slide.cloneNode(true);
+    c.removeAttribute('id');
+    c.classList.remove('hs-focus', 'hs-current');
+    // Les positions des slides détachées dépendent de [data-id]. Les copies
+    // ont leurs propres identifiants et restent hors du contenu sélectionnable.
+    c.querySelectorAll('[data-id]').forEach(n => { n.dataset.id = 'thumb-' + slide.id + '-' + n.dataset.id; });
+    c.inert = true;
+    c.querySelectorAll('[contenteditable]').forEach(n => n.removeAttribute('contenteditable'));
+    c.setAttribute('aria-hidden', 'true');
+    return c;
+  };
+  function make(slide) {
+    const t = ui('div', 'hs-thumb');
+    t.draggable = true;
+    t.appendChild(ui('span', 'hs-num'));
+    const box = ui('div', 'hs-mini');
+    t.appendChild(box);
+    const tools = ui('span', 'hs-ttools');
+    button(tools, ICONS.copy, '', 'Duplicate slide', () => { h.goSlide(slide, false); h.dupSlide(); });
+    button(tools, ICONS.trash, '', 'Delete slide', () => { h.goSlide(slide, false); h.delSlide(); });
+    t.appendChild(tools);
+    t.addEventListener('click', e => { if (!e.target.closest('.hs-ttools')) h.goSlide(slide, true); });
+    t.addEventListener('dragstart', e => { drag = slide; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', slide.id); t.classList.add('dragging'); });
+    t.addEventListener('dragend', () => { drag = null; t.classList.remove('dragging'); clearMarks(); });
+    t.addEventListener('dragover', e => {
+      if (!drag) return;
+      e.preventDefault();
+      const r = t.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+      clearMarks();
+      t.classList.add(after ? 'drop-after' : 'drop-before');
+    });
+    t.addEventListener('drop', e => {
+      if (!drag) return;
+      e.preventDefault();
+      const after = t.classList.contains('drop-after');
+      clearMarks();
+      if (drag !== slide) h.moveSlideTo(drag, slide, after);
+    });
+    map.set(slide, t);
+    return t;
+  }
+  const clearMarks = () => list.querySelectorAll('.drop-before, .drop-after').forEach(x => x.classList.remove('drop-before', 'drop-after'));
+  function paint(slide) {
+    const t = map.get(slide);
+    if (!t) return;
+    const box = t.querySelector('.hs-mini');
+    box.replaceChildren(mini(slide));
+  }
+  const on = () => document.body.classList.contains('hs-editing');
+  let rb = 0;
+  const rebuild = () => { if (!rb) rb = requestAnimationFrame(() => { rb = 0; build(); }); };
+  function build() {
+    if (!on()) return;
+    map.clear();
+    list.replaceChildren(...slides().map(s => { const t = make(s); return t; }));
+    slides().forEach(paint);
+    number();
+    highlight(state.current);
+  }
+  function number() { slides().forEach((s, i) => { const t = map.get(s); if (t) t.querySelector('.hs-num').textContent = i + 1; }); }
+  function highlight(slide) {
+    map.forEach((t, s) => t.classList.toggle('on', s === slide));
+    const t = map.get(slide);
+    if (t && on()) {
+      const r = t.getBoundingClientRect(), lr = list.getBoundingClientRect();
+      if (r.top < lr.top) list.scrollTop -= lr.top - r.top + 8;
+      else if (r.bottom > lr.bottom) list.scrollTop += r.bottom - lr.bottom + 8;
+    }
+  }
+  // repeindre une vignette au plus une fois par image
+  const pending = new Set();
+  let raf = 0;
+  function update(slide) {
+    if (!on() || !slide) return;
+    pending.add(slide);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; pending.forEach(s => (map.has(s) ? paint(s) : null)); pending.clear(); });
+  }
+  return { rebuild, update, highlight };
+}
+
+// ---------- aide ----------
+export function helpPanel() {
+  const wrap = ui('div', 'hs-panel'), box = document.createElement('div');
+  wrap.appendChild(box);
+  const rows = [
+    ['Click, Shift-click, selection rectangle', 'Select one or more elements'],
+    ['Double-click or Enter', 'Type in the element'],
+    ['Drag · handles', 'Move · resize (snapping; Alt = free; Shift = proportions)'],
+    ['Arrow keys (Alt = 1 px)', 'Move by 8 px'],
+    ['Cmd+Z · Cmd+Shift+Z', 'Undo · redo'],
+    ['Cmd+D · Delete', 'Duplicate · delete the element'],
+    ['Cmd+B · Cmd+I', 'Bold · italic'],
+    ['Cmd+] · Cmd+[', 'Bring forward · send backward'],
+    ['Cmd+S', 'Save to file'],
+    ['E · P · Escape', 'Edit mode · present · clear selection'],
+    ['Thumbnails', 'Click to navigate, drag to reorder']
+  ];
+  box.innerHTML = '<h2>Shortcuts</h2><table class="hs-keys"></table><div class="hs-row"></div>';
+  const tb = box.querySelector('table');
+  rows.forEach(([k, v]) => { const tr = tb.insertRow(); tr.insertCell().textContent = k; tr.insertCell().textContent = v; });
+  const close = document.createElement('button');
+  close.textContent = 'Close'; close.className = 'primary';
+  close.onclick = () => wrap.remove();
+  box.querySelector('.hs-row').appendChild(close);
+  if (document.getElementById('html-slides-guide')) {
+    const format = document.createElement('button');
+    format.textContent = 'File format';
+    format.onclick = () => { wrap.remove(); formatPanel(); };
+    box.querySelector('.hs-row').appendChild(format);
+  }
+  wrap.addEventListener('pointerdown', e => { if (e.target === wrap) wrap.remove(); });
+  document.body.appendChild(wrap);
+}
+
+function formatPanel() {
+  const wrap=ui('div','hs-panel'),box=document.createElement('div');
+  wrap.setAttribute('role','dialog');wrap.setAttribute('aria-labelledby','hs-guide-title');
+  wrap.appendChild(box);
+  const title=document.createElement('h2');title.id='hs-guide-title';title.textContent='File format';box.appendChild(title);
+  const guide=document.createElement('pre');guide.className='hs-guide-text';guide.tabIndex=0;
+  guide.textContent=document.getElementById('html-slides-guide')?.content?.querySelector('pre')?.textContent || 'Guide unavailable.';
+  const links=document.createElement('div');links.className='hs-guide-links';
+  for (const [key,label] of [['repository','Project repository'],['documentation','Online documentation'],['skill-download','Download the compatible skill']]) {
+    const url=document.querySelector(`meta[name="html-slides-${key}"]`)?.content;
+    if (!url) continue;
+    try { if (new URL(url).protocol!=='https:') continue; } catch { continue; }
+    const a=document.createElement('a');a.href=url;a.textContent=label;a.target='_blank';a.rel='noopener noreferrer';links.appendChild(a);
+  }
+  if (!links.children.length) links.textContent='The guide is included in this file. No online distribution links are configured.';
+  box.append(links,guide);
+  const row=document.createElement('div');row.className='hs-row';
+  for (const [label,fn] of [['Back to help',()=>{wrap.remove();helpPanel();}],['Close',()=>wrap.remove()]]) {
+    const b=document.createElement('button');b.textContent=label;b.onclick=fn;row.appendChild(b);
+  }
+  box.appendChild(row);
+  wrap.addEventListener('pointerdown',e=>{if(e.target===wrap)wrap.remove();});
+  wrap.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();wrap.remove();}});
+  document.body.appendChild(wrap);
+  guide.focus();
+}
+
+export const UI_CSS = `
+.hs-static main#deck{gap:0;padding:0}
+html:has(body.hs-editing){scroll-padding-top:104px;scroll-padding-left:196px}
+.hs-toolbar{font:13px/1 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#1d2a35;user-select:none;box-sizing:border-box}
+.hs-toolbar *{box-sizing:border-box}
+.hs-toolbar button{font:inherit;border:1px solid transparent;background:none;border-radius:6px;padding:0 7px;cursor:pointer;color:inherit;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:30px;height:30px;white-space:nowrap;flex:none}
+.hs-toolbar button svg{flex:none}
+.hs-toolbar button small{font-size:10px;margin-left:1px}
+.hs-toolbar button:hover{background:#eef2f5}
+.hs-toolbar button.hs-dd::after{content:"";border:4px solid transparent;border-top-color:currentColor;border-bottom:0;margin-left:-1px;opacity:.6}
+.hs-toolbar .hs-save.dirty{background:#C2521C;border-color:#C2521C;color:#fff}
+.hs-toolbar .hs-sep{width:1px;height:20px;background:#dde3e8;margin:0 6px;flex:none}
+.hs-toolbar .hs-spacer{flex:1 1 auto;min-width:8px}
+/* barre supérieure (mode édition) */
+.hs-top{position:fixed;top:0;left:0;right:0;z-index:4000;height:48px;display:none;align-items:center;gap:2px;padding:0 10px 0 14px;
+  background:#fff;border-bottom:1px solid #dde3e8;overflow:hidden}
+body.hs-editing .hs-top{display:flex}
+.hs-top .hs-title{font-weight:600;font-size:14px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:14px;flex:0 1 auto;min-width:0}
+.hs-top .hs-mode{border-color:#cfd6dc}
+.hs-top.compact .hs-lbl{display:none}
+.hs-top.compact .hs-save .hs-lbl,.hs-top.compact .hs-mode .hs-lbl{display:inline}
+.hs-top.tiny .hs-title,.hs-top.tiny .hs-save .hs-lbl{display:none}
+/* barre contextuelle */
+.hs-ctx{position:fixed;top:48px;left:0;right:0;z-index:3990;height:40px;display:none;align-items:center;flex-wrap:nowrap;padding:0 10px;
+  background:#f7f9fa;border-bottom:1px solid #dde3e8;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.hs-ctx::-webkit-scrollbar{display:none}
+.hs-ctx.compact .hs-label:not(.hs-cur),.hs-ctx.compact .hs-hint{display:none}
+.hs-ctx.tiny .hs-lbl{display:none}
+.hs-ctx.tiny .hs-group{padding:0 4px}
+body.hs-editing .hs-ctx{display:flex}
+.hs-ctx .hs-group{display:none;gap:1px;align-items:center;padding:0 8px;border-left:1px solid #dde3e8}
+.hs-ctx .hs-group:first-child{border-left:0}
+.hs-ctx[data-ctx=slide] .hs-group[data-show=slide],.hs-ctx[data-ctx=el] .hs-group[data-show=el],
+.hs-ctx.has-chart .hs-group[data-show=chart],.hs-ctx.has-table .hs-group[data-show=table]{display:inline-flex}
+.hs-ctx[data-ctx=slide] .hs-group[data-show=slide]{border-left:0}
+.hs-ctx[data-ctx=el] .hs-group[data-show=el]:first-of-type{border-left:0}
+.hs-ctx .hs-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7b8790;margin-right:4px}
+.hs-ctx .hs-cur{color:#14517A;font-weight:700;font-size:11px;margin-right:8px}
+.hs-ctx .hs-hint{color:#8a959d;font-size:12px;margin-left:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hs-ctx button.hs-sw{min-width:0;width:20px;height:20px;padding:0;margin:0 2px;border:1px solid rgba(0,0,0,.22);border-radius:50%}
+.hs-ctx button.hs-sw.empty{background:linear-gradient(135deg,#fff 45%,#C2521C 45%,#C2521C 55%,#fff 55%)}
+/* pastille en bas à droite (lecture) */
+.hs-pill{position:fixed;right:16px;bottom:16px;z-index:4000;display:flex;align-items:center;gap:2px;padding:4px;background:#fff;
+  border:1px solid #dde3e8;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.hs-pill .hs-main{font-weight:600}
+.hs-pill .hs-save:not(.dirty){display:none}
+body.hs-editing .hs-pill .hs-view-only,body.hs-editing .hs-pill .hs-mode{display:none}
+.hs-static .hs-toolbar,.hs-present .hs-toolbar,.hs-static .hs-side,.hs-present .hs-side{display:none !important}
+/* miniatures */
+.hs-side{position:fixed;left:0;top:88px;bottom:0;width:196px;z-index:3980;display:none;flex-direction:column;background:#f7f9fa;
+  border-right:1px solid #dde3e8;font:12px/1 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#1d2a35;user-select:none}
+body.hs-editing .hs-side{display:flex}
+.hs-thumbs{flex:1 1 auto;overflow-y:auto;padding:12px 10px 4px 6px;display:flex;flex-direction:column;gap:10px}
+.hs-thumb{position:relative;display:flex;gap:4px;align-items:flex-start;cursor:pointer;flex:none}
+.hs-thumb .hs-num{width:18px;text-align:right;color:#7b8790;font-size:11px;padding-top:2px;flex:none}
+.hs-mini{width:160px;height:90px;overflow:hidden;position:relative;border:1px solid #cfd6dc;border-radius:4px;background:#fff;flex:none}
+.hs-mini > .slide{position:absolute;left:0;top:0;transform:scale(.125) !important;transform-origin:0 0 !important;margin:0 !important;pointer-events:none}
+.hs-thumb.on .hs-mini{border:2px solid #14517A;box-shadow:0 0 0 2px rgba(20,81,122,.18)}
+.hs-thumb.on .hs-num{color:#14517A;font-weight:700}
+.hs-thumb:hover .hs-mini{border-color:#4F7FA3}
+.hs-thumb.dragging{opacity:.4}
+.hs-thumb.drop-before::before,.hs-thumb.drop-after::after{content:"";position:absolute;left:22px;right:0;height:3px;background:#14517A;border-radius:2px}
+.hs-thumb.drop-before::before{top:-7px}.hs-thumb.drop-after::after{bottom:-7px}
+.hs-ttools{position:absolute;right:4px;top:4px;display:none;gap:2px}
+.hs-thumb:hover .hs-ttools{display:flex}
+.hs-ttools button{width:24px;height:24px;border:1px solid #cfd6dc;border-radius:5px;background:rgba(255,255,255,.95);cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;padding:0;color:#1d2a35}
+.hs-ttools button:hover{background:#eef2f5}
+.hs-ttools svg{width:14px;height:14px}
+.hs-side .hs-add{margin:6px 10px 12px 28px;height:32px;border:1px dashed #a9b4bd;border-radius:6px;background:#fff;cursor:pointer;
+  font:inherit;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;color:#1d2a35;flex:none}
+.hs-side .hs-add:hover{border-color:#14517A;color:#14517A}
+.hs-keys{border-collapse:collapse;width:100%}
+.hs-keys td{padding:5px 8px;border-bottom:1px solid #eef2f5}
+.hs-keys td:first-child{font-weight:600;white-space:nowrap;width:40%}
+.hs-menu{position:fixed;z-index:4300;background:#fff;border:1px solid #cfd6dc;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);
+  padding:4px;display:flex;flex-direction:column;min-width:200px;max-height:calc(100vh - 16px);overflow-y:auto;font:13px/1.3 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+.hs-menu button{font:inherit;text-align:left;border:0;background:none;padding:6px 10px;border-radius:5px;cursor:pointer;color:#1d2a35;
+  display:flex;align-items:center;gap:8px}
+.hs-menu-sep{height:1px;background:#eef2f5;margin:4px 6px}
+.hs-menu button:hover{background:#eef2f5}
+.hs-menu button.on{font-weight:700;color:#14517A}
+body.hs-editing main#deck > .slide.hs-focus{outline:2px solid #4F7FA3;outline-offset:3px}
+.hs-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:4100;background:#0B1C2C;color:#fff;border-radius:8px;
+  padding:10px 14px;font:13px/1.4 system-ui,-apple-system,Arial,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.hs-banner button{font:inherit;background:#fff;color:#0B1C2C;border:0;border-radius:5px;padding:4px 10px;cursor:pointer}
+.hs-chart-head{flex:none}
+.hs-unit{font-size:13px;color:var(--t2);margin:6px 0 8px}
+.hs-plot{flex:1 1 auto;min-height:120px;position:relative}
+.hs-chart-msg{padding:16px;border:1px dashed var(--alert);color:var(--alert);font-size:13px}
+.hs-guide-text{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 ui-monospace,monospace;color:#1d2a35;max-height:55vh;overflow-y:auto;padding:14px;background:#f7f9fa;border:1px solid #dde3e8;border-radius:6px}
+.hs-guide-links{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;margin-bottom:12px;color:#5A6670}
+.hs-guide-links a{color:#14517A}
+body.hs-editing .slide > [data-id]{cursor:move}
+body.hs-editing .slide > [data-id]:hover{outline:1px dashed #4F7FA3;outline-offset:2px}
+body.hs-editing .slide > [data-id][contenteditable]{cursor:text;outline:2px solid #4F7FA3;outline-offset:2px}
+body.hs-editing main#deck{user-select:none}
+body.hs-editing [contenteditable]{user-select:text}
+.selecto-selection{z-index:3500 !important}
+body.hs-present{background:#000;overflow:hidden}
+body.hs-present main#deck{padding:0;height:100vh;justify-content:center;gap:0}
+body.hs-present main#deck > .slide{transform-origin:center center;margin:0}
+body.hs-present main#deck > .slide:not(.hs-current){display:none}
+.hs-panel{position:fixed;inset:0;z-index:4200;background:rgba(11,28,44,.35);display:flex;align-items:center;justify-content:center;
+  font:13px/1.4 system-ui,-apple-system,Arial,sans-serif;color:#1d2a35}
+.hs-panel > div{background:#fff;border-radius:10px;padding:18px 20px;width:min(760px,94vw);max-height:88vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+.hs-panel h2{font-size:16px;margin:0 0 12px}
+.hs-panel label{display:block;margin:8px 0 2px;color:#5A6670;font-size:12px}
+.hs-panel input{font:inherit;width:100%;padding:5px 7px;border:1px solid #cfd6dc;border-radius:5px}
+.hs-panel table{border-collapse:collapse;margin-top:10px;width:100%}
+.hs-panel td,.hs-panel th{border:1px solid #dde3e8;padding:0}
+.hs-panel td input,.hs-panel th input{border:0;border-radius:0;min-width:70px}
+.hs-panel th input{font-weight:700;background:#f4f6f8}
+.hs-panel .hs-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.hs-panel button{font:inherit;border:1px solid #cfd6dc;background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer}
+.hs-panel button.primary{background:#14517A;border-color:#14517A;color:#fff}
+.hs-panel .err{color:#C2521C;margin-top:8px}
+.hs-panel textarea{width:100%;min-height:220px;font:12px/1.4 ui-monospace,Menlo,monospace;border:1px solid #cfd6dc;border-radius:5px;padding:6px}
+@media print{.hs-toolbar,.hs-side,.hs-banner,.hs-panel,.hs-menu,.moveable-control-box,.selecto-selection{display:none!important}
+  main#deck > .slide.hs-focus{outline:none !important}}
+`;

@@ -1,0 +1,15 @@
+node_modules/
+work/
+dist/
+# Third-party reference decks: do not publish
+sample_decks/
+decks/*.shots/
+decks/.test-*
+.DS_Store
+
+_archive/
+*.bak
+*.bak-*
+.env
+.env.*
+*.pem
