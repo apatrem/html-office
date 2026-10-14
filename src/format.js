@@ -1,3 +1,5 @@
+import {tokenize, TokenType as T} from '@csstools/css-tokenizer';
+
 // Vocabulary shared by the checker, the embedded reference and the engine.
 export const FORMAT_VERSION = '1';
 export const CONTENT_CLASSES = ['slide', 'dark', 'tracker', 'sticker', 'source', 'body', 'lead', 'callout', 'kpi', 'sm', 'stack', 'cards', 'card', 'n',
@@ -15,8 +17,37 @@ export const ACTIVE_TAGS = ['iframe', 'frame', 'frameset', 'object', 'embed', 'a
 const RESOURCE_ATTRS = ['srcset', 'background', 'poster', 'ping', 'action', 'formaction', 'lowsrc', 'dynsrc',
   'longdesc', 'codebase', 'archive', 'classid', 'manifest', 'icon', 'profile', 'data'];
 const IMAGE_DATA = /^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,/i;
-// CSS functions that fetch a resource; only same-document references (url(#id)) are allowed.
-const CSS_FETCH = /(?:url|image-set|src)\s*\(\s*(?!['"]?#)/i;
+const RESOURCE_FUNCTIONS = new Set(['url', 'src', 'image', 'image-set', '-webkit-image-set']);
+const SVG_URL_ATTRIBUTES = new Set(['fill', 'stroke', 'filter', 'clip-path', 'mask', 'cursor',
+  'marker', 'marker-start', 'marker-mid', 'marker-end', 'color-profile']);
+
+// Token values have already been CSS-unescaped. Quoted url() and every image-set()
+// candidate are strings; unquoted url() has its own token. Do not inspect ordinary
+// strings (content, font names, MIME types) as URLs. Dynamic URL substitution is refused.
+function cssResourceProblem(css, allowData) {
+  let malformed = false;
+  const tokens = tokenize({css: String(css)}, {onParseError: () => { malformed = true; }});
+  const stack = [];
+  const closers = new Map([[T.OpenParen, T.CloseParen], [T.OpenSquare, T.CloseSquare], [T.OpenCurly, T.CloseCurly]]);
+  const allowed = value => value.startsWith('#') || allowData && /^data:/i.test(value);
+  for (const [type, , , , data] of tokens) {
+    if (type === T.AtKeyword && data.value.toLowerCase() === 'import') return '@import is forbidden in styles';
+    if (type === T.URL && !allowed(data.value)) return 'External resources are forbidden';
+    if (type === T.String && RESOURCE_FUNCTIONS.has(stack.at(-1)?.name) && !allowed(data.value))
+      return 'External resources are forbidden';
+    if (type === T.Function) {
+      const name = data.value.toLowerCase();
+      if (['var', 'attr'].includes(name) && stack.some(x => RESOURCE_FUNCTIONS.has(x.name)))
+        return 'Dynamic resource URLs are forbidden';
+      stack.push({name, close: T.CloseParen});
+    } else if (closers.has(type)) stack.push({name: '', close: closers.get(type)});
+    else if ([T.CloseParen, T.CloseSquare, T.CloseCurly].includes(type)) {
+      if (stack.at(-1)?.close !== type) return 'Malformed CSS is forbidden';
+      stack.pop();
+    }
+  }
+  return malformed || stack.length ? 'Malformed CSS is forbidden' : null;
+}
 
 // Returns a message when the attribute is forbidden, otherwise null.
 // `html` is true for elements in the HTML namespace (false for SVG and MathML).
@@ -30,16 +61,13 @@ export function attributeProblem(name, rawValue, html) {
   // HTML links navigate only when clicked; SVG href and every src load immediately.
   if ((n === 'src' || local === 'href' && !html) && value && !value.startsWith('#') && !IMAGE_DATA.test(value))
     return 'External resources are forbidden';
-  if ((n === 'style' || !html) && CSS_FETCH.test(rawValue)) return 'External resources are forbidden';
+  if (n === 'style' || !html && SVG_URL_ATTRIBUTES.has(local)) return cssResourceProblem(rawValue, false);
   return null;
 }
 
 // Style zones (theme, charte) may embed data: resources but never fetch or import anything.
 export function styleProblem(css) {
-  if (/@import/i.test(css)) return '@import is forbidden in styles';
-  for (const m of css.matchAll(/(?:url|image-set|src)\s*\(\s*(['"]?)([^'")\s]*)/gi))
-    if (!m[2].startsWith('#') && !/^data:/i.test(m[2])) return 'External resources are forbidden in styles';
-  return null;
+  return cssResourceProblem(css, true);
 }
 
 // Entries of the assets zone: images and fonts, base64 only.

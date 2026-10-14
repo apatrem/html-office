@@ -94,3 +94,27 @@ test('checker trusts only published engines and the current build',()=>{
  assert.deepEqual(new Set(trusted.engine),new Set([...Object.values(released),current]));
  assert.equal(trusted.echarts.length,1);
 });
+
+test('CSS checks decode escapes and inspect every image candidate',()=>{
+ const external=[
+  String.raw`.x{background:u\72l("https://example.invalid/escaped.png")}`,
+  String.raw`@im\70ort "https://example.invalid/import.css";`,
+  String.raw`.x{background:im\61ge-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  `.x{background:image-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  `.x{background:-webkit-image-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  String.raw`.x{background:url("https\3a //example.invalid/escaped-url.png")}`,
+  `.x{background:src("https://example.invalid/source.png")}`
+ ];
+ for(const css of external)assert.throws(()=>preflight(setZone(base,'theme',zone(base,'theme')+'\n'+css)),/External resources|@import/,css);
+ for(const css of ['.x{--candidate:"https://example.invalid/x";background:image-set(var(--candidate) 1x)}', '.x{background:src(attr(data-url))}'])
+  assert.throws(()=>preflight(setZone(base,'theme',zone(base,'theme')+'\n'+css)),/Dynamic resource URLs/);
+ const inline=String.raw`<p class="body" style='background:u\72l("https://example.invalid/inline.png")'>x</p>`;
+ assert.throws(()=>preflight(base.replace('</section>',inline+'</section>')),/External resources/);
+ const svg=String.raw`<p class="body"><svg><rect fill='u\72l("https://example.invalid/fill.svg#x")'/></svg></p>`;
+ assert.throws(()=>preflight(base.replace('</section>',svg+'</section>')),/External resources/);
+ // Preserve same-document SVG references and embedded fonts/images, including CSS whitespace and escapes.
+ const safe=String.raw`.x{clip-path:u\72l( "#c0" );background:image-set("data:image/png;base64,AAAA" 1x,url("data:image/png;base64,AAAA") 2x)}
+ @font-face{font-family:"Example";src:url(data:font/woff2;base64,AAAA)}
+ .caption::before{content:"url(https://example.invalid/is-text) @import"}`;
+ preflight(setZone(base,'theme',zone(base,'theme')+'\n'+safe));
+});

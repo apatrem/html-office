@@ -37,7 +37,7 @@ node $T/check.mjs deck.html --since before.html --allow e12
 
 `pack` preserves the engine, theme, and guide. `upgrade deck.html` updates the engine and its guide explicitly, creates a `.bak` backup, and keeps the theme unless `--theme` is requested. Review before/after screenshots when changing a theme. Failed validation or rendering leaves existing pack outputs intact.
 
-The checker parses inert HTML before running it and accepts only recognised engine scripts. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
+The checker parses inert HTML before running it and accepts only recognised engine scripts. CSS resource checks decode escapes and inspect every image candidate; dynamic URL substitution is rejected. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
 
 ## Network and offline use
 
@@ -81,7 +81,7 @@ Distribution links are versioned in `src/distribution.json`; documentation and d
 ## V1 limits
 
 - Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file.
-- Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft records the version of the file it was made from: after the file at the same path is replaced, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
+- Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft recognises the opened file and the content actually written by a successful save, including Save As and edits made during writing. After an unrelated version replaces the file at the same path, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
 - The V1 model uses DOM operations and HTML snapshots. Collaboration requires a new mutation model in V2.
 - No attached connectors, rotation, merged table cells, arbitrary fonts/colours, or PPTX export. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.
 - Cross-device manual tests, five real-use comparisons, and the context-free LLM test are still pending. See the validation log; automated checks do not establish these outcomes.

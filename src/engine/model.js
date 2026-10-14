@@ -15,6 +15,7 @@ export const state = {
   bodyClass: '',
   current: null,
   base: '',
+  savedBase: null,
   listeners: {}
 };
 
@@ -232,6 +233,7 @@ function draftState() {
   const main = cleanNode(state.main.cloneNode(true)); main.removeAttribute('style');
   return { format: 1, main: main.outerHTML, assets: usedAssets() };
 }
+const draftFingerprint = d => fingerprint(d.main + JSON.stringify(d.assets));
 // Fingerprint of the file as opened (cyrb53). A draft records the version it was made from,
 // so a draft left by an earlier version of a file at the same path is recognised as foreign.
 function fingerprint(str) {
@@ -245,11 +247,10 @@ function fingerprint(str) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 export function captureBase() {
-  const d = draftState();
-  state.base = fingerprint(d.main + JSON.stringify(d.assets));
+  state.base = draftFingerprint(draftState());
 }
 export function persistDraft() {
-  try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, ...draftState() })); } catch (e) {
+  try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, savedBase: state.savedBase, ...draftState() })); } catch (e) {
     emit('draft-error');
   }
 }
@@ -259,8 +260,16 @@ export function markDirty() {
   emit('dirty', true);
   persistDraft();
 }
-export function markSaved(revision = state.revision) {
-  if (revision !== state.revision) return false;
+export function markSaved(revision = state.revision, html) {
+  if (html) {
+    // Use the snapshot actually written, not the live DOM (which may have newer edits).
+    // Keep the opened base too: the picker may have saved a separate copy instead.
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    state.savedBase = draftFingerprint({main: template.content.querySelector('main#deck').outerHTML,
+      assets: JSON.parse(template.content.querySelector('script#assets').textContent)});
+  }
+  if (revision !== state.revision) { persistDraft(); return false; }
   state.dirty = false;
   emit('dirty', false);
   try { localStorage.removeItem(draftKey()); } catch (e) { /* storage unavailable */ }
@@ -282,7 +291,7 @@ export function readDraft() {
     if (d?.format === 1 && typeof d.main === 'string') {
       const current = draftState();
       const differs = d.main !== current.main || JSON.stringify(d.assets) !== JSON.stringify(current.assets);
-      return differs ? { ...d, foreign: d.base !== state.base } : null;
+      return differs ? { ...d, foreign: d.base !== state.base && d.savedBase !== state.base } : null;
     }
     return d && typeof d.html === 'string' && d.html !== cleanMainHTML() ? { ...d, foreign: true } : null; // 0.4 drafts
   }

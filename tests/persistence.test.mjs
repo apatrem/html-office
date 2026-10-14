@@ -19,8 +19,8 @@ before(async () => {
   browser = await chromium.launch();
 });
 after(async () => { await browser?.close(); fs.rmSync(dir, {recursive:true, force:true}); });
-async function open(t, file = plain) {
-  const ctx = await browser.newContext({viewport:{width:1100,height:850},acceptDownloads:true});
+async function open(t, file = plain, options = {}) {
+  const ctx = await browser.newContext({viewport:{width:1100,height:850},acceptDownloads:true,...options});
   t.after(() => ctx.close());
   const page = await ctx.newPage();
   page.on('dialog', d => d.accept('Test image'));
@@ -152,3 +152,49 @@ test('restored drafts are stripped of code and external resources', async t => {
   assert.equal(r.pwned,undefined);assert.deepEqual(r.attrs,[]);assert.equal(r.active,0);
   assert.deepEqual(r.assets,['a1']);assert.equal(r.footer,'Injected');
 });
+
+test('restored CSS escapes cannot issue external requests and valid geometry remains intact',async t=>{
+ const p=await open(t,plain,{deviceScaleFactor:2}),requests=[];
+ await p.route('https://example.invalid/**',r=>{requests.push(r.request().url());return r.abort();});
+ await p.evaluate(()=>{
+  const css=String.raw`--x:64;--y:200;--w:400;--h:80;background:u\72l("https://example.invalid/draft.png")`;
+  const main=`<main id="deck"><section class="slide" id="s01" data-layout="default" data-detached><h1 data-id="e1" style="--x:64;--y:80;--w:1000;--h:80">Draft</h1><p class="body" data-id="e2" style='${css}'>Text</p><p class="body" data-id="e3" style="--x:64;--y:300;--w:400;--h:80">Safe</p></section></main>`;
+  localStorage.setItem('html-slides:'+location.pathname,JSON.stringify({format:1,t:Date.now(),base:'other',main,assets:{}}));
+ });
+ await p.reload();await p.waitForFunction(()=>window.deckEngine);
+ await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+ await p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ assert.deepEqual(requests,[]);
+ assert.equal(await p.locator('#deck [data-id=e2]').getAttribute('style'),null);
+ assert.equal(await p.locator('#deck [data-id=e3]').getAttribute('style'),'--x:64;--y:300;--w:400;--h:80');
+});
+for(const mode of ['in-place','during-write','save-as']){
+ test(`draft identity follows successful saves (${mode}) without warning about older edits`,async t=>{
+  const file=path.join(dir,`identity-${mode}.html`),target=mode==='save-as'?path.join(dir,'separate-copy.html'):file;
+  fs.copyFileSync(plain,file);const p=await open(t,file);
+  await p.exposeFunction('__writeFile',html=>fs.writeFileSync(target,html));
+  await p.evaluate(({name,pause})=>{
+   window.__written=false;window.__closed=false;
+   window.showSaveFilePicker=async()=>({name,createWritable:async()=>({
+    write:async html=>{await window.__writeFile(html);window.__written=true;if(pause)await new Promise(r=>window.__finishWrite=r);},
+    close:async()=>{window.__closed=true;}
+   })});
+  },{name:path.basename(target),pause:mode==='during-write'});
+  await footer(p,'Saved edit A');await p.keyboard.press('Control+s');
+  await p.waitForFunction(()=>window.__written);
+  if(mode==='during-write'){
+   await footer(p,'Unsaved edit B');await p.evaluate(()=>window.__finishWrite());
+   await p.waitForFunction(()=>document.querySelector('.hs-banner')?.textContent.includes('Saved to'));
+   assert.ok(await p.locator('.hs-save.dirty').count());
+  }else{
+   await p.waitForFunction(()=>!document.querySelector('.hs-save.dirty'));
+   await footer(p,'Unsaved edit B');
+  }
+  assert.ok(fs.readFileSync(target,'utf8').includes('Saved edit A'));
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'),mode==='save-as'?'Original':'Saved edit A');
+  assert.doesNotMatch(await p.locator('.hs-banner').textContent(),/different version|older draft/);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Unsaved edit B');
+ });
+}

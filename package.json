@@ -15,6 +15,7 @@
     "check:example": "node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html"
   },
   "devDependencies": {
+    "@csstools/css-tokenizer": "3.0.4",
     "echarts": "6.1.0",
     "esbuild": "0.25.10",
     "moveable": "0.53.0",

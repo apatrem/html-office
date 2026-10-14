@@ -27,6 +27,7 @@ const res = await build({
   define: { __ENGINE_VERSION__: JSON.stringify(version) },
   target: ['chrome110', 'edge110', 'safari16', 'firefox115'], write: false, legalComments: 'none',
   banner: { js: `/*! html-slides ${version} — MIT — Copyright (c) 2026 Pierre Supau.
+ * @csstools/css-tokenizer — MIT — Copyright 2022 Romain Menke, Antonio Laguna <antonio@laguna.es>.
  * Includes Moveable, Selecto and their dependencies — MIT — Copyright (c) 2018-2020 Daybrush ;
  * @egjs/agent, @egjs/children-differ, @egjs/list-differ — MIT — Copyright (c) 2015-present NAVER Corp.
  * MIT licence: Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -36,7 +37,10 @@ const res = await build({
  * shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
  * ANY KIND, EXPRESS OR IMPLIED. Details: THIRD_PARTY_NOTICES.md. */` }
 });
-const engine = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+// A literal HTML comment opener followed by the serializer's <script string can
+// put the HTML parser into its double-escaped script state. Keep JS values intact.
+const engine = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')
+  .replace(/(["'])<!--\1/g, (_match, quote) => `${quote}\\x3c!--${quote}`);
 if (process.argv.includes('--release')) {
   if (released[version] && released[version] !== sha256(engine))
     throw new Error(`Version ${version} was already released with a different engine: bump the version in package.json`);

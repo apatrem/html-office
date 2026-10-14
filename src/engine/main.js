@@ -52,7 +52,7 @@ function boot() {
         const w = await M.state.handle.createWritable();
         await w.write(html);
         await w.close();
-        const current = M.markSaved(revision);
+        const current = M.markSaved(revision, html);
         V.banner('Saved to ' + (M.state.handle.name || name) + '.' + (current ? '' : ' Newer changes still need saving.'), [], 4000);
         return;
       } catch (e) {
