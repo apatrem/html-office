@@ -6,7 +6,7 @@ Portable documents that an LLM can read and edit, delivered as a single HTML fil
 
 **Planned: html-data.** Editable analytical workbooks with formulas, scenarios, grouped sheets, saved results, and charts. See the [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), and [architecture decision](docs/decisions/003-html-office-and-data-runtime.md). Data is not implemented or included in the plugin yet.
 
-**Planned: html-text.** An alternative to Word for reports, memos, and proposals, written and revised with an LLM and edited in the browser. V1 decisions are in the [Text V1 specification](docs/HTML-TEXT-V1.md) and [ADR-004](docs/decisions/004-html-text-format-and-editor.md); implementation starts after the Data editing milestone.
+**Planned: html-text.** An alternative to Word for reports, memos, and proposals, written and revised with an LLM and edited in the browser. V1 decisions are in the [Text V1 specification](docs/HTML-TEXT-V1.md), [Text implementation plan](docs/HTML-TEXT-PLAN.md), and [ADR-004](docs/decisions/004-html-text-format-and-editor.md); implementation starts after the Data editing milestone.
 
 The repository was renamed from `html-slides` to `html-office`. The existing skill/plugin identifier, slide format, commands, and released `html-slides.plugin` filename are retained. The existing folders remain in place; moving them and changing the plugin identifier require compatibility work. For a checkout using the previous remote, run `git remote set-url origin https://github.com/apatrem/html-office.git`.
 
@@ -80,7 +80,7 @@ The checker trusts the engines listed in `src/released-engines.json` plus the en
 | `tests/` | Chart, preservation, persistence, thumbnails, guide, SRI, and editor checks |
 | `plugin/` | Distributable skill/plugin with built assets and the generated examples |
 | `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
-| `docs/` | [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), [Text V1 specification](docs/HTML-TEXT-V1.md), [Slides V1 plan](docs/PLAN.md), decisions, and [Slides validation status](docs/VALIDATION-V1.md) |
+| `docs/` | [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), [Text V1 specification](docs/HTML-TEXT-V1.md), [Text implementation plan](docs/HTML-TEXT-PLAN.md), [Slides V1 plan](docs/PLAN.md), decisions, and [Slides validation status](docs/VALIDATION-V1.md) |
 
 Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
 

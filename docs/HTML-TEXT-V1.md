@@ -1,6 +1,6 @@
 # HTML Text V1 specification
 
-Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text implementation has not started and an implementation plan has not been written. Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
+Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text implementation has not started; task order and verification are in the [Text implementation plan](HTML-TEXT-PLAN.md). Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
 
 ## Purpose and boundaries
 
@@ -126,7 +126,7 @@ V1 is ready only when:
 
 ## Sequencing
 
-Data remains first. Write the Text implementation plan next; start implementation after Data Checkpoint B, reusing the persistence and on-demand loader modules Data builds. Text stays in its own package (`packages/text/`) and is added to the plugin only when the complete workflow is usable.
+Data remains first. The [Text implementation plan](HTML-TEXT-PLAN.md) starts after Data Checkpoint B, reusing the persistence and on-demand loader modules Data builds. Text stays in its own package (`packages/text/`) and is added to the plugin only when the complete workflow is usable.
 
 ## Roadmap after V1
 
