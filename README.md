@@ -4,7 +4,9 @@ Portable documents that an LLM can read and edit, delivered as a single HTML fil
 
 **Available today: html-slides.** Create presentations with an LLM, edit them in your browser, and share one HTML file. Slides contain readable HTML, chart data, a theme, an editor, and a built-in format guide. Export to PDF when needed.
 
-**Planned: html-data.** Editable analytical workbooks with formulas, scenarios, grouped sheets, saved results, and charts. See the [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), and [architecture decision](docs/decisions/003-html-office-and-data-runtime.md). Data is not implemented or included in the plugin yet. Text is a future direction with no V1 scope.
+**Planned: html-data.** Editable analytical workbooks with formulas, scenarios, grouped sheets, saved results, and charts. See the [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), and [architecture decision](docs/decisions/003-html-office-and-data-runtime.md). Data is not implemented or included in the plugin yet.
+
+**Planned: html-text.** An alternative to Word: long-form documents such as reports, memos, and proposals, written and revised with an LLM and edited in the browser. Text is on the roadmap; its feature set, specification, and schedule relative to Data are not defined yet. See [Text roadmap](docs/HTML-OFFICE-V1.md#text-roadmap).
 
 The repository was renamed from `html-slides` to `html-office`. The existing skill/plugin identifier, slide format, commands, and released `html-slides.plugin` filename are retained. The existing folders remain in place; moving them and changing the plugin identifier require compatibility work. For a checkout using the previous remote, run `git remote set-url origin https://github.com/apatrem/html-office.git`.
 

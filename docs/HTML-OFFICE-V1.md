@@ -6,7 +6,7 @@ Status: consolidated product decisions, 15 October 2026. Data implementation has
 
 Create portable documents that an unfamiliar LLM can read and modify using the generated HTML alone. An external authoring skill makes larger changes practical; recipients need a browser, without a server, installation, account, or connected AI service. LLM readability/writability and portability are the primary design drivers.
 
-The public MIT repository is now html-office. Slides remains the existing implemented product and keeps its [V1 plan and five approved additions](PLAN.md). Data is the next product: editable analytical tables and freeform spreadsheet models, not just static reports. Text is a future direction without an approved V1 feature set. One eventual Office plugin can provide separate skills; do not ship empty Data/Text skills or change the existing plugin identifier before a compatibility migration is ready. Do not include Slides/Text runtimes in workbook files.
+The public MIT repository is now html-office. Slides remains the existing implemented product and keeps its [V1 plan and five approved additions](PLAN.md). Data is the next product: editable analytical tables and freeform spreadsheet models, not just static reports. Text, an alternative to Word, is a planned product on the roadmap; see [Text roadmap](#text-roadmap). One eventual Office plugin can provide separate skills; do not ship empty Data/Text skills or change the existing plugin identifier before a compatibility migration is ready. Do not include Slides/Text runtimes in workbook files.
 
 ## Distribution and calculation
 
@@ -83,4 +83,10 @@ Build a fictional monthly P&L with 12 months of actuals followed by 12 months of
 
 V1 is ready only when the model survives edit/save/reopen and range/structural operations, formulas match fixed reference results, typed engine outputs retain precision, dependency licences/notices are audited, embedded code meets its budget, and representative Chrome/Edge/offline/print flows pass. Run an unfamiliar-LLM test with only the generated HTML: explain the model, change assumptions, add a formula and update a chart without damaging unrelated content. Preserve its evidence and limitations; automated checks do not replace this test.
 
-No paid spreadsheet component is permitted. Prefer permissive dependencies; audit the complete compiled dependency closure and preserve required notices. IronCalc's top-level MIT/Apache declaration alone is not a completed audit. Technical blockers trigger an explicit reassessment before changing the agreed product. Real-time collaboration, in-document AI chat, full Excel compatibility, and Text implementation are outside this V1 scope.
+No paid spreadsheet component is permitted. Prefer permissive dependencies; audit the complete compiled dependency closure and preserve required notices. IronCalc's top-level MIT/Apache declaration alone is not a completed audit. Technical blockers trigger an explicit reassessment before changing the agreed product. Real-time collaboration, in-document AI chat, full Excel compatibility, and Text implementation are outside this Data V1 scope.
+
+## Text roadmap
+
+Added to the roadmap on 15 October 2026: html-office will also develop **html-text, an alternative to Word**. It targets long-form documents such as reports, memos and proposals, delivered as one HTML file that an LLM can read and revise and that a recipient can edit in a browser, following the same portability, embedded-guide and LLM-readability principles as Slides and Data.
+
+Status: planned, not started. No feature set, document model, specification or implementation plan is approved yet, and its order relative to Data V1 is undecided. Define these in a dedicated specification and implementation plan before development. Text keeps its own document model and runtime build; do not ship a placeholder Text skill before it is usable.
