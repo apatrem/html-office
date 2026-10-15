@@ -160,7 +160,7 @@ Dependencies: T11, T12, T15. Scope: M. Paths: pivot definition/aggregation, cont
 
 ### T18 — Render charts with saved SVG previews
 
-Dependencies: T13, T15. Scope: M. Paths: Data chart bindings, lazy ECharts loader and browser tests.
+Dependencies: T13. Scope: M. Paths: Data chart bindings, lazy ECharts loader and browser tests.
 
 - Acceptance: charts reference typed cell/range data and recalculate from matching revisions; number formats do not round source values. The P&L demonstrates revenue, margins and scenario comparisons.
 - Acceptance: embed SVG snapshots; view/print without ECharts or network. Chart editing loads a pinned SRI-verified library, and an offline build edits without requests; preserve unrelated chart/model data.

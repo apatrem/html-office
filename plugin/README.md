@@ -1,6 +1,6 @@
 # html-slides plugin in html-office
 
-The currently released plugin contains the `html-slides` skill. Data and Text skills are not included yet; see the [Office V1 specification](https://github.com/apatrem/html-office/blob/main/docs/HTML-OFFICE-V1.md). The plugin identifier and archive filename remain `html-slides` for compatibility.
+The currently released plugin contains the `html-slides` skill. Data and Text skills are not included yet; the roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
 
 A skill for creating and editing a presentation in one HTML file. The file includes semantic slides, theme variables, JSON chart data, cached SVGs, a browser editor, and a self-contained editing guide.
 
