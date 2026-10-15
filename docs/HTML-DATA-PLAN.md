@@ -104,6 +104,7 @@ Dependencies: T10. Scope: M. Paths: sheet/group navigation, theme tokens and bro
 
 - Acceptance: sheets can be created, renamed and reordered within collapsible/reorderable Summary, Inputs/Hypotheses, Raw Data and Calculations groups; cross-sheet formulas follow renames. Calculation tabs are grey.
 - Acceptance: deep-blue/white headers, light-blue/dark-blue row labels and pale-yellow/orange assumptions use semantic style roles; number/currency/accounting/date/% formats preserve typed values and locale-independent formulas.
+- Acceptance: style roles take their colours and fonts from the shared Office brand theme (the Slides `charte` variables) rather than hard-coded values, so one brand theme styles decks, workbooks and Text documents. The consulting colours above are the default brand theme's values.
 - Verification: save/reopen group order and collapsed state; inspect date/negative/currency/% precision, keyboard focus and selected/disabled states. Compare canonical values before/after formatting.
 
 Checkpoint B: a user can edit, extend, undo and save a small multi-sheet model without losing formulas or unrelated data. Stale-result and concurrent-save cases pass. Recheck code size after the actual grid and persistence implementation.
