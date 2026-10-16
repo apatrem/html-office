@@ -10,7 +10,7 @@ Start Data in `packages/data/`, with its own model, runtime build, tests and fix
 
 Do not add IronCalc or import/chart dependencies to the Slides runtime. Separate generated runtime code from readable workbook content and cache data. Share modules only after both products have demonstrated a common requirement. Likely paths below are proposed, not files that already exist. S means about 1–2 implementation/test files; M means about 3–5. Split further if an increment exceeds that scope.
 
-Dependency order: T01 → T02 → T03 → T04 → T05. Then T06 → T07 → T08 → T09 → T10 → T11. T12–T19 build on that model/editor foundation as identified below. T20–T22 integrate, measure and validate the whole product. Checkpoints are technical gates; an unmet gate stops dependent work until fixed or the tradeoff is recorded.
+Dependency order: T01 → T02 → T03 → T04 → T05 → T05b. Then T06 → T07 → T08 → T09 → T10 → T11. T12–T19 build on that model/editor foundation as identified below. T20–T22 integrate, measure and validate the whole product. Checkpoints are technical gates; an unmet gate stops dependent work until fixed or the tradeoff is recorded.
 
 ## Phase A: prove the model and engine before building the full editor
 
@@ -54,15 +54,27 @@ Dependencies: T04. Scope: M. Paths: `packages/data/bench/`, worker adapter if wa
 - Acceptance: compare aggregate reuse/preaggregation and worker execution. Proposed engineering targets are P&L input-to-result under 250 ms warm and no calculation-driven main-thread task over 100 ms; validate or revise with evidence before treating them as guarantees.
 - Verification: record hardware, browser/engine versions, correctness totals and five warm runs. Reproduce the earlier 100k-row/two-column/1,000-SUMIFS case as a baseline; record larger-column stress cases without extrapolating capacity from row count alone.
 
-Checkpoint A: typed output and licence gates pass; local-file save/reopen and both distribution modes work; code budget passes with measured editor headroom; browser evidence supports the target workload. If a gate fails, fix or document an explicit design reassessment before extending the product.
+### T05b — Decide result and data storage from real-world workbooks
+
+Dependencies: T02, T05. Scope: M. Paths: `packages/data/bench/storage/`, a converter from XLSX to the T01 model, measurement report. Real workbooks stay outside the repository; commit only anonymised metrics and the fictional fixtures.
+
+- Acceptance: measure at least five real workbooks of different shapes: a driver-based P&L or budget, a lookup-heavy operational model, a raw-data workbook of 50k+ rows, a scenario/financial model with NPV-style formulas, and one messy workbook built by a non-specialist. Suggested sources: the Enron spreadsheet corpus, public statistical XLSX files (for example data.gouv.fr), and anonymised user models measured locally. Record populated cells, formula cells, dependency depth and the share of formula cells in each class: references and arithmetic only (`+ - * /`, parentheses, unary minus); plus SUM/AVERAGE/MIN/MAX over ranges; plus ROUND/IF; everything else.
+- Acceptance: compare three storage options on each workbook. **A:** save every formula result (the current specification). **B:** omit results for the simple class and compute them on open with a small reader-side evaluator, keeping IronCalc for everything else. **C:** save every result and also embed the small evaluator so simple input changes recalculate offline without IronCalc. For each, report HTML bytes, gzip bytes, proxy token count, the result snapshot's share of the total, evaluator code bytes and open-time compute.
+- Acceptance: the evaluator, if built for B or C, must match IronCalc exactly on every simple-class cell of every workbook (full-precision doubles, blanks, errors, dates as serials, floating-point accumulation order). Any cell that depends on a non-simple cell is outside its scope. A single mismatch rules it out until fixed.
+- Acceptance: run a reading test. Give an unfamiliar LLM the HTML for each option and ask for three totals and one explanation of a derived figure. Record whether it can answer without computing the values itself.
+- Acceptance: in the same pass, compare per-cell JSON with a columnar typed block (column schema plus CSV/TSV rows) for raw-data sheets. Report bytes, tokens, parse time and whether range tooling and structural edits stay simple.
+- Decision rule: option A remains the default unless B or C shows a material benefit (proposed: at least 25% smaller total HTML, or a demonstrated need for offline input changes) together with exact conformance and no loss in the reading test. Adopting B or C reverses the "one engine" and "store all results" decisions in [ADR-003](decisions/003-html-office-and-data-runtime.md), so it must be recorded as an amendment to that ADR and the specification before T06.
+- Verification: reproducible measurement script and report with workbook descriptions (not contents), tool versions and the tokenizer used; the T06 storage contract cites the chosen option.
+
+Checkpoint A: typed output and licence gates pass; local-file save/reopen and both distribution modes work; code budget passes with measured editor headroom; browser evidence supports the target workload; the real-world storage decision (T05b) is recorded. If a gate fails, fix or document an explicit design reassessment before extending the product.
 
 ## Phase B: make results and manual editing reliable
 
 ### T06 — Persist calculated snapshots and identify stale work
 
-Dependencies: T05. Scope: M. Paths: model/cache, calculation scheduler and tests.
+Dependencies: T05b. Scope: M. Paths: model/cache, calculation scheduler and tests.
 
-- Acceptance: every populated formula cell saves its typed result, engine/version and calculation fingerprint; no rectangular position limit. Valid formula errors remain typed. Chart/pivot caches carry matching source revisions.
+- Acceptance: formula results are saved as decided in T05b (by default every populated formula cell saves its typed result), with engine/version and calculation fingerprint; no rectangular position limit. Valid formula errors remain typed. Chart/pivot caches carry matching source revisions.
 - Acceptance: calculation-changing edits invalidate results; formatting alone does not. A stale external LLM edit is visible on open; obsolete/failed calculations cannot publish a current snapshot. Missing snapshots never appear as zero.
 - Verification: edit a precedent across sheets, reopen with no network, modify model JSON externally, and finish an older calculation after a newer edit. Check revision consistency and full-precision round trips.
 
@@ -104,6 +116,7 @@ Dependencies: T10. Scope: M. Paths: sheet/group navigation, theme tokens and bro
 
 - Acceptance: sheets can be created, renamed and reordered within collapsible/reorderable Summary, Inputs/Hypotheses, Raw Data and Calculations groups; cross-sheet formulas follow renames. Calculation tabs are grey.
 - Acceptance: deep-blue/white headers, light-blue/dark-blue row labels and pale-yellow/orange assumptions use semantic style roles; number/currency/accounting/date/% formats preserve typed values and locale-independent formulas.
+- Acceptance: style roles take their colours and fonts from the shared Office brand theme (the Slides `charte` variables) rather than hard-coded values, so one brand theme styles decks, workbooks and Text documents. The consulting colours above are the default brand theme's values.
 - Verification: save/reopen group order and collapsed state; inspect date/negative/currency/% precision, keyboard focus and selected/disabled states. Compare canonical values before/after formatting.
 
 Checkpoint B: a user can edit, extend, undo and save a small multi-sheet model without losing formulas or unrelated data. Stale-result and concurrent-save cases pass. Recheck code size after the actual grid and persistence implementation.
