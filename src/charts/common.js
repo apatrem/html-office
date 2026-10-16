@@ -1,8 +1,8 @@
-// Outils partagés par les types de graphiques.
+// Helpers shared by the chart types.
 
 export const nf = (d = 1, fixed = false) => new Intl.NumberFormat('en-US', { maximumFractionDigits: d, minimumFractionDigits: fixed ? d : 0 });
 
-// decimals fixe le nombre de décimales affichées (sinon : jusqu'à 1 décimale).
+// decimals sets the number of decimals shown (otherwise: up to 1 decimal).
 export function fmt(v, data) {
   if (v === null || v === undefined || v === '') return '';
   const s = nf(data.decimals ?? 1, data.decimals !== undefined).format(v);
@@ -17,7 +17,7 @@ export function base(theme) {
   };
 }
 
-// Libellés de catégories : retour à la ligne automatique selon le nombre de catégories.
+// Category labels: automatic wrapping depending on the number of categories.
 export const axisCat = (theme, extra = {}) => {
   const n = (extra.data || []).length || 1;
   return {
@@ -39,13 +39,13 @@ export const axisVal = (theme, extra = {}) => ({
   ...extra
 });
 
-// Couleurs des séries : accent, puis série 2, série 3, puis teintes neutres.
+// Series colours: accent, then series 2, series 3, then neutral tints.
 export const seriesColor = (theme, i) => [theme.acc, theme.mid, theme.lig, theme.bd, theme.t2][i % 5];
 
 export function req(data, keys) {
   const err = [];
   if (!isObject(data)) return ['Data must be a JSON object'];
-  for (const k of keys) if (data[k] === undefined || data[k] === null || data[k] === '') err.push(`Missing field « ${k} »`);
+  for (const k of keys) if (data[k] === undefined || data[k] === null || data[k] === '') err.push(`Missing field "${k}"`);
   if (data.unit !== undefined && (typeof data.unit !== 'string' || !data.unit.trim())) err.push('unit: non-empty text required');
   if (data.decimals !== undefined && (!Number.isInteger(data.decimals) || data.decimals < 0 || data.decimals > 20)) err.push('decimals: integer between 0 and 20 required');
   return err;
@@ -53,12 +53,12 @@ export function req(data, keys) {
 export const isObject = d => !!d && typeof d === 'object' && !Array.isArray(d);
 export const finite = v => typeof v === 'number' && Number.isFinite(v);
 export function records(d, key, err) {
-  if (!Array.isArray(d[key]) || !d[key].length) { err.push(`« ${key} »: non-empty array required`); return []; }
-  if (d[key].some(x => !isObject(x))) { err.push(`« ${key} »: each entry must be an object`); return []; }
+  if (!Array.isArray(d[key]) || !d[key].length) { err.push(`"${key}": non-empty array required`); return []; }
+  if (d[key].some(x => !isObject(x))) { err.push(`"${key}": each entry must be an object`); return []; }
   return d[key];
 }
 
-// Tables génériques catégories × séries, partagées par colonnes, barres, empilées, lignes.
+// Generic categories × series tables, shared by columns, bars, stacked bars and lines.
 export const categoryTable = {
   columns: d => ['Category', ...(d.series || []).map(s => s.name || '')],
   toRows: d => (d.categories || []).map((c, i) => [c, ...(d.series || []).map(s => s.values?.[i] ?? '')]),

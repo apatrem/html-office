@@ -1,0 +1,17 @@
+/* Default branding theme. Copy this file and pass --charte to customise it. */
+:root{
+  --ink:#0B1C2C;      /* main text */
+  --acc:#14517A;      /* accent, series 1, key figures */
+  --mid:#4F7FA3;      /* series 2 */
+  --lig:#AFC5D4;      /* series 3 */
+  --alert:#C2521C;    /* gap, negative */
+  --tint:#ECEFF2;     /* section background */
+  --callout:#E9EEF2;  /* callout */
+  --bd:#D7DDE3;       /* borders */
+  --t2:#5A6670;       /* secondary text, sources */
+  --bg:#FFFFFF;      /* background (do not name it --w: reserved for width) */
+  --font:Arial, Helvetica, sans-serif;
+  --title-size:34px;
+  --title-track:-.035em;
+  --body-size:16px;
+}

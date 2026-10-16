@@ -15,7 +15,7 @@ const raw=fs.readFileSync(path.join(root,'node_modules/echarts/dist/echarts.min.
 const expected='sha384-'+createHash('sha384').update(raw).digest('base64');
 let browser,base;
 before(async()=>{
-  base=upgrade(fs.readFileSync(path.join(root,'decks/community-garden.html'),'utf8'));
+  base=upgrade(fs.readFileSync(path.join(root,'plugin/skills/html-slides/examples/community-garden.html'),'utf8'));
   browser=await chromium.launch();
 });
 after(async()=>{await browser?.close();fs.rmSync(dir,{recursive:true,force:true});});
@@ -26,7 +26,7 @@ async function open(t,mode){
   const p=await ctx.newPage(),requests=[],errors=[];
   p.on('request',r=>{if(r.url().startsWith('https:'))requests.push(r.url());});
   p.on('pageerror',e=>errors.push(String(e)));t.after(()=>assert.deepEqual(errors,[]));
-  // Playwright ajoute CORS si l'en-tête est absent : une mauvaise origine explicite permet de tester le refus.
+  // Playwright adds CORS when the header is missing: an explicit wrong origin tests the refusal.
   await p.route(url,route=>mode==='blocked'?route.abort():route.fulfill({
     body:mode==='altered'?Buffer.concat([raw,Buffer.from('\nwindow.__tamperedECharts=true;')]):raw,
     contentType:'application/javascript',headers:{'access-control-allow-origin':mode==='no-cors'?'https://wrong-origin.test':'*'}

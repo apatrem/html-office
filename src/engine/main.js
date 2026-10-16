@@ -1,5 +1,5 @@
-// Point d'entrée du moteur html-slides (MIT). Regroupé en un seul script par tools/build.mjs
-// et copié dans chaque deck : <script id="engine" data-version="…">.
+// Entry point of the html-slides engine (MIT). Bundled into one script by tools/build.mjs
+// and copied into every deck: <script id="engine" data-version="…">.
 import * as M from './model.js';
 import * as C from './charts.js';
 import * as V from './view.js';
@@ -11,7 +11,7 @@ function boot() {
   if (!main || window.deckEngine) return;
   M.state.main = main;
   M.state.bodyClass = document.body.getAttribute('class') || '';
-  M.captureShell(); // avant toute injection : seuls ces nœuds seront enregistrés
+  M.captureShell(); // before any injection: only these nodes are saved
   const st = document.createElement('style');
   st.setAttribute('data-ui', '');
   st.textContent = V.UI_CSS;
@@ -19,6 +19,7 @@ function boot() {
   if (V.isStatic()) document.body.classList.add('hs-static');
 
   M.ensureIds();
+  M.captureBase();
   M.resolveAssets();
   V.chromeAll();
   V.fit();
@@ -51,7 +52,7 @@ function boot() {
         const w = await M.state.handle.createWritable();
         await w.write(html);
         await w.close();
-        const current = M.markSaved(revision);
+        const current = M.markSaved(revision, html);
         V.banner('Saved to ' + (M.state.handle.name || name) + '.' + (current ? '' : ' Newer changes still need saving.'), [], 4000);
         return;
       } catch (e) {
@@ -65,8 +66,9 @@ function boot() {
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    M.markSaved(revision);
-    V.banner('Copy downloaded. Use Chrome or Edge to save directly to a file.', [], 6000);
+    // The browser may still cancel the download, and this file is not overwritten: keep the draft.
+    M.markDownloaded(revision);
+    V.banner('Copy downloaded; this file is unchanged and its draft is kept. Use Chrome or Edge to save directly to a file.', [], 8000);
   }
 
   if (!V.isStatic()) {
@@ -86,7 +88,7 @@ function boot() {
     };
     btns = V.toolbar(handlers);
     side = V.sidebar(handlers);
-    ready.then(() => side.rebuild()); // édition ouverte avant la fin du chargement des graphiques
+    ready.then(() => side.rebuild()); // editing opened before the charts finished loading
     V.fit();
     E.init(handlers);
     M.on('dirty', d => btns.setDirty(d));
@@ -95,15 +97,18 @@ function boot() {
     M.on('selection', c => btns.setContext(c));
     M.on('editing', on => { if (on) side.rebuild(); });
     M.on('change', s => side.update(s));
-    // Annuler/rétablir remplace la slide : les liens des vignettes doivent
-    // aussi être reconstruits vers les nouveaux éléments du document.
+    // Undo/redo replaces the slide: thumbnail links must also be
+    // rebuilt towards the new elements of the document.
     M.on('replaced', () => side.rebuild());
     M.on('deck', () => side.rebuild());
     addEventListener('beforeunload', e => { if (M.state.dirty) { e.preventDefault(); e.returnValue = ''; } });
     const draft = M.readDraft();
     if (draft) {
-      V.banner(`Unsaved changes found (${new Date(draft.t).toLocaleString('en-US')}).`, [
-        ['Restore', () => {
+      const when = new Date(draft.t).toLocaleString('en-US');
+      V.banner(draft.foreign
+        ? `Unsaved changes from a different version of this file found (${when}). Restoring replaces the current content with that older draft.`
+        : `Unsaved changes found (${when}).`, [
+        [draft.foreign ? 'Restore older draft' : 'Restore', () => {
           M.restoreDraft(draft);
           E.currentSlide(); V.fit();
         }],
@@ -118,7 +123,7 @@ function boot() {
     if (wasCurrent) E.setCurrent(s);
   });
   M.on('change', s => { V.chrome(s); C.resizeCharts(s); });
-  // structure du deck modifiée (slide ajoutée, supprimée, déplacée, annulation) : tout redessiner
+  // deck structure changed (slide added, deleted, moved, undone): redraw everything
   M.on('deck', () => {
     M.resolveAssets(main);
     V.chromeAll();

@@ -1,5 +1,5 @@
 // Waterfall : pont entre deux valeurs.
-// items : [{label, value, total}] — total:true = barre de niveau (valeur facultative), sinon variation.
+// items: [{label, value, total}] — total:true = level bar (value optional), otherwise a change.
 import { base, axisCat, axisVal, fmt, req, num, isObject, records, finite } from './common.js';
 
 function compute(items) {

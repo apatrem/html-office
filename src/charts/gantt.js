@@ -1,5 +1,5 @@
-// Gantt : séquence d'activités. tasks : [{name, start, end, group, highlight}]
-// Dates 'AAAA-MM' (mois entier) ou 'AAAA-MM-JJ'. Sans fin (ou fin = début) : jalon.
+// Gantt: sequence of activities. tasks: [{name, start, end, group, highlight}]
+// Dates 'YYYY-MM' (whole month) or 'YYYY-MM-DD'. Without an end (or end = start): milestone.
 import { base, req, isObject, records } from './common.js';
 
 const MOIS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

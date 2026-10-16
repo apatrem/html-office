@@ -1,4 +1,4 @@
-// Bulles : corrélation à trois dimensions (x, y, taille).
+// Bubbles: three-variable relationship (x, y, size).
 import { base, fmt, req, num, isObject, records, finite } from './common.js';
 
 export default {

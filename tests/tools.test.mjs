@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {setZone, zone, upgrade, asset} from '../plugin/skills/html-slides/tools/lib.mjs';
+import {createHash} from 'node:crypto';
+import {setZone, zone, upgrade, asset, preflight} from '../plugin/skills/html-slides/tools/lib.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 fs.mkdirSync(path.join(root,'work'),{recursive:true});
 const dir=fs.mkdtempSync(path.join(root,'work/tools-'));
@@ -13,7 +14,7 @@ const run=(name,...args)=>spawnSync(process.execPath,[tool(name),...args],{encod
 let base;
 before(()=>{
  const content=path.join(dir,'content.html');
- fs.writeFileSync(content,'<section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Titre court</h1><div class="body" data-id="e2">Texte.</div></section>');
+ fs.writeFileSync(content,'<section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Short title</h1><div class="body" data-id="e2">Text.</div></section>');
  const file=path.join(dir,'plain.html');
  assert.equal(run('deck','new',file,'--content',content).status,0);
  base=fs.readFileSync(file,'utf8');
@@ -36,7 +37,7 @@ test('checker rejects self-removing scripts and code outside slides before rende
 test('since detects deletion and layout geometry changes with unchanged explicit positions',()=>{
  const a=path.join(dir,'geometry-before.html'),b=path.join(dir,'geometry-after.html');
  fs.writeFileSync(a,base);
- fs.writeFileSync(b,base.replace('<div class="body" data-id="e2">Texte.</div>',''));
+ fs.writeFileSync(b,base.replace('<div class="body" data-id="e2">Text.</div>',''));
  assert.equal(run('check',b,'--since',a).status,1);
  fs.writeFileSync(b,base.replace('class="body" data-id="e2"','class="body fs-xl" data-id="e2"'));
  const r=run('check',b,'--since',a,'--json');
@@ -50,7 +51,7 @@ test('since blocks position removal and order changes; explicit slide authorizat
  assert.equal(run('check',b,'--since',a).status,1);
  assert.equal(run('check',b,'--since',a,'--allow','s01').status,0);
  fs.writeFileSync(a,base);
- fs.writeFileSync(b,base.replace('<h1 data-id="e1">Titre court</h1><div class="body" data-id="e2">Texte.</div>','<div class="body" data-id="e2">Texte.</div><h1 data-id="e1">Titre court</h1>'));
+ fs.writeFileSync(b,base.replace('<h1 data-id="e1">Short title</h1><div class="body" data-id="e2">Text.</div>','<div class="body" data-id="e2">Text.</div><h1 data-id="e1">Short title</h1>'));
  assert.equal(run('check',b,'--since',a).status,1);
 });
 test('upgrade is explicit and preserves theme unless requested',()=>{
@@ -68,4 +69,52 @@ test('failed pack leaves the original HTML and PDF intact',()=>{
  fs.writeFileSync(f,html);fs.writeFileSync(pdf,'previous pdf');
  assert.equal(run('deck','pack',f,'--pdf',pdf).status,1);
  assert.equal(fs.readFileSync(f,'utf8'),html);assert.equal(fs.readFileSync(pdf,'utf8'),'previous pdf');
+});
+test('inert check rejects attributes and styles that load external resources',()=>{
+ const slide='<section class="slide" id="s01" data-layout="default">';
+ const cases={
+  srcset:'<img alt="x" srcset="https://example.invalid/a.png 1x">',
+  background:'<table class="t"><tr><td background="https://example.invalid/b.png">x</td></tr></table>',
+  ping:'<p class="body"><a href="#" ping="https://example.invalid/p">x</a></p>',
+  poster:'<video poster="https://example.invalid/v.png"></video>',
+  styleUrl:'<p class="body" style="background:url(https://example.invalid/c.png)">x</p>',
+  imageSet:'<p class="body" style="background:image-set(\'https://example.invalid/d.png\' 1x)">x</p>',
+  svgUrl:'<p class="body"><svg><rect fill="url(https://example.invalid/e.svg#g)"/></svg></p>',
+  svgHref:'<p class="body"><svg><image href="https://example.invalid/f.png"/></svg></p>'
+ };
+ for(const [name,frag] of Object.entries(cases)) assert.throws(()=>preflight(base.replace(slide,slide+frag)),/External resources|Forbidden attribute/,name);
+ assert.throws(()=>preflight(setZone(base,'charte',zone(base,'charte')+'\n@import url(https://example.invalid/g.css);')),/@import/);
+ assert.throws(()=>preflight(setZone(base,'theme',zone(base,'theme')+'\n.x{background:url(https://example.invalid/h.png)}')),/External resources/);
+ preflight(base.replace(slide,slide+'<p class="body"><svg><rect clip-path="url(#c0)"/></svg><a href="https://example.org/">link</a></p>'));
+});
+test('checker trusts only published engines and the current build',()=>{
+ const released=JSON.parse(fs.readFileSync(path.join(root,'src/released-engines.json'),'utf8'));
+ const trusted=JSON.parse(asset('trusted-scripts.json'));
+ const current=createHash('sha256').update(asset('engine.js').trim()).digest('hex');
+ assert.deepEqual(new Set(trusted.engine),new Set([...Object.values(released),current]));
+ assert.equal(trusted.echarts.length,1);
+});
+
+test('CSS checks decode escapes and inspect every image candidate',()=>{
+ const external=[
+  String.raw`.x{background:u\72l("https://example.invalid/escaped.png")}`,
+  String.raw`@im\70ort "https://example.invalid/import.css";`,
+  String.raw`.x{background:im\61ge-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  `.x{background:image-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  `.x{background:-webkit-image-set("data:image/png;base64,AAAA" 1x,"https://example.invalid/second.png" 2x)}`,
+  String.raw`.x{background:url("https\3a //example.invalid/escaped-url.png")}`,
+  `.x{background:src("https://example.invalid/source.png")}`
+ ];
+ for(const css of external)assert.throws(()=>preflight(setZone(base,'theme',zone(base,'theme')+'\n'+css)),/External resources|@import/,css);
+ for(const css of ['.x{--candidate:"https://example.invalid/x";background:image-set(var(--candidate) 1x)}', '.x{background:src(attr(data-url))}'])
+  assert.throws(()=>preflight(setZone(base,'theme',zone(base,'theme')+'\n'+css)),/Dynamic resource URLs/);
+ const inline=String.raw`<p class="body" style='background:u\72l("https://example.invalid/inline.png")'>x</p>`;
+ assert.throws(()=>preflight(base.replace('</section>',inline+'</section>')),/External resources/);
+ const svg=String.raw`<p class="body"><svg><rect fill='u\72l("https://example.invalid/fill.svg#x")'/></svg></p>`;
+ assert.throws(()=>preflight(base.replace('</section>',svg+'</section>')),/External resources/);
+ // Preserve same-document SVG references and embedded fonts/images, including CSS whitespace and escapes.
+ const safe=String.raw`.x{clip-path:u\72l( "#c0" );background:image-set("data:image/png;base64,AAAA" 1x,url("data:image/png;base64,AAAA") 2x)}
+ @font-face{font-family:"Example";src:url(data:font/woff2;base64,AAAA)}
+ .caption::before{content:"url(https://example.invalid/is-text) @import"}`;
+ preflight(setZone(base,'theme',zone(base,'theme')+'\n'+safe));
 });

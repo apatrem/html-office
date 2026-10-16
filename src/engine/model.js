@@ -1,8 +1,9 @@
-// V1 : état fondé sur le DOM, transactions et historique par instantanés HTML.
-// La collaboration V2 nécessitera un modèle indépendant et des opérations sérialisables.
+// V1: DOM-based state, transactions and history as HTML snapshots.
+// V2 collaboration will need an independent model and serialisable operations.
 
 export const VERSION = typeof __ENGINE_VERSION__ === 'undefined' ? 'dev' : __ENGINE_VERSION__;
 export {ECHARTS_URL,ECHARTS_INTEGRITY} from '../echarts.js';
+import { ACTIVE_TAGS, attributeProblem, assetProblem } from '../format.js';
 
 export const state = {
   main: null,
@@ -13,6 +14,8 @@ export const state = {
   handle: null,
   bodyClass: '',
   current: null,
+  base: '',
+  savedBase: null,
   listeners: {}
 };
 
@@ -25,7 +28,7 @@ export const isContent = el => el && el.parentElement && el.parentElement.matche
 export const items = slide => [...slide.children].filter(isContent);
 export const slideOf = el => el.closest('section.slide');
 
-// ---------- identifiants stables ----------
+// ---------- stable identifiers ----------
 let maxId = 0;
 export function ensureIds() {
   for (const el of state.main.querySelectorAll('[data-id]')) {
@@ -39,7 +42,7 @@ export function ensureIds() {
 }
 export const newId = () => 'e' + (++maxId);
 
-// ---------- nettoyage (retire tout ce qui est d'exécution) ----------
+// ---------- cleaning (removes everything that belongs to the runtime) ----------
 export function cleanNode(root) {
   root.querySelectorAll('[data-ui]').forEach(n => n.remove());
   for (const el of [root, ...root.querySelectorAll('*')]) {
@@ -57,7 +60,7 @@ export function cleanNode(root) {
 export function cleanSlideHTML(slide) { return cleanNode(slide.cloneNode(true)).outerHTML; }
 export function cleanMainHTML() { return cleanNode(state.main.cloneNode(true)).innerHTML; }
 
-// ---------- opérations ----------
+// ---------- operations ----------
 export function begin(slide) { return { slide, id: slide.id, before: cleanSlideHTML(slide) }; }
 export function commit(tok) {
   const slide = state.main.querySelector('#' + CSS.escape(tok.id)) || tok.slide;
@@ -96,7 +99,7 @@ const OPS = {
       else { const p = prevContent(el); if (p) p.before(el); }
     });
   },
-  // Mutation générique d'éléments (classes de mise en forme, etc.)
+  // Generic element mutation (formatting classes, etc.)
   mutate(op) { op.els.forEach(op.fn); },
   chartData(op) {
     const s = op.fig.querySelector(':scope > script[type="application/json"]');
@@ -115,7 +118,7 @@ export function apply(op) {
 function nextContent(el) { let n = el.nextElementSibling; while (n && !isContent(n)) n = n.nextElementSibling; return n; }
 function prevContent(el) { let n = el.previousElementSibling; while (n && !isContent(n)) n = n.previousElementSibling; return n; }
 
-// ---------- mise en forme : groupes de classes exclusives ----------
+// ---------- formatting: groups of mutually exclusive classes ----------
 export const GROUPS = { fs: /^fs-/, ta: /^ta-/, c: /^c-/, bg: /^bg-/, bold: /^t-bold$/, italic: /^t-italic$/ };
 export function setClass(el, group, cls) {
   [...el.classList].filter(c => GROUPS[group].test(c)).forEach(c => el.classList.remove(c));
@@ -124,8 +127,8 @@ export function setClass(el, group, cls) {
 }
 export const FORMAT_GROUPS = Object.keys(GROUPS);
 
-// Nettoie le HTML produit par l'édition de texte : pas de style, pas de <font>,
-// <span> seulement avec une classe de la charte.
+// Cleans the HTML produced by text editing: no style, no <font>,
+// <span> only with a theme class.
 const INLINE_CLASS = /^(c-(ink|acc|mid|alert|t2|bg)|hl|neg|t2)$/;
 const unwrap = n => n.replaceWith(...n.childNodes);
 export function sanitize(root) {
@@ -157,16 +160,16 @@ export function measure(slide, el) {
   const sr = slide.getBoundingClientRect(), k = sr.width / 1280, r = el.getBoundingClientRect();
   return { x: (r.left - sr.left) / k, y: (r.top - sr.top) / k, w: r.width / k, h: r.height / k };
 }
-// Fige la mise en page : chaque élément reçoit sa position calculée.
+// Freezes the layout: every element receives its computed position.
 export function detach(slide) {
   if (slide.hasAttribute('data-detached')) return;
-  // largeur et hauteur arrondies au pixel supérieur : un texte qui tenait juste ne doit pas passer à la ligne
+  // width and height rounded up to the pixel: text that just fitted must not wrap
   const list = items(slide).map(el => { const r = measure(slide, el); return { el, r: { ...r, w: Math.ceil(r.w - 0.01) + 1, h: Math.ceil(r.h - 0.01) } }; });
   slide.setAttribute('data-detached', '');
   list.forEach(({ el, r }) => setPos(el, r));
 }
 
-// ---------- opérations sur le deck (structure, pied de page) ----------
+// ---------- deck operations (structure, footer) ----------
 const deckState = () => ({ html: cleanMainHTML(), footer: state.main.dataset.footer || '' });
 export function beginDeck() { return { before: deckState() }; }
 export function commitDeck(tok) {
@@ -192,7 +195,7 @@ export function nextSlideId() {
   do { id = 's' + String(++n).padStart(2, '0'); } while (document.getElementById(id));
   return id;
 }
-// Insère une slide (HTML d'une <section>) après `after` (ou en fin de deck) ; attribue les identifiants.
+// Inserts a slide (HTML of a <section>) after `after` (or at the end of the deck); assigns identifiers.
 export function insertSlideHTML(html, after) {
   const t = document.createElement('template');
   t.innerHTML = html.trim();
@@ -203,7 +206,7 @@ export function insertSlideHTML(html, after) {
   return s;
 }
 
-// ---------- annuler / rétablir ----------
+// ---------- undo / redo ----------
 export function undo() { step(state.undo, state.redo, 'before'); }
 export function redo() { step(state.redo, state.undo, 'after'); }
 function step(from, to, key) {
@@ -223,15 +226,31 @@ export function replaceSlide(id, html) {
   emit('replaced', fresh);
 }
 
-// ---------- état « modifié » et brouillon ----------
+// ---------- dirty state and draft ----------
 const draftKey = () => 'html-slides:' + location.pathname;
 export const jsonForScript = value => JSON.stringify(value).replace(/</g, '\\u003c');
 function draftState() {
   const main = cleanNode(state.main.cloneNode(true)); main.removeAttribute('style');
   return { format: 1, main: main.outerHTML, assets: usedAssets() };
 }
+const draftFingerprint = d => fingerprint(d.main + JSON.stringify(d.assets));
+// Fingerprint of the file as opened (cyrb53). A draft records the version it was made from,
+// so a draft left by an earlier version of a file at the same path is recognised as foreign.
+function fingerprint(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+export function captureBase() {
+  state.base = draftFingerprint(draftState());
+}
 export function persistDraft() {
-  try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), ...draftState() })); } catch (e) {
+  try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, savedBase: state.savedBase, ...draftState() })); } catch (e) {
     emit('draft-error');
   }
 }
@@ -241,40 +260,77 @@ export function markDirty() {
   emit('dirty', true);
   persistDraft();
 }
-export function markSaved(revision = state.revision) {
+export function markSaved(revision = state.revision, html) {
+  if (html) {
+    // Use the snapshot actually written, not the live DOM (which may have newer edits).
+    // Keep the opened base too: the picker may have saved a separate copy instead.
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    state.savedBase = draftFingerprint({main: template.content.querySelector('main#deck').outerHTML,
+      assets: JSON.parse(template.content.querySelector('script#assets').textContent)});
+  }
+  if (revision !== state.revision) { persistDraft(); return false; }
+  state.dirty = false;
+  emit('dirty', false);
+  try { localStorage.removeItem(draftKey()); } catch (e) { /* storage unavailable */ }
+  return true;
+}
+// Download fallback: a copy was offered, but this file is unchanged. The draft is kept so that
+// the edits can be restored if the download was cancelled or the copy is lost.
+export function markDownloaded(revision = state.revision) {
   if (revision !== state.revision) return false;
   state.dirty = false;
   emit('dirty', false);
-  try { localStorage.removeItem(draftKey()); } catch (e) { /* rien */ }
   return true;
 }
+// Returns the stored draft when it differs from the open file; `foreign` is true when the draft
+// was made from another version of the file at this path (or by an engine that did not record it).
 export function readDraft() {
   try {
     const d = JSON.parse(localStorage.getItem(draftKey()) || 'null');
     if (d?.format === 1 && typeof d.main === 'string') {
       const current = draftState();
-      return d.main !== current.main || JSON.stringify(d.assets) !== JSON.stringify(current.assets) ? d : null;
+      const differs = d.main !== current.main || JSON.stringify(d.assets) !== JSON.stringify(current.assets);
+      return differs ? { ...d, foreign: d.base !== state.base && d.savedBase !== state.base } : null;
     }
-    return d && typeof d.html === 'string' && d.html !== cleanMainHTML() ? d : null; // brouillons 0.4
+    return d && typeof d.html === 'string' && d.html !== cleanMainHTML() ? { ...d, foreign: true } : null; // 0.4 drafts
   }
   catch (e) { return null; }
 }
-export function dropDraft() { try { localStorage.removeItem(draftKey()); } catch (e) { /* rien */ } }
+export function dropDraft() { try { localStorage.removeItem(draftKey()); } catch (e) { /* storage unavailable */ } }
+// Another local page can write this storage: a draft is untrusted input. It is parsed in an inert
+// template and stripped of code and external resources before it reaches the document.
+function scrubDraft(root) {
+  for (const el of [root, ...root.querySelectorAll('*')]) {
+    const tag = el.localName.toLowerCase();
+    const chartData = tag === 'script' && el.getAttribute('type') === 'application/json' && el.parentElement?.matches('figure.chart');
+    if (ACTIVE_TAGS.includes(tag) || ['script', 'style', 'meta', 'title', 'noscript'].includes(tag) && !chartData || el.hasAttribute('data-ui')) {
+      el.remove();
+      continue;
+    }
+    for (const a of [...el.attributes])
+      if (attributeProblem(a.name, a.value, el.namespaceURI === 'http://www.w3.org/1999/xhtml')) el.removeAttribute(a.name);
+  }
+}
+const safeAssets = assets => Object.fromEntries(Object.entries(assets && typeof assets === 'object' ? assets : {})
+  .filter(([k, a]) => !assetProblem(k, a)));
 export function restoreDraft(d) {
+  const t = document.createElement('template');
+  t.innerHTML = d.format === 1 ? d.main : `<main id="deck">${d.html}</main>`;
+  const saved = t.content.firstElementChild;
+  if (!saved?.matches('main#deck')) throw new Error('Invalid draft');
+  scrubDraft(saved);
   if (d.format === 1) {
-    const t = document.createElement('template'); t.innerHTML = d.main;
-    const saved = t.content.firstElementChild;
-    if (!saved?.matches('main#deck')) throw new Error('Brouillon invalide');
     [...state.main.attributes].filter(a => a.name !== 'style').forEach(a => state.main.removeAttribute(a.name));
     [...saved.attributes].forEach(a => state.main.setAttribute(a.name, a.value));
-    state.main.innerHTML = saved.innerHTML;
-    document.getElementById('assets').textContent = jsonForScript(d.assets || {});
-  } else state.main.innerHTML = d.html;
+    document.getElementById('assets').textContent = jsonForScript(safeAssets(d.assets));
+  }
+  state.main.innerHTML = saved.innerHTML;
   state.undo = []; state.redo = []; state.current = null;
   ensureIds(); emit('deck'); markDirty();
 }
 
-// ---------- ressources (images, polices) ----------
+// ---------- assets (images, fonts) ----------
 export function readAssets() {
   const s = document.getElementById('assets');
   try { return s ? JSON.parse(s.textContent || '{}') : {}; } catch (e) { return {}; }
@@ -296,9 +352,9 @@ export function resolveAssets(root = document) {
   }
 }
 
-// ---------- sérialisation ----------
-// On enregistre uniquement les nœuds d'origine du fichier (capturés au chargement) :
-// tout ce que le moteur, Moveable ou Selecto ajoutent à la page en est exclu.
+// ---------- serialisation ----------
+// Only the original nodes of the file (captured on load) are saved:
+// everything the engine, Moveable or Selecto add to the page is excluded.
 export function captureShell() {
   state.shell = {
     html: [...document.documentElement.attributes].map(a => [a.name, a.value]),
@@ -311,7 +367,7 @@ export function serialize(refreshCaches) {
   if (refreshCaches) refreshCaches();
   const sh = state.shell;
   const head = sh.head.filter(n => n.isConnected).map(n => n.outerHTML).join('\n');
-  // ressources : on n'enregistre que celles encore utilisées (les autres restent en mémoire pour l'annulation)
+  // assets: only those still in use are saved (the others stay in memory for undo)
   const body = sh.body.filter(n => n.isConnected).map(n => {
     if (n.id === 'assets') {
       return `<script id="assets" type="application/json">${jsonForScript(usedAssets())}</script>`;

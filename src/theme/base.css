@@ -1,5 +1,5 @@
-/* html-slides — thème de base (MIT). Ne contient aucune couleur en dur :
-   toutes les couleurs viennent de la charte (variables CSS). */
+/* html-slides — base theme (MIT). Contains no hard-coded colour:
+   every colour comes from the branding theme (CSS variables). */
 
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -10,7 +10,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide{position:relative;width:1280px;height:720px;flex:none;overflow:hidden;
   background:var(--bg);color:var(--ink);font-family:var(--font);font-size:var(--body-size);
   line-height:1.45;
-  /* mise à l'échelle par transform (et non zoom) : coordonnées fiables pour l'éditeur dans tous les navigateurs */
+  /* scaling with transform (not zoom): reliable editor coordinates in every browser */
   transform:scale(var(--s,1));transform-origin:top center;margin-bottom:calc((var(--s,1) - 1) * 720px)}
 .slide p{margin:0 0 10px}
 .slide p:last-child{margin-bottom:0}
@@ -20,7 +20,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide.dark{background:var(--ink);color:var(--bg)}
 .slide.dark .tracker,.slide.dark .source,.slide.dark .sticker,.slide.dark .t2{color:var(--lig)}
 
-/* ---------- éléments à rôle ---------- */
+/* ---------- role elements ---------- */
 .slide h1{font-size:var(--title-size);font-weight:700;line-height:1.16;letter-spacing:var(--title-track);margin:0;max-width:1060px}
 .slide .tracker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);margin:0}
 .slide .sticker{position:absolute;top:44px;right:64px;text-align:right;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);margin:0}
@@ -44,10 +44,10 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide img{max-width:100%;display:block}
 .slide figure{margin:0}
 
-/* nombre de colonnes des cartes et des étapes */
+/* number of columns of cards and steps */
 .slide .cols-2{--n:2}.slide .cols-3{--n:3}.slide .cols-4{--n:4}.slide .cols-5{--n:5}
 
-/* boîtes et flèches (primitives des slides originales) */
+/* boxes and arrows (free-composition primitives) */
 .slide .box{border:1px solid var(--bd);padding:14px 16px;font-size:15px;line-height:1.4;background:var(--bg);color:var(--ink)}
 .slide .box.tint{background:var(--callout);border-color:var(--callout)}
 .slide .box.accent{background:var(--acc);border-color:var(--acc);color:var(--bg)}
@@ -55,7 +55,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide .box h3{font-size:16px;margin:0 0 6px}
 .slide .arrow{display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:28px;line-height:1}
 .slide .rule{border-top:1px solid var(--bd);height:0;align-self:center}
-/* formes (data-shape) : fond accent par défaut, texte centré ; le fond se change avec bg-* */
+/* shapes (data-shape): accent fill by default, centred text; change the fill with bg-* */
 .slide .shape{display:flex;align-items:center;justify-content:center;text-align:center;background:var(--acc);color:var(--bg);
   padding:8px 18px;font-size:16px;line-height:1.25;font-weight:700;min-height:24px;overflow-wrap:anywhere}
 .slide .shape[data-shape=round]{border-radius:16px}
@@ -80,7 +80,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide table.t td.n,.slide table.t th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .slide table.t tr.tot td{border-bottom:none;border-top:2px solid var(--ink);font-weight:700}
 
-/* étapes et matrice */
+/* steps and matrix */
 .slide .steps{display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:8px;align-content:start}
 .slide .steps > div{background:var(--callout);padding:14px 22px 14px 16px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,10px 50%);font-size:14px;line-height:1.35}
 .slide .steps > div:first-child{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%)}
@@ -98,18 +98,18 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide figure.chart > svg.render{flex:1 1 auto;width:100%;min-height:0;height:auto}
 .slide figure.chart.live > svg.render{display:none}
 
-/* ---------- mise en forme prise dans la charte (éditeur et LLM) ---------- */
-/* taille du texte */
+/* ---------- theme formatting (editor and LLM) ---------- */
+/* text size */
 .slide .fs-s{font-size:13px !important}.slide .fs-m{font-size:16px !important}.slide .fs-l{font-size:20px !important}
 .slide .fs-xl{font-size:26px !important}.slide .fs-xxl{font-size:34px !important}
-/* alignement du texte */
+/* text alignment */
 .slide .ta-l{text-align:left !important}.slide .ta-c{text-align:center !important}.slide .ta-r{text-align:right !important}
-/* gras, italique (élément entier ; dans le texte : <b>, <i>) */
+/* bold, italic (whole element; inside text: <b>, <i>) */
 .slide .t-bold{font-weight:700 !important}.slide .t-italic{font-style:italic !important}
-/* couleur du texte (élément ou <span> dans le texte) */
+/* text colour (element or <span> inside text) */
 .slide .c-ink{color:var(--ink) !important}.slide .c-acc{color:var(--acc) !important}.slide .c-mid{color:var(--mid) !important}
 .slide .c-alert{color:var(--alert) !important}.slide .c-t2{color:var(--t2) !important}.slide .c-bg{color:var(--bg) !important}
-/* fond de l'élément */
+/* element background */
 .slide .bg-none{background:transparent !important;border-color:transparent !important}
 .slide .bg-tint{background:var(--callout) !important;border-color:var(--callout) !important}
 .slide .bg-acc{background:var(--acc) !important;border-color:var(--acc) !important;color:var(--bg)}
@@ -120,7 +120,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide > :is(.bg-tint,.bg-lig,.bg-mid,.bg-acc,.bg-alert,.bg-dark):not(.box,.card,.callout,.matrix,.steps,table,figure,.shape){padding:12px 16px}
 .slide :is(.bg-acc,.bg-dark,.bg-mid,.bg-alert) :is(.kpi,.t2){color:inherit}
 
-/* ---------- largeurs dans la grille de 12 colonnes ---------- */
+/* ---------- widths in the 12-column grid ---------- */
 .slide > .w-2{grid-column:span 2 !important}.slide > .w-3{grid-column:span 3 !important}
 .slide > .w-4{grid-column:span 4 !important}.slide > .w-5{grid-column:span 5 !important}
 .slide > .w-6{grid-column:span 6 !important}.slide > .w-7{grid-column:span 7 !important}
@@ -130,7 +130,7 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide:not([data-detached]):has(> .r4){grid-template-rows:auto auto auto auto minmax(0,1fr)}
 
 /* ================================================================
-   LAYOUTS — ne s'appliquent qu'aux slides non détachées
+   LAYOUTS — apply only to slides that are not detached
    ================================================================ */
 .slide:not([data-detached]){display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:24px;
   grid-template-rows:auto auto minmax(0,1fr) auto;align-content:stretch;padding:44px 64px 92px}
@@ -140,20 +140,20 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide:not([data-detached]) > .tracker{grid-row:1;grid-column:1 / -1;margin-bottom:22px}
 .slide:not([data-detached]) > h1{grid-row:2;grid-column:1 / -1;margin-bottom:26px}
 
-/* défaut = titre seul : rien de plus */
+/* default = title only: nothing more */
 
 /* haut-gauche : titre d'impact, contenu dessous */
 .slide[data-layout="top-left"] > h1{font-size:44px}
 .slide[data-layout="top-left"]:not([data-detached]) > h1{max-width:900px;margin-bottom:36px}
 
-/* milieu-gauche : titre centré verticalement à gauche, contenu à droite */
+/* mid-left: title vertically centred on the left, content on the right */
 .slide[data-layout="mid-left"]:not([data-detached]){grid-template-rows:repeat(6,auto);align-content:center;padding:64px}
 .slide[data-layout="mid-left"]:not([data-detached]) > *{grid-column:7 / -1;grid-row:auto;margin-bottom:18px}
 .slide[data-layout="mid-left"] > h1{font-size:40px}
 .slide[data-layout="mid-left"]:not([data-detached]) > h1{grid-column:1 / 6;grid-row:1 / 7;align-self:center;margin:0}
 .slide[data-layout="mid-left"]:not([data-detached]) > .tracker{position:absolute;top:44px;left:64px;grid-area:auto !important}
 
-/* panneaux latéraux : --pc = colonnes occupées par le panneau */
+/* side panels: --pc = columns taken by the panel */
 .slide[data-layout^="panel-"]{--pc:4}
 .slide[data-layout="panel-14"]{--pc:3}
 .slide[data-layout="panel-13"]{--pc:4}
@@ -179,23 +179,23 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide[data-layout^="panel-"]:not([data-detached]) > figure.in-panel{align-self:stretch;padding:8px 0 0}
 .slide[data-layout^="panel-"]:not([data-detached]) > .source{left:calc(64px + var(--pc) * 98px + 12px)}
 
-/* trois lignes : trois bandes horizontales sous le titre */
+/* three lines: three horizontal bands below the title */
 .slide[data-layout="three-lines"]:not([data-detached]){grid-template-rows:auto auto 1fr 1fr 1fr}
 .slide[data-layout="three-lines"]:not([data-detached]) > .band{grid-row:auto}
 .slide .band{border-top:1px solid var(--bd);padding-top:14px;display:grid;grid-template-columns:3fr 9fr;gap:24px}
 .slide .band > :first-child{font-weight:700;color:var(--acc)}
 
-/* couverture et fin */
+/* cover and end */
 .slide[data-layout="cover"]:not([data-detached]),.slide[data-layout="end"]:not([data-detached]){display:block;padding:0}
 .slide[data-layout="cover"]:not([data-detached]) > *,.slide[data-layout="end"]:not([data-detached]) > *{position:absolute}
-/* typographie : s'applique aussi quand la slide est détachée */
+/* typography: also applies when the slide is detached */
 .slide .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--t2);margin:0}
 .slide[data-layout="cover"] > h1{font-size:46px;line-height:1.12;max-width:none}
 .slide .note{font-size:11px;color:var(--t2);line-height:1.5}
 .slide:is([data-layout="cover"],[data-layout="end"]) > .tracker{font-size:11px}
 .slide[data-layout="end"] > h1::before{content:"";display:block;width:96px;height:5px;background:var(--acc);margin-bottom:26px}
 .slide[data-layout="end"] > .lead{font-size:17px;line-height:1.6}
-/* placement : seulement tant que la slide suit son layout */
+/* placement: only while the slide follows its layout */
 .slide[data-layout="cover"]:not([data-detached]) > .kicker{left:72px;top:150px}
 .slide[data-layout="cover"]:not([data-detached]) > h1{left:72px;right:420px;top:186px}
 .slide[data-layout="cover"]:not([data-detached]) > .lead{left:72px;width:700px;top:360px}
@@ -230,19 +230,19 @@ main#deck{display:flex;flex-direction:column;align-items:center;gap:16px;padding
 .slide[data-layout="quote"]:not([data-detached]) > blockquote{left:160px;right:160px;top:200px}
 .slide[data-layout="quote"]:not([data-detached]) > .author{left:160px;top:470px}
 
-/* ---------- slide détachée : chaque élément porte sa position ---------- */
+/* ---------- detached slide: every element carries its position ---------- */
 .slide[data-detached] > [data-id]{position:absolute !important;left:calc(var(--x) * 1px) !important;top:calc(var(--y) * 1px) !important;
   width:calc(var(--w) * 1px) !important;height:calc(var(--h) * 1px) !important;right:auto !important;bottom:auto !important;
   margin:0 !important;max-width:none !important}
 .slide[data-detached] > figure.chart > svg.render{height:100%}
 
-/* ---------- chrome généré par le moteur (pied de page, cadre) ---------- */
+/* ---------- chrome generated by the engine (footer, frame) ---------- */
 .slide > [data-ui]{position:absolute}
 .slide > .hs-foot{left:64px;right:64px;bottom:26px;display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--t2);pointer-events:none}
 .slide.dark > .hs-foot{color:var(--lig)}
 .slide > .hs-sheet{inset:28px;border:1px solid var(--bd);pointer-events:none}
 
-/* ---------- impression : une slide par page ---------- */
+/* ---------- print: one slide per page ---------- */
 @page{size:1280px 720px;margin:0}
 @media print{
   body{background:#fff}

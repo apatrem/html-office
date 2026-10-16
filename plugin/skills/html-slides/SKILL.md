@@ -15,7 +15,7 @@ Deliver one `.html` file with semantic content, a theme, JSON chart data, cached
 
 ## Create a deck
 
-1. Establish the objective, audience, length, and branding (default: `assets/charte-pierre.css`). Ask one bundled question only if decisive information is missing; otherwise state assumptions and proceed.
+1. Establish the objective, audience, length, and branding (default: `assets/default.css`). Ask one bundled question only if decisive information is missing; otherwise state assumptions and proceed.
 2. Present the storyline in conversation before writing: one main message, three to five mutually exclusive and collectively exhaustive arguments, then the slide-by-slide plan with layout, archetype, message title, and chart. Aim below 20 slides for a one-hour meeting.
 3. Write `content.html` containing only `<section class="slide">` elements using FORMAT/CATALOGUE. No styles or scripts other than chart JSON; no literal colours.
 4. Build: `node <skill>/tools/deck.mjs new output.html --title "…" --footer "… · Discussion draft" --content content.html`. Use `--charte theme.css` for requested branding.

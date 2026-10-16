@@ -12,7 +12,7 @@ const dir = fs.mkdtempSync(path.join(root, 'work/thumbnails-'));
 let browser;
 before(async () => {
   for (const name of ['catalogue', 'community-garden']) {
-    fs.writeFileSync(path.join(dir, name+'.html'), upgrade(fs.readFileSync(path.join(root, 'decks', name+'.html'), 'utf8')));
+    fs.writeFileSync(path.join(dir, name+'.html'), upgrade(fs.readFileSync(path.join(root, 'plugin/skills/html-slides/examples', name+'.html'), 'utf8')));
   }
   const example=fs.readFileSync(path.join(dir,'community-garden.html'),'utf8');
   fs.writeFileSync(path.join(dir,'loading.html'),setZone(example,'main',zone(example,'main').replace(/<svg\b[^>]*class="render"[\s\S]*?<\/svg>/g,'')));

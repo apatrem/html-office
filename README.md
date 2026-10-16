@@ -2,9 +2,9 @@
 
 Create presentations with an LLM, edit them in your browser, and share a single HTML file. Slides contain readable HTML, chart data, a theme, an editor, and a built-in format guide. Export to PDF when needed.
 
-**[Download the plugin](https://github.com/apatrem/html-slides/releases/download/v0.7.0/html-slides.plugin)** · **[Skill instructions](plugin/skills/html-slides/SKILL.md)** · **[Format reference](plugin/skills/html-slides/references/FORMAT.md)**
+**[Download the plugin](https://github.com/apatrem/html-slides/releases/download/v0.7.1/html-slides.plugin)** · **[Skill instructions](plugin/skills/html-slides/SKILL.md)** · **[Format reference](plugin/skills/html-slides/references/FORMAT.md)**
 
-Open [the community garden example](https://github.com/apatrem/html-slides/releases/download/v0.7.0/community-garden.html) or [the visual catalogue](https://github.com/apatrem/html-slides/releases/download/v0.7.0/catalogue.html) by downloading the HTML file and opening it in Chrome or Edge. Click **Edit**, double-click text to change it, drag elements to move them, and press **Cmd/Ctrl+S** to save. No plugin is needed to open or edit a generated deck.
+Open [the community garden example](https://github.com/apatrem/html-slides/releases/download/v0.7.1/community-garden.html) or [the visual catalogue](https://github.com/apatrem/html-slides/releases/download/v0.7.1/catalogue.html) by downloading the HTML file and opening it in Chrome or Edge. Click **Edit**, double-click text to change it, drag elements to move them, and press **Cmd/Ctrl+S** to save. No plugin is needed to open or edit a generated deck.
 
 All examples use fictional, clearly labelled data. They contain no client material. The project is licensed under MIT; bundled dependencies retain their own licences in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
@@ -37,7 +37,7 @@ node $T/check.mjs deck.html --since before.html --allow e12
 
 `pack` preserves the engine, theme, and guide. `upgrade deck.html` updates the engine and its guide explicitly, creates a `.bak` backup, and keeps the theme unless `--theme` is requested. Review before/after screenshots when changing a theme. Failed validation or rendering leaves existing pack outputs intact.
 
-The checker parses inert HTML before running it and accepts only recognised engine scripts. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
+The checker parses inert HTML before running it and accepts only recognised engine scripts. CSS resource checks decode escapes and inspect every image candidate; dynamic URL substitution is rejected. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
 
 ## Network and offline use
 
@@ -57,6 +57,8 @@ npm run release
 
 `npm run release` rebuilds assets, regenerates both HTML/PDF examples, checks their geometry, runs the regression suite and browser editor tests, and creates `dist/html-slides.plugin`.
 
+The checker trusts the engines listed in `src/released-engines.json` plus the engine of the current build. After publishing a version, run `npm run record-release` and commit `src/released-engines.json` so that later versions keep accepting decks made with it. Recording refuses a version that was already published with a different engine.
+
 | Folder | Purpose |
 | --- | --- |
 | `src/engine/` | DOM operations, history, serialisation, editor, thumbnails, and chart rendering |
@@ -65,20 +67,21 @@ npm run release
 | `src/guide.md`, `src/format.js` | Embedded guide and shared format contract |
 | `src/echarts.js` | Approved ECharts version, URL, and SRI digest |
 | `src/distribution.json` | HTTPS links to a compatible release |
+| `src/released-engines.json` | Digests of published engines accepted by the checker |
 | `tools/` | Build, documentation generation, validation, and packaging |
 | `tests/` | Chart, preservation, persistence, thumbnails, guide, SRI, and editor checks |
-| `plugin/` | Distributable skill/plugin with built assets |
-| `decks/` | Fictional English examples, their source content, and PDFs |
+| `plugin/` | Distributable skill/plugin with built assets and the generated examples |
+| `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
 | `docs/` | [V1 plan](docs/PLAN.md), decisions, and [validation status](docs/VALIDATION-V1.md) |
 
-Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/charte-pierre.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
+Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
 
 Distribution links are versioned in `src/distribution.json`; documentation and downloads must point to a compatible release. Format versioning is independent of engine versioning. Generated assets are committed so the downloaded skill can run without a build step.
 
 ## V1 limits
 
 - Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file.
-- Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. Large drafts may exceed browser storage capacity.
+- Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft recognises the opened file and the content actually written by a successful save, including Save As and edits made during writing. After an unrelated version replaces the file at the same path, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
 - The V1 model uses DOM operations and HTML snapshots. Collaboration requires a new mutation model in V2.
 - No attached connectors, rotation, merged table cells, arbitrary fonts/colours, or PPTX export. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.
 - Cross-device manual tests, five real-use comparisons, and the context-free LLM test are still pending. See the validation log; automated checks do not establish these outcomes.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Vérificateur html-slides : rend le deck et liste les erreurs à corriger.
+// html-slides checker: renders the deck and lists the errors to fix.
 //   node check.mjs <deck.html> [--shots folder] [--since before.html] [--allow e3,e7] [--json]
-// Code de sortie 1 s'il reste au moins une erreur bloquante.
+// Exit code 1 when at least one blocking error remains.
 import fs from 'node:fs';
 import path from 'node:path';
 import { openDeck, args } from './lib.mjs';
@@ -32,7 +32,7 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
   slides.forEach((s, i) => {
     const sid = s.id || `#${i + 1}`;
     const layout = s.dataset.layout || 'default';
-    if (!LAYOUTS.includes(layout)) add('error', sid, null, `Unknown layout « ${layout} »`);
+    if (!LAYOUTS.includes(layout)) add('error', sid, null, `Unknown layout "${layout}"`);
     const sr = s.getBoundingClientRect();
     const kids = [...s.children].filter(el => !el.hasAttribute('data-ui') && el.tagName !== 'ASIDE');
     const h1 = s.querySelector(':scope > h1');
@@ -51,8 +51,8 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
     kids.forEach(el => {
       const id = el.dataset.id;
       if (id) { if (ids.has(id)) add('error', sid, id, 'Duplicate data-id'); ids.add(id); }
-      for (const c of el.classList) if (!CLASSES.includes(c) && !RUNTIME.includes(c)) add('error', sid, id, `Class outside catalogue « ${c} »`);
-      if (el.matches('.shape') && !SHAPES.includes(el.dataset.shape)) add('error', sid, id, `Unknown shape « ${el.dataset.shape || ''} » (data-shape : ${SHAPES.join(', ')})`);
+      for (const c of el.classList) if (!CLASSES.includes(c) && !RUNTIME.includes(c)) add('error', sid, id, `Class outside catalogue "${c}"`);
+      if (el.matches('.shape') && !SHAPES.includes(el.dataset.shape)) add('error', sid, id, `Unknown shape "${el.dataset.shape || ''}" (data-shape: ${SHAPES.join(', ')})`);
       const st = el.getAttribute('style');
       if (st) {
         const bad = st.split(';').map(x => x.trim()).filter(Boolean).filter(x => !/^--[xywh]\s*:\s*-?\d+(\.\d+)?$/.test(x));
@@ -68,15 +68,15 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
     });
     kids.forEach(el => el.querySelectorAll('*').forEach(d => {
       if (d.closest('figure.chart > svg, figure.chart > [data-ui]') || d.matches('script')) return;
-      if (d.hasAttribute('style')) add('error', sid, el.dataset.id, `Forbidden inline text style (<${d.tagName.toLowerCase()} style="…">) : use theme classes`);
+      if (d.hasAttribute('style')) add('error', sid, el.dataset.id, `Forbidden inline text style (<${d.tagName.toLowerCase()} style="…">): use theme classes`);
       if (d.tagName === 'FONT') add('error', sid, el.dataset.id, 'Forbidden <font> tag: use <span class="c-…">');
-      if (d.tagName === 'SPAN') for (const c of d.classList) if (!/^(c-(ink|acc|mid|alert|t2|bg)|hl|neg|t2)$/.test(c)) add('error', sid, el.dataset.id, `Text class outside theme « ${c} »`);
+      if (d.tagName === 'SPAN') for (const c of d.classList) if (!/^(c-(ink|acc|mid|alert|t2|bg)|hl|neg|t2)$/.test(c)) add('error', sid, el.dataset.id, `Text class outside theme "${c}"`);
     }));
-    // sécurité : le contenu ne doit jamais pouvoir exécuter de code à l'ouverture du fichier
+    // safety: content must never be able to run code when the file is opened
     [s, ...s.querySelectorAll('*')].forEach(d => {
       if (d.closest('[data-ui]')) return;
       for (const a of d.attributes) {
-        if (/^on/i.test(a.name)) add('error', sid, d.dataset.id || null, `Forbidden attribute « ${a.name} » (executable code)`);
+        if (/^on/i.test(a.name)) add('error', sid, d.dataset.id || null, `Forbidden attribute "${a.name}" (executable code)`);
         if (/^\s*javascript:/i.test(a.value)) add('error', sid, d.dataset.id || null, `javascript: links are forbidden`);
       }
       if (d.matches('iframe, object, embed, frame')) add('error', sid, d.dataset.id || null, `Forbidden tag <${d.tagName.toLowerCase()}>`);
@@ -85,14 +85,14 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
     });
     s.querySelectorAll('img').forEach(img => {
       if (!img.getAttribute('alt')) add('error', sid, img.dataset.id || null, 'Image missing alt text');
-      if (img.dataset.asset && !img.getAttribute('src')) add('error', sid, img.dataset.id || null, `Asset « ${img.dataset.asset} » missing from assets`);
+      if (img.dataset.asset && !img.getAttribute('src')) add('error', sid, img.dataset.id || null, `Asset "${img.dataset.asset}" missing from assets`);
     });
   });
-  window.deckEngine.validateCharts().forEach(c => c.errors.forEach(m => add('error', c.slide, c.id, `graphique ${c.type} : ${m}`)));
+  window.deckEngine.validateCharts().forEach(c => c.errors.forEach(m => add('error', c.slide, c.id, `chart ${c.type}: ${m}`)));
   return { out, n: slides.length };
 }, { LAYOUTS, CLASSES, RUNTIME, SHAPES });
 
-// Positions préservées par rapport à une version précédente.
+// Positions preserved relative to a previous version.
 if (A.since) {
   const allow = new Set(String(A.allow || '').split(',').filter(Boolean));
   report.out.push(...compareSnapshots(snapshot(fs.readFileSync(A.since,'utf8')),snapshot(fs.readFileSync(file,'utf8')),allow));

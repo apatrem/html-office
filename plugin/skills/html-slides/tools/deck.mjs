@@ -25,7 +25,7 @@ const cmds = {
     const title = A.title || path.basename(file, '.html');
     const content = A.content ? read(A.content) : '<section class="slide" id="s01" data-layout="cover">\n  <p class="kicker">Short title</p>\n  <h1>Document message title</h1>\n</section>';
     let html = asset('template.html');
-    const rep = { TITLE: esc(title), FOOTER: esc(A.footer || ''), CHARTE: A.charte ? read(A.charte) : asset('charte-pierre.css'),
+    const rep = { TITLE: esc(title), FOOTER: esc(A.footer || ''), CHARTE: A.charte ? read(A.charte) : asset('default.css'),
       THEME: asset('theme.css'), ENGINE: asset('engine.js'), CONTENT: content.trim() };
     html = html.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in rep ? rep[k] : m));
     preflight(html);
@@ -64,7 +64,7 @@ const cmds = {
     if (!file || !second) die('usage : inject <deck.html> <content.html>');
     const html = read(file);
     let content = read(second).replace(/^<!--[\s\S]*?-->\s*/, '');
-    // Garde la copie SVG d'un graphique si son identifiant et ses données n'ont pas changé.
+    // Keep a chart's cached SVG when its identifier and data are unchanged.
     const old = zone(html, 'main') || '';
     const caches = {};
     for (const m of old.matchAll(/<figure\b[^>]*data-id="([^"]+)"[^>]*>([\s\S]*?)<\/figure>/g)) {
@@ -158,7 +158,7 @@ const cmds = {
     let id = A.id;
     if (!id) { let n = 1; while (assets['a' + n]) n++; id = 'a' + n; }
     let buf = fs.readFileSync(second), t = type;
-    // Recompression si sharp est disponible : 1 600 px de large au plus, WebP qualité 82.
+    // Recompress when sharp is available: at most 1,600 px wide, WebP quality 82.
     if (type !== 'image/svg+xml' && !A.raw) {
       try {
         const mod = await importAny('sharp');
@@ -166,7 +166,7 @@ const cmds = {
         const sharp = mod.default || mod;
         buf = await sharp(buf).resize({ width: Number(A.width) || 1600, withoutEnlargement: true }).webp({ quality: 82 }).toBuffer();
         t = 'image/webp';
-      } catch (e) { /* sharp absent : image gardée telle quelle */ }
+      } catch (e) { /* sharp missing: keep the image as is */ }
     }
     assets[id] = { type: t, data: buf.toString('base64') };
     const next=setZone(html, 'assets', JSON.stringify(assets).replace(/</g,'\\u003c'));preflight(next);

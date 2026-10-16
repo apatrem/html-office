@@ -5,8 +5,11 @@ The html-slides engine (`engine.js`, copied into each deck) includes these MIT-l
 | Package | Version | Copyright |
 |---|---|---|
 | moveable, croact-moveable, gesto, css-to-mat, framework-utils, overlap-area, @daybrush/utils, @scena/dragscroll, @scena/event-emitter, @scena/matrix, croact, croact-css-styled, css-styled, keycon | see package-lock.json | Copyright (c) 2018-2020 Daybrush |
+| @csstools/css-tokenizer | 3.0.4 | Copyright 2022 Romain Menke, Antonio Laguna <antonio@laguna.es> |
 | selecto | 1.26.3 | Copyright (c) 2020 Daybrush |
 | @egjs/agent, @egjs/children-differ, @egjs/list-differ | see package-lock.json | Copyright (c) 2015-present NAVER Corp. |
+
+The CSS tokenizer is bundled in the engine and the authoring tools. Its full MIT licence is included in `plugin/skills/html-slides/assets/CSS-TOKENIZER-LICENSE.txt`.
 
 ECharts (Apache License 2.0, Copyright The Apache Software Foundation) is separate from the engine: loaded from a CDN or embedded by `deck.mjs pack --offline` with its licence header. It is also shipped in `plugin/skills/html-slides/assets/echarts.min.js` for local rendering. The full Apache-2.0 licence is included in `plugin/skills/html-slides/assets/ECHARTS-LICENSE.txt`.
 

@@ -1,4 +1,4 @@
-// Colonnes verticales : série temporelle courte (≤ 6 périodes) ou comparaison.
+// Vertical columns: short time series (≤ 6 periods) or comparison.
 import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
 
 export default {

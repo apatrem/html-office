@@ -1,4 +1,4 @@
-// Fonctions communes aux outils de l'atelier (deck.mjs, check.mjs).
+// Helpers shared by the authoring tools (deck.mjs, check.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
@@ -12,7 +12,7 @@ export const ASSETS = path.resolve(HERE, '../assets');
 export const asset = name => fs.readFileSync(path.join(ASSETS, name), 'utf8');
 export const VERSION = asset('VERSION').trim();
 
-// ---------- zones du fichier ----------
+// ---------- file zones ----------
 const RX = {
   main: /(<main\b[^>]*\bid="deck"[^>]*>)([\s\S]*?)(<\/main>)/,
   engine: /(<script\b[^>]*\bid="engine"[^>]*>)([\s\S]*?)(<\/script>)/,
@@ -45,9 +45,9 @@ export function withOffline(html, on) {
   return html.replace(/(<script\b[^>]*\bid="engine")/, m => `<script id="echarts">\n${ec}\n</script>\n${m}`);
 }
 
-// ---------- modules : local, puis installation globale de npm ----------
+// ---------- modules: local, then npm global installation ----------
 export async function importAny(name) {
-  try { return await import(name); } catch (e) { /* essai suivant */ }
+  try { return await import(name); } catch (e) { /* try the next location */ }
   try {
     const root = execSync('npm root -g', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     const req = createRequire(path.join(root, 'noop.js'));
@@ -76,7 +76,7 @@ export function preflight(html) {
   return report;
 }
 
-// Ouvre un deck en mode statique (échelle 1, sans barre d'outils), ECharts servi en local.
+// Opens a deck in static mode (scale 1, no toolbar), with ECharts served locally.
 export async function openDeck(file, { offlineTest = false } = {}) {
   preflight(fs.readFileSync(file, 'utf8'));
   const { chromium } = await loadPlaywright();
