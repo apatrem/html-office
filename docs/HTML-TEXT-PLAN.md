@@ -131,7 +131,7 @@ Checkpoint B: a user can write, structure, illustrate and comment a multi-sectio
 
 Dependencies: T09, T10, T11, T12, T13. Scope: M. Paths: print styles, print preview and print tests.
 
-- Acceptance: CSS paged media provides A4/Letter pages, margins, running headers and footers, page numbers, explicit page breaks, "start on a new page", keep-together rules for headings/figures/table rows, repeated table headers, endnotes and table-of-contents page numbers through `target-counter()`. Comments are hidden.
+- Acceptance: CSS paged media provides A4/Letter pages, margins, running headers and footers, page numbers, explicit page breaks, "start on a new page", keep-together rules for headings/figures/table rows, repeated table headers, endnotes and a linked table of contents without page numbers (deferred to the roadmap; Chrome does not support `target-counter()`). Comments are hidden.
 - Acceptance: a read-only print preview shows page boundaries before export; the browser print dialog produces the PDF, which matches the preview in Chrome and Edge.
 - Verification: rendered PDFs of all table, chart, footnote and wrapped-image fixtures, including wrapped images and merged tables crossing page breaks; compare preview and PDF page counts and breaks.
 
@@ -194,7 +194,7 @@ Dependencies: T19. Scope: M. Paths: validation report, CI checks and release not
 | ProseMirror cannot reproduce canonical HTML byte for byte | Fix the serialiser or move normalisation into explicit `pack`; never accept silent changes on save |
 | Out-of-schema content would be lost | Reject or protect it; stop dependent work until no fixture loses content |
 | Editor exceeds the standard code budget | Measure by component, simplify or defer an explicitly agreed feature; do not quietly raise the limit |
-| Chrome print cannot deliver a required print feature (margin boxes, `target-counter()`, wrapped images or merged tables at page breaks) | Document the limitation and the fallback; reassess the scope explicitly before release |
+| Chrome print cannot deliver a required print feature (margin boxes, wrapped images or merged tables at page breaks) | Document the limitation and the fallback; reassess the scope explicitly before release |
 | Shared chart extraction changes Slides output | Stop the extraction until regenerated decks are byte-identical and Slides tests pass |
 | Comment anchors drift or attach to the wrong text | Prefer an orphaned thread to a wrong anchor; stop comment-dependent work until anchor tests pass |
 | An LLM follows instructions embedded in comments or imported content | Strengthen the guide and skill rules and repeat the failing blind-test task |
