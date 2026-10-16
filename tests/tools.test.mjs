@@ -118,3 +118,8 @@ test('CSS checks decode escapes and inspect every image candidate',()=>{
  .caption::before{content:"url(https://example.invalid/is-text) @import"}`;
  preflight(setZone(base,'theme',zone(base,'theme')+'\n'+safe));
 });
+test('inline scripts escape closing tags and refuse a raw comment opener',async()=>{
+  const {inlineScript}=await import('../tools/inline-script.mjs');
+  assert.equal(inlineScript('a="</script>";b="<!--"','x'),'a="<\\/script>";b="\\x3c!--"');
+  assert.throws(()=>inlineScript('a=`<!--${b}-->`','engine'),/engine: a raw "<!--"/);
+});

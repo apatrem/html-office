@@ -2,6 +2,7 @@
 // Usage: node tools/build.mjs [--release]
 //   --release records this engine as the published engine of the package version.
 import { build } from 'esbuild';
+import { inlineScript } from './inline-script.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,10 +38,7 @@ const res = await build({
  * shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
  * ANY KIND, EXPRESS OR IMPLIED. Details: THIRD_PARTY_NOTICES.md. */` }
 });
-// A literal HTML comment opener followed by the serializer's <script string can
-// put the HTML parser into its double-escaped script state. Keep JS values intact.
-const engine = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script')
-  .replace(/(["'])<!--\1/g, (_match, quote) => `${quote}\\x3c!--${quote}`);
+const engine = inlineScript(res.outputFiles[0].text, 'engine');
 if (process.argv.includes('--release')) {
   if (released[version] && released[version] !== sha256(engine))
     throw new Error(`Version ${version} was already released with a different engine: bump the version in package.json`);
@@ -64,7 +62,7 @@ const guide = documentation(root, version);
 fs.writeFileSync(path.join(assets, 'documentation.html'), guide.html + '\n');
 fs.writeFileSync(path.join(assets, 'guide.md'), guide.text + '\n');
 fs.writeFileSync(path.join(assets, 'template.html'), fs.readFileSync(P('src/template.html'), 'utf8').replaceAll('{{VERSION}}', version).replace('{{DOCUMENTATION}}', guide.html));
-const ec = ecBytes.toString('utf8').replace(/<\/script/gi, '<\\/script');
+const ec = inlineScript(ecBytes.toString('utf8'), 'echarts');
 // CDN and test responses use the original bytes; only the script embedded in HTML is escaped.
 fs.writeFileSync(path.join(assets, 'echarts.min.js'), ecBytes);
 const trusted = { engine: [...new Set([...Object.values(released), sha256(engine)])], echarts: [sha256(ec)] };

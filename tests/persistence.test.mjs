@@ -198,3 +198,47 @@ for(const mode of ['in-place','during-write','save-as']){
   assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Unsaved edit B');
  });
 }
+
+test('download fallback keeps the deck dirty when the browser cannot store a draft', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{Storage.prototype.setItem=()=>{throw new DOMException('Quota exceeded','QuotaExceededError');};delete window.showSaveFilePicker;});
+  await footer(p,'Not stored');
+  const dl=p.waitForEvent('download');await p.keyboard.press('Control+s');await dl;
+  await p.waitForFunction(()=>document.querySelector('.hs-banner')?.textContent.includes('Copy downloaded'));
+  assert.ok(await p.locator('.hs-save.dirty').count());
+  assert.match(await p.locator('.hs-banner').textContent(),/could not store a draft/);
+});
+test('a successful save is reported as saved when the deck has no assets zone', async t => {
+  const file=path.join(dir,'no-assets.html');
+  fs.writeFileSync(file,fs.readFileSync(plain,'utf8').replace(/<script id="assets"[^>]*>[\s\S]*?<\/script>\n?/,''));
+  const p=await open(t,file);
+  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({name:'no-assets.html',createWritable:async()=>({write:async()=>{},close:async()=>{}})});});
+  await footer(p,'Saved without assets');await p.keyboard.press('Control+s');
+  await p.waitForFunction(()=>/Saved to|Save failed/.test(document.querySelector('.hs-banner')?.textContent||''));
+  assert.match(await p.locator('.hs-banner').textContent(),/Saved to/);
+  assert.equal(await p.locator('.hs-save.dirty').count(),0);
+});
+test('restored drafts keep accessible SVG titles', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{
+    const main='<main id="deck"><section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Draft</h1>'+
+      '<div class="shape" data-id="e2" data-shape="rect"><svg viewBox="0 0 10 10"><title>Accessible name</title><rect width="10" height="10"></rect></svg></div></section></main>';
+    localStorage.setItem('html-slides:'+location.pathname,JSON.stringify({t:Date.now(),format:1,base:'other',main,assets:{}}));
+  });
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  assert.equal(await p.evaluate(()=>document.querySelector('#deck svg title')?.textContent),'Accessible name');
+});
+test('a draft from an engine that did not record versions is not called foreign', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{
+    const main='<main id="deck" data-footer="Earlier engine"><section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Draft</h1></section></main>';
+    localStorage.setItem('html-slides:'+location.pathname,JSON.stringify({t:Date.now(),format:1,main,assets:{}}));
+  });
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  const banner=p.locator('.hs-banner');
+  assert.doesNotMatch(await banner.textContent(),/different version|older draft/);
+  assert.match(await banner.textContent(),/earlier version of the editor/);
+  await banner.locator('button',{hasText:'Restore'}).click();
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Earlier engine');
+});

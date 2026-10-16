@@ -33,7 +33,7 @@ function boot() {
     return !!ec;
   });
 
-  const serialize = () => M.serialize(() => C.refreshCaches(main));
+  const serialize = written => M.serialize(() => C.refreshCaches(main), written);
 
   let saveChain = Promise.resolve();
   function save() {
@@ -42,7 +42,8 @@ function boot() {
   }
   async function saveOnce() {
     E.stopText();
-    const html = serialize();
+    const written = {};
+    const html = serialize(written);
     const revision = M.state.revision;
     const name = decodeURIComponent(location.pathname.split('/').pop() || '') || 'deck.html';
     if (window.showSaveFilePicker) {
@@ -52,7 +53,7 @@ function boot() {
         const w = await M.state.handle.createWritable();
         await w.write(html);
         await w.close();
-        const current = M.markSaved(revision, html);
+        const current = M.markSaved(revision, written);
         V.banner('Saved to ' + (M.state.handle.name || name) + '.' + (current ? '' : ' Newer changes still need saving.'), [], 4000);
         return;
       } catch (e) {
@@ -67,8 +68,8 @@ function boot() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     // The browser may still cancel the download, and this file is not overwritten: keep the draft.
-    M.markDownloaded(revision);
-    V.banner('Copy downloaded; this file is unchanged and its draft is kept. Use Chrome or Edge to save directly to a file.', [], 8000);
+    if (M.markDownloaded(revision)) V.banner('Copy downloaded; this file is unchanged and its draft is kept. Use Chrome or Edge to save directly to a file.', [], 8000);
+    else V.banner('Copy downloaded; this file is unchanged and the browser could not store a draft, so changes remain unsaved here. Use Chrome or Edge to save directly to a file.', [], 10000);
   }
 
   if (!V.isStatic()) {
@@ -107,7 +108,9 @@ function boot() {
       const when = new Date(draft.t).toLocaleString('en-US');
       V.banner(draft.foreign
         ? `Unsaved changes from a different version of this file found (${when}). Restoring replaces the current content with that older draft.`
-        : `Unsaved changes found (${when}).`, [
+        : draft.foreign === null
+          ? `Unsaved changes found (${when}). They were kept by an earlier version of the editor, which did not record the file version; check them after restoring.`
+          : `Unsaved changes found (${when}).`, [
         [draft.foreign ? 'Restore older draft' : 'Restore', () => {
           M.restoreDraft(draft);
           E.currentSlide(); V.fit();

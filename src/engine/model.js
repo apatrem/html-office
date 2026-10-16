@@ -16,6 +16,7 @@ export const state = {
   current: null,
   base: '',
   savedBase: null,
+  draftRevision: -1,
   listeners: {}
 };
 
@@ -250,7 +251,11 @@ export function captureBase() {
   state.base = draftFingerprint(draftState());
 }
 export function persistDraft() {
-  try { localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, savedBase: state.savedBase, ...draftState() })); } catch (e) {
+  try {
+    localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, savedBase: state.savedBase, ...draftState() }));
+    state.draftRevision = state.revision;
+  } catch (e) {
+    state.draftRevision = -1;
     emit('draft-error');
   }
 }
@@ -260,14 +265,15 @@ export function markDirty() {
   emit('dirty', true);
   persistDraft();
 }
-export function markSaved(revision = state.revision, html) {
-  if (html) {
-    // Use the snapshot actually written, not the live DOM (which may have newer edits).
-    // Keep the opened base too: the picker may have saved a separate copy instead.
+// `written` is the {main, assets} snapshot that serialize() put in the file, not the live DOM
+// (which may have newer edits). The main HTML is parsed once more, as reopening the file would,
+// so the fingerprint matches captureBase() on that file. The opened base is kept too: the picker
+// may have saved a separate copy instead.
+export function markSaved(revision = state.revision, written) {
+  if (written) {
     const template = document.createElement('template');
-    template.innerHTML = html;
-    state.savedBase = draftFingerprint({main: template.content.querySelector('main#deck').outerHTML,
-      assets: JSON.parse(template.content.querySelector('script#assets').textContent)});
+    template.innerHTML = written.main;
+    state.savedBase = draftFingerprint({ main: template.content.firstElementChild?.outerHTML ?? written.main, assets: written.assets });
   }
   if (revision !== state.revision) { persistDraft(); return false; }
   state.dirty = false;
@@ -276,40 +282,46 @@ export function markSaved(revision = state.revision, html) {
   return true;
 }
 // Download fallback: a copy was offered, but this file is unchanged. The draft is kept so that
-// the edits can be restored if the download was cancelled or the copy is lost.
+// the edits can be restored if the download was cancelled or the copy is lost; without a stored
+// draft for this revision the edits exist only in this tab, so the deck stays dirty.
 export function markDownloaded(revision = state.revision) {
-  if (revision !== state.revision) return false;
+  if (revision !== state.revision || state.draftRevision !== revision) return false;
   state.dirty = false;
   emit('dirty', false);
   return true;
 }
-// Returns the stored draft when it differs from the open file; `foreign` is true when the draft
-// was made from another version of the file at this path (or by an engine that did not record it).
+// Returns the stored draft when it differs from the open file. `foreign` is true when the draft
+// was made from another version of the file at this path, and null when an earlier engine did not
+// record which version it was made from.
 export function readDraft() {
   try {
     const d = JSON.parse(localStorage.getItem(draftKey()) || 'null');
     if (d?.format === 1 && typeof d.main === 'string') {
       const current = draftState();
       const differs = d.main !== current.main || JSON.stringify(d.assets) !== JSON.stringify(current.assets);
-      return differs ? { ...d, foreign: d.base !== state.base && d.savedBase !== state.base } : null;
+      const foreign = typeof d.base !== 'string' ? null : d.base !== state.base && d.savedBase !== state.base;
+      return differs ? { ...d, foreign } : null;
     }
-    return d && typeof d.html === 'string' && d.html !== cleanMainHTML() ? { ...d, foreign: true } : null; // 0.4 drafts
+    return d && typeof d.html === 'string' && d.html !== cleanMainHTML() ? { ...d, foreign: null } : null; // 0.4 drafts
   }
   catch (e) { return null; }
 }
 export function dropDraft() { try { localStorage.removeItem(draftKey()); } catch (e) { /* storage unavailable */ } }
 // Another local page can write this storage: a draft is untrusted input. It is parsed in an inert
 // template and stripped of code and external resources before it reaches the document.
+// Scripts and styles are removed in every namespace (SVG runs scripts and loads style URLs);
+// title, meta and noscript only in HTML, so accessible SVG titles survive.
 function scrubDraft(root) {
   for (const el of [root, ...root.querySelectorAll('*')]) {
-    const tag = el.localName.toLowerCase();
+    const tag = el.localName.toLowerCase(), html = el.namespaceURI === 'http://www.w3.org/1999/xhtml';
     const chartData = tag === 'script' && el.getAttribute('type') === 'application/json' && el.parentElement?.matches('figure.chart');
-    if (ACTIVE_TAGS.includes(tag) || ['script', 'style', 'meta', 'title', 'noscript'].includes(tag) && !chartData || el.hasAttribute('data-ui')) {
+    if (ACTIVE_TAGS.includes(tag) || ['script', 'style'].includes(tag) && !chartData || html && ['meta', 'title', 'noscript'].includes(tag) ||
+      el.hasAttribute('data-ui')) {
       el.remove();
       continue;
     }
     for (const a of [...el.attributes])
-      if (attributeProblem(a.name, a.value, el.namespaceURI === 'http://www.w3.org/1999/xhtml')) el.removeAttribute(a.name);
+      if (attributeProblem(a.name, a.value, html)) el.removeAttribute(a.name);
   }
 }
 const safeAssets = assets => Object.fromEntries(Object.entries(assets && typeof assets === 'object' ? assets : {})
@@ -325,7 +337,9 @@ export function restoreDraft(d) {
     [...saved.attributes].forEach(a => state.main.setAttribute(a.name, a.value));
     document.getElementById('assets').textContent = jsonForScript(safeAssets(d.assets));
   }
-  state.main.innerHTML = saved.innerHTML;
+  // Move the scrubbed nodes themselves: serialising and parsing them again could produce a tree
+  // that scrubDraft never inspected.
+  state.main.replaceChildren(...saved.childNodes);
   state.undo = []; state.redo = []; state.current = null;
   ensureIds(); emit('deck'); markDirty();
 }
@@ -363,20 +377,24 @@ export function captureShell() {
   };
 }
 const attrs = list => list.map(([n, v]) => ` ${n}="${String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('');
-export function serialize(refreshCaches) {
+// `written`, when given, receives the cleaned main HTML and assets put in the file (see markSaved).
+export function serialize(refreshCaches, written) {
   if (refreshCaches) refreshCaches();
   const sh = state.shell;
   const head = sh.head.filter(n => n.isConnected).map(n => n.outerHTML).join('\n');
   // assets: only those still in use are saved (the others stay in memory for undo)
+  const assets = usedAssets();
+  let main = '';
   const body = sh.body.filter(n => n.isConnected).map(n => {
     if (n.id === 'assets') {
-      return `<script id="assets" type="application/json">${jsonForScript(usedAssets())}</script>`;
+      return `<script id="assets" type="application/json">${jsonForScript(assets)}</script>`;
     }
     if (n !== state.main) return n.outerHTML;
     const c = cleanNode(n.cloneNode(true));
     c.removeAttribute('style');
-    return c.outerHTML;
+    return main = c.outerHTML;
   }).join('\n');
+  if (written) Object.assign(written, { main, assets });
   const bodyAttrs = state.bodyClass ? attrs([['class', state.bodyClass]]) : '';
   return `<!doctype html>\n<html${attrs(sh.html)}>\n<head>\n${head}\n</head>\n<body${bodyAttrs}>\n${body}\n</body>\n</html>\n`;
 }
