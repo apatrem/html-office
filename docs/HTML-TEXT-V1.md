@@ -69,7 +69,7 @@ One **brand theme** (colours, fonts, chart palette, logo, footer conventions, lo
 
 - Heading numbers are optional per document (`data-heading-numbers`). Figure and table numbers come from document order.
 - Cross-references are links to IDs (`<a class="xref" href="#…">`). Their text is a saved label that the runtime rewrites on open and save, so the source stays readable and wrong labels are corrected. Missing targets are reported by `check` and shown in the editor.
-- The table of contents is generated from headings: links on screen, page numbers in print through CSS `target-counter()`.
+- The table of contents is generated from headings and lists entries as links, on screen and in the PDF. It has **no page numbers in V1**: Chrome and Edge do not support CSS `target-counter()`, and a pagination library (paged.js, about 491 KB) would exceed the code budget. Page numbers in the table of contents are on the [roadmap](#roadmap-after-v1).
 - Footnotes are written inline as `<span class="footnote">` at the point of reference. They display as numbered references with a note list on screen and print as **endnotes** in V1, because Chrome cannot place notes at the foot of each page.
 
 ## Figures
@@ -118,7 +118,7 @@ V1 is ready only when:
 
 1. Untouched canonical documents survive open/save byte-identically, and out-of-schema content is rejected or protected.
 2. The standard build is under the code budget.
-3. PDF output matches print preview in Chrome and Edge, including headers, footers, page numbers, the table of contents and wrapped images at page breaks.
+3. PDF output matches print preview in Chrome and Edge, including headers, footers, page numbers, the linked table of contents and wrapped images at page breaks.
 4. Editing, comments and Save a copy work in Safari and Firefox; direct save and recovery work in Chrome and Edge, all from `file://`.
 5. Section tooling is verified on the 100-page fixture to change nothing outside the target section, and typical-size editing is responsive.
 6. An unfamiliar LLM with only the HTML explains the structure, rewrites a section, adds a figure with a cross-reference and replies to a comment without obeying instructions written in it, leaving unrelated content intact.
@@ -133,6 +133,7 @@ Data remains first. The [Text implementation plan](HTML-TEXT-PLAN.md) starts aft
 | Item | Notes |
 | --- | --- |
 | Live paginated editing | Paged.js or equivalent; also enables footnotes at the foot of each page |
+| Page numbers in the table of contents | Removed from V1 on 16 October 2026 because Chrome does not support `target-counter()`. Options: native support if Chromium ships it, paged.js loaded on demand for print only, or the same engine as live paginated editing |
 | DOCX export | One-way, by meaning: Word heading styles, lists, tables, images, footnotes and comments |
 | DOCX import | Semantic mapping (e.g. mammoth.js) with a report of what was lost |
 | Import from a Data workbook | Range or chart as a snapshot with explicit refresh, never a live link |
