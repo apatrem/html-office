@@ -1,10 +1,18 @@
-# html-slides
+# html-office
 
-Create presentations with an LLM, edit them in your browser, and share a single HTML file. Slides contain readable HTML, chart data, a theme, an editor, and a built-in format guide. Export to PDF when needed.
+Portable documents that an LLM can read and edit, delivered as a single HTML file with a browser editor and an embedded format guide.
 
-**[Download the plugin](https://github.com/apatrem/html-slides/releases/download/v0.7.1/html-slides.plugin)** · **[Skill instructions](plugin/skills/html-slides/SKILL.md)** · **[Format reference](plugin/skills/html-slides/references/FORMAT.md)**
+**Available today: html-slides.** Create presentations with an LLM, edit them in your browser, and share one HTML file. Slides contain readable HTML, chart data, a theme, an editor, and a built-in format guide. Export to PDF when needed.
 
-Open [the community garden example](https://github.com/apatrem/html-slides/releases/download/v0.7.1/community-garden.html) or [the visual catalogue](https://github.com/apatrem/html-slides/releases/download/v0.7.1/catalogue.html) by downloading the HTML file and opening it in Chrome or Edge. Click **Edit**, double-click text to change it, drag elements to move them, and press **Cmd/Ctrl+S** to save. No plugin is needed to open or edit a generated deck.
+**Planned: html-data.** Editable analytical workbooks with formulas, scenarios, grouped sheets, saved results, and charts. See the [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), and [architecture decision](docs/decisions/003-html-office-and-data-runtime.md). Data is not implemented or included in the plugin yet.
+
+**Planned: html-text.** An alternative to Word: long-form documents such as reports, memos, and proposals, written and revised with an LLM and edited in the browser. Text is on the roadmap; its feature set, specification, and schedule relative to Data are not defined yet. See [Text roadmap](docs/HTML-OFFICE-V1.md#text-roadmap).
+
+The repository was renamed from `html-slides` to `html-office`. The existing skill/plugin identifier, slide format, commands, and released `html-slides.plugin` filename are retained. The existing folders remain in place; moving them and changing the plugin identifier require compatibility work. For a checkout using the previous remote, run `git remote set-url origin https://github.com/apatrem/html-office.git`.
+
+**[Download the plugin](https://github.com/apatrem/html-office/releases/download/v0.7.1/html-slides.plugin)** · **[Skill instructions](plugin/skills/html-slides/SKILL.md)** · **[Format reference](plugin/skills/html-slides/references/FORMAT.md)**
+
+Open [the community garden example](https://github.com/apatrem/html-office/releases/download/v0.7.1/community-garden.html) or [the visual catalogue](https://github.com/apatrem/html-office/releases/download/v0.7.1/catalogue.html) by downloading the HTML file and opening it in Chrome or Edge. Click **Edit**, double-click text to change it, drag elements to move them, and press **Cmd/Ctrl+S** to save. No plugin is needed to open or edit a generated deck.
 
 All examples use fictional, clearly labelled data. They contain no client material. The project is licensed under MIT; bundled dependencies retain their own licences in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
@@ -72,7 +80,7 @@ The checker trusts the engines listed in `src/released-engines.json` plus the en
 | `tests/` | Chart, preservation, persistence, thumbnails, guide, SRI, and editor checks |
 | `plugin/` | Distributable skill/plugin with built assets and the generated examples |
 | `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
-| `docs/` | [V1 plan](docs/PLAN.md), decisions, and [validation status](docs/VALIDATION-V1.md) |
+| `docs/` | [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), [Slides V1 plan](docs/PLAN.md), decisions, and [Slides validation status](docs/VALIDATION-V1.md) |
 
 Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
 

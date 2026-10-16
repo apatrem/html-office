@@ -1,10 +1,12 @@
-# html-slides plugin
+# html-slides plugin in html-office
+
+The currently released plugin contains the `html-slides` skill. Data and Text skills are not included yet; the roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
 
 A skill for creating and editing a presentation in one HTML file. The file includes semantic slides, theme variables, JSON chart data, cached SVGs, a browser editor, and a self-contained editing guide.
 
 ## Get started
 
-Download `html-slides.plugin` from the [0.7.1 release](https://github.com/apatrem/html-slides/releases/tag/v0.7.1). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
+Download `html-slides.plugin` from the [0.7.1 release](https://github.com/apatrem/html-office/releases/tag/v0.7.1). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
 
 Ask your agent: “Create an html-slides presentation about organising a community garden.” It prepares the storyline, builds the HTML/PDF, checks the slides, and reviews the screenshots.
 

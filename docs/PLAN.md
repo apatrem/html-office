@@ -2,6 +2,8 @@
 
 Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 15 October 2026. The delivered baseline below describes release 0.7.0.
 
+This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The five approved Slides additions below remain planned.
+
 ## Objective
 
 Create and revise a presentation with an LLM, refine it in a browser, and deliver one HTML file plus an optional PDF. The file remains readable and editable without the authoring skill. Measure usefulness over five representative tasks before starting collaboration work.
