@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openDeck, args } from './lib.mjs';
 import { snapshot, compareSnapshots } from './validation.mjs';
-import {CONTENT_CLASSES as CLASSES} from './format.mjs';
+import {CONTENT_CLASSES as CLASSES, attributeProblem} from './format.mjs';
 
 const A = args(process.argv.slice(2));
 const file = A._[0];
@@ -25,7 +25,7 @@ catch (e) {
 }
 const { browser, page, errors: jsErrors } = opened;
 const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
-  const out = [];
+  const out = [], attributes = [];
   const add = (level, slide, id, msg) => out.push({ level, slide, id, msg });
   const slides = [...document.querySelectorAll('main#deck > section.slide')];
   const ids = new Set();
@@ -75,10 +75,9 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
     // safety: content must never be able to run code when the file is opened
     [s, ...s.querySelectorAll('*')].forEach(d => {
       if (d.closest('[data-ui]')) return;
-      for (const a of d.attributes) {
-        if (/^on/i.test(a.name)) add('error', sid, d.dataset.id || null, `Forbidden attribute "${a.name}" (executable code)`);
-        if (/^\s*javascript:/i.test(a.value)) add('error', sid, d.dataset.id || null, `javascript: links are forbidden`);
-      }
+      // checked in Node with the shared rules of the inert preflight (format.mjs)
+      for (const a of d.attributes) attributes.push({ slide: sid, id: d.dataset.id || null, name: a.name, value: a.value,
+        html: d.namespaceURI === 'http://www.w3.org/1999/xhtml' });
       if (d.matches('iframe, object, embed, frame')) add('error', sid, d.dataset.id || null, `Forbidden tag <${d.tagName.toLowerCase()}>`);
       if (d.matches('script') && !(d.getAttribute('type') === 'application/json' && d.parentElement.matches('figure.chart')))
         add('error', sid, d.closest('[data-id]')?.dataset.id || null, 'Scripts in content must contain chart JSON only');
@@ -89,8 +88,13 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
     });
   });
   window.deckEngine.validateCharts().forEach(c => c.errors.forEach(m => add('error', c.slide, c.id, `chart ${c.type}: ${m}`)));
-  return { out, n: slides.length };
+  return { out, attributes, n: slides.length };
 }, { LAYOUTS, CLASSES, RUNTIME, SHAPES });
+for (const a of report.attributes) {
+  const problem = attributeProblem(a.name, a.value, a.html);
+  if (problem) report.out.push({ level: 'error', slide: a.slide, id: a.id, msg: problem });
+}
+delete report.attributes;
 
 // Positions preserved relative to a previous version.
 if (A.since) {
