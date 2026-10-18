@@ -26,6 +26,11 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm audit --audit-level=high
       - run: npm test
+      - name: Reproduce pinned engine assessment
+        run: |
+          npm ci --prefix tools/engine-assessment --ignore-scripts
+          npm --prefix tools/engine-assessment test
+          npm --prefix tools/engine-assessment run measure -- --check
       - name: Validate distributed examples
         run: |
           node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html

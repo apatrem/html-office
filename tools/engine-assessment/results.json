@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "environment": {
+    "node": "v26.0.0",
+    "zlib": "1.2.12",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "packages": {
+    "@formulajs/formulajs": "4.6.1",
+    "@ironcalc/wasm": "0.9.0",
+    "echarts": "6.1.0",
+    "esbuild": "0.28.2",
+    "gpt-tokenizer": "4.0.3",
+    "prosemirror-commands": "1.7.2",
+    "prosemirror-dropcursor": "1.8.4",
+    "prosemirror-gapcursor": "1.4.1",
+    "prosemirror-history": "1.5.1",
+    "prosemirror-inputrules": "1.5.1",
+    "prosemirror-keymap": "1.2.3",
+    "prosemirror-model": "1.25.12",
+    "prosemirror-schema-list": "1.5.1",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-tables": "1.8.5",
+    "prosemirror-transform": "1.12.2",
+    "prosemirror-view": "1.42.6"
+  },
+  "build": {
+    "bundle": true,
+    "minify": true,
+    "format": "esm",
+    "platform": "browser",
+    "target": "es2022",
+    "legalComments": "none",
+    "write": false
+  },
+  "inputs": {
+    "fixtures/report.md": "e51d314fbc566486c8f721ff2e562544b67d87e0ea9d1ef18cb213f258550969",
+    "fixtures/report.html": "20f6186409b490fb6c4b68545d4bac43f4b8211dbff8a1d39b883085d62ae75e",
+    "fixtures/raw-data.json": "7a34720616c7072d378a018192a3880d19081d7c4623fc67ac8d61162ee4dd5d",
+    "measure.mjs": "409469b448ca6ac300d4cfd9c8c0e96c5832342c1b8cec70d5219626514712de",
+    "measurement.mjs": "2f05a307809efa7e845c2a559da0f45b0e4915baebbf5f4e7778bed55d233ab9",
+    "package-lock.json": "f5e52f1dd7771523371bf3498f19a1f2891a28474cb171c241e1f5132158a5b9"
+  },
+  "entries": {
+    "prosemirror-commands": "export * from 'prosemirror-commands';",
+    "prosemirror-dropcursor": "export * from 'prosemirror-dropcursor';",
+    "prosemirror-gapcursor": "export * from 'prosemirror-gapcursor';",
+    "prosemirror-history": "export * from 'prosemirror-history';",
+    "prosemirror-inputrules": "export * from 'prosemirror-inputrules';",
+    "prosemirror-keymap": "export * from 'prosemirror-keymap';",
+    "prosemirror-model": "export * from 'prosemirror-model';",
+    "prosemirror-schema-list": "export * from 'prosemirror-schema-list';",
+    "prosemirror-state": "export * from 'prosemirror-state';",
+    "prosemirror-tables": "export * from 'prosemirror-tables';",
+    "prosemirror-transform": "export * from 'prosemirror-transform';",
+    "prosemirror-view": "export * from 'prosemirror-view';",
+    "prosemirrorFull": "export * as module0 from 'prosemirror-commands';\nexport * as module1 from 'prosemirror-dropcursor';\nexport * as module2 from 'prosemirror-gapcursor';\nexport * as module3 from 'prosemirror-history';\nexport * as module4 from 'prosemirror-inputrules';\nexport * as module5 from 'prosemirror-keymap';\nexport * as module6 from 'prosemirror-model';\nexport * as module7 from 'prosemirror-schema-list';\nexport * as module8 from 'prosemirror-state';\nexport * as module9 from 'prosemirror-tables';\nexport * as module10 from 'prosemirror-transform';\nexport * as module11 from 'prosemirror-view';",
+    "formulaJs": "export * from '@formulajs/formulajs';",
+    "echartsCustom": "\n  import {use} from 'echarts/core';\n  import {BarChart, LineChart, ScatterChart, CustomChart} from 'echarts/charts';\n  import {GridComponent, LegendComponent, TooltipComponent, MarkLineComponent, DatasetComponent} from 'echarts/components';\n  import {SVGRenderer} from 'echarts/renderers';\n  use([BarChart, LineChart, ScatterChart, CustomChart, GridComponent, LegendComponent,\n    TooltipComponent, MarkLineComponent, DatasetComponent, SVGRenderer]);\n  export * from 'echarts/core';"
+  },
+  "bundles": {
+    "prosemirror-commands": {
+      "bytes": 62068,
+      "sha256": "f15526374a0b609d789647ba0cadf6b0caf62e292edcd46328097a6f2ac88126",
+      "gzipBytes": 18484,
+      "brotliBytes": 16846
+    },
+    "prosemirror-dropcursor": {
+      "bytes": 45619,
+      "sha256": "4ed8f3d30e8ee843577902b36ada720b05b7714425ac7b8ea21918ab74481206",
+      "gzipBytes": 13590,
+      "brotliBytes": 12328
+    },
+    "prosemirror-gapcursor": {
+      "bytes": 160738,
+      "sha256": "44bb31c942ac3b953a4c98cd8f7d042090a46a4ab226b8e57a2e34186a079542",
+      "gzipBytes": 50181,
+      "brotliBytes": 44168
+    },
+    "prosemirror-history": {
+      "bytes": 52914,
+      "sha256": "c9568e252fad6db6b2d425083ed52b192654ca682f64072f6bebe9b027dcdc52",
+      "gzipBytes": 15584,
+      "brotliBytes": 14188
+    },
+    "prosemirror-inputrules": {
+      "bytes": 45806,
+      "sha256": "41e8beae148c6d37e6a8d9e480d3ec40ea0ebf8ce136aba5b11fce3075d1c746",
+      "gzipBytes": 13701,
+      "brotliBytes": 12494
+    },
+    "prosemirror-keymap": {
+      "bytes": 44583,
+      "sha256": "9a2bd10d5694173eb4ddb1739c33e9212719b288d2626c47ecffece64a78d4b1",
+      "gzipBytes": 13498,
+      "brotliBytes": 12240
+    },
+    "prosemirror-model": {
+      "bytes": 46376,
+      "sha256": "e4050f453384a780bccf2712d0211802fa043284f8d1b9965b0f1b485d7bf697",
+      "gzipBytes": 14692,
+      "brotliBytes": 13356
+    },
+    "prosemirror-schema-list": {
+      "bytes": 48239,
+      "sha256": "bce9532b7995d2a189b8a4720ee05b098db7148a2954e749df8a81bb73988063",
+      "gzipBytes": 14390,
+      "brotliBytes": 13117
+    },
+    "prosemirror-state": {
+      "bytes": 65753,
+      "sha256": "7b3bf15a5abbdce8192ea0a7a039859616a3b60256014d20486345b268d40ab3",
+      "gzipBytes": 19551,
+      "brotliBytes": 17698
+    },
+    "prosemirror-tables": {
+      "bytes": 217889,
+      "sha256": "e5724f66ab9594d42fdd4398055c356296931fe8a2548cae807bcbb37e164ab2",
+      "gzipBytes": 67633,
+      "brotliBytes": 59330
+    },
+    "prosemirror-transform": {
+      "bytes": 57100,
+      "sha256": "1e72038bac330bb39be77379873d4ffe1da533aea0da394a2208854b557ec592",
+      "gzipBytes": 17135,
+      "brotliBytes": 15548
+    },
+    "prosemirror-view": {
+      "bytes": 154235,
+      "sha256": "92af32819efba6d2c0f55b0f938ce5d59f793634694b1438365c884f3cc19508",
+      "gzipBytes": 47744,
+      "brotliBytes": 42228
+    },
+    "prosemirrorFull": {
+      "bytes": 270374,
+      "sha256": "9c67628cb8e9473446114eeba48b696755f50ec670e29ced170ccf43c0ae1a2e",
+      "gzipBytes": 83854,
+      "brotliBytes": 72909
+    },
+    "formulaJs": {
+      "bytes": 142226,
+      "sha256": "83af6d60d29fd423804576f8b1992a201af7fdb4a4bdae79fa3a0b17f18615f7",
+      "gzipBytes": 44642,
+      "brotliBytes": 38957
+    },
+    "echartsCustom": {
+      "bytes": 610417,
+      "sha256": "6eab3c3eeb4dfc694327521b09d90b6942ab39b20710c5dfe1bba6afc6c457e3",
+      "gzipBytes": 208168,
+      "brotliBytes": 175611
+    }
+  },
+  "assets": {
+    "ironcalcWasm": {
+      "bytes": 2089699,
+      "sha256": "b562ec9c940fa1f2c364aabf88c8b236c70e3d0467952985d9a5a126f713e859",
+      "gzipBytes": 716788,
+      "brotliBytes": 541861
+    },
+    "ironcalcWrapper": {
+      "bytes": 69762,
+      "sha256": "15ea564ed85af2f362b2f226bc18cdd3ecd5217350790efe7e7783687f4c6d5d",
+      "gzipBytes": 10165,
+      "brotliBytes": 8762
+    },
+    "echartsFull": {
+      "bytes": 1121883,
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+      "gzipBytes": 368202,
+      "brotliBytes": 298840
+    }
+  },
+  "readability": {
+    "markdown": {
+      "bytes": 473,
+      "sha256": "e51d314fbc566486c8f721ff2e562544b67d87e0ea9d1ef18cb213f258550969",
+      "gzipBytes": 325,
+      "brotliBytes": 217,
+      "tokens": 121
+    },
+    "html": {
+      "bytes": 790,
+      "sha256": "20f6186409b490fb6c4b68545d4bac43f4b8211dbff8a1d39b883085d62ae75e",
+      "gzipBytes": 441,
+      "brotliBytes": 306,
+      "tokens": 253
+    },
+    "rawData": {
+      "rows": 1000,
+      "columns": 8,
+      "csv": {
+        "bytes": 47697,
+        "sha256": "8519fc075de9aec700bebdf89de84dec12aa965724b3cae0e6ea4f6e4e2fba7b",
+        "gzipBytes": 4702,
+        "brotliBytes": 2300,
+        "tokens": 25583
+      },
+      "perCellJson": {
+        "bytes": 190001,
+        "sha256": "b7660c8bc61a6ed5dfc230289e620763810f90909f871a0ccd9908057953e324",
+        "gzipBytes": 29852,
+        "brotliBytes": 10711,
+        "tokens": 69649
+      }
+    }
+  }
+}
