@@ -131,7 +131,7 @@ Recorded on 18 October 2026 from the review of the jayson-docs and jayson-editor
 | B-01 | Classic consulting diagrams as fixed layouts: 2×2 matrix, process in 3/4/5 steps, KPI cards, pyramid, funnel, roadmap, red/amber/green status table | Fixed number of cells per variant, each cell with its own V1-06 bounds; tables grow inside a fixed frame (jayson-docs D27) |
 | B-02 | A private "firm context" folder for the skill | Markdown/JSON derivatives classed public, internal or confidential; assets referenced by path. Evaluate when V1-02 starts |
 | B-03 | An origin for each theme: built-in, company-approved or personal | A personal theme can be promoted after review, with a check on receipt (jayson-docs D17). Evaluate when V1-02 starts |
-| B-04 | A smaller ECharts build for all products | Only the chart types used plus the SVG renderer: 612 KB instead of 1,122 KB minified. Needs self-hosting through jsDelivr with integrity checks. See the [engine stress test](ENGINE-STRESS-TEST.md#echarts) |
+| B-04 | A smaller ECharts build for all products | Selected chart types plus the SVG renderer: about 610 KB instead of 1,122 KB minified in the reproducible probe. Savings apply to the ECharts component; whole-file savings and chart coverage still need validation. Needs a versioned distribution with integrity checks. See the [engine stress test](ENGINE-STRESS-TEST.md#echarts) |
 
 ## Validation still required
 

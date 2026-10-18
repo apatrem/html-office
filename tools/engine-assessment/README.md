@@ -28,7 +28,9 @@ bytes/hashes and tokens, while treating environment/compression as advisory.
 The ProseMirror full entry retains every export of each selected package in a
 separate namespace. Individual entries retain every export of one package,
 including its dependencies. This is a reproducible conservative library probe,
-not a finished editor or the smallest possible application bundle. The full
+not a finished editor or the smallest possible application bundle. Legal comments
+are removed for this comparison; shipped builds must include required notices
+in their application-code budget. The full
 ECharts asset is measured as shipped; the custom entry is built from its core.
 Formula.js is bundled but not tested for spreadsheet semantics. IronCalc assets
 are measured, not instantiated or benchmarked.
