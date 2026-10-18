@@ -1,8 +1,8 @@
 # V1 plan — standalone, editable HTML presentations
 
-Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 15 October 2026. The delivered baseline below describes release 0.7.0.
+Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 18 October 2026. The delivered baseline below describes releases 0.7.0 and 0.7.1.
 
-This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The five approved Slides additions below remain planned.
+This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The seven approved Slides additions below remain planned; an [ideas backlog](#ideas-backlog-not-approved) records candidates that are not approved.
 
 ## Objective
 
@@ -28,7 +28,7 @@ The DOM is the current model; undo uses HTML snapshots. Stable identifiers suppo
 
 ## Approved V1 backlog
 
-The following five features were approved for later V1 development on 15 October 2026. All are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
+The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. All are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
 
 | ID | Feature | Status |
 | --- | --- | --- |
@@ -37,6 +37,8 @@ The following five features were approved for later V1 development on 15 October
 | V1-03 | Confirm a short generation brief and default settings | Planned |
 | V1-04 | Copy/paste individual elements and selections | Planned |
 | V1-05 | Crop and replace images while preserving their frame | Planned |
+| V1-06 | Check text density per layout region: a comfortable range and a maximum | Planned |
+| V1-07 | Annotate the layout catalogue so an LLM picks layouts well | Planned |
 
 ### V1-01 — Copy/paste slides across documents
 
@@ -96,6 +98,40 @@ Acceptance goals:
 - Crop an image within its existing frame without moving or resizing the frame or neighbouring elements; allow the crop to be readjusted.
 - Replace the image while retaining the frame's position and dimensions; define how an existing crop adapts to a different image aspect ratio.
 - Preserve useful alternative text or offer to update it, keep required assets embedded, and support undo/redo, drafts, save/reopen and PDF output.
+
+### V1-06 — Text density checks per layout region
+
+Today `check` reports overflow after rendering. Add explicit fill targets per layout region so an LLM gets earlier, more useful feedback. Adapted from the jayson-docs density model (decisions D23 and D26).
+
+Acceptance goals:
+
+- Each text region of each layout has two bounds. Above the **comfortable range**, `check` warns but does not fail. Above the **maximum**, it reports an error. Content is never truncated automatically.
+- The comfortable range is derived from the region's geometry and effective font size, not set by hand: lines ≈ height / (font size × 1.2), characters per line ≈ width / (font size × 0.5), with the range at roughly 55–85% of that capacity. It flags under-filled as well as over-filled body regions. Titles and labels, which are meant to be sparse, only get a maximum.
+- The two constants are calibrated once against a few real slides and recorded in a fixture. A test fails if the published bounds drift from the derivation.
+- The bounds are documented in the format reference so an LLM can aim for them before running `check`.
+
+Before implementation, decide which regions count as body regions, how bullets and table cells are measured, and how detached slides (with frozen geometry) are handled.
+
+### V1-07 — Annotated layout catalogue for LLMs
+
+Give each layout a short machine-readable entry in the format reference and the embedded guide. Adapted from the jayson-docs layout catalogue (decision D16).
+
+Acceptance goals:
+
+- Each entry states a **usage tier** (common, less common, rare), a "pick when…" sentence, and a map of its regions with their V1-06 bounds.
+- The guidance tells an LLM to prefer common layouts and to justify a rare one. The catalogue informs the choice and the fill; it never lets the LLM place elements by coordinates.
+- Layout names stay stable. The entries are generated from, or tested against, the layout definitions so they cannot drift.
+
+## Ideas backlog (not approved)
+
+Recorded on 18 October 2026 from the review of the jayson-docs and jayson-editor projects and the engine stress test. These are candidates to evaluate later, **not approved scope**. Each needs its own scope decision before work starts.
+
+| ID | Idea | Notes |
+| --- | --- | --- |
+| B-01 | Classic consulting diagrams as fixed layouts: 2×2 matrix, process in 3/4/5 steps, KPI cards, pyramid, funnel, roadmap, red/amber/green status table | Fixed number of cells per variant, each cell with its own V1-06 bounds; tables grow inside a fixed frame (jayson-docs D27) |
+| B-02 | A private "firm context" folder for the skill | Markdown/JSON derivatives classed public, internal or confidential; assets referenced by path. Evaluate when V1-02 starts |
+| B-03 | An origin for each theme: built-in, company-approved or personal | A personal theme can be promoted after review, with a check on receipt (jayson-docs D17). Evaluate when V1-02 starts |
+| B-04 | A smaller ECharts build for all products | Only the chart types used plus the SVG renderer: 612 KB instead of 1,122 KB minified. Needs self-hosting through jsDelivr with integrity checks. See the [engine stress test](ENGINE-STRESS-TEST.md#echarts) |
 
 ## Validation still required
 
