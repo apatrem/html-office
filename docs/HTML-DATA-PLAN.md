@@ -53,6 +53,7 @@ Dependencies: T04. Scope: M. Paths: `packages/data/bench/`, worker adapter if wa
 - Acceptance: record cold load, engine transfer/initialisation, input edit, recalculation, rendering, peak memory and HTML size for a representative P&L calculation fixture and 50k/100k-row datasets with linked sheets and thousands of formulas. Declare populated columns and formula distribution.
 - Acceptance: compare aggregate reuse/preaggregation and worker execution. Proposed engineering targets are P&L input-to-result under 250 ms warm and no calculation-driven main-thread task over 100 ms; validate or revise with evidence before treating them as guarantees.
 - Verification: record hardware, browser/engine versions, correctness totals and five warm runs. Reproduce the earlier 100k-row/two-column/1,000-SUMIFS case as a baseline; record larger-column stress cases without extrapolating capacity from row count alone.
+- Verification: commit the P&L and large-data fixtures and the benchmark harness; CI runs them on every PR with the agreed thresholds (see [shared rules](HTML-OFFICE-V1.md#shared-authoring-and-quality-rules)), so a performance regression fails the build.
 
 ### T05b — Decide result and data storage from real-world workbooks
 
@@ -177,6 +178,7 @@ Dependencies: T13. Scope: M. Paths: Data chart bindings, lazy ECharts loader and
 
 - Acceptance: charts reference typed cell/range data and recalculate from matching revisions; number formats do not round source values. The P&L demonstrates revenue, margins and scenario comparisons.
 - Acceptance: embed SVG snapshots; view/print without ECharts or network. Chart editing loads a pinned SRI-verified library, and an offline build edits without requests; preserve unrelated chart/model data.
+- Acceptance: in edit mode, a chart creates its ECharts instance only when it first scrolls into view (IntersectionObserver); the others keep showing their SVG snapshot. Opening a workbook with many charts does not initialise them all.
 - Verification: input/scenario change, stale/missing snapshot, failed/tampered library, structural range edits, undo and save/reopen; inspect SVG accessibility and print fidelity.
 
 ### T19 — Export selected data and report pages
@@ -197,6 +199,7 @@ Dependencies: T19. Scope: M per workflow; separate document tooling from skill p
 
 - Acceptance: range inspect/apply/recalculate/validate and standard/offline generation operate on canonical JSON with preservation checks; the embedded guide documents the complete format, errors, cache rules and compatible skill links without needing the repo.
 - Acceptance: only now ship a working Data skill with the existing Slides skill; retain the plugin identity, paths/commands and release compatibility until a separate migration. Text is not shipped as a placeholder.
+- Acceptance: the skill follows the [shared rules](HTML-OFFICE-V1.md#shared-authoring-and-quality-rules) rules: validated LLM output with at most two corrective retries, and valid/invalid example workbooks that double as test fixtures.
 - Verification: install/extract the built plugin in a clean environment and generate/edit/validate a workbook. Inspect JSON escaping and link/version consistency; Slides commands/tests/releases still work.
 
 ### T21 — Publish the fictional P&L acceptance workbook

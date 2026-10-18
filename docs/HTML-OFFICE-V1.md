@@ -6,7 +6,15 @@ Status: consolidated product decisions, 15 October 2026. Data implementation has
 
 Create portable documents that an unfamiliar LLM can read and modify using the generated HTML alone. An external authoring skill makes larger changes practical; recipients need a browser, without a server, installation, account, or connected AI service. LLM readability/writability and portability are the primary design drivers.
 
-The public MIT repository is now html-office. Slides remains the existing implemented product and keeps its [V1 plan and five approved additions](PLAN.md). Data is the next product: editable analytical tables and freeform spreadsheet models, not just static reports. Text, an alternative to Word, is a planned product on the roadmap; see [Text roadmap](#text-roadmap). One eventual Office plugin can provide separate skills; do not ship empty Data/Text skills or change the existing plugin identifier before a compatibility migration is ready. Do not include Slides/Text runtimes in workbook files.
+The public MIT repository is now html-office. Slides remains the existing implemented product and keeps its [V1 plan and approved additions](PLAN.md). Data is the next product: editable analytical tables and freeform spreadsheet models, not just static reports. Text, an alternative to Word, is a planned product on the roadmap; see [Text roadmap](#text-roadmap). One eventual Office plugin can provide separate skills; do not ship empty Data/Text skills or change the existing plugin identifier before a compatibility migration is ready. Do not include Slides/Text runtimes in workbook files.
+
+## Shared authoring and quality rules
+
+These rules apply to every html-office product (Slides, Data and Text); the existing Slides skill and tests adopt them at their next revision.
+
+- **Validate, retry twice, then stop.** Any document fragment an LLM produces through a skill (a section, a slide, a range patch) is validated before it is applied. If it is invalid, the skill asks again with the validation errors, at most twice. After that it stops with a clear error and leaves the document unchanged. It never repairs or truncates output silently.
+- **Teach with examples.** Each skill ships small, complete valid examples and labelled invalid examples with the expected errors. The same fixtures drive the validation tests, so the guidance cannot drift from the checker.
+- **Measure with a reference document.** Each product keeps one committed "heavy" fixture and a benchmark that CI runs on every change with fixed thresholds. A regression beyond a threshold fails the build instead of being noticed later.
 
 ## Distribution and calculation
 

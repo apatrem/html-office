@@ -24,6 +24,6 @@ Edit continuously at the page text width and paginate only for print with CSS pa
 
 ## Consequences and validation
 
-HTML costs more tokens than Markdown, roughly 1.3–2× depending on tables and lists (estimate, not measured), and diffs are noisier. Section tooling and section-level guidance in the embedded guide limit how much an LLM must read or rewrite. The document displays without JavaScript, but the editor, generated numbering and saved-label refresh need the engine.
+HTML costs more tokens than Markdown, roughly 1.3–2× depending on tables and lists (estimate), and diffs are noisier. A table-heavy sample measured 2.14× with a proxy tokenizer; see the [engine stress test](../ENGINE-STRESS-TEST.md), which also records the ProseMirror bundle sizes and Chrome's print support. Section tooling and section-level guidance in the embedded guide limit how much an LLM must read or rewrite. The document displays without JavaScript, but the editor, generated numbering and saved-label refresh need the engine.
 
 Footnotes print as endnotes, and the table of contents prints without page numbers, until a pagination engine is added: Chrome supports page margin boxes but not `target-counter()`. Merged cells, wrapped images and repeated table headers must be verified in Chrome/Edge print. The ProseMirror packages and their licences must fit the 500,000-byte code budget and pass the dependency audit. The canonical-in/canonical-out property is tested, not assumed.

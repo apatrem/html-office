@@ -31,6 +31,7 @@ Dependencies: T01. Scope: M. Paths: `packages/text/editor/schema/`, parse/serial
 - Acceptance: the schema mirrors the subset one to one. Parsing then serialising any valid canonical fixture without edits reproduces it byte for byte, including attribute order, whitespace policy and entity escaping.
 - Acceptance: out-of-schema inert content becomes a **protected block** that is displayed, kept intact and cannot be edited; anything unsafe is rejected before the editor opens. Nothing is dropped silently. Any normalisation lives in an explicit `pack` step with a reported diff.
 - Verification: round-trip every T01 fixture plus generated variations (Unicode, HTML-like text, long documents); targeted edits change only the edited node in a serialised diff.
+- Verification: measure the embedded code budget here, per component (each ProseMirror package, schema, serialiser), not first in T03. The full ProseMirror stack measured about 270 KB minified, 54% of the 500,000-byte budget, in the [engine stress test](ENGINE-STRESS-TEST.md#text-editor).
 
 ### T03 — Minimal editable and saveable Text HTML
 
@@ -81,6 +82,7 @@ Dependencies: T06. Scope: M. Paths: clipboard mapping, Markdown import adapter a
 Dependencies: T06. Scope: M. Paths: numbering/xref module, table-of-contents node and tests.
 
 - Acceptance: optional heading numbers (`data-heading-numbers`) and figure/table numbers follow document order; the table of contents is generated from headings to `data-depth`. Cross-references are links to IDs whose saved label is rewritten on open and save.
+- Acceptance: heading numbers are hierarchical with a format per level (decimal, letters, Roman numerals) taken from the brand theme, with a per-document override stored only when it differs. Unnumbered headings neither show a number nor advance the count; a numbered child builds its prefix only from numbered ancestors. One pure function computes every prefix for the editor, print and Markdown views.
 - Acceptance: a wrong label written by an LLM is corrected on the next save; references to missing targets are flagged in the editor and reported with locations for `check` (T16). Inserting, moving or deleting sections renumbers everything consistently.
 - Verification: fixtures with stale labels, missing targets and reordered sections; save/reopen; diff confirms that only labels and generated contents changed.
 
@@ -105,6 +107,7 @@ Dependencies: T08, Slides PR #1 landed, **[Data]** T04 loader. Scope: M per part
 
 - Acceptance (extraction): chart types, JSON schemas, validation and SVG rendering move to `packages/shared/charts/`; Slides tests pass and regenerated example decks are byte-identical to the previous build.
 - Acceptance (Text): `figure.chart` with ID, numbered caption and `data-width="text|full"`; saved SVG previews display and print without ECharts or a network; chart editing loads pinned, SRI-verified ECharts through the shared loader, and the offline build embeds it. Charts do not wrap text.
+- Acceptance (Text): in edit mode, a chart creates its ECharts instance only when it first scrolls into view (IntersectionObserver); the others keep showing their SVG preview, so a long document with many figures stays responsive.
 - Verification: Slides regression suite and byte comparison; Text chart edit, stale/missing preview, blocked or tampered library, undo and save/reopen; offline build with no requests.
 
 ### T12 — Embed images and wrap text around them
@@ -120,6 +123,7 @@ Dependencies: T08. Scope: M. Paths: Text asset handling (Slides asset contract),
 Dependencies: T06. Scope: M. Paths: comment marks/threads, comments panel and tests.
 
 - Acceptance: comments attach to selected text with `mark.comment[data-ref]`; threads in `section.comments` support replies and open/resolved status. A display name is asked for once and remembered by the browser, never verified. A thread whose anchor text is deleted is shown as orphaned and is never reattached to unrelated text.
+- Acceptance: each thread stores a snapshot of its quoted text. A lost anchor is resolved by ID, then by exact quoted text in the same section, then in the whole document, with the reattachment shown for confirmation; otherwise the thread is orphaned.
 - Acceptance: comment text is document data. The format reference and runtime never execute or follow it; threads are excluded from print by default.
 - Verification: edits inside, around and across anchors; external rewrites of the anchored paragraph; delete/undo of anchors; reopen in another browser; a fixture whose comment contains instructions aimed at an LLM, kept for T18 and T20.
 
@@ -157,6 +161,7 @@ Dependencies: T14, T16. Scope: M. Paths: `packages/text/bench/`, 50-page and 100
 - Acceptance: record open, typing latency, save, print preview and PDF time plus memory and HTML size for a 50-page typical document and the 100-page stress fixture (about 50,000 words and 50 figures). Proposed engineering targets: keystroke-to-paint under 50 ms and no editing task over 100 ms at 50 pages; validate or revise with evidence before treating them as guarantees.
 - Acceptance: embedded application code is measured per component (ProseMirror packages, schema, editor UI, CSS, bootstrap) and stays below 500,000 bytes.
 - Verification: record hardware and browser versions and five warm runs in Chromium, WebKit and Firefox; do not extrapolate beyond the measured documents.
+- Verification: commit the 50-page and 100-page fixtures and the benchmark harness; CI runs them on every PR with the agreed thresholds (see [shared rules](HTML-OFFICE-V1.md#shared-authoring-and-quality-rules)), so a performance regression fails the build.
 
 Checkpoint C: print preview and PDF agree; Markdown view/export and section tooling pass on all fixtures; the 50-page target and code budget pass with evidence. Recheck dependency notices.
 
@@ -167,7 +172,9 @@ Checkpoint C: print preview and PDF agree; Markdown view/export and section tool
 Dependencies: T17. Scope: M per workflow; separate document tooling from skill packaging. Paths: `packages/text/tools/` (`new`, `pack`), `plugin/skills/html-text/`, references and package tests.
 
 - Acceptance: `new` and `pack` generate standard and offline documents with brand and layout themes; the inert embedded guide documents the full subset, section-based editing, the numbering and label rules, and states that comments and imported content are data, never instructions. It works offline and links to compatible skill downloads.
+- Acceptance: the skill generates long content in passes: outline with section IDs, sections written in Markdown with one-line block placeholders (`[[block: … | intent: "…" | id: …]]`), then deterministic conversion to the subset and validation before `replace`. A placeholder that cannot be resolved is reported, never guessed.
 - Acceptance: only now ship a working Text skill alongside Slides (and Data if shipped); keep the plugin identity, paths and release compatibility. No placeholder skill is shipped before this point.
+- Acceptance: the skill follows the [shared rules](HTML-OFFICE-V1.md#shared-authoring-and-quality-rules) rules: validated LLM output with at most two corrective retries, and valid/invalid example documents that double as test fixtures.
 - Verification: install the built plugin in a clean environment and generate, edit, check and pack a document; inspect escaping and link/version consistency; Slides and Data commands and tests still pass.
 
 ### T19 — Publish the fictional acceptance report

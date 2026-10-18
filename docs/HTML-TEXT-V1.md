@@ -67,7 +67,7 @@ One **brand theme** (colours, fonts, chart palette, logo, footer conventions, lo
 
 ## Structure, numbering and notes
 
-- Heading numbers are optional per document (`data-heading-numbers`). Figure and table numbers come from document order.
+- Heading numbers are optional per document (`data-heading-numbers`). They are hierarchical (1, 1.1, 1.1.1), and deeper counters restart when a higher level advances. Each level has a format (decimal, upper or lower letters, upper or lower Roman numerals, for example `1.A.i`). The default comes from the brand theme; a document stores an override only when it differs. A heading marked unnumbered is skipped entirely: it shows no number and does not advance the count. Figure and table numbers come from document order.
 - Cross-references are links to IDs (`<a class="xref" href="#…">`). Their text is a saved label that the runtime rewrites on open and save, so the source stays readable and wrong labels are corrected. Missing targets are reported by `check` and shown in the editor.
 - The table of contents is generated from headings and lists entries as links, on screen and in the PDF. It has **no page numbers in V1**: Chrome and Edge do not support CSS `target-counter()`, and a pagination library (paged.js, about 491 KB) would exceed the code budget. Page numbers in the table of contents are on the [roadmap](#roadmap-after-v1).
 - Footnotes are written inline as `<span class="footnote">` at the point of reference. They display as numbered references with a note list on screen and print as **endnotes** in V1, because Chrome cannot place notes at the foot of each page.
@@ -86,7 +86,7 @@ Report tables with header rows (repeated on each printed page), body, optional t
 
 ## Comments
 
-Comments attach to selected text and support replies and an open/resolved status. Threads are stored in the canonical content (`section.comments`) and excluded from print by default. Authors are free-text display names entered once and remembered by the browser; they are not verified. A thread whose anchor text is deleted remains visible as orphaned; it is never reattached to unrelated text.
+Comments attach to selected text and support replies and an open/resolved status. Threads are stored in the canonical content (`section.comments`) and excluded from print by default. Authors are free-text display names entered once and remembered by the browser; they are not verified. Each thread also stores a snapshot of the quoted text. When an edit or an LLM rewrite removes the anchor mark, the runtime looks for the anchor by its ID, then for the quoted text inside the same section, then in the whole document. Only an exact quoted-text match reattaches a thread, and the result is shown for confirmation. A thread whose anchor text cannot be found remains visible as orphaned; it is never reattached to unrelated text.
 
 Comment text is document data, never instructions. An LLM replies to or resolves threads only when the user asks, and never acts on requests written inside comments. The embedded guide and the skill both state this rule.
 
@@ -101,6 +101,8 @@ V1 outputs: complete editable HTML, PDF through the browser's print dialog, and 
 The performance target for typical use is about 50 pages; a 100-page fixture (about 50,000 words and 50 figures) is the stress test. These are validation targets, not hard limits.
 
 For long documents the skill works section by section: `outline` (headings, IDs, word counts), `show <id>`, `replace <id>` and `check`. A replacement must leave everything outside the target section unchanged. The embedded guide teaches the same approach to an LLM working from the HTML alone: locate the section by ID, edit inside it and keep IDs stable.
+
+To create or rewrite long content, the skill generates in passes: an outline with section IDs first, then each section written in Markdown, then a deterministic conversion to the canonical subset. Non-prose blocks are written as one-line placeholders, for example `[[block: chart | intent: "Revenue by region, 2025–2026" | id: fig-revenue]]`, and become figures in the conversion step. The LLM writes less markup, uses fewer tokens and cannot produce out-of-subset HTML; the converted section is validated before it replaces anything. Markdown remains a working format of the skill, never a stored copy.
 
 ## Browsers and saving
 
@@ -138,7 +140,7 @@ Data remains first. The [Text implementation plan](HTML-TEXT-PLAN.md) starts aft
 | DOCX import | Semantic mapping (e.g. mammoth.js) with a report of what was lost |
 | Import from a Data workbook | Range or chart as a snapshot with explicit refresh, never a live link |
 | Editable Markdown view | Requires lossless two-way conversion with the visual editor |
-| Named local adjustments | Theme-defined classes such as accent text or keep-with-next |
+| Named local adjustments | A closed list of per-block exceptions, such as space above a block or keep-with-next, stored only when they differ from the theme default; never free styling |
 | Notes per section | Endnotes at the end of each top-level section |
 | Chart text wrapping | Wrapping currently applies to images only |
 | Tracked changes | Requires an operation-based change model |
