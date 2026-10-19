@@ -73,6 +73,48 @@ try {
   console.log(
     "PASS grid: keyboard, rectangular selection, edit/cancel, typed formula errors and save preservation",
   );
+  const blocked = await browser.newContext({ acceptDownloads: true }),
+    failed = await blocked.newPage();
+  failed.on("dialog", (d) => d.accept());
+  await blocked.route("https://**", (route) => route.abort());
+  const blockedFile = resolve(out, "grid-cancelled-attempt.html");
+  await writeFile(blockedFile, await buildWorkbook(book));
+  await failed.goto(pathToFileURL(blockedFile).href);
+  await failed
+    .getByText("Saved results are current.", { exact: true })
+    .waitFor();
+  await failed.getByLabel("Cell value").fill("999");
+  await failed.getByRole("button", { name: "Apply edit", exact: true }).click();
+  await failed
+    .locator("#status")
+    .filter({ hasText: "Your attempted edit remains" })
+    .waitFor();
+  await failed.getByLabel("Cell value").focus();
+  await failed.keyboard.press("Escape");
+  assert.equal(await failed.getByLabel("Cell value").inputValue(), "100");
+  await failed
+    .locator("#save-status")
+    .filter({ hasText: "Recovery stored" })
+    .waitFor();
+  const cancelledDownload = failed.waitForEvent("download");
+  await failed.getByRole("button", { name: "Save a copy" }).click();
+  const cancelledFile = resolve(out, "grid-cancelled-copy.html");
+  await (await cancelledDownload).saveAs(cancelledFile);
+  assert.equal(
+    readHTML(await readFile(cancelledFile, "utf8")).book.sheets[0].cells.B2
+      .input.value,
+    100,
+  );
+  await failed.reload();
+  await failed.getByRole("dialog").waitFor();
+  await failed
+    .getByRole("button", { name: "Restore draft", exact: true })
+    .click();
+  assert.equal(await failed.getByLabel("Cell value").inputValue(), "100");
+  await blocked.close();
+  console.log(
+    "PASS grid: Escape discards a failed pending edit in form, copy and recovery",
+  );
   const largeBook = large({ rows: 100000, columns: 8, preaggregate: true });
   const html = await buildWorkbook(largeBook, { calculate: false });
   assert.ok(measureHTML(html).applicationCodeBytes < 500000);
