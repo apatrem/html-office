@@ -16,7 +16,9 @@ export class EngineSession {
     try{
       this.engine.pauseEvaluation();
       // Avoid accidental name collisions with the default or intermediate sheet names.
-      book.sheets.forEach((_,i)=>{if(i)this.engine.newSheet();this.engine.renameSheet(i,`__office_${i}`);});
+      let prefix='__office_';
+      while(book.sheets.some(s=>s.name.toLowerCase().startsWith(prefix)))prefix='_'+prefix;
+      book.sheets.forEach((_,i)=>{if(i)this.engine.newSheet();this.engine.renameSheet(i,`${prefix}${i}`);});
       book.sheets.forEach((s,i)=>this.engine.renameSheet(i,s.name));
       for(const name of book.names){const sheet=book.sheets.find(s=>s.id===name.sheetId);this.engine.newDefinedName(name.name,undefined,`'${sheet.name.replaceAll("'","''")}'!${name.ref}`);}
       book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells)){const {row,column}=parseAddress(ref);this.engine.setUserInput(i,row,column,engineInput(cell));}});

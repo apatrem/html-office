@@ -1,0 +1,15 @@
+{
+  "version": "ironcalc/0.9.0+html-office-typed.1",
+  "sourceCommit": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
+  "artifactCommit": "b7097b9180a4935cb33776629ae90f37e57cadbb",
+  "js": {
+    "url": "https://raw.githubusercontent.com/apatrem/html-office/b7097b9180a4935cb33776629ae90f37e57cadbb/packages/data/engine/vendor/ironcalc.mjs",
+    "sha256": "c324ce6d0741b1f4a4f85a00634efa076f9728da4e562ac7441af4aa33d4026d",
+    "bytes": 7381
+  },
+  "wasm": {
+    "url": "https://raw.githubusercontent.com/apatrem/html-office/b7097b9180a4935cb33776629ae90f37e57cadbb/packages/data/engine/vendor/ironcalc.wasm",
+    "sha256": "bff23c26000f174dd1b8b25023abfeb96975ce3c2fa02a3ce5e5bdbd122d78cb",
+    "bytes": 2624639
+  }
+}
