@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-19T15:51:07.417Z",
+  "browser": "151.0.7922.34",
+  "method": "Fresh file:// workbook, real HTTPS requests on first edit, no interception. wireSizes reports browser-observed encoded body plus separate header sizes.",
+  "items": [
+    {
+      "kind": "wasm",
+      "url": "https://raw.githubusercontent.com/apatrem/html-office/d8247b6c886c55592807d26532879e768a3403d5/packages/data/engine/vendor/ironcalc.wasm.gz",
+      "sha256": "bad31ec4bbec26248c56719faa0c70aa6c274af58e229a5d0dd22a498aba037f",
+      "fetchedBodyBytes": 707874,
+      "wasmDecodedBytes": 2172743,
+      "contentEncoding": null,
+      "wireSizes": {
+        "requestBodySize": 0,
+        "requestHeadersSize": 608,
+        "responseBodySize": 708839,
+        "responseHeadersSize": 0
+      },
+      "timing": {
+        "startTime": 1792425066621.8518,
+        "domainLookupStart": -1,
+        "domainLookupEnd": -1,
+        "connectStart": -1,
+        "secureConnectionStart": -1,
+        "connectEnd": -1,
+        "requestStart": 106.524,
+        "responseStart": 354.084,
+        "responseEnd": 415.937
+      }
+    },
+    {
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/apatrem/html-office/d8247b6c886c55592807d26532879e768a3403d5/packages/data/engine/vendor/ironcalc.mjs",
+      "sha256": "c324ce6d0741b1f4a4f85a00634efa076f9728da4e562ac7441af4aa33d4026d",
+      "fetchedBodyBytes": 7381,
+      "wasmDecodedBytes": null,
+      "contentEncoding": "gzip",
+      "wireSizes": {
+        "requestBodySize": 0,
+        "requestHeadersSize": 600,
+        "responseBodySize": 3084,
+        "responseHeadersSize": 0
+      },
+      "timing": {
+        "startTime": 1792425066620.2869,
+        "domainLookupStart": 1.097,
+        "domainLookupEnd": 2.496,
+        "connectStart": 2.862,
+        "secureConnectionStart": 15.538,
+        "connectEnd": 107.409,
+        "requestStart": 107.804,
+        "responseStart": 474.351,
+        "responseEnd": 475.205
+      }
+    }
+  ]
+}

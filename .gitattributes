@@ -1,2 +1,7 @@
 # The reproducible assessment hashes its text inputs byte for byte.
 tools/engine-assessment/** text eol=lf
+
+# Data executable and notice digests must survive cross-platform checkout.
+packages/data/** text eol=lf
+packages/data/engine/vendor/*.wasm binary
+packages/data/engine/vendor/*.wasm.gz binary

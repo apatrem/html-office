@@ -1,0 +1,43 @@
+[
+  {
+    "id": "B01",
+    "description": "Small departmental budget; real-world arithmetic and subtotal model",
+    "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/cost-center-budget-rcr.xls",
+    "sha256": "9af6e9a86095dd00a43e6d563af57f357e12e5a93d5d37370b7e36f36df99c4c",
+    "rowLimit": 0,
+    "extension": ".xls"
+  },
+  {
+    "id": "B02",
+    "description": "Operational inventory workbook; 131 lookup formulas, structured references and unsupported import features",
+    "url": "https://raw.githubusercontent.com/ibrahim26salat-bit/Inventory-Management-System-Excel/f96cc6cb1e2ae945e352966a0d69a77018ec3fa1/Inventory%20Management%20System.xlsx",
+    "sha256": "aeb35c0eb08e9e73c1943a2544717128a50a68e70e983044e798cd2e66fc6d92",
+    "rowLimit": 0,
+    "extension": ".xlsx"
+  },
+  {
+    "id": "B03",
+    "description": "Public retail raw-data workbook; first 60000 data rows plus header",
+    "url": "https://archive.ics.uci.edu/static/public/352/online+retail.zip",
+    "sha256": "43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d",
+    "rowLimit": 60001,
+    "extension": ".xlsx",
+    "zipMember": "Online Retail.xlsx"
+  },
+  {
+    "id": "B04",
+    "description": "21-sheet asset valuation model with NPV, IF and linked calculations",
+    "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/project-wolverine-asset-valuation-model.xls",
+    "sha256": "0388e2a38324c8492a4a358cc8d48ce767d3812bb9804717a4db629f938ddded",
+    "rowLimit": 0,
+    "extension": ".xls"
+  },
+  {
+    "id": "B05",
+    "description": "Loosely structured operational schedule; author expertise is unverified",
+    "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/gas-control-oncall-schedule.xls",
+    "sha256": "40a189ad0c1f45cf947e39f3ea47bb56db240969809145c8175d9cadbe6cbb2e",
+    "rowLimit": 0,
+    "extension": ".xls"
+  }
+]

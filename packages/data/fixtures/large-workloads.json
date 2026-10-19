@@ -1,0 +1,11 @@
+{
+  "generator":"generate.mjs#large",
+  "deterministic":true,
+  "datasets":[
+    {"rows":100000,"columns":2,"preaggregate":false},
+    {"rows":50000,"columns":8,"preaggregate":false},
+    {"rows":50000,"columns":8,"preaggregate":true},
+    {"rows":100000,"columns":8,"preaggregate":true}
+  ],
+  "notes":"All data is fictional. Each fixture has 1000 result formulas. The reuse variant adds one shared aggregate and keeps the same expected result. Generators are committed instead of megabytes of repeated raw cells."
+}

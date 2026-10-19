@@ -1,0 +1,65 @@
+{
+  "method": "Same typed adapter and calculation+snapshot code as worker, executed directly on the main thread. Five warm edits; excludes DOM rendering.",
+  "cases": [
+    {
+      "id": "pnl",
+      "runs": [
+        {
+          "calculateMS": 14.600000023841858,
+          "result": 91612.64464580143
+        },
+        {
+          "calculateMS": 1,
+          "result": 91966.59791454273
+        },
+        {
+          "calculateMS": 1,
+          "result": 92323.16384644879
+        },
+        {
+          "calculateMS": 0.699999988079071,
+          "result": 92682.36196977276
+        },
+        {
+          "calculateMS": 1.0999999642372131,
+          "result": 93044.21195213063
+        }
+      ],
+      "longTasks": [
+        77
+      ]
+    },
+    {
+      "id": "100000x2-scans",
+      "runs": [
+        {
+          "calculateMS": 10279.200000047684,
+          "result": 3750001
+        },
+        {
+          "calculateMS": 10214,
+          "result": 3750002
+        },
+        {
+          "calculateMS": 8976.899999976158,
+          "result": 3750003
+        },
+        {
+          "calculateMS": 8432.199999988079,
+          "result": 3750004
+        },
+        {
+          "calculateMS": 9497,
+          "result": 3750005
+        }
+      ],
+      "longTasks": [
+        10934,
+        10214,
+        8976,
+        8432,
+        9497
+      ]
+    }
+  ]
+}

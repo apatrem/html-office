@@ -1,12 +1,12 @@
 # HTML Data V1 implementation plan
 
-Status: proposed implementation sequence, 15 October 2026. Product decisions are consolidated in the [Office specification](HTML-OFFICE-V1.md); [ADR-003](decisions/003-html-office-and-data-runtime.md) records the architecture. All tasks below are **not started**. The earlier engine assessment was a feasibility exercise, not a completed product task.
+Status: proposed implementation sequence, 15 October 2026. Product decisions are consolidated in the [Office specification](HTML-OFFICE-V1.md); [ADR-003](decisions/003-html-office-and-data-runtime.md) records the architecture. Implementation update, 19 October 2026: T01–T04 have a working experimental implementation; T05 browser evidence and T05b storage experiments are in [the Phase A report](../packages/data/PHASE-A-REPORT.md). The user approved hybrid JSON storage and policy A in [ADR-005](decisions/005-data-storage.md); its model/runtime adoption and unfamiliar-LLM evidence are included in T05b. T06 onward is not started. The earlier engine assessment alone did not complete these product tasks.
 
 ## Delivery rules and dependencies
 
-Use small branches/PRs, each leaving Slides working and delivering a reviewable increment. Acceptance criteria below are the minimum verification contract; changes to them must be explicit. Do not treat document approval as evidence that an engine gate passed. Use fictional public fixtures throughout. Review the plan before beginning product implementation.
+The user authorised one draft PR through T05b on 19 October 2026, with separate incremental commits and storage selection held for joint review. Subsequent work uses small branches/PRs, each leaving Slides working and delivering a reviewable increment. Acceptance criteria below are the minimum verification contract; changes to them must be explicit. Do not treat document approval as evidence that an engine gate passed. Use fictional public fixtures throughout. Review the plan before beginning product implementation.
 
-Start Data in `packages/data/`, with its own model, runtime build, tests and fixtures. Keep existing Slides source, commands, skill identity and release artifacts in place. The pending [Slides hardening PR #1](https://github.com/apatrem/html-office/pull/1) must land before any Slides folder move or plugin-identity migration; do not merge it as part of this work. Data prototyping does not require either migration. Add the Data skill to the existing plugin only after the complete workflow is usable; keep the current plugin identifier until a dedicated compatibility change.
+Start Data in `packages/data/`, with its own model, runtime build, tests and fixtures. Keep existing Slides source, commands, skill identity and release artifacts in place. The merged [Slides hardening PR #1](https://github.com/apatrem/html-office/pull/1) satisfies the prerequisite for later folder/identity migration; neither migration is included in this work. Data prototyping does not require either migration. Add the Data skill to the existing plugin only after the complete workflow is usable; keep the current plugin identifier until a dedicated compatibility change.
 
 Do not add IronCalc or import/chart dependencies to the Slides runtime. Separate generated runtime code from readable workbook content and cache data. Share modules only after both products have demonstrated a common requirement. Likely paths below are proposed, not files that already exist. S means about 1–2 implementation/test files; M means about 3–5. Split further if an increment exceeds that scope.
 
@@ -56,6 +56,8 @@ Dependencies: T04. Scope: M. Paths: `packages/data/bench/`, worker adapter if wa
 - Verification: commit the P&L and large-data fixtures and the benchmark harness; CI runs them on every PR with the agreed thresholds (see [shared rules](HTML-OFFICE-V1.md#shared-authoring-and-quality-rules)), so a performance regression fails the build.
 
 ### T05b — Decide result and data storage from real-world workbooks
+
+Decision update, 19 October 2026: [ADR-005](decisions/005-data-storage.md) selects compact JSON row arrays for declared dense raw-data tables, sparse records for freeform model sheets, JSON metadata, and policy A (all formula results). The [0.2 contract](../packages/data/model/FORMAT.md) is implemented at the document boundary shared by the builder, browser and range tools; normalized sparse engine state is derived. The isolated reading/editing trials and recipient checks are recorded in [the review packet](../packages/data/bench/storage/REVIEW.md). The acceptance criteria below remain the verification contract; this decision does not start T06.
 
 Dependencies: T02, T05. Scope: M. Paths: `packages/data/bench/storage/`, a converter from XLSX to the T01 model, measurement report. Real workbooks stay outside the repository; commit only anonymised metrics and the fictional fixtures.
 

@@ -1,0 +1,19 @@
+{
+  "name": "@html-office/data-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build": "node tools/build.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/loading.mjs && node tests/worker.mjs && node tests/variants.mjs",
+    "bench": "node --expose-gc bench/browser.mjs --check",
+    "format:check": "prettier --check \"{model,runtime,tools,tests,bench,fixtures}/**/*.mjs\" \"engine/manifest.json\""
+  },
+  "devDependencies": {
+    "binaryen": "132.0.0",
+    "gpt-tokenizer": "4.0.3",
+    "prettier": "3.6.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

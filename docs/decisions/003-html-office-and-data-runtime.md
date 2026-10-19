@@ -1,6 +1,6 @@
 # ADR-003 — HTML Office and the Data runtime
 
-Status: accepted product direction on 15 October 2026; IronCalc selection is provisional pending the gates in the [implementation plan](../HTML-DATA-PLAN.md). Data is not yet implemented.
+Status: accepted product direction on 15 October 2026; IronCalc selection is provisional pending the gates in the [implementation plan](../HTML-DATA-PLAN.md). An experimental Phase A prototype exists; the complete Data product is not implemented.
 
 ## Context
 
@@ -31,3 +31,9 @@ Standard HTML can open and display saved work offline, but needs a first engine 
 Integration must prove typed result access (the assessed binding exposes formatted values rather than a direct typed-result getter), complete model round trips, formula/reference semantics, licensing of compiled dependencies, browser performance, and the code budget. The first acceptance artifact is a fictional P&L; the final format must pass the unfamiliar-LLM HTML-only test. See the [specification](../HTML-OFFICE-V1.md) for the complete agreed scope. No engine benchmark or licence claim here is a release guarantee. The [engine stress test](../ENGINE-STRESS-TEST.md) of 16 October 2026 rechecked IronCalc 0.9.0 (still no typed-value getter), the alternatives and the ECharts and XLSX dependencies.
 
 Sources: [IronCalc source/licences](https://github.com/ironcalc/IronCalc), [WASM binding](https://github.com/ironcalc/IronCalc/blob/main/bindings/wasm/src/lib.rs), [SheetJS formula/value representation](https://docs.sheetjs.com/docs/csf/cell/), [GitHub repository rename behaviour](https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository).
+
+## Phase A implementation evidence — 19 October 2026
+
+The experimental implementation under `packages/data/` supplies a narrow typed WASM binding to pinned IronCalc 0.9.0 without intentionally changing calculation semantics. The target-specific dependency audit and retained notices, two-path byte-identical engine rebuild, file:// save/reopen tests, verified gzip transport, worker benchmarks and storage experiments are linked from [the Phase A report](../../packages/data/PHASE-A-REPORT.md). This proves the prototype workflow, not the complete V1 formula/import/browser contract.
+
+The initial Phase A default was readable sparse JSON with all formula results. Row/column JSON arrays and typed CSV/TSV are isolated storage candidates. The assessment-only evaluator has an unresolved real-model case; no second evaluator is included in the default runtime. The user requested a stop at T05b so the storage encoding and any result-policy amendment can be selected together. The subsequent user-approved storage decision is [ADR-005](005-data-storage.md): hybrid row arrays/sparse records, all results saved, one engine. It records adoption and validation status. T06 onward remains separate.

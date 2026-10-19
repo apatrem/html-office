@@ -1,0 +1,25 @@
+{
+  "version": "html-data/0.1",
+  "id": "community-learning",
+  "title": "Community Learning — fictional planning prototype",
+  "dateSystem": "excel1900",
+  "locale": "en-US",
+  "groups": [{"id":"assumptions","name":"Inputs / Hypotheses","sheetIds":["inputs"]},{"id":"summary","name":"Summary","sheetIds":["summary"]}],
+  "names": [],
+  "metadata": {"fictional":true,"note":"Experimental T01–T05b workbook. All figures are invented."},
+  "sheets": [
+    {"id":"inputs","name":"Inputs","cells":{
+      "A1":{"input":{"type":"text","value":"Monthly drivers"},"role":"header"},
+      "A2":{"input":{"type":"text","value":"Participants"},"role":"rowHeader"},
+      "B2":{"input":{"type":"number","value":100},"role":"assumption","format":{"kind":"number","digits":0}},
+      "A3":{"input":{"type":"text","value":"Fee per participant"},"role":"rowHeader"},
+      "B3":{"input":{"type":"number","value":25},"role":"assumption","format":{"kind":"currency","currency":"EUR","digits":2}}
+    }},
+    {"id":"summary","name":"Summary","cells":{
+      "A1":{"input":{"type":"text","value":"Monthly revenue"},"role":"header"},
+      "B2":{"formula":"=Inputs!B2*Inputs!B3","result":{"type":"number","value":2500},"role":"calculation","format":{"kind":"currency","currency":"EUR","digits":2}},
+      "A3":{"input":{"type":"text","value":"Revenue per participant"},"role":"rowHeader"},
+      "B3":{"formula":"=B2/Inputs!B2","result":{"type":"number","value":25},"format":{"kind":"currency","currency":"EUR","digits":2}}
+    }}
+  ]
+}
