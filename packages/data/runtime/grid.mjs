@@ -185,7 +185,6 @@ export function createGrid(
         "ArrowDown",
         "ArrowLeft",
         "ArrowRight",
-        "Tab",
         "Enter",
         "Home",
         "End",

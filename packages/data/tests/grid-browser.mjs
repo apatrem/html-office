@@ -24,6 +24,12 @@ try {
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
   const grid = page.locator("#grid");
   await grid.focus();
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await grid.evaluate((el) => el === document.activeElement),
+    false,
+  );
+  await grid.focus();
   await page.keyboard.press("ArrowRight");
   assert.equal(await page.getByLabel("Cell address").inputValue(), "C2");
   await page.keyboard.press("Shift+ArrowDown");

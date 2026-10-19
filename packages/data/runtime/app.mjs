@@ -228,6 +228,12 @@ $("cell-value").addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape") {
     event.preventDefault();
+    if (pendingEdit?.sheetId === sheetId && pendingEdit.ref === selected) {
+      const cancelled = pendingEdit;
+      pendingEdit = null;
+      persistence.changed(cellEdits([cancelled]));
+      status("Attempted edit discarded. The committed cell is restored.");
+    }
     choose(selected);
     $("grid").focus();
   }
