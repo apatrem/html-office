@@ -1,14 +1,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { chromium } from "playwright";
 import assert from "node:assert/strict";
 const benchmark = await build({
   stdin: {
     contents:
-      "export {loadEngine} from './packages/data/runtime/loader.mjs'; export {EngineSession} from './packages/data/engine/adapter.mjs';",
-    resolveDir: process.cwd(),
+      "export {loadEngine} from './packages/data/runtime/loader.mjs'; export {EngineSession} from './packages/data/engine/adapter.mjs'; export {readModel} from './packages/data/model/document.mjs';",
+    resolveDir: fileURLToPath(new URL("../../../", import.meta.url)),
   },
   bundle: true,
   format: "esm",
@@ -18,7 +18,7 @@ const benchmark = await build({
 });
 const source =
   benchmark.outputFiles[0].text +
-  "\nglobalThis.assessment={loadEngine,EngineSession};";
+  "\nglobalThis.assessment={loadEngine,EngineSession,readModel};";
 const browser = await chromium.launch();
 const report = {
   method:
@@ -41,12 +41,12 @@ try {
     await page.goto(pathToFileURL(file).href, { timeout: 180000 });
     await page.waitForFunction(() => globalThis.assessment);
     const result = await page.evaluate(async (id) => {
-      const { loadEngine, EngineSession } = assessment,
+      const { loadEngine, EngineSession, readModel } = assessment,
         module = await loadEngine(
           JSON.parse(document.querySelector("#engine-config").textContent),
         ),
         session = new EngineSession(module),
-        book = JSON.parse(document.querySelector("#workbook").textContent);
+        book = readModel(document.querySelector("#workbook").textContent);
       session.load(book);
       const longTasks = [];
       const observer = new PerformanceObserver((list) =>

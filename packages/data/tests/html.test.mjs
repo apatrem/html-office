@@ -4,15 +4,23 @@ import { readFile } from "node:fs/promises";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
 import { safeJSON, encodeWorkbook } from "../bench/storage/encodings.mjs";
 import { writeCell } from "../bench/storage/operations.mjs";
+import { writeModel } from "../model/document.mjs";
 const book = JSON.parse(
   await readFile(new URL("../fixtures/two-sheets.json", import.meta.url)),
 );
-for (const encoding of ["per-cell", "rows", "columns", "csv", "tsv"])
+for (const encoding of ["per-cell", "rows", "columns", "csv", "tsv", "hybrid"])
   test(`${encoding}: external bounded edit preserves HTML outside the payload byte-for-byte`, () => {
     const before =
         '<!doctype html>\n<!-- café — preserved -->\n<script type="application/json" id="workbook">',
       after = "</script>\n<script>/* unchanged runtime */</script>\n";
-    const html = before + safeJSON(encodeWorkbook(book, encoding)) + after;
+    const source = structuredClone(book);
+    source.sheets[0].metadata = { layout: "table" };
+    const html =
+      before +
+      (encoding === "hybrid"
+        ? writeModel(source)
+        : safeJSON(encodeWorkbook(source, encoding))) +
+      after;
     const r = readHTML(html);
     writeCell(r.book, "inputs", "B2", {
       input: { type: "number", value: 140 },

@@ -1,6 +1,6 @@
 # ADR-003 — HTML Office and the Data runtime
 
-Status: accepted product direction on 15 October 2026; IronCalc selection is provisional pending the gates in the [implementation plan](../HTML-DATA-PLAN.md). Data is not yet implemented.
+Status: accepted product direction on 15 October 2026; IronCalc selection is provisional pending the gates in the [implementation plan](../HTML-DATA-PLAN.md). An experimental Phase A prototype exists; the complete Data product is not implemented.
 
 ## Context
 
@@ -36,4 +36,4 @@ Sources: [IronCalc source/licences](https://github.com/ironcalc/IronCalc), [WASM
 
 The experimental implementation under `packages/data/` supplies a narrow typed WASM binding to pinned IronCalc 0.9.0 without intentionally changing calculation semantics. The target-specific dependency audit and retained notices, two-path byte-identical engine rebuild, file:// save/reopen tests, verified gzip transport, worker benchmarks and storage experiments are linked from [the Phase A report](../../packages/data/PHASE-A-REPORT.md). This proves the prototype workflow, not the complete V1 formula/import/browser contract.
 
-The default remains readable sparse JSON with all formula results. Row/column JSON arrays and typed CSV/TSV are isolated storage candidates. The assessment-only evaluator has an unresolved real-model case; no second evaluator is included in the default runtime. The user requested a stop at T05b so the storage encoding and any result-policy amendment can be selected together. That decision, blind tests and T06 onward remain pending.
+The initial Phase A default was readable sparse JSON with all formula results. Row/column JSON arrays and typed CSV/TSV are isolated storage candidates. The assessment-only evaluator has an unresolved real-model case; no second evaluator is included in the default runtime. The user requested a stop at T05b so the storage encoding and any result-policy amendment can be selected together. The subsequent user-approved storage decision is [ADR-005](005-data-storage.md): hybrid row arrays/sparse records, all results saved, one engine. It records adoption and validation status. T06 onward remains separate.

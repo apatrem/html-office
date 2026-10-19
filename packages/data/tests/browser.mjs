@@ -5,11 +5,16 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
+import { readModel } from "../model/document.mjs";
 const output = resolve("dist/data-test");
 await mkdir(output, { recursive: true });
 const book = JSON.parse(
   await readFile(new URL("../fixtures/two-sheets.json", import.meta.url)),
 );
+book.sheets[0].metadata = {
+  layout: "table",
+  keep: "hybrid browser round trip",
+};
 const browser = await chromium.launch({ headless: true });
 try {
   const context = await browser.newContext({ acceptDownloads: true });
@@ -54,6 +59,13 @@ try {
   const saved = resolve(output, "saved.html");
   await download.saveAs(saved);
   const bytes = await readFile(saved, "utf8");
+  const payloadText = /<script id="workbook"[^>]*>([\s\S]*?)<\/script>/.exec(
+    bytes,
+  )[1];
+  assert.equal(JSON.parse(payloadText).sheets[0].table.encoding, "rows");
+  const normalized = readModel(payloadText);
+  assert.equal(normalized.sheets[0].cells.B2.input.value, 140);
+  assert.deepEqual(normalized.sheets[0].metadata, book.sheets[0].metadata);
   assert.ok(
     !bytes.includes("blob:http"),
     "transient URLs must not become saved dependencies",

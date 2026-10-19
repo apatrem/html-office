@@ -1,5 +1,10 @@
 import { parse } from "parse5";
 import { decodeWorkbook, encodeWorkbook, safeJSON } from "./encodings.mjs";
+import {
+  DOCUMENT_VERSION,
+  readModel,
+  writeModel,
+} from "../../model/document.mjs";
 export function readHTML(html) {
   const nodes = [];
   function visit(node) {
@@ -24,8 +29,14 @@ export function readHTML(html) {
     end = location.endTag.startOffset,
     payload = JSON.parse(html.slice(start, end));
   return {
-    book: decodeWorkbook(payload),
-    encoding: payload.storageExperiment?.encoding ?? "per-cell",
+    book:
+      payload.version === DOCUMENT_VERSION
+        ? readModel(html.slice(start, end))
+        : decodeWorkbook(payload),
+    encoding:
+      payload.version === DOCUMENT_VERSION
+        ? "hybrid"
+        : (payload.storageExperiment?.encoding ?? "per-cell"),
     start,
     end,
   };
@@ -33,7 +44,9 @@ export function readHTML(html) {
 export function replaceHTML(html, read, book) {
   return (
     html.slice(0, read.start) +
-    safeJSON(encodeWorkbook(book, read.encoding)) +
+    (read.encoding === "hybrid"
+      ? writeModel(book)
+      : safeJSON(encodeWorkbook(book, read.encoding))) +
     html.slice(read.end)
   );
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { build } from "esbuild";
 import { buildWorkbook } from "../tools/build.mjs";
@@ -11,7 +11,11 @@ const book = JSON.parse(
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const bundled = await build({
-  entryPoints: [new URL("../runtime/client.mjs", import.meta.url).pathname],
+  stdin: {
+    contents:
+      "export {EngineClient} from './packages/data/runtime/client.mjs'; export {readModel} from './packages/data/model/document.mjs';",
+    resolveDir: fileURLToPath(new URL("../../../", import.meta.url)),
+  },
   format: "esm",
   bundle: true,
   write: false,
@@ -24,7 +28,7 @@ await writeFile(
   file,
   html.replace(
     "</body>",
-    `<script type="module">${bundled.outputFiles[0].text}\nglobalThis.Client=EngineClient;</script></body>`,
+    `<script type="module">${bundled.outputFiles[0].text}\nglobalThis.Client=EngineClient;globalThis.readDocument=readModel;</script></body>`,
   ),
 );
 const browser = await chromium.launch();
@@ -39,7 +43,7 @@ try {
     );
     try {
       await client.load(
-        JSON.parse(document.querySelector("#workbook").textContent),
+        readDocument(document.querySelector("#workbook").textContent),
       );
       await client.edit("inputs", "B2", {
         input: { type: "number", value: 160 },

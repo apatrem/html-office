@@ -1,5 +1,5 @@
 import { jsonStringify } from "./json.mjs";
-// Experimental readable contract. T05b will decide the final dense-table encoding.
+// Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
   "#REF!",
