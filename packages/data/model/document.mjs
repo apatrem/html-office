@@ -16,7 +16,7 @@ const record = (value, allowed) => {
     throw new Error("Unknown storage field");
 };
 
-export function writeModel(book) {
+export function writeModel(book, { pretty = true } = {}) {
   validateWorkbook(book);
   const document = { ...book, version: DOCUMENT_VERSION, sheets: [] };
   for (const sheet of book.sheets) {
@@ -76,7 +76,7 @@ export function writeModel(book) {
       table,
     });
   }
-  return jsonStringify(document, { pretty: true, compactArrays: true });
+  return jsonStringify(document, { pretty, compactArrays: true });
 }
 
 export function readModel(text) {

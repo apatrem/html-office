@@ -47,6 +47,7 @@ test("row arrays preserve signed zero, mixed types, blanks, missing cells and me
   assert.ok(payload.sheets[0].table);
   assert.ok(!text.includes("</script>"));
   assert.deepEqual(readModel(text), book);
+  assert.deepEqual(readModel(writeModel(book, { pretty: false })), book);
   assert.ok(Object.is(readModel(text).sheets[0].cells.B1.input.value, -0));
 });
 test("legacy sparse documents remain readable and freeform models are not densified", async () => {

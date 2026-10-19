@@ -1,6 +1,7 @@
 import { validateCell, parseAddress, address } from "../model/workbook.mjs";
-import { readModel, writeModel } from "./document-model.mjs";
+import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
+import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { preview, touchPreview } from "./view.mjs";
 const $ = (id) => document.getElementById(id);
@@ -8,13 +9,46 @@ let book = readModel($("workbook").textContent),
   sheetId = book.sheets[0].id,
   selected = "B2",
   session = null,
-  loading = null;
+  loading = null,
+  pendingEdit = null;
 const revisions = new CalculationRevision();
 const history = [];
 const config = JSON.parse($("engine-config").textContent);
 const status = (text) => {
   $("status").textContent = text;
 };
+const persistence = setupPersistence({
+  getBook: () => book,
+  getPending: () => pendingEdit,
+  restore: (recovered) => {
+    revisions.cancel();
+    session?.dispose();
+    session = null;
+    loading = null;
+    pendingEdit = null;
+    book = recovered;
+    sheetId = book.sheets[0].id;
+    history.length = 0;
+    render();
+    choose("B2");
+    const token = revisions.revision;
+    void snapshotState(book).then((value) => {
+      if (revisions.current(token))
+        status(
+          value.state === "current"
+            ? "Saved results are current."
+            : "Saved results are stale or missing. Apply an edit to recalculate.",
+        );
+    });
+  },
+});
+function cellEdits(refs) {
+  return refs.map(({ sheetId, ref }) => ({
+    sheetId,
+    ref,
+    cell: book.sheets.find((s) => s.id === sheetId).cells[ref] ?? null,
+  }));
+}
 function choose(ref) {
   for (const b of $("grid").querySelectorAll("[data-cell]"))
     b.setAttribute("aria-pressed", String(b.dataset.cell === ref));
@@ -89,7 +123,7 @@ function render() {
   $("apply").disabled = !!loading;
   $("recalculate").disabled = !!loading;
   $("cancel").disabled = !loading;
-  $("save").disabled = !!loading;
+  $("save").disabled = false;
   $("decimals").disabled = !!loading;
   for (const field of document.querySelectorAll(".fields input,.fields select"))
     field.disabled = !!loading;
@@ -133,6 +167,10 @@ async function apply({ recalculateOnly = false } = {}) {
       validateCell(cell);
     } // Validate before downloading or mutating the engine.
     loading = controller;
+    if (!recalculateOnly) {
+      pendingEdit = { sheetId: target, ref, cell };
+      persistence.changed();
+    }
     render();
     status(
       config.embedded
@@ -170,6 +208,10 @@ async function apply({ recalculateOnly = false } = {}) {
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
     book.snapshot = result.snapshot;
+    if (!recalculateOnly) pendingEdit = null;
+    persistence.changed(
+      cellEdits([{ sheetId: target, ref }, ...result.results]),
+    );
     history.push(previous);
     status("Calculated locally. Unsaved changes.");
     dispatchEvent(
@@ -233,6 +275,13 @@ $("undo").onclick = () => {
       session = null;
     }
   });
+  pendingEdit = null;
+  persistence.changed(
+    cellEdits([
+      { sheetId: previous.target, ref: previous.ref },
+      ...(previous.results ?? []),
+    ]),
+  );
   render();
   choose(selected);
   status("Undo restored the previous workbook.");
@@ -256,30 +305,11 @@ $("decimals").onclick = () => {
     },
   };
   // Formatting is browser-owned and excluded from the calculation fingerprint.
+  persistence.changed(cellEdits([{ sheetId, ref: selected }]));
   render();
   status("Formatting changed. Unsaved changes.");
 };
-$("save").onclick = () => {
-  if (loading) {
-    status("Finish or cancel the pending calculation before saving.");
-    return;
-  }
-  const copy = document.documentElement.cloneNode(true);
-  copy.querySelector("#workbook").textContent = writeModel(book);
-  // Saved form state should reflect its actual default when the copy is reopened.
-  copy.querySelector("#status").textContent = "Checking saved results…";
-  const url = URL.createObjectURL(
-    new Blob(["<!doctype html>\n" + copy.outerHTML], {
-      type: "text/html;charset=utf-8",
-    }),
-  );
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${book.id}.html`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  status("Copy download requested. Open the downloaded HTML to verify it.");
-};
+
 render();
 choose(selected);
 const initialRevision = revisions.revision;
