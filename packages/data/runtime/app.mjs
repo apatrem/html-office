@@ -1,19 +1,15 @@
-import {
-  validateCell,
-  parseAddress,
-  address,
-  fingerprint,
-} from "../model/workbook.mjs";
+import { validateCell, parseAddress, address } from "../model/workbook.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
+import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { preview, touchPreview } from "./view.mjs";
 const $ = (id) => document.getElementById(id);
 let book = readModel($("workbook").textContent),
   sheetId = book.sheets[0].id,
   selected = "B2",
   session = null,
-  loading = null,
-  sequence = 0;
+  loading = null;
+const revisions = new CalculationRevision();
 const history = [];
 const config = JSON.parse($("engine-config").textContent);
 const status = (text) => {
@@ -91,6 +87,7 @@ function render() {
     : "";
   $("undo").disabled = !history.length || !!loading;
   $("apply").disabled = !!loading;
+  $("recalculate").disabled = !!loading;
   $("cancel").disabled = !loading;
   $("save").disabled = !!loading;
   $("decimals").disabled = !!loading;
@@ -119,18 +116,22 @@ function enteredCell() {
   } else cell.input = { type, value: text };
   return cell;
 }
-async function apply() {
+async function apply({ recalculateOnly = false } = {}) {
   if (loading) return;
-  const epoch = ++sequence,
+  const epoch = revisions.begin(),
     controller = new AbortController();
   let touchedEngine = false,
     loadMetrics = null;
   try {
-    const ref = $("cell-address").value,
-      cell = enteredCell(),
+    const ref = recalculateOnly ? selected : $("cell-address").value,
+      cell = recalculateOnly
+        ? book.sheets.find((s) => s.id === sheetId).cells[selected]
+        : enteredCell(),
       target = sheetId;
-    parseAddress(ref);
-    validateCell(cell); // Validate before downloading or mutating the engine.
+    if (!recalculateOnly) {
+      parseAddress(ref);
+      validateCell(cell);
+    } // Validate before downloading or mutating the engine.
     loading = controller;
     render();
     status(
@@ -142,12 +143,12 @@ async function apply() {
     if (!session) {
       session = new EngineClient(config, $("worker-source").textContent);
       loadMetrics = await session.load(book);
-      if (epoch !== sequence) return;
+      if (!revisions.current(epoch)) return;
     }
-    if (epoch !== sequence) return;
-    await session.edit(target, ref, cell);
+    if (!revisions.current(epoch)) return;
+    if (!recalculateOnly) await session.edit(target, ref, cell);
     const result = await session.calculate();
-    if (epoch !== sequence) return;
+    if (!revisions.current(epoch)) return;
     const sheet = book.sheets.find((s) => s.id === target);
     const previous = {
       target,
@@ -161,8 +162,10 @@ async function apply() {
           ?.result,
       })),
     };
-    sheet.cells[ref] = cell;
-    touchPreview(sheet.cells, ref);
+    if (!recalculateOnly) {
+      sheet.cells[ref] = cell;
+      touchPreview(sheet.cells, ref);
+    }
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
@@ -179,7 +182,7 @@ async function apply() {
       }),
     );
   } catch (error) {
-    if (epoch === sequence) {
+    if (revisions.current(epoch)) {
       if (touchedEngine) {
         session?.dispose();
         session = null;
@@ -189,15 +192,16 @@ async function apply() {
       );
     }
   } finally {
-    if (epoch === sequence) {
+    if (revisions.current(epoch)) {
       loading = null;
       render();
     }
   }
 }
 $("apply").onclick = apply;
+$("recalculate").onclick = () => apply({ recalculateOnly: true });
 $("cancel").onclick = () => {
-  ++sequence;
+  revisions.cancel();
   loading?.abort();
   loading = null;
   session?.dispose();
@@ -278,8 +282,11 @@ $("save").onclick = () => {
 };
 render();
 choose(selected);
-status(
-  book.snapshot?.fingerprint === (await fingerprint(book))
-    ? "Saved results are current."
-    : "Saved results are stale or missing. Apply an edit to recalculate.",
-);
+const initialRevision = revisions.revision;
+const initialState = await snapshotState(book);
+if (revisions.current(initialRevision))
+  status(
+    initialState.state === "current"
+      ? "Saved results are current."
+      : "Saved results are stale or missing. Apply an edit to recalculate.",
+  );

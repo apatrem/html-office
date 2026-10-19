@@ -1,5 +1,6 @@
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell} from '../model/workbook.mjs';
-export const ENGINE = 'ironcalc/0.9.0+html-office-typed.1';
+import { ENGINE } from './identity.mjs';
+export { ENGINE } from './identity.mjs';
 export function engineInput(cell) {
   if(cell.formula)return cell.formula;
   const v=cell.input??{type:'blank'};validateValue(v);
