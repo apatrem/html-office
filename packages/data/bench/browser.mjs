@@ -88,6 +88,7 @@ try {
   for (const item of cases.filter(filter)) {
     console.log(`Building and checking ${item.id}`);
     let book = item.make();
+    if (item.id !== "pnl") book.sheets[0].metadata = { layout: "table" };
     const html = await buildWorkbook(book, { offline: true }),
       file = resolve(out, `${item.id}.html`);
     await writeFile(file, html);

@@ -6,7 +6,9 @@ const browser = await load("bench/browser-results.json"),
   main = await load("bench/main-thread-results.json"),
   real = await load("bench/storage/real-results.json"),
   fictional = await load("bench/storage/fictional-results.json"),
-  cdn = await load("bench/cdn-results.json");
+  cdn = await load("bench/cdn-results.json"),
+  hybrid = await load("bench/hybrid-browser-results.json"),
+  blind = await load("bench/storage/blind-results.json");
 const n = (value) =>
     new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value),
   mb = (value) => n(value / 1e6),
@@ -15,6 +17,18 @@ const performanceRows = browser.cases
   .map(
     (c) =>
       `| ${c.id} | ${n(c.coldOpenMS)} | ${n(c.warmMaxMS)} | ${c.mainThreadMaxMS ? n(c.mainThreadMaxMS) : "none ≥50 ms"} | ${n(c.standardSize.applicationCodeBytes)} | ${mb(c.maximumSampledWasmMemoryBytes)} | ${mb(c.sampledPeakBrowserTreeRSSBytes)} |`,
+  )
+  .join("\n");
+const hybridRows = hybrid.cases
+  .map(
+    (c) =>
+      `| ${c.id} | ${n(c.coldOpenMS)} | ${n(c.warmMaxMS)} | ${c.mainThreadMaxMS ? n(c.mainThreadMaxMS) : "none ≥50 ms"} | ${n(c.standardSize.applicationCodeBytes)} | ${mb(c.standardSize.totalHTMLBytes)} |`,
+  )
+  .join("\n");
+const blindRows = blind.trials
+  .map(
+    (c) =>
+      `| ${c.encoding} | ${c.passed ? "pass" : "fail"} | ${c.repairs.length} | ${c.browser.staleOnOpen ? "stale as expected" : "failed"} |`,
   )
   .join("\n");
 const raw = real.workbooks.find((b) => b.id === "B03");
@@ -34,7 +48,7 @@ const pnl = fictional.workbooks.find((b) => b.id === "fictional-pnl");
 const control = main.cases.find((c) => c.id === "100000x2-scans");
 const report = `# HTML Data Phase A implementation and assessment
 
-Status, 19 October 2026: T01–T04 implemented as an experimental prototype; T05 measurements recorded; T05b assessment ready for joint review. **Storage selection, unfamiliar-LLM tests and T06 onward remain pending.** No complete V1 release or Data skill is claimed. The user authorised one draft PR with incremental commits through this point.
+Status, 19 October 2026: T01–T04 implemented as an experimental prototype; T05 measurements recorded; T05b selects hybrid JSON and policy A following user approval and isolated HTML-only trials. The 0.2 document codec is adopted in the builder, browser and range tools. **T06 onward remains unstarted.** No complete V1 release or Data skill is claimed. The user authorised one draft PR with incremental commits through this point.
 
 ## Implemented proof
 
@@ -51,7 +65,9 @@ The custom WASM is 2,172,743 decoded bytes; its precompressed transport is **707
 
 Standard application code includes JavaScript, CSS, UI scaffold, all dependency notices and, conservatively, generated grid markup/text. Model JSON and the inert guide are content. Every measured standard fixture stays below **500,000 bytes**; offline code is larger because it contains the compressed engine. Data/content size is reported separately and can be much larger.
 
-## Browser evidence
+## Browser evidence before storage adoption
+
+This initial receipt is retained as the sparse-storage baseline. The adopted-format rerun appears below.
 
 Environment: ${browser.environment.browser}; Node ${browser.environment.node}; ${browser.environment.cpu}; ${browser.environment.platform}/${browser.environment.architecture}. These are single-machine observations, with possible ambient load, not capacity or latency guarantees. Five warm input changes follow one engine load. Cold opening and initial dependency/model load are separate in [the complete receipt](bench/browser-results.json).
 
@@ -67,9 +83,9 @@ The separate main-thread control recorded calculation-driven tasks up to ${n(Mat
 
 CI runs unit/browser tests, code-budget checks and all committed workload recipes on every PR, enforcing the proposed P&L/UI targets. It does not fetch the real corpus. The local suite passes; consult the PR checks for current hosted-runner status.
 
-## Storage evidence for joint selection
+## Storage evidence used for selection
 
-All five encodings round-trip identical converted canonical content and pass bounded edits, row/column reference rewrites and portable browser edit/save/reopen tests. Arrays, CSV and TSV use a shared typed schema and explicit exceptions; sparse regions remain cell records. No encoding is adopted by this report.
+All five encodings round-trip identical converted canonical content and pass bounded edits, row/column reference rewrites and portable browser edit/save/reopen tests. Arrays, CSV and TSV use a shared typed schema and explicit exceptions; sparse regions remain cell records. These original comparison receipts predate the selection in [ADR-005](../../docs/decisions/005-data-storage.md); they remain unchanged as measurement evidence.
 
 Example: B03 is a real public retail workbook sampled at 60,000 data rows plus a header. Original Excel caches are retained for storage measurement; freshness is unknown and no current IronCalc snapshot is claimed. Recalculation is separate for evaluator conformance. Unsupported import features and source-cache differences are counted in [real measurements](bench/storage/real-results.json).
 
@@ -77,7 +93,7 @@ Example: B03 is a real public retail workbook sampled at 60,000 data rows plus a
 | --- | ---: | ---: | ---: | ---: | ---: |
 ${storageRows}
 
-Minified payloads isolate representation; readable HTML also includes whitespace, code, schema and preview. Row arrays are written compactly by row, and long primitive vectors use 32 scalars per line. CSV/TSV is a JSON-escaped string in this experiment. Column arrays compress well but separate the values of one row; direct unfamiliar-LLM editing has not been measured. The token proxy uses pinned gpt-tokenizer/o200k_base in fixed character chunks, with possible boundary differences.
+Minified payloads isolate representation; readable HTML also includes whitespace, code, schema and preview. Row arrays are written compactly by row, and long primitive vectors use 32 scalars per line. CSV/TSV is a JSON-escaped string in this experiment. Column arrays compress well but separate the values of one row; the isolated unfamiliar-LLM trials below assess editing without establishing a statistically reliable ranking. The token proxy uses pinned gpt-tokenizer/o200k_base in fixed character chunks, with possible boundary differences.
 
 The fictional P&L's per-cell HTML is ${mb(pnl.encodings[0].totalHTMLBytes)} MB; dense alternatives add decoder/schema overhead and do not materially shrink this small model. Its saved-result snapshot accounts for ${pct(pnl.resultPolicies.A.resultSnapshotShareOfHTML)} of the HTML. See [fictional measurements](bench/storage/fictional-results.json) for all cases, including a metadata-light 50k-row table.
 
@@ -87,11 +103,31 @@ ${corpusRows}
 
 The small budget is not a full financial planning model; the schedule author's expertise is unverified. The operational lookup workbook uses structured references, and the valuation model uses complex/scoped names; assessment conversion reports these limitations. This is not an Excel fidelity or full formula-conformance gate. Only anonymised metrics/provenance are committed; source workbooks and their contents stay outside the repository.
 
-## Result-policy assessment and remaining gates
+## Result-policy assessment
 
 A (save every populated formula result) remains the implemented default. B/C sizes are **counterfactual estimates**, including the measured small evaluator's code cost. They do not demonstrate a shipped reader or limited offline editor. The evaluator could not handle a real valuation-model range case; conformance is therefore not established. Cases with zero eligible cells provide no evaluator evidence. No second evaluator is included in the default runtime and no cache-elision policy is adopted.
 
-Before T06, review the encoding by range role and A/B/C policy together, run the unfamiliar-LLM reading/editing tasks, and record any approved contract change in ADR-003 and the specification. Checkpoint A is not closed until that decision is recorded. The [review packet](bench/storage/REVIEW.md) supplies reproduction commands, provenance, limitations, working fictional variants and blind-test prompts.
+## Adopted storage and HTML-only trials
+
+[ADR-005](../../docs/decisions/005-data-storage.md) selects compact JSON row arrays for declared dense raw-data tables, sparse cell records for freeform financial models, JSON metadata and policy A. The [html-data/0.2 contract](model/FORMAT.md) is implemented by one document codec shared by the builder, browser and range tools. The sparse 0.1 engine model is derived in memory; only one representation is saved for each value. Legacy sparse files remain readable. CSV/TSV and column arrays remain comparison formats, with no second evaluator shipped.
+
+Six fresh sub-agents received no conversation history, repository sources or storage recommendation. Each received only an HTML and the same task: read three saved totals, explain a derived figure and tricky types, change growth to 3%, append a record, preserve unrelated content, and identify stale results without calculating. Five trials compare the original encoding candidates; the sixth confirms the adopted 0.2 format and guide. All use a fictional P&L plus 50,000 raw-data rows. Isolation was procedural in a shared workspace, not an OS sandbox. Exact token use and model identifiers were not exposed; no token-efficiency ranking is claimed.
+
+| Encoding | Independent canonical/byte validation | Corrective retries | Browser reopening |
+| --- | --- | ---: | --- |
+${blindRows}
+
+Independent checks verified full-precision saved totals, exact requested edits, signed zero, all unrelated canonical data and byte-identical content outside the payload. Reports correctly distinguish blank, empty text and absence and explain the NPV precedents. All six edited files reopen stale without engine requests. The selected file additionally recalculates through verified IronCalc, matches an independent pinned-engine calculation exactly apart from timestamp, saves, and reopens current offline. See [trial receipts](bench/storage/blind-results.json). One trial per candidate is compatibility evidence, not proof of superiority or general LLM reliability. The ineligible B/C evaluator alternatives do not gain conformance from these policy-A trials.
+
+## Adopted-format browser rerun
+
+Same workload recipes and gates, with dense raw sheets explicitly declared as tables and their original per-cell formats retained. Environment and full metrics: [hybrid browser receipt](bench/hybrid-browser-results.json). Original and new runs occurred separately on the same machine; timing differences are not a controlled performance comparison.
+
+| Workload | Cold open ms | Max warm edit-to-paint ms | Recorded warm UI long task | Standard code bytes | Standard HTML MB |
+| --- | ---: | ---: | --- | ---: | ---: |
+${hybridRows}
+
+All adopted-format gates pass locally. Table encoding reduces serialized value overhead but retains repeated format metadata; memory remains substantial and calculation-heavy scans remain slow. Aggregate reuse is still an authoring technique, not an automatic formula rewrite. Checkpoint A's storage decision/adoption is recorded; the documented corpus, Excel-fidelity, browser-coverage and workload limitations remain. T06 and later features are not implemented. The [review packet](bench/storage/REVIEW.md) supplies reproduction commands and blind-test details.
 
 ## Local reproduction
 

@@ -190,10 +190,7 @@ for (const spec of fixtures) {
     const html = await buildWorkbook(book, {
       calculate: false,
       formatGuide: guide,
-      modelCodecPath:
-        encoding === "per-cell"
-          ? undefined
-          : new URL("document-model.mjs", here).pathname,
+      modelCodecPath: new URL("document-model.mjs", here).pathname,
       serializeModel: (b) => safeJSON(encodeWorkbook(b, encoding)),
     });
     result.encodings.push({
@@ -233,6 +230,7 @@ for (const spec of fixtures) {
       const noHTML = await buildWorkbook(noSimpleResults, {
         calculate: false,
         formatGuide: guide,
+        modelCodecPath: new URL("document-model.mjs", here).pathname,
         serializeModel: safeJSON,
       });
       result.resultPolicies = {

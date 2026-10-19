@@ -1,0 +1,241 @@
+{
+  "date": "2026-10-19T16:24:18.441Z",
+  "status": "Six HTML-only trials passed; selected format adopted",
+  "method": "Five original encoding candidates plus one confirmation of adopted html-data/0.2. One fresh Codex sub-agent per packet, fork_turns=none; same task, no repository or conversation history. Procedural isolation in a shared workspace, not an OS sandbox. Only fictional P&L plus 50,000 Records rows. Sub-agents inspected HTML with general-purpose local tools; independent post-validation checked typed canonical content, saved totals, outside-payload bytes and freshness. Explanations reviewed against saved formulas/types. Browser checks are separate from assistant trials.",
+  "modelAndTokenMetrics": "Configured model inherited. Exact model identifiers, context/token use and comparative timings not exposed or measured; no model-diversity or efficiency ranking claimed.",
+  "limitations": [
+    "One trial per candidate cannot establish a statistical reliability ranking.",
+    "All reading/editing trials use policy A. B/C evaluator conformance remains unresolved; no shipped alternative reader/offline editor is implied.",
+    "Initial comparison packets use experimental encodings generated before adoption. Packet 6 confirms the adopted document codec/guide; its Records metadata explicitly declares layout=table.",
+    "Selected-format recalc/save/reopen tested in Chromium only; complete V1 and browser parity remain later tasks."
+  ],
+  "trials": [
+    {
+      "packet": 1,
+      "encoding": "per-cell",
+      "passed": true,
+      "originalSha256": "97ed2c804ae8b7c1b765365851f86ae9d22f17582070ddc7de7e64bcbb1fdb6d",
+      "editedSha256": "3f34a21796f209707292272deac79776ce604f81e608a2b7a84e5d3304871382",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present typed text \"0012\"; leading zeros are part of its string value.",
+          "Records!C2": "Present typed number -0. The JSON numeric token is -0 and JavaScript Object.is(value, -0) is true, so it is signed negative zero.",
+          "Records!E2": "Present typed Boolean true, not a text string or number.",
+          "Records!F2": "Present typed date with numeric serial 46023, interpreted under the workbook excel1900 date system.",
+          "Records!H2": "Present explicit blank input {\"type\":\"blank\"}; it has no value member.",
+          "Records!A3": "Present text input with the empty string value \"\"; distinct from a blank or absent cell.",
+          "Records!H3": "Absent: the sparse cells object has no H3 key.",
+          "Records!H4": "Present typed error input with value \"#N/A\", not ordinary text."
+        },
+        "derivedExplanation": "Summary!B4 stores =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is the annual discount rate 0.1, converted into an effective monthly rate as (1+0.1)^(1/12)-1. NPV discounts the 24 cash flows B12:Y12 at month-end periods 1 through 24, then subtracts the separate initial investment Inputs!B8 = 10000 at time zero. Cash-flow row 12 equals net-income row 10: participant revenue (row 3 times the fee 25) minus variable costs (participants times 8), fixed monthly costs 1500, and tax MAX(0,operating profit*0.2). Months 1–12 use Actuals!B2:B13; months 13–24 compound the monthly participant-growth assumption from the previous month. The saved B4 result 8437.718577841137 was read directly from its result object; no formula was evaluated.",
+        "staleExplanation": "Changed Inputs!B2 from 0.02 to 0.03 and appended Records row 50002. Every existing formula and saved result remains exactly unchanged. The cached values dependent on growth are now stale: Calculations!N3:Y6 and N8:Y12 (108 cells), plus Summary!B2:B4 (3 cells). Calculations row 7 is fixed costs and remains independent of growth; B:M uses historical Actuals and is unaffected. Records has no formula dependents in this workbook. The original snapshot engine, timestamp and fingerprint were retained as provenance. The workbook fingerprint was independently computed using the embedded application’s documented code path: the original matched the saved fingerprint, while the edited fingerprint differs, so the unchanged application cannot label the edited saved results current and will display its stale-or-missing message. No new formula results were calculated.",
+        "inspectionMethod": "Read only TASK.md and workbook.html from this packet, apart from the user-required global RTK command policy. Inspected the canonical <script id=\"workbook\" type=\"application/json\" data-document-content> JSON directly with local Python/Node tools; no HTML scripts or calculation engine were executed and no network resources were used. Storage is html-data/0.1 sparse per-cell JSON: each sheet has an address-keyed cells object; typed input objects are separate from formula strings, cached result objects, roles and formats. Records initially contains 400007 cells and 50000 data rows through row 50001. Used two surgical string edits inside the payload: growth 0.03 with percent/digits=1 formatting preserved, and seven typed cells at row 50002 with H absent. Verified full parsed workbook equality against exactly those intended changes, including preserved negative zero, every existing cell/formula/result/metadata/snapshot; verified prefix and suffix byte equality outside the payload. Limitation: no interactive browser rendering or formula recalculation was performed, as the task requires preserving saved results.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 49318691,
+      "editedHTMLBytes": 49319572,
+      "browser": {
+        "packet": 1,
+        "staleOnOpen": true,
+        "viewRequests": 0
+      },
+      "explanationsReviewed": true
+    },
+    {
+      "packet": 2,
+      "encoding": "rows",
+      "passed": true,
+      "originalSha256": "a1b593414d72076f56899491f658a45a3fec764345bd6c6e8a5213567802764f",
+      "editedSha256": "e039ce4e008e6f10bd430d11f82f3ed053163b93995ec527faf2c80f0bbe7924",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present text \"0012\", with its leading zeroes preserved, stored in the rows table under columnTypes[0] = text.",
+          "Records!C2": "Present number negative zero, stored as the JSON token -0 in the rows table under columnTypes[2] = number. This is the signed zero.",
+          "Records!E2": "Present Boolean true, stored as a JSON Boolean under columnTypes[4] = boolean.",
+          "Records!F2": "Present date with serial value 46023, stored as a JSON number under columnTypes[5] = date; the workbook uses the excel1900 date system.",
+          "Records!H2": "Present explicit blank typed input in table.overrides.H2: {input:{type:\"blank\"}}. The underlying table slot is null.",
+          "Records!A3": "Present empty text typed input in table.overrides.A3: {input:{type:\"text\",value:\"\"}}. The underlying table slot is null.",
+          "Records!H3": "Absent cell: null table slot, no sparse cell, no override and no cell metadata.",
+          "Records!H4": "Present error typed input with value #N/A in table.overrides.H4. The underlying table slot is null."
+        },
+        "derivedExplanation": "Summary!B4 stores 8437.718577841137. Its formula is =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is the annual discount rate 0.1, converted to an effective monthly rate by the twelfth-root expression. NPV discounts the 24 monthly cash flows in Calculations!B12:Y12 as end-of-period cash flows; the initial investment Inputs!B8 = 10000 is subtracted separately at time zero. Each row-12 cash flow equals row-10 net income, which is row-8 operating profit less row-9 tax. Revenue is participants times the participant fee; variable cost is participants times unit variable cost; fixed costs are then deducted. The first 12 participant counts come from Actuals; months 13–24 compound the preceding count using Inputs!B2. All reported totals were read directly from saved result.value fields, without evaluating formulas.",
+        "staleExplanation": "Inputs!B2 changes from 0.02 to 0.03 while retaining its assumption role and percent format with one decimal. No formula or saved result was changed or calculated. The original snapshot, including its engine, calculation timestamp and fingerprint, is retained as historical provenance. An independent check using the embedded fingerprint algorithm confirmed that the original fingerprint matched before the edit and differs after it; therefore the existing HTML freshness check displays \"Saved results are stale or missing. Apply an edit to recalculate.\" Growth-dependent saved results in Calculations!N3:Y3 and the downstream cells in those columns on rows 4, 5, 6, 8, 9, 10, 11 and 12 are stale, as are Summary!B2, B3 and B4. Earlier months, period labels and row-7 fixed costs are unaffected. The Records append has no formula dependents in this workbook. The newly appended row is row 50002, with H50002 absent.",
+        "inspectionMethod": "Inspected only TASK.md and workbook.html as packet inputs, using local general-purpose Python and Node.js tools. The HTML contains one canonical application/json workbook payload using storageExperiment version 1, rows encoding. Sheets combine typed rectangular tables (columnTypes, null slots, overrides and cellMetadata) with sparse formula cells and saved results. Read the full payload programmatically, inspected typed data and formulas, independently expanded row storage and reproduced the embedded sorted JSON SHA-256 fingerprint algorithm. Applied three narrow textual patches inside the payload only: growth value, Records height, and one appended row. Verified exact semantic equality against the original plus those requested changes, preservation of signed zero and all metadata/formulas/results, valid row dimensions and override/metadata relationships, appended cell types and absent H, and byte-identical content outside the payload. Did not execute the HTML in a browser or invoke a calculation engine; there was no recalculation. No repairs to the original storage were necessary.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 4756296,
+      "editedHTMLBytes": 4756397,
+      "browser": {
+        "packet": 2,
+        "staleOnOpen": true,
+        "viewRequests": 0
+      },
+      "explanationsReviewed": true
+    },
+    {
+      "packet": 3,
+      "encoding": "columns",
+      "passed": true,
+      "originalSha256": "78a727f6ed06be5cad646fbd59f1149e8abebf2f3fa4660f55fadd3f646abb53",
+      "editedSha256": "38351167840b15b96dd52682628deeaf84b1499f221140b92ad52d810b1a7c8d",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present text \"0012\", in column A vector; leading zeros are text, not a number.",
+          "Records!C2": "Present number -0, the signed negative zero JSON token in column C vector; its sign is preserved.",
+          "Records!E2": "Present Boolean true, typed by column E schema.",
+          "Records!F2": "Present date with numeric serial 46023, typed by column F schema under excel1900 dateSystem.",
+          "Records!H2": "Present explicit blank input in overrides; the null vector placeholder does not mean absent here.",
+          "Records!A3": "Present empty text input \"\" in overrides, distinct from explicit blank and absent; null vector placeholder.",
+          "Records!H3": "Absent cell: null in column H vector with no override or sparse cell.",
+          "Records!H4": "Present error input #N/A in overrides, a type exception to numeric H; null vector placeholder."
+        },
+        "derivedExplanation": "Summary!B4 saves 8437.718577841137 from =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is annual discount rate 0.1; the expression converts it to an effective monthly rate. NPV discounts 24 monthly cash flows in B12:Y12 at periods 1 through 24, then subtracts the separate time-zero initial investment Inputs!B8=10000. Each row-12 cash flow references row-10 net income, row 8 operating profit minus row 9 tax. Operating profit is participant revenue minus variable and fixed costs; tax is MAX(0, operating profit * Inputs!B6). Actuals supply months 1–12 (B:M); participant projections N:Y recursively use Inputs!B2. Summary!B2 saves the sum of revenue B4:Y4, and B3 the sum of net income B10:Y10. These are saved results read verbatim; no formulas were evaluated.",
+        "staleExplanation": "Inputs!B2 changed from 0.02 to 0.03 with its percent format (1 decimal) preserved. Dependent saved results are now stale: Calculations!N3:Y3, N4:Y4, N5:Y5, N6:Y6, N8:Y8, N9:Y9, N10:Y10, N11:Y11, N12:Y12; Summary!B2:B4. Actual months B:M and projected fixed costs/periods do not depend on growth. The appended Records row has no formulas or referenced dependents in this workbook. All original formulas and saved results were preserved. snapshot.fingerprint was invalidated to a 64-zero sentinel while preserving its engine and calculatedAt metadata. The embedded runtime checks fingerprint equality before calling saved results current; the invalid sentinel marks the complete saved snapshot unverified/stale. No new results or fingerprints claiming a completed calculation were produced.",
+        "inspectionMethod": "Read only TASK.md and workbook.html. Parsed only the canonical script#workbook application/json payload with local Python, retaining negative-zero sign, and inspected the HTML embedded format guide and runtime fingerprint/column decoder as document data. The version-1 columns representation uses eight typed column vectors, rectangular height/width, null for absent values, explicit input exceptions in overrides, metadata separate from values, and sparse formula cells with typed saved results. Applied eleven targeted payload text patches, appended exactly row 50002, and reparsed. Verified all original data, formulas, results, formats, metadata, negative-zero token, and bytes outside the canonical payload were unchanged except the authorized growth, table height, appended values, and invalidated snapshot fingerprint. No network, other packets, source repository, engine or browser was used. Limitation: no interactive browser reopening or engine recalculation was performed; embedded runtime behavior was checked by inspection and local structural validation.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 4306299,
+      "editedHTMLBytes": 4306395,
+      "browser": {
+        "packet": 3,
+        "staleOnOpen": true,
+        "viewRequests": 0
+      },
+      "explanationsReviewed": true
+    },
+    {
+      "packet": 4,
+      "encoding": "csv",
+      "passed": true,
+      "originalSha256": "fffdd0b8ac6b04a801c2cf26e8f96d163df1e5b49291deb02d551303a5201f78",
+      "editedSha256": "1eae564089764f9313e7af97b01da8c4aa5aadd147058807f84eaae2d69a8ada",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present text \"0012\"; CSV text column preserves its leading zeros.",
+          "Records!C2": "Present number -0 from CSV numeric token \"-0\"; signed negative zero.",
+          "Records!E2": "Present Boolean true from CSV token \"true\" in a Boolean column.",
+          "Records!F2": "Present date value 46023 from CSV token \"46023\" in a date column, using the workbook excel1900 date system.",
+          "Records!H2": "Present explicit blank cell, stored as an override with input.type=\"blank\" and no value; the underlying CSV field is empty.",
+          "Records!A3": "Present empty text \"\", stored as an explicit text override; the underlying empty CSV field alone would mean absence.",
+          "Records!H3": "Absent cell: empty CSV field with no sparse cell or override.",
+          "Records!H4": "Present error #N/A from an explicit error override; the underlying CSV field is empty."
+        },
+        "derivedExplanation": "Summary!B4 stores 8437.718577841137 and has formula =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is 0.1 (annual discount rate), converted to the effective monthly rate (1+0.1)^(1/12)-1. NPV discounts the 24 monthly cash flows in Calculations!B12:Y12 at periods 1 through 24; Inputs!B8, the 10000 initial investment, is subtracted separately at time zero. Each monthly cash-flow cell equals that month's net income (row 10), derived from revenue minus participant-variable costs, fixed costs, and tax on positive operating profit. Actual participants in B:M come from Actuals!B2:B13; forecast participants in N:Y compound from the preceding month using Inputs!B2. These statements explain the saved formula and precedents; no formula results were recalculated.",
+        "staleExplanation": "The growth assumption changed from 0.02 to 0.03, preserving its percent format (1 decimal) and all metadata. Saved results are unchanged. Calculations!N3:Y6 and N8:Y12 (108 results), plus Summary!B2, B3 and B4, are now stale because they depend directly or transitively on growth. Actual-month results B:M and forecast fixed-cost cells N7:Y7 do not depend on growth. Appending Records row 50002 affects no existing formula. The original snapshot engine, timestamp and fingerprint are preserved, but the edited canonical input/formula fingerprint differs from the saved fingerprint; the embedded application therefore reports saved results as stale or missing, never current.",
+        "inspectionMethod": "Read only TASK.md and workbook.html as task/document inputs. Extracted the canonical #workbook application/json payload without executing HTML. Inspected saved Summary result.value numbers directly. Parsed CSV using quote, escaped-quote and embedded-newline handling; interpreted per-column types, empty fields as absence, sparse cells, explicit typed overrides and cellMetadata. Formula cells remain sparse per-cell objects. Verified all table dimensions, source conflicts and metadata associations before and after editing. The storageExperiment encoding is csv; Records originally has 50001 rows including its header, width 8, with column types text, text, number, number, boolean, date, text, number. Applied only three JSON-token edits (Inputs table data, Records table data and height), preserving every other payload byte and every byte outside the payload. Verified existing data, formula/result objects, metadata, overrides, signed zero, the new row types and absence of its H cell. Independently reproduced the embedded application's canonical SHA-256 input/formula fingerprint, verified the original snapshot matched, and verified the edited workbook differs. No engine, network resource or other project source was used; visual/browser execution and formula recalculation were intentionally not performed.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 3505835,
+      "editedHTMLBytes": 3505920,
+      "browser": {
+        "packet": 4,
+        "staleOnOpen": true,
+        "viewRequests": 0
+      },
+      "explanationsReviewed": true
+    },
+    {
+      "packet": 5,
+      "encoding": "tsv",
+      "passed": true,
+      "originalSha256": "4feae2fcb42e96ac5607dffaaaf778fb93ab2d70fc7bf6c0e13ad4bec1da5221",
+      "editedSha256": "faac0a928382f33e4726826f6f0bcf49f1fdb0b8d988f1e95d448c94e1804ae1",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present text \"0012\", retaining leading zeros. Stored as a nonempty TSV field with column A type text.",
+          "Records!C2": "Present number -0 (signed negative zero), stored as the literal TSV field -0 with column C type number; Number(\"-0\") preserves its sign.",
+          "Records!E2": "Present Boolean true, stored as the TSV field true with column E type boolean.",
+          "Records!F2": "Present date typed value with numeric Excel 1900 date serial 46023; TSV field 46023 uses column F type date, not text.",
+          "Records!H2": "Present explicit blank typed input, supplied by table.overrides.H2; its empty TSV field alone would mean absent.",
+          "Records!A3": "Present empty text string, supplied by table.overrides.A3 with type text and value \"\"; distinct from absent and explicit blank.",
+          "Records!H3": "Absent cell: empty TSV field, no override, no sparse cell, and no metadata.",
+          "Records!H4": "Present error typed input #N/A, supplied by table.overrides.H4 despite the numeric column schema; not text and not absent."
+        },
+        "derivedExplanation": "Saved Summary!B4 is 8437.718577841137. Formula: =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is annual discount rate 0.1; (1+0.1)^(1/12)-1 converts it to an effective monthly rate. NPV discounts the 24 monthly cash flows B12:Y12 at periods 1 through 24, then subtracts the separate time-zero initial investment Inputs!B8 = 10000. Each row-12 cash flow equals the corresponding row-10 net income: revenue (participants times fee) less variable costs, fixed costs, and nonnegative income tax. Months 1–12 use Actuals participant counts; months 13–24 compound the monthly participant growth assumption. The reported B4 is its saved result, not a new calculation.",
+        "staleExplanation": "Inputs!B2 changed from 0.02 to 0.03 with its percent format (digits 1) preserved. No formula results were recalculated or changed. Growth-dependent cached results in Calculations!N:Y, rows 3, 4, 5, 6, 8, 9, 10, 11 and 12, and Summary!B2:B4 are now stale. Calculations!B:M and fixed-cost row 7 do not depend on growth and retain their prior values. The appended Records row has no formula dependents in this workbook. The entire snapshot object was removed, including its old fingerprint and calculatedAt, so the embedded loader cannot describe the saved results as current and will display its stale-or-missing message.",
+        "inspectionMethod": "Read TASK.md and the canonical JSON script with id workbook in workbook.html; inspected the workbook HTML embedded TSV decoder and freshness check as document data. Used Python standard-library JSON and quote-aware TSV parsing to inspect all 50,001 existing Records rows, preserve typed overrides and metadata, append exactly one eight-field logical TSV row at worksheet row 50002 (the quoted note contains a newline), and validate the intended structural changes. All original TSV rows, sparse cells, formulas, cached results and metadata were preserved. Prefix and suffix bytes outside the canonical payload were compared exactly. No network, repository, other packet, preparation or validation tool, external assistant, or calculation engine was used. Limitation: no interactive browser or calculation-engine execution was performed; no new numerical formula results are asserted. Additional verification executed only the HTML-embedded storage decoder, schema validator, signed-zero-aware serializer, and SHA-256 freshness routine in local Node.js. Both workbooks decoded and validated; the original fingerprint matched and edited input fingerprint changed. All preexisting decoded cells except Inputs!B2 compared identically, including signed zero. Exactly seven cells were added and H50002 remained absent.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 3855863,
+      "editedHTMLBytes": 3855752,
+      "browser": {
+        "packet": 5,
+        "staleOnOpen": true,
+        "viewRequests": 0
+      },
+      "explanationsReviewed": true
+    },
+    {
+      "packet": 6,
+      "encoding": "hybrid",
+      "passed": true,
+      "originalSha256": "3030c4be5dd8246cdcb5b4ed19d42d32903943b4135e570c188014da471f3f83",
+      "editedSha256": "eb84c66d944708de2d8c639af573ff4a5520266c8c5190a5d9af4e80080f17f7",
+      "repairs": [],
+      "report": {
+        "totals": {
+          "B2": 91261.28465042303,
+          "B3": 20846.138849830124,
+          "B4": 8437.718577841137
+        },
+        "types": {
+          "Records!A2": "Present text input \"0012\"; leading zeroes are literal. Stored in row data under text column A.",
+          "Records!C2": "Present number input, signed negative zero (-0). Stored as the literal JSON number -0 in numeric column C; its sign is preserved.",
+          "Records!E2": "Present Boolean input true, stored directly in Boolean column E.",
+          "Records!F2": "Present date input with Excel 1900 date serial 46023; numeric row data acquires date type from columnTypes[F].",
+          "Records!H2": "Present explicit blank input {\"type\":\"blank\"} in overrides; its row-data slot is null. This differs from an absent cell.",
+          "Records!A3": "Present text input containing the empty string \"\", stored in the row array; it is neither blank-typed nor absent.",
+          "Records!H3": "Absent cell: null row-data slot with no override, sparse cell or cell metadata.",
+          "Records!H4": "Present error input #N/A in a typed override; the corresponding row-data slot is null. It is an error value, not text."
+        },
+        "derivedExplanation": "Summary!B4 retains the saved result 8437.718577841137. Its formula is =NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8. Inputs!B7 is the 10% annual discount rate; (1+0.1)^(1/12)-1 is the effective monthly rate. NPV discounts the 24 operating cash flows in Calculations!B12:Y12 as end-of-month payments, beginning at period 1, then subtracts Inputs!B8 (10000) as the initial period-0 investment. Row 12 equals row 10 net income; net income derives from revenue less variable costs, fixed costs and tax. Participants for the first 12 months come from Actuals, followed by 12 forecast months compounded from the preceding month using Inputs!B2. These are explanations of the existing formulas, not newly calculated results.",
+        "staleExplanation": "All saved formula results and the original snapshot metadata were preserved without recalculation. Changing Inputs!B2 from 0.02 to 0.03 makes the saved forecast results in Calculations!N3:Y6 and N8:Y12 stale, along with Summary!B2, B3 and B4 through their dependent totals. Calculations!N7:Y7 (fixed costs) and actual-month results B3:M12 have unchanged precedents. The appended Records row is not referenced by these formulas. The workbook runtime checks the snapshot fingerprint against the current logical input/formula fingerprint; the retained original fingerprint no longer matches the edited inputs and Records data, so opening the edited workbook reports that saved results are stale or missing. No new results or replacement current snapshot were generated.",
+        "inspectionMethod": "Read only TASK.md and workbook.html. Extracted the canonical script#workbook JSON with local Python, inspected its stored values, formulas, metadata and the embedded storage decoder/fingerprint-status logic without executing the HTML or engine. Storage is html-data/0.2 hybrid JSON: sparse cells for the other sheets, and a rows-encoded Records table with columnTypes, rectangular data, typed overrides and cellMetadata; null row slots are absent unless supplied by an override. Records originally has height 50001 including its header, width 8, and 50000 data rows. Appended exactly one row as spreadsheet row 50002, raised height to 50002, retained all schema and existing data, and kept new H50002 absent by a null slot without an override. Edited only three payload spans (growth number, height, appended row). Verified the parsed workbook equals the original plus exactly those changes, negative zero survives, and every byte outside the canonical payload is identical. Limitation: no browser rendering or calculation engine was run; runtime freshness behavior is checked from the embedded code and a local fingerprint comparison, not an interactive UI session.",
+        "repairs": []
+      },
+      "originalHTMLBytes": 4758103,
+      "editedHTMLBytes": 4758211,
+      "browser": {
+        "packet": 6,
+        "staleOnOpen": true,
+        "viewRequests": 0,
+        "engineRequests": 2,
+        "recalculatedAgainstPinnedEngine": true,
+        "fullCanonicalComparison": "exact apart from calculation timestamp",
+        "savedAndReopenedOffline": true,
+        "revenue": 94893.93798749373
+      },
+      "explanationsReviewed": true
+    }
+  ]
+}
