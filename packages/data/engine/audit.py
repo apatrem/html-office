@@ -4,6 +4,8 @@ import hashlib, html, json, re, subprocess, sys
 from pathlib import Path
 source, sysroot = map(Path, sys.argv[1:3])
 here = Path(__file__).resolve().parent
+output = Path(sys.argv[3]) if len(sys.argv)>3 else here
+output.mkdir(parents=True,exist_ok=True)
 metadata = json.loads(subprocess.check_output(['cargo','metadata','--locked','--format-version','1','--filter-platform','wasm32-unknown-unknown'],cwd=source))
 tree = subprocess.check_output(['cargo','tree','--locked','-p','wasm','--target','wasm32-unknown-unknown','-e','normal,build','--prefix','none','--format','{p}'],cwd=source,text=True)
 allowed = {'MIT','Apache-2.0','Zlib','Unlicense','BSL-1.0','Unicode-3.0'}
@@ -41,7 +43,7 @@ for name in ['MIT.txt','Apache-2.0.txt','Unicode-3.0.txt','BSD-2-Clause.txt','LL
     retain('Rust 1.95.0 '+name,(sysroot/'share/doc/rust/licenses'/name).read_text())
 notices='HTML Office typed IronCalc build — third-party notices\n\nIronCalc 0.9.0 source commit 297553dc3a37ec6b0f4821055220e3d26c4ac6a1; narrow custom WASM binding exposes getCellValue (see typed-binding.rs). No calculation semantics are intentionally changed.\n\n'
 for digest,item in sorted(texts.items()): notices+='\n'.join(item['labels'])+'\n'+item['text']+'\n'
-(here/'THIRD-PARTY-NOTICES.txt').write_text(notices)
+(output/'THIRD-PARTY-NOTICES.txt').write_text(notices)
 report={'sourceCommit':'297553dc3a37ec6b0f4821055220e3d26c4ac6a1','target':'wasm32-unknown-unknown','features':'wasm default; no xlsx','rust':'1.95.0','wasmBindgen':'0.2.126','binaryen':'132.0.0','closure':'normal + build dependencies; proc-macro/build crates conservatively included; dev-only and other target dependencies excluded','packages':packages,'stdlibCopyrightSha256':hashlib.sha256(stdlib.read_bytes()).hexdigest(),'noticeBytes':len(notices.encode()),'noticesSha256':hashlib.sha256(notices.encode()).hexdigest()}
-(here/'dependency-audit.json').write_text(json.dumps(report,indent=2)+'\n')
+(output/'dependency-audit.json').write_text(json.dumps(report,indent=2)+'\n')
 print(f'{len(packages)} packages; {len(texts)} retained notice texts; {len(notices.encode())} notice bytes')
