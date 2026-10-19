@@ -1,7 +1,6 @@
-import {parseWorkbook,stringifyWorkbook,setCell,fingerprint} from '../model/workbook.mjs';
-import {EngineSession} from '../engine/adapter.mjs';
-import {loadEngine} from './loader.mjs';
-import {preview} from './view.mjs';
+import {parseWorkbook,stringifyWorkbook,validateCell,parseAddress,fingerprint} from '../model/workbook.mjs';
+import {EngineClient} from './client.mjs';
+import {preview,touchPreview} from './view.mjs';
 const $=id=>document.getElementById(id);
 let book=parseWorkbook($('workbook').textContent),sheetId=book.sheets[0].id,selected='B2',session=null,loading=null,sequence=0;
 const history=[];
@@ -37,25 +36,39 @@ async function apply(){
   if(loading)return;
   const epoch=++sequence,controller=new AbortController();
   try{
-    const ref=$('cell-address').value,cell=enteredCell(),target=sheetId,previous=book;
-    setCell(book,target,ref,cell); // Validate before downloading or mutating the engine.
+    const ref=$('cell-address').value,cell=enteredCell(),target=sheetId;
+    parseAddress(ref);validateCell(cell); // Validate before downloading or mutating the engine.
     loading=controller;render();status(config.embedded?'Loading embedded calculation engine…':'Loading verified calculation engine… Your edit is retained.');
-    if(!session){const module=await loadEngine(config,{signal:controller.signal});if(epoch!==sequence)return;session=new EngineSession(module);session.load(book);}
+    if(!session){session=new EngineClient(config,$('worker-source').textContent);await session.load(book);if(epoch!==sequence)return;}
     if(epoch!==sequence)return;
-    session.edit(target,ref,cell);const result=await session.calculate();
+    await session.edit(target,ref,cell);const result=await session.calculate();
     if(epoch!==sequence)return;
-    history.push(previous);book=result;status('Calculated locally. Unsaved changes.');
+    const sheet=book.sheets.find(s=>s.id===target);
+    const previous={target,ref,cell:sheet.cells[ref],snapshot:book.snapshot,results:result.results.map(r=>({sheetId:r.sheetId,ref:r.ref,result:book.sheets.find(s=>s.id===r.sheetId).cells[r.ref]?.result}))};
+    sheet.cells[ref]=cell;touchPreview(sheet.cells,ref);
+    for(const r of result.results)book.sheets.find(s=>s.id===r.sheetId).cells[r.ref].result=r.result;
+    book.snapshot=result.snapshot;history.push(previous);status('Calculated locally. Unsaved changes.');
+    dispatchEvent(new CustomEvent('html-data:calculated',{detail:{calculateMS:result.calculateMS,wasmMemoryBytes:result.wasmMemoryBytes}}));
   }catch(error){if(epoch===sequence){session?.dispose();session=null;status(`${error.message} Your attempted edit remains in the form; retry Apply edit.`);}}
   finally{if(epoch===sequence){loading=null;render();}}
 }
 $('apply').onclick=apply;
 $('cancel').onclick=()=>{++sequence;loading?.abort();loading=null;session?.dispose();session=null;render();status('Calculation cancelled. Your attempted edit is retained; retry Apply edit.');};
-$('undo').onclick=()=>{if(loading||!history.length)return;book=history.pop();session?.load(book);render();choose(selected);status('Undo restored the previous workbook.');};
+$('undo').onclick=()=>{
+  if(loading||!history.length)return;const previous=history.pop(),sheet=book.sheets.find(s=>s.id===previous.target);
+  if(previous.cell===undefined)delete sheet.cells[previous.ref];else sheet.cells[previous.ref]=previous.cell;
+  for(const r of previous.results??[]){const cell=book.sheets.find(s=>s.id===r.sheetId).cells[r.ref];if(!cell)continue;if(r.result===undefined)delete cell.result;else cell.result=r.result;}
+  if(previous.snapshot===undefined)delete book.snapshot;else book.snapshot=previous.snapshot;
+  // Keep the loaded engine in its worker; synchronise it before the next edit.
+  session?.load(book).catch(()=>{session?.dispose();session=null;});
+  render();choose(selected);status('Undo restored the previous workbook.');
+};
 $('decimals').onclick=()=>{
   if(loading)return;const sheet=book.sheets.find(s=>s.id===sheetId),old=sheet.cells[selected]??{};
-  history.push(book);book=setCell(book,sheetId,selected,{...old,format:{...old.format,kind:old.format?.kind??'number',digits:Math.min(15,(old.format?.digits??0)+1)}});
-  // A formatting edit does not change calculation state; reload on the next input edit.
-  session?.dispose();session=null;render();status('Formatting changed. Unsaved changes.');
+  history.push({target:sheetId,ref:selected,cell:old,snapshot:book.snapshot});
+  sheet.cells[selected]={...old,format:{...old.format,kind:old.format?.kind??'number',digits:Math.min(15,(old.format?.digits??0)+1)}};
+  // Formatting is browser-owned and excluded from the calculation fingerprint.
+  render();status('Formatting changed. Unsaved changes.');
 };
 $('save').onclick=()=>{
   if(loading){status('Finish or cancel the pending calculation before saving.');return;}

@@ -1,6 +1,6 @@
 // Experimental readable contract. T05b will decide the final dense-table encoding.
 export const VERSION = 'html-data/0.1';
-export const ERRORS = ['#REF!', '#DIV/0!', '#VALUE!', '#NAME?', '#N/A', '#NUM!', '#ERROR!', '#NIMPL!', '#SPILL!', '#CALC!', '#CIRC!'];
+export const ERRORS = ['#REF!', '#DIV/0!', '#VALUE!', '#NAME?', '#N/A', '#NUM!', '#ERROR!', '#N/IMPL', '#NULL!', '#SPILL!', '#CALC!', '#CIRC!'];
 const fail = message => { throw new Error(message); };
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v) && [Object.prototype,null].includes(Object.getPrototypeOf(v));
 function fields(value, allowed, where) {
@@ -39,7 +39,7 @@ export function validateValue(value) {
   if(type==='error'&&ERRORS.includes(v))return;
   fail(`Invalid typed value: ${type}`);
 }
-function validateCell(cell) {
+export function validateCell(cell) {
   fields(cell,['input','formula','result','format','role'],'cell');
   if(cell.formula!==undefined){
     if(typeof cell.formula!=='string'||!cell.formula.startsWith('=')||cell.formula.length<2)fail('Formula requires =');

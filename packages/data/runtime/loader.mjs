@@ -13,6 +13,6 @@ export async function loadEngine(config,{signal}={}){
   const [js,wasm]=await Promise.all([component('js'),component('wasm')]);
   signal?.throwIfAborted();
   const url=URL.createObjectURL(new Blob([js],{type:'text/javascript'}));
-  try{const module=await import(url);await module.default({module_or_path:wasm});signal?.throwIfAborted();return module;}
+  try{const module=await import(url);const exports=await module.default({module_or_path:wasm});signal?.throwIfAborted();return {...module,wasmMemory:exports.memory};}
   finally{URL.revokeObjectURL(url);}
 }

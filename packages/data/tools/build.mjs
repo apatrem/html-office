@@ -21,6 +21,8 @@ export async function buildWorkbook(input,{offline=false,calculate=true}={}){
  const config=JSON.parse(await readFile(new URL('engine/manifest.json',root)));
  if(offline){config.embedded={};for(const [name,file]of [['js','ironcalc.mjs'],['wasm','ironcalc.wasm']])config.embedded[name]=(await readFile(new URL(`engine/vendor/${file}`,root))).toString('base64');}
  const result=await build({entryPoints:[new URL('runtime/app.mjs',root).pathname],bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022',write:false,legalComments:'none'});
+ const worker=await build({entryPoints:[new URL('runtime/worker.mjs',root).pathname],bundle:true,minify:true,format:'esm',platform:'browser',target:'es2022',write:false,legalComments:'none'});
+ const workerText=worker.outputFiles[0].text.replace(/<\/script/gi,'<\\/script');
  const js=result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script'),css=await readFile(new URL('runtime/style.css',root),'utf8');
  const notices=await readFile(new URL('engine/THIRD-PARTY-NOTICES.txt',root),'utf8');
  const initial=preview(book.sheets[0]);
@@ -36,6 +38,7 @@ export async function buildWorkbook(input,{offline=false,calculate=true}={}){
 <div class="toolbar"><button id="apply">Apply edit</button><button id="cancel" disabled>Cancel calculation</button><button id="undo" disabled>Undo</button><button id="decimals">More decimals</button><button id="save">Save a copy</button></div>
 <p id="status" role="status">Checking saved results…</p><div id="grid" data-document-content><table aria-label="${esc(book.sheets[0].name)}"><tbody>${rows}</tbody></table></div><p id="preview-note"></p></section>
 <details><summary>Embedded format guide</summary><pre data-document-content>${esc(guide)}</pre></details><details><summary>Third-party notices</summary><pre>${esc(notices)}</pre></details></main>
+<script id="worker-source" type="text/plain">${workerText}</script>
 <script type="module">${js}</script></body></html>`;
  const size=measureHTML(html);
  if(!offline&&size.applicationCodeBytes>=500000)throw new Error(`Embedded application code exceeds budget: ${size.applicationCodeBytes}`);

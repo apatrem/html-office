@@ -1,4 +1,4 @@
-import {validateWorkbook, validateValue, parseAddress, fingerprint, setCell} from '../model/workbook.mjs';
+import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell} from '../model/workbook.mjs';
 export const ENGINE = 'ironcalc/0.9.0+html-office-typed.1';
 export function engineInput(cell) {
   if(cell.formula)return cell.formula;
@@ -27,21 +27,24 @@ export class EngineSession {
     }catch(error){this.dispose();throw error;}
   }
   edit(sheetId,ref,cell){
-    const next=setCell(this.book,sheetId,ref,cell),index=next.sheets.findIndex(s=>s.id===sheetId),{row,column}=parseAddress(ref);
+    validateCell(cell);
+    const index=this.book.sheets.findIndex(s=>s.id===sheetId),{row,column}=parseAddress(ref);
+    if(index<0)throw new Error('Unknown sheet ID');
     this.engine.pauseEvaluation();
-    try{this.engine.setUserInput(index,row,column,engineInput(cell));this.book=next;}
+    try{this.engine.setUserInput(index,row,column,engineInput(cell));this.book.sheets[index].cells[ref]=structuredClone(cell);}
     finally{this.engine.resumeEvaluation();}
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);
     const result=type==='blank'?{type}:{type,value};validateValue(result);return result;
   }
-  async calculate(){
+  async calculateDelta(){
     this.engine.evaluate();
-    const next=structuredClone(this.book);
-    next.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula)cell.result=this.result(i,ref);});
-    next.snapshot={engine:ENGINE,fingerprint:await fingerprint(next),calculatedAt:new Date().toISOString()};
-    this.book=next;return structuredClone(next);
+    const results=[];
+    this.book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){cell.result=this.result(i,ref);results.push({sheetId:sheet.id,ref,result:cell.result});}});
+    this.book.snapshot={engine:ENGINE,fingerprint:await fingerprint(this.book),calculatedAt:new Date().toISOString()};
+    return {results,snapshot:this.book.snapshot};
   }
+  async calculate(){await this.calculateDelta();return structuredClone(this.book);}
   dispose(){this.engine?.free();this.engine=null;}
 }
