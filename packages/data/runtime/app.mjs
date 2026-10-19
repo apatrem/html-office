@@ -64,6 +64,8 @@ const grid = createGrid($("grid"), {
             : "text";
       $("cell-value").value = initial;
     }
+    if (initial === undefined && $("cell-type").value === "blank")
+      $("cell-type").value = "text";
     $("cell-value").focus();
     if (initial === undefined) $("cell-value").select();
   },
@@ -115,8 +117,13 @@ function enteredCell() {
   delete cell.formula;
   delete cell.result;
   if (type === "formula") cell.formula = text;
-  else if (type === "blank") cell.input = { type };
-  else if (type === "number" || type === "date") {
+  else if (type === "blank") {
+    if (text)
+      throw new Error(
+        "Choose a text or number input type for nonempty content.",
+      );
+    cell.input = { type };
+  } else if (type === "number" || type === "date") {
     if (!text.trim()) throw new Error("Enter a number.");
     cell.input = { type, value: Number(text) };
   } else if (type === "boolean") {
@@ -203,6 +210,7 @@ async function apply({ recalculateOnly = false } = {}) {
         },
       }),
     );
+    return true;
   } catch (error) {
     if (revisions.current(epoch)) {
       if (touchedEngine) {
@@ -221,10 +229,11 @@ async function apply({ recalculateOnly = false } = {}) {
   }
 }
 $("apply").onclick = apply;
-$("cell-value").addEventListener("keydown", (event) => {
+$("cell-value").addEventListener("keydown", async (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
-    void apply();
+    const applied = await apply();
+    if (!loading) $(applied ? "grid" : "cell-value").focus();
   }
   if (event.key === "Escape") {
     event.preventDefault();

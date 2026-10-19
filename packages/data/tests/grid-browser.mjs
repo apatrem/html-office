@@ -52,6 +52,19 @@ try {
   await page
     .getByText("Calculated locally. Unsaved changes.", { exact: true })
     .waitFor();
+  assert.equal(
+    await grid.evaluate((el) => el === document.activeElement),
+    true,
+  );
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await page.getByLabel("Cell address").inputValue(), "C2");
+  await page.keyboard.press("F2");
+  await page.getByLabel("Cell value").fill("abc");
+  await page.keyboard.press("Enter");
+  await page
+    .getByText("Calculated locally. Unsaved changes.", { exact: true })
+    .waitFor();
+  assert.equal(await page.locator('[data-cell="C2"]').textContent(), "abc");
   await page.getByLabel("Cell address").fill("C5");
   await page.getByLabel("Cell value").fill("=UNSUPPORTED_FUNCTION(1)");
   await page.getByLabel("Input type").selectOption("formula");
@@ -76,7 +89,13 @@ try {
   const blocked = await browser.newContext({ acceptDownloads: true }),
     failed = await blocked.newPage();
   failed.on("dialog", (d) => d.accept());
-  await blocked.route("https://**", (route) => route.abort());
+  await blocked.route("https://raw.githubusercontent.com/**", (route) =>
+    route.fulfill({
+      status: 503,
+      body: "unavailable",
+      headers: { "access-control-allow-origin": "*" },
+    }),
+  );
   const blockedFile = resolve(out, "grid-cancelled-attempt.html");
   await writeFile(blockedFile, await buildWorkbook(book));
   await failed.goto(pathToFileURL(blockedFile).href);
