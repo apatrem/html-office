@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-19T15:45:27.606Z",
+  "browser": "151.0.7922.34",
+  "method": "Fresh file:// workbook, real HTTPS requests on first edit, no interception. wireSizes reports browser-observed encoded body plus separate header sizes.",
+  "items": [
+    {
+      "kind": "js",
+      "url": "https://raw.githubusercontent.com/apatrem/html-office/21ff28cc8cd63a1982b254e9757493dff856a7ec/packages/data/engine/vendor/ironcalc.mjs",
+      "sha256": "c324ce6d0741b1f4a4f85a00634efa076f9728da4e562ac7441af4aa33d4026d",
+      "decodedBytes": 7381,
+      "contentEncoding": "gzip",
+      "wireSizes": {
+        "requestBodySize": 0,
+        "requestHeadersSize": 600,
+        "responseBodySize": 3412,
+        "responseHeadersSize": 0
+      },
+      "timing": {
+        "startTime": 1792424726283.784,
+        "domainLookupStart": 1.277,
+        "domainLookupEnd": 2.949,
+        "connectStart": 3.179,
+        "secureConnectionStart": 12.899,
+        "connectEnd": 38.2,
+        "requestStart": 38.556,
+        "responseStart": 252.917,
+        "responseEnd": 254.17
+      }
+    },
+    {
+      "kind": "wasm",
+      "url": "https://raw.githubusercontent.com/apatrem/html-office/21ff28cc8cd63a1982b254e9757493dff856a7ec/packages/data/engine/vendor/ironcalc.wasm",
+      "sha256": "a7390558a7d7bdeed0000a960cc91cee058c821150bd131193c5c92d96b219a1",
+      "decodedBytes": 2172743,
+      "contentEncoding": null,
+      "wireSizes": {
+        "requestBodySize": 0,
+        "requestHeadersSize": 602,
+        "responseBodySize": 2174154,
+        "responseHeadersSize": 0
+      },
+      "timing": {
+        "startTime": 1792424726285.5781,
+        "domainLookupStart": -1,
+        "domainLookupEnd": -1,
+        "connectStart": -1,
+        "secureConnectionStart": -1,
+        "connectEnd": -1,
+        "requestStart": 37.073,
+        "responseStart": 428.781,
+        "responseEnd": 691.465
+      }
+    }
+  ]
+}

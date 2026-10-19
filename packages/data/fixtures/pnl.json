@@ -61,7 +61,7 @@
           }
         },
         "B4": {
-          "formula": "=NPV(Inputs!B7,Calculations!B12:Y12)-10000",
+          "formula": "=NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8",
           "role": "calculation",
           "format": {
             "kind": "currency",
@@ -202,7 +202,7 @@
         "A7": {
           "input": {
             "type": "text",
-            "value": "Discount rate"
+            "value": "Annual discount rate"
           },
           "role": "rowHeader",
           "format": {
@@ -219,6 +219,29 @@
           "format": {
             "kind": "percent",
             "digits": 1
+          }
+        },
+        "A8": {
+          "input": {
+            "type": "text",
+            "value": "Initial investment"
+          },
+          "role": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B8": {
+          "input": {
+            "type": "number",
+            "value": 10000
+          },
+          "role": "assumption",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
           }
         },
         "A1": {
@@ -3344,7 +3367,8 @@
       "actualMonths": 12,
       "forecastMonths": 12,
       "expectedRevenue": 91261.28465042303,
-      "expectedNetIncome": 20846.13884983012
+      "expectedNetIncome": 20846.13884983012,
+      "expectedNPV": 8437.718577841142
     }
   }
 }

@@ -6,7 +6,7 @@ export function engineInput(cell) {
   if(v.type==='blank')return '';
   if(v.type==='text')return `'${v.value}`;
   if(v.type==='boolean')return v.value?'TRUE':'FALSE';
-  return String(v.value);
+  return Object.is(v.value,-0)?'-0':String(v.value);
 }
 export class EngineSession {
   constructor(module){this.module=module;this.engine=null;}

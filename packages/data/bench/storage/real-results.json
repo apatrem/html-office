@@ -1,0 +1,756 @@
+{
+  "status": "Awaiting joint storage selection; no format or formula-result policy adopted",
+  "environment": {
+    "date": "2026-10-19T15:41:09.224Z",
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "cpu": "Apple M5"
+  },
+  "tokenizer": "gpt-tokenizer 4.0.3 / o200k_base; proxy counts in independent 262144-character chunks; boundary differences possible",
+  "method": "All candidates preserve the same typed values/formulas/results/metadata. Payload minified size isolates encoding; actual standard HTML uses readable JSON (primitive arrays <=32 scalars per line) and includes the working editor, guide, notices and preview. CSV/TSV strings are JSON-escaped. Sparse sheets use cell records; dense candidate threshold 60%, <=2M slots. One sample of encode/parse time, not a performance guarantee. B/C sizes are explicitly counterfactual estimates, not implemented offline editing.",
+  "evaluatorBytes": 7062,
+  "workbooks": [
+    {
+      "id": "B01",
+      "description": "Small departmental budget; real-world arithmetic and subtotal model",
+      "source": {
+        "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/cost-center-budget-rcr.xls",
+        "sha256": "9af6e9a86095dd00a43e6d563af57f357e12e5a93d5d37370b7e36f36df99c4c"
+      },
+      "sourceSha256": "9af6e9a86095dd00a43e6d563af57f357e12e5a93d5d37370b7e36f36df99c4c",
+      "rowLimit": 0,
+      "sheets": 3,
+      "populatedCells": 52,
+      "formulaCells": 18,
+      "formulaClasses": {
+        "arithmetic": 15,
+        "aggregates": 3,
+        "round-if": 0,
+        "other": 0
+      },
+      "dependencyDepth": {
+        "maximumParsedDepth": 3,
+        "unresolvedFormulaCount": 0
+      },
+      "diagnostics": [],
+      "evaluator": {
+        "eligibleFormulaCells": 18,
+        "checkedFormulaCells": 18,
+        "mismatches": 0,
+        "evaluationError": null,
+        "analysisMS": 0.9116249999999866,
+        "evaluateMS": 0.23124999999998863,
+        "openComputeMS": 1.1428749999999752,
+        "conformant": true
+      },
+      "encodings": [
+        {
+          "encoding": "per-cell",
+          "minifiedPayloadBytes": 3576,
+          "minifiedPayloadGzipBytes": 995,
+          "minifiedPayloadProxyTokens": 1187,
+          "encodeMS": 0.27174999999999727,
+          "parseMS": 0.3320410000000038,
+          "applicationCodeBytes": 227627,
+          "documentContentBytes": 13166,
+          "totalHTMLBytes": 240793,
+          "totalHTMLGzipBytes": 27590,
+          "totalHTMLProxyTokens": 54367,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "rows",
+          "minifiedPayloadBytes": 2599,
+          "minifiedPayloadGzipBytes": 1009,
+          "minifiedPayloadProxyTokens": 887,
+          "encodeMS": 0.3061670000000163,
+          "parseMS": 0.20029100000004973,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 10280,
+          "totalHTMLBytes": 241575,
+          "totalHTMLGzipBytes": 29077,
+          "totalHTMLProxyTokens": 54968,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "columns",
+          "minifiedPayloadBytes": 2587,
+          "minifiedPayloadGzipBytes": 1005,
+          "minifiedPayloadProxyTokens": 878,
+          "encodeMS": 0.18079200000005358,
+          "parseMS": 0.17879199999998718,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 10178,
+          "totalHTMLBytes": 241473,
+          "totalHTMLGzipBytes": 29071,
+          "totalHTMLProxyTokens": 54961,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "csv",
+          "minifiedPayloadBytes": 2475,
+          "minifiedPayloadGzipBytes": 990,
+          "minifiedPayloadProxyTokens": 867,
+          "encodeMS": 0.27924999999999045,
+          "parseMS": 0.28287499999999,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 9965,
+          "totalHTMLBytes": 241260,
+          "totalHTMLGzipBytes": 29046,
+          "totalHTMLProxyTokens": 54897,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "tsv",
+          "minifiedPayloadBytes": 2514,
+          "minifiedPayloadGzipBytes": 995,
+          "minifiedPayloadProxyTokens": 873,
+          "encodeMS": 0.12670800000000781,
+          "parseMS": 0.14533400000004804,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 10004,
+          "totalHTMLBytes": 241299,
+          "totalHTMLGzipBytes": 29055,
+          "totalHTMLProxyTokens": 54903,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        }
+      ],
+      "resultPolicies": {
+        "A": {
+          "status": "current implemented default",
+          "allFormulaResultsSaved": 18,
+          "totalHTMLBytes": 240793,
+          "totalHTMLGzipBytes": 27590,
+          "minifiedResultRecordBytes": 805,
+          "resultSnapshotJSONBytes": 1912,
+          "resultSnapshotShareOfHTML": 0.00794043016200637
+        },
+        "B": {
+          "status": "counterfactual; reader integration and joint decision still required",
+          "candidateOmittedResults": 18,
+          "estimatedHTMLBytes": 246119,
+          "estimatedGzipBytes": 29874,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 1.1428749999999752
+        },
+        "C": {
+          "status": "counterfactual; simple offline edit coverage not implemented or approved",
+          "estimatedHTMLBytes": 247855,
+          "estimatedGzipBytes": 30067,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 1.1428749999999752,
+          "conformancePassed": true
+        }
+      }
+    },
+    {
+      "id": "B02",
+      "description": "Operational inventory workbook; 131 lookup formulas, structured references and unsupported import features",
+      "source": {
+        "url": "https://raw.githubusercontent.com/ibrahim26salat-bit/Inventory-Management-System-Excel/f96cc6cb1e2ae945e352966a0d69a77018ec3fa1/Inventory%20Management%20System.xlsx",
+        "sha256": "aeb35c0eb08e9e73c1943a2544717128a50a68e70e983044e798cd2e66fc6d92"
+      },
+      "sourceSha256": "aeb35c0eb08e9e73c1943a2544717128a50a68e70e983044e798cd2e66fc6d92",
+      "rowLimit": 0,
+      "sheets": 9,
+      "populatedCells": 547,
+      "formulaCells": 240,
+      "formulaClasses": {
+        "arithmetic": 1,
+        "aggregates": 0,
+        "round-if": 0,
+        "other": 239
+      },
+      "dependencyDepth": {
+        "maximumParsedDepth": 2,
+        "unresolvedFormulaCount": 234
+      },
+      "diagnostics": [
+        {
+          "kind": "arrayFormula",
+          "count": 1
+        },
+        {
+          "kind": "hyperlinks",
+          "count": 2
+        },
+        {
+          "kind": "externalOrStructuredFormula",
+          "count": 233
+        },
+        {
+          "kind": "sourceDefinedNames",
+          "count": 5
+        },
+        {
+          "kind": "unsupportedDefinedName",
+          "count": 4
+        }
+      ],
+      "evaluator": {
+        "eligibleFormulaCells": 0,
+        "checkedFormulaCells": 0,
+        "mismatches": 0,
+        "evaluationError": null,
+        "analysisMS": 1.5947500000000332,
+        "evaluateMS": 0.0027089999999816428,
+        "openComputeMS": 1.5974590000000148,
+        "conformant": true
+      },
+      "encodings": [
+        {
+          "encoding": "per-cell",
+          "minifiedPayloadBytes": 51252,
+          "minifiedPayloadGzipBytes": 3971,
+          "minifiedPayloadProxyTokens": 16228,
+          "encodeMS": 0.6898750000000291,
+          "parseMS": 1.3453329999999823,
+          "applicationCodeBytes": 227627,
+          "documentContentBytes": 116349,
+          "totalHTMLBytes": 343976,
+          "totalHTMLGzipBytes": 31761,
+          "totalHTMLProxyTokens": 82202,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "rows",
+          "minifiedPayloadBytes": 51304,
+          "minifiedPayloadGzipBytes": 4008,
+          "minifiedPayloadProxyTokens": 16240,
+          "encodeMS": 0.6785419999999931,
+          "parseMS": 1.0198329999999487,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 116420,
+          "totalHTMLBytes": 347715,
+          "totalHTMLGzipBytes": 33296,
+          "totalHTMLProxyTokens": 83516,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "columns",
+          "minifiedPayloadBytes": 51307,
+          "minifiedPayloadGzipBytes": 4010,
+          "minifiedPayloadProxyTokens": 16240,
+          "encodeMS": 0.6721249999999372,
+          "parseMS": 0.6940829999999778,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 116423,
+          "totalHTMLBytes": 347718,
+          "totalHTMLGzipBytes": 33297,
+          "totalHTMLProxyTokens": 83516,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "csv",
+          "minifiedPayloadBytes": 51303,
+          "minifiedPayloadGzipBytes": 4008,
+          "minifiedPayloadProxyTokens": 16240,
+          "encodeMS": 0.6554999999999609,
+          "parseMS": 0.7733330000000933,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 116419,
+          "totalHTMLBytes": 347714,
+          "totalHTMLGzipBytes": 33295,
+          "totalHTMLProxyTokens": 83516,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "tsv",
+          "minifiedPayloadBytes": 51303,
+          "minifiedPayloadGzipBytes": 4007,
+          "minifiedPayloadProxyTokens": 16241,
+          "encodeMS": 0.7649170000000822,
+          "parseMS": 1.2653329999999414,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 116419,
+          "totalHTMLBytes": 347714,
+          "totalHTMLGzipBytes": 33295,
+          "totalHTMLProxyTokens": 83517,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        }
+      ],
+      "resultPolicies": {
+        "A": {
+          "status": "current implemented default",
+          "allFormulaResultsSaved": 240,
+          "totalHTMLBytes": 343976,
+          "totalHTMLGzipBytes": 31761,
+          "minifiedResultRecordBytes": 10793,
+          "resultSnapshotJSONBytes": 23000,
+          "resultSnapshotShareOfHTML": 0.06686513012535758
+        },
+        "B": {
+          "status": "counterfactual; reader integration and joint decision still required",
+          "candidateOmittedResults": 0,
+          "estimatedHTMLBytes": 351038,
+          "estimatedGzipBytes": 34241,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 1.5974590000000148
+        },
+        "C": {
+          "status": "counterfactual; simple offline edit coverage not implemented or approved",
+          "estimatedHTMLBytes": 351038,
+          "estimatedGzipBytes": 34241,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 1.5974590000000148,
+          "conformancePassed": true
+        }
+      }
+    },
+    {
+      "id": "B03",
+      "description": "Public retail raw-data workbook; first 60000 data rows plus header",
+      "source": {
+        "url": "https://archive.ics.uci.edu/static/public/352/online+retail.zip",
+        "sha256": "43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d"
+      },
+      "sourceSha256": "43465a06f2ccf7c8b5bd2892bc7defb52f97487934fe93b16ae4c3936424676d",
+      "rowLimit": 60001,
+      "sheets": 1,
+      "populatedCells": 457896,
+      "formulaCells": 0,
+      "formulaClasses": {
+        "arithmetic": 0,
+        "aggregates": 0,
+        "round-if": 0,
+        "other": 0
+      },
+      "dependencyDepth": {
+        "maximumParsedDepth": 0,
+        "unresolvedFormulaCount": 0
+      },
+      "diagnostics": [
+        {
+          "kind": "rowLimit",
+          "count": 1
+        }
+      ],
+      "evaluator": {
+        "eligibleFormulaCells": 0,
+        "checkedFormulaCells": 0,
+        "mismatches": 0,
+        "evaluationError": null,
+        "analysisMS": 181.59291699999994,
+        "evaluateMS": 0.009167000000161352,
+        "openComputeMS": 181.6020840000001,
+        "conformant": true
+      },
+      "encodings": [
+        {
+          "encoding": "per-cell",
+          "minifiedPayloadBytes": 26932951,
+          "minifiedPayloadGzipBytes": 2495678,
+          "minifiedPayloadProxyTokens": 8409786,
+          "encodeMS": 732.924583,
+          "parseMS": 1450.3223749999997,
+          "applicationCodeBytes": 227627,
+          "documentContentBytes": 61224489,
+          "totalHTMLBytes": 61452116,
+          "totalHTMLGzipBytes": 2796686,
+          "totalHTMLProxyTokens": 15801803,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "rows",
+          "minifiedPayloadBytes": 8118176,
+          "minifiedPayloadGzipBytes": 1049038,
+          "minifiedPayloadProxyTokens": 2964790,
+          "encodeMS": 957.2370410000003,
+          "parseMS": 710.9786249999997,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 13941711,
+          "totalHTMLBytes": 14173006,
+          "totalHTMLGzipBytes": 1145999,
+          "totalHTMLProxyTokens": 4362396,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "columns",
+          "minifiedPayloadBytes": 7998196,
+          "minifiedPayloadGzipBytes": 733796,
+          "minifiedPayloadProxyTokens": 2903665,
+          "encodeMS": 1099.4107090000034,
+          "parseMS": 724.0414170000004,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 13401993,
+          "totalHTMLBytes": 13633288,
+          "totalHTMLGzipBytes": 839921,
+          "totalHTMLProxyTokens": 4316390,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "csv",
+          "minifiedPayloadBytes": 7697108,
+          "minifiedPayloadGzipBytes": 1019273,
+          "minifiedPayloadProxyTokens": 2860121,
+          "encodeMS": 968.900999999998,
+          "parseMS": 666.4989999999962,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 12440616,
+          "totalHTMLBytes": 12671911,
+          "totalHTMLGzipBytes": 1077208,
+          "totalHTMLProxyTokens": 3777896,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        },
+        {
+          "encoding": "tsv",
+          "minifiedPayloadBytes": 8114271,
+          "minifiedPayloadGzipBytes": 1046576,
+          "minifiedPayloadProxyTokens": 2917392,
+          "encodeMS": 793.1481249999997,
+          "parseMS": 658.9906250000058,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 12857779,
+          "totalHTMLBytes": 13089074,
+          "totalHTMLGzipBytes": 1105602,
+          "totalHTMLProxyTokens": 3835173,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 1
+        }
+      ],
+      "resultPolicies": {
+        "A": {
+          "status": "current implemented default",
+          "allFormulaResultsSaved": 0,
+          "totalHTMLBytes": 61452116,
+          "totalHTMLGzipBytes": 2796686,
+          "minifiedResultRecordBytes": 0,
+          "resultSnapshotJSONBytes": 207,
+          "resultSnapshotShareOfHTML": 0.0000033684763597074507
+        },
+        "B": {
+          "status": "counterfactual; reader integration and joint decision still required",
+          "candidateOmittedResults": 0,
+          "estimatedHTMLBytes": 61459178,
+          "estimatedGzipBytes": 2799181,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 181.6020840000001
+        },
+        "C": {
+          "status": "counterfactual; simple offline edit coverage not implemented or approved",
+          "estimatedHTMLBytes": 61459178,
+          "estimatedGzipBytes": 2799181,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 181.6020840000001,
+          "conformancePassed": true
+        }
+      }
+    },
+    {
+      "id": "B04",
+      "description": "21-sheet asset valuation model with NPV, IF and linked calculations",
+      "source": {
+        "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/project-wolverine-asset-valuation-model.xls",
+        "sha256": "0388e2a38324c8492a4a358cc8d48ce767d3812bb9804717a4db629f938ddded"
+      },
+      "sourceSha256": "0388e2a38324c8492a4a358cc8d48ce767d3812bb9804717a4db629f938ddded",
+      "rowLimit": 0,
+      "sheets": 21,
+      "populatedCells": 8532,
+      "formulaCells": 5056,
+      "formulaClasses": {
+        "arithmetic": 3807,
+        "aggregates": 544,
+        "round-if": 184,
+        "other": 521
+      },
+      "dependencyDepth": {
+        "maximumParsedDepth": 34,
+        "unresolvedFormulaCount": 1843
+      },
+      "diagnostics": [
+        {
+          "kind": "mergedCells",
+          "count": 17
+        },
+        {
+          "kind": "comments",
+          "count": 44
+        },
+        {
+          "kind": "sourceDefinedNames",
+          "count": 159
+        },
+        {
+          "kind": "unsupportedDefinedName",
+          "count": 142
+        }
+      ],
+      "evaluator": {
+        "eligibleFormulaCells": 3004,
+        "checkedFormulaCells": 0,
+        "mismatches": 0,
+        "evaluationError": "Range outside aggregate",
+        "analysisMS": 32.329416999993555,
+        "evaluateMS": 0.29295899999851827,
+        "openComputeMS": 32.62237599999207,
+        "conformant": false
+      },
+      "encodings": [
+        {
+          "encoding": "per-cell",
+          "minifiedPayloadBytes": 603762,
+          "minifiedPayloadGzipBytes": 84465,
+          "minifiedPayloadProxyTokens": 204035,
+          "encodeMS": 6.8449170000021695,
+          "parseMS": 11.6909169999999,
+          "applicationCodeBytes": 227627,
+          "documentContentBytes": 1287966,
+          "totalHTMLBytes": 1515593,
+          "totalHTMLGzipBytes": 120456,
+          "totalHTMLProxyTokens": 398606,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "rows",
+          "minifiedPayloadBytes": 603814,
+          "minifiedPayloadGzipBytes": 84505,
+          "minifiedPayloadProxyTokens": 204047,
+          "encodeMS": 7.296792000001005,
+          "parseMS": 10.484334000000672,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 1288037,
+          "totalHTMLBytes": 1519332,
+          "totalHTMLGzipBytes": 122044,
+          "totalHTMLProxyTokens": 399921,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "columns",
+          "minifiedPayloadBytes": 603817,
+          "minifiedPayloadGzipBytes": 84508,
+          "minifiedPayloadProxyTokens": 204047,
+          "encodeMS": 6.755749999996624,
+          "parseMS": 10.382542000006652,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 1288040,
+          "totalHTMLBytes": 1519335,
+          "totalHTMLGzipBytes": 122045,
+          "totalHTMLProxyTokens": 399921,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "csv",
+          "minifiedPayloadBytes": 603813,
+          "minifiedPayloadGzipBytes": 84505,
+          "minifiedPayloadProxyTokens": 204047,
+          "encodeMS": 6.457583000003069,
+          "parseMS": 10.632375000001048,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 1288036,
+          "totalHTMLBytes": 1519331,
+          "totalHTMLGzipBytes": 122042,
+          "totalHTMLProxyTokens": 399921,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "tsv",
+          "minifiedPayloadBytes": 603813,
+          "minifiedPayloadGzipBytes": 84505,
+          "minifiedPayloadProxyTokens": 204048,
+          "encodeMS": 6.856292000004032,
+          "parseMS": 12.803165999997873,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 1288036,
+          "totalHTMLBytes": 1519331,
+          "totalHTMLGzipBytes": 122042,
+          "totalHTMLProxyTokens": 399922,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        }
+      ],
+      "resultPolicies": {
+        "A": {
+          "status": "current implemented default",
+          "allFormulaResultsSaved": 5056,
+          "totalHTMLBytes": 1515593,
+          "totalHTMLGzipBytes": 120456,
+          "minifiedResultRecordBytes": 231874,
+          "resultSnapshotJSONBytes": 484887,
+          "resultSnapshotShareOfHTML": 0.3199321981561013
+        },
+        "B": {
+          "status": "ineligible: evaluator conformance failed",
+          "candidateOmittedResults": 3004,
+          "estimatedHTMLBytes": 1236292,
+          "estimatedGzipBytes": 108030,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 32.62237599999207
+        },
+        "C": {
+          "status": "counterfactual; simple offline edit coverage not implemented or approved",
+          "estimatedHTMLBytes": 1522655,
+          "estimatedGzipBytes": 123003,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 32.62237599999207,
+          "conformancePassed": false
+        }
+      }
+    },
+    {
+      "id": "B05",
+      "description": "Loosely structured operational schedule; author expertise is unverified",
+      "source": {
+        "url": "https://raw.githubusercontent.com/DennisSchm/excel-demo-sheets/42d0fc261932c3e5b694fa9985a36ee82404910a/real-world-enron/gas-control-oncall-schedule.xls",
+        "sha256": "40a189ad0c1f45cf947e39f3ea47bb56db240969809145c8175d9cadbe6cbb2e"
+      },
+      "sourceSha256": "40a189ad0c1f45cf947e39f3ea47bb56db240969809145c8175d9cadbe6cbb2e",
+      "rowLimit": 0,
+      "sheets": 1,
+      "populatedCells": 223,
+      "formulaCells": 56,
+      "formulaClasses": {
+        "arithmetic": 56,
+        "aggregates": 0,
+        "round-if": 0,
+        "other": 0
+      },
+      "dependencyDepth": {
+        "maximumParsedDepth": 7,
+        "unresolvedFormulaCount": 0
+      },
+      "diagnostics": [
+        {
+          "kind": "sourceDefinedNames",
+          "count": 1
+        },
+        {
+          "kind": "unsupportedDefinedName",
+          "count": 1
+        }
+      ],
+      "evaluator": {
+        "eligibleFormulaCells": 56,
+        "checkedFormulaCells": 56,
+        "mismatches": 0,
+        "evaluationError": null,
+        "analysisMS": 0.31541699999797856,
+        "evaluateMS": 0.18141599999944447,
+        "openComputeMS": 0.49683299999742303,
+        "conformant": true
+      },
+      "encodings": [
+        {
+          "encoding": "per-cell",
+          "minifiedPayloadBytes": 15294,
+          "minifiedPayloadGzipBytes": 1727,
+          "minifiedPayloadProxyTokens": 4756,
+          "encodeMS": 0.2727080000040587,
+          "parseMS": 0.4110000000000582,
+          "applicationCodeBytes": 227627,
+          "documentContentBytes": 51691,
+          "totalHTMLBytes": 279318,
+          "totalHTMLGzipBytes": 29295,
+          "totalHTMLProxyTokens": 64749,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "rows",
+          "minifiedPayloadBytes": 15346,
+          "minifiedPayloadGzipBytes": 1760,
+          "minifiedPayloadProxyTokens": 4768,
+          "encodeMS": 0.24420899999677204,
+          "parseMS": 0.3495840000032331,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 51762,
+          "totalHTMLBytes": 283057,
+          "totalHTMLGzipBytes": 30829,
+          "totalHTMLProxyTokens": 66063,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "columns",
+          "minifiedPayloadBytes": 15349,
+          "minifiedPayloadGzipBytes": 1762,
+          "minifiedPayloadProxyTokens": 4768,
+          "encodeMS": 0.2883339999971213,
+          "parseMS": 0.3829159999950207,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 51765,
+          "totalHTMLBytes": 283060,
+          "totalHTMLGzipBytes": 30830,
+          "totalHTMLProxyTokens": 66062,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "csv",
+          "minifiedPayloadBytes": 15345,
+          "minifiedPayloadGzipBytes": 1759,
+          "minifiedPayloadProxyTokens": 4768,
+          "encodeMS": 0.30216700000164565,
+          "parseMS": 0.3599580000009155,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 51761,
+          "totalHTMLBytes": 283056,
+          "totalHTMLGzipBytes": 30828,
+          "totalHTMLProxyTokens": 66062,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        },
+        {
+          "encoding": "tsv",
+          "minifiedPayloadBytes": 15345,
+          "minifiedPayloadGzipBytes": 1758,
+          "minifiedPayloadProxyTokens": 4769,
+          "encodeMS": 0.25300000000424916,
+          "parseMS": 0.33795899999677204,
+          "applicationCodeBytes": 231295,
+          "documentContentBytes": 51761,
+          "totalHTMLBytes": 283056,
+          "totalHTMLGzipBytes": 30828,
+          "totalHTMLProxyTokens": 66063,
+          "typedRoundTrip": "exact",
+          "denseTableSheets": 0
+        }
+      ],
+      "resultPolicies": {
+        "A": {
+          "status": "current implemented default",
+          "allFormulaResultsSaved": 56,
+          "totalHTMLBytes": 279318,
+          "totalHTMLGzipBytes": 29295,
+          "minifiedResultRecordBytes": 2354,
+          "resultSnapshotJSONBytes": 5361,
+          "resultSnapshotShareOfHTML": 0.0191931776684639
+        },
+        "B": {
+          "status": "counterfactual; reader integration and joint decision still required",
+          "candidateOmittedResults": 56,
+          "estimatedHTMLBytes": 280940,
+          "estimatedGzipBytes": 31506,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 0.49683299999742303
+        },
+        "C": {
+          "status": "counterfactual; simple offline edit coverage not implemented or approved",
+          "estimatedHTMLBytes": 286380,
+          "estimatedGzipBytes": 31773,
+          "evaluatorCodeBytes": 7062,
+          "openComputeMS": 0.49683299999742303,
+          "conformancePassed": true
+        }
+      }
+    }
+  ]
+}

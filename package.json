@@ -12,7 +12,8 @@
     "test:regression": "node --test tests/tools.test.mjs tests/persistence.test.mjs tests/thumbnails.test.mjs tests/guide.test.mjs tests/sri.test.mjs",
     "release": "bash tools/release.sh",
     "record-release": "node tools/build.mjs --release",
-    "check:example": "node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html"
+    "check:example": "node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html",
+    "test:data": "npm --prefix packages/data test && npm --prefix packages/data run test:browser"
   },
   "devDependencies": {
     "@csstools/css-tokenizer": "3.0.4",

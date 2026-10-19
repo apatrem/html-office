@@ -20,6 +20,7 @@ cd "$repo_root"
 artifact_dir="$source_dir/office-artifacts"
 node packages/data/tools/bundle-engine.mjs "$source_dir/office-bindgen" "$artifact_dir/vendor"
 packages/data/node_modules/.bin/wasm-opt "$artifact_dir/vendor/ironcalc.wasm" -Oz --enable-mutable-globals --enable-nontrapping-float-to-int --enable-sign-ext --enable-bulk-memory --enable-reference-types --enable-multivalue --strip-debug --strip-producers -o "$artifact_dir/vendor/ironcalc.wasm"
+node packages/data/tools/pack-engine.mjs "$artifact_dir/vendor"
 python3 "$engine_dir/audit.py" "$source_dir" "$("$rust_compiler" --print sysroot)" "$artifact_dir"
 if [[ "${2:-}" == "--check" ]]; then
   cmp "$artifact_dir/vendor/ironcalc.mjs" "$engine_dir/vendor/ironcalc.mjs"

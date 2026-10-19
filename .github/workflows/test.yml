@@ -35,3 +35,26 @@ jobs:
         run: |
           node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html
           node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/catalogue.html
+
+  data-phase-a:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/data/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix packages/data --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm audit --prefix packages/data --audit-level=high
+      - run: npm --prefix packages/data run format:check
+      - run: npm run test:data
+      - name: Measure the P&L and 50k/100k-row browser workloads
+        run: node --expose-gc packages/data/bench/browser.mjs --check --output dist/data-bench/ci-results.json
