@@ -16,6 +16,6 @@ cargo build --locked --release --target wasm32-unknown-unknown -p wasm
 wasm-bindgen target/wasm32-unknown-unknown/release/wasm.wasm --target web --out-dir office-bindgen
 cd "$repo_root"
 node packages/data/tools/bundle-engine.mjs "$source_dir/office-bindgen"
-packages/data/node_modules/.bin/wasm-opt "$engine_dir/vendor/ironcalc.wasm" -Oz --all-features --strip-debug --strip-producers -o "$engine_dir/vendor/ironcalc.wasm"
+packages/data/node_modules/.bin/wasm-opt "$engine_dir/vendor/ironcalc.wasm" -Oz --enable-mutable-globals --enable-nontrapping-float-to-int --enable-sign-ext --enable-bulk-memory --enable-reference-types --enable-multivalue --strip-debug --strip-producers -o "$engine_dir/vendor/ironcalc.wasm"
 python3 "$engine_dir/audit.py" "$source_dir" "$(rustc --print sysroot)"
 node --test packages/data/tests/engine.test.mjs
