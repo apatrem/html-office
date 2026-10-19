@@ -269,6 +269,8 @@ try {
       true,
     );
     await page.getByRole("dialog").waitFor();
+    await page.keyboard.press("Escape");
+    assert.equal(await page.getByRole("dialog").isVisible(), true);
     assert.equal(
       await page
         .getByRole("button", { name: "Save", exact: true })

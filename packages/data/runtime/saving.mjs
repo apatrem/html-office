@@ -152,6 +152,10 @@ export function setupPersistence({ getBook, getPending, restore }) {
     for (const message of messages.splice(0)) recovery.send(message);
   })().catch((error) => receive({ kind: "error", message: error.message }));
 
+  // Recovery must be resolved explicitly; Escape must not strand a blocked draft.
+  $("recovery-dialog").addEventListener("cancel", (event) =>
+    event.preventDefault(),
+  );
   $("restore-draft").onclick = () => {
     try {
       const book = readModel(draft.modelText);
