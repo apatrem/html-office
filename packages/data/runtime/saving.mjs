@@ -31,6 +31,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
     writer,
     recovery,
     recoveryFailed = false,
+    recoveryReady = false,
     protectedSource = false,
     draft;
   const messages = [];
@@ -97,7 +98,14 @@ export function setupPersistence({ getBook, getPending, restore }) {
       );
   }
   function receive(message) {
-    if (message.kind === "stored" && message.revision === dirty.revision)
+    if (message.kind === "ready") {
+      recoveryReady = true;
+      $("direct-save").disabled = false;
+    } else if (
+      message.kind === "stored" &&
+      dirty.dirty &&
+      message.revision === dirty.revision
+    )
       saveStatus(
         getPending()
           ? "Unsaved draft includes the attempted edit; its results are not current. Recovery stored."
@@ -105,11 +113,15 @@ export function setupPersistence({ getBook, getPending, restore }) {
       );
     else if (message.kind === "error") {
       recoveryFailed = true;
+      recoveryReady = true;
+      $("direct-save").disabled = false;
       messages.length = 0;
       saveStatus(
         `Recovery unavailable: ${message.message}. Your work remains open; use Save or Save a copy.`,
       );
     } else if (message.kind === "draft") {
+      recoveryReady = false;
+      $("direct-save").disabled = true;
       draft = message.record;
       const compatible =
         draft?.schema === 1 &&
@@ -154,6 +166,8 @@ export function setupPersistence({ getBook, getPending, restore }) {
         revision: dirty.revision,
         protectedSource,
       });
+      recoveryReady = true;
+      $("direct-save").disabled = false;
       $("recovery-dialog").close();
       saveStatus(
         protectedSource
@@ -204,9 +218,9 @@ export function setupPersistence({ getBook, getPending, restore }) {
       saveStatus(`Copy failed: ${error.message}. Your work remains open.`);
     }
   };
-  $("direct-save").disabled = false;
+  $("direct-save").disabled = true;
   $("direct-save").onclick = async () => {
-    if (writer?.busy) return;
+    if (writer?.busy || !recoveryReady) return;
     $("direct-save").disabled = true;
     try {
       if (!writer) {
@@ -266,7 +280,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
           : `Save failed: ${error.message}. Your work remains open.`,
       );
     } finally {
-      $("direct-save").disabled = false;
+      $("direct-save").disabled = !recoveryReady;
     }
   };
   window.addEventListener("beforeunload", (event) => {

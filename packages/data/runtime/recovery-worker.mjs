@@ -7,12 +7,13 @@ let database,
   baseHash,
   revision = 0,
   blocked = false,
+  hasChanges = false,
   protectedSource = false,
   timer,
   queue = Promise.resolve();
 const report = (value) => self.postMessage(value);
 async function store() {
-  if (blocked || !book) return;
+  if (blocked || !hasChanges || !book) return;
   const record = {
     schema: 1,
     documentId: book.id,
@@ -23,7 +24,7 @@ async function store() {
     protectedSource,
   };
   await database.put(key, record);
-  report({ kind: "stored", revision });
+  report({ kind: "stored", revision: record.revision });
 }
 self.onmessage = ({ data }) => {
   queue = queue.then(async () => {
@@ -41,6 +42,7 @@ self.onmessage = ({ data }) => {
         book = readModel(data.text);
         seedText = null;
         revision = data.revision;
+        hasChanges = true;
         protectedSource = !!data.protectedSource;
         blocked = false;
         clearTimeout(timer);
@@ -48,13 +50,15 @@ self.onmessage = ({ data }) => {
       } else if (data.kind === "discard") {
         blocked = false;
         await database.delete(key);
-        if (revision) await store();
+        if (hasChanges) await store();
         report({ kind: "ready" });
       } else if (data.kind === "rebase") {
-        blocked = false;
+        // Only an explicit restore/discard may resolve a previous draft.
+        if (blocked) return;
         protectedSource = false;
         baseHash = data.baseHash;
         if (data.clean) {
+          hasChanges = false;
           clearTimeout(timer);
           await database.delete(key);
           report({ kind: "clean" });
@@ -72,6 +76,7 @@ self.onmessage = ({ data }) => {
         if (data.snapshot) book.snapshot = data.snapshot;
         else delete book.snapshot;
         revision = data.revision;
+        hasChanges = true;
         clearTimeout(timer);
         timer = setTimeout(() => {
           queue = queue

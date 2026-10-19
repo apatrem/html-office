@@ -244,6 +244,117 @@ try {
     );
   }
   {
+    const { page, context, errors } = await setup("startup");
+    await edit(page, 140);
+    await page
+      .locator("#save-status")
+      .filter({ hasText: "Recovery stored" })
+      .waitFor();
+    await page.addInitScript(() => {
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (message) {
+        if (message.kind === "init")
+          return setTimeout(() => post.call(this, message), 1200);
+        return post.call(this, message);
+      };
+    });
+    await page.reload();
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Save", exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.getByRole("dialog").waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Save", exact: true })
+        .isDisabled(),
+      true,
+    );
+    await page.reload();
+    await page.getByRole("dialog").waitFor();
+    await page
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click();
+    assert.equal(await page.getByLabel("Cell value").inputValue(), "140");
+    assert.deepEqual(errors, []);
+    await context.close();
+    console.log(
+      "PASS persistence: startup Save waits for an explicit recovery decision",
+    );
+  }
+  for (const transition of ["replace", "undo", "recalculate"]) {
+    const { page, context, errors } = await setup(`failed-${transition}`);
+    if (transition === "undo") await edit(page, 120);
+    await page.evaluate(() => {
+      const originalPost = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (message) {
+        if (message.method === "calculate" && !globalThis.failedOnce) {
+          globalThis.failedOnce = true;
+          setTimeout(
+            () =>
+              this.dispatchEvent(
+                new MessageEvent("message", {
+                  data: {
+                    id: message.id,
+                    error: "Injected calculation failure",
+                  },
+                }),
+              ),
+            0,
+          );
+          return;
+        }
+        return originalPost.call(this, message);
+      };
+    });
+    if (transition === "undo") await page.getByLabel("Cell address").fill("B3");
+    await page.getByLabel("Cell value").fill("140");
+    await page.getByRole("button", { name: "Apply edit", exact: true }).click();
+    await page
+      .locator("#status")
+      .filter({ hasText: "Injected calculation failure" })
+      .waitFor();
+    if (transition === "replace") {
+      await page.getByLabel("Cell address").fill("B3");
+      await edit(page, 30);
+    } else if (transition === "undo") {
+      await page.getByRole("button", { name: "Undo", exact: true }).click();
+    } else {
+      await page
+        .getByRole("button", { name: "Recalculate", exact: true })
+        .click();
+      await page
+        .getByText("Calculated locally. Unsaved changes.", { exact: true })
+        .waitFor();
+    }
+    await page
+      .locator("#save-status")
+      .filter({ hasText: "Recovery stored" })
+      .waitFor();
+    const exported = await copy(page, `failed-${transition}-copy.html`);
+    await page.reload();
+    await page.getByRole("dialog").waitFor();
+    await page
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click();
+    const recovered = await copy(page, `failed-${transition}-restored.html`);
+    assert.deepEqual(recovered, exported);
+    assert.equal(
+      recovered.sheets[0].cells.B2.input.value,
+      transition === "recalculate" ? 140 : 100,
+    );
+    assert.deepEqual(errors, []);
+    await context.close();
+    console.log(
+      `PASS persistence: failed edit + ${transition} recovery equals exported workbook`,
+    );
+  }
+  {
     const { page, context, errors } = await setup("pending");
     await page.addInitScript(() => {});
     // Delay only the calculation worker, leaving recovery and Save a copy active.

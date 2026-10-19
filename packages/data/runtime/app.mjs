@@ -168,8 +168,9 @@ async function apply({ recalculateOnly = false } = {}) {
     } // Validate before downloading or mutating the engine.
     loading = controller;
     if (!recalculateOnly) {
+      const prior = pendingEdit;
       pendingEdit = { sheetId: target, ref, cell };
-      persistence.changed();
+      persistence.changed(cellEdits(prior ? [prior] : []));
     }
     render();
     status(
@@ -275,9 +276,11 @@ $("undo").onclick = () => {
       session = null;
     }
   });
+  const prior = pendingEdit;
   pendingEdit = null;
   persistence.changed(
     cellEdits([
+      ...(prior ? [prior] : []),
       { sheetId: previous.target, ref: previous.ref },
       ...(previous.results ?? []),
     ]),
