@@ -17,7 +17,9 @@ Dense tables: set sheet.metadata.layout="table" when generating a raw-data sheet
 Complete table example: {"id":"raw","name":"Raw","metadata":{"layout":"table"},"cells":{"C1":{"formula":"=B1*2","result":{"type":"number","value":5}}},"table":{"encoding":"rows","height":1,"width":2,"columnTypes":["text","number"],"data":[["0012",2.5]],"overrides":{},"cellMetadata":{}}}. Appending a record requires adding a row and updating height; preserve type exceptions and all unrelated cells. Model tools derive a validated sparse html-data/0.1 engine model from this document; that in-memory model is not another saved source of truth. Legacy sparse html-data/0.1 documents remain readable and save as 0.2.
 Result policy A: save every populated formula result at full precision. snapshot records engine/version, fingerprint and calculation time. Changing an input or formula makes snapshot.fingerprint obsolete; retaining the old fingerprint or removing snapshot marks results stale. Never invent current values. Formatting alone does not invalidate the calculation fingerprint. Use the repository range tools with --recalculate, or open the file and Apply edit to recalculate with IronCalc. LLM edits must preserve all unrelated values, metadata, IDs, scripts and styles. Preserve signed zero when serializing: ordinary JSON.stringify changes -0 to 0.
 Standard mode reads and formats without requests; the first calculation-changing edit fetches the pinned JS/WASM pair in script#engine-config, checks SHA-256 before executing either, and calculates locally in a worker. Failed loads retain the attempted edit. Offline mode embeds the same pair. No workbook data is uploaded; no second formula evaluator is included.
-The Phase A prototype supports a small edit/save/undo workflow, not the complete V1. Its grid previews up to 30 rows and 12 columns; the payload includes the full workbook.
+Saving: Save writes only an explicitly selected file and rejects another document/revision or detected external changes. Save a copy requests a complete download; it is not proof that the source file was saved. An attempted calculation edit saved while pending is an uncalculated draft with no current snapshot.
+Recovery: local IndexedDB drafts are written by an embedded worker, bound to workbook identity, source path hash and base revision. Restoration is explicit. A draft from another source revision can be opened only as a copy; it cannot overwrite an existing file. If browser recovery is blocked/full, work remains open and can be saved/copied. No recovery or workbook data is sent to a server.
+This implementation is not yet the complete V1. Its grid previews up to 30 rows and 12 columns; the payload includes the full workbook.
 Full source and format: https://github.com/apatrem/html-office/tree/main/packages/data . No installable Data skill is distributed yet. Compatible skill-download links will be supplied when Data is packaged; do not use the Slides skill as a Data editor.`;
 export function measureHTML(html) {
   const bytes = (s) => Buffer.byteLength(s, "utf8");
@@ -107,6 +109,21 @@ export async function buildWorkbook(
     write: false,
     legalComments: "none",
   });
+  const recovery = await build({
+    plugins,
+    entryPoints: [new URL("runtime/recovery-worker.mjs", root).pathname],
+    bundle: true,
+    minify: true,
+    format: "esm",
+    platform: "browser",
+    target: "es2022",
+    write: false,
+    legalComments: "none",
+  });
+  const recoveryText = recovery.outputFiles[0].text.replace(
+    /<\/script/gi,
+    "<\\/script",
+  );
   const workerText = worker.outputFiles[0].text.replace(
     /<\/script/gi,
     "<\\/script",
@@ -139,10 +156,11 @@ export async function buildWorkbook(
 <script id="engine-config" type="application/json">${configText}</script>
 <main><nav id="sheet-tabs" aria-label="Sheets"></nav><section class="panel" aria-label="Workbook editor">
 <div class="fields"><label>Cell address<input id="cell-address" value="B2"></label><label>Input type<select id="cell-type"><option>number</option><option>text</option><option>boolean</option><option>blank</option><option>date</option><option>error</option><option>formula</option></select></label><label>Cell value<input id="cell-value" value="100"></label></div>
-<div class="toolbar"><button id="apply">Apply edit</button><button id="recalculate">Recalculate</button><button id="cancel" disabled>Cancel calculation</button><button id="undo" disabled>Undo</button><button id="decimals">More decimals</button><button id="save">Save a copy</button></div>
-<p id="status" role="status">Checking saved results…</p><div id="grid"><table aria-label="${esc(book.sheets[0].name)}"><thead><tr><th></th>${initial.rows[0].map((_, c) => `<th scope="col">${address(1, c + 1).replace(/\d+$/, "")}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div><p id="preview-note"></p></section>
+<div class="toolbar"><button id="apply">Apply edit</button><button id="recalculate">Recalculate</button><button id="cancel" disabled>Cancel calculation</button><button id="undo" disabled>Undo</button><button id="decimals">More decimals</button><button id="direct-save">Save</button><button id="save">Save a copy</button></div>
+<p id="save-status" role="status">Saved file opened.</p><dialog id="recovery-dialog"><h2>Recover unsaved work</h2><p id="recovery-message"></p><button id="restore-draft">Restore draft</button><button id="discard-draft">Discard draft</button></dialog><p id="status" role="status">Checking saved results…</p><div id="grid"><table aria-label="${esc(book.sheets[0].name)}"><thead><tr><th></th>${initial.rows[0].map((_, c) => `<th scope="col">${address(1, c + 1).replace(/\d+$/, "")}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div><p id="preview-note"></p></section>
 <details><summary>Embedded format guide</summary><pre data-document-content>${esc(formatGuide)}</pre></details><details><summary>Third-party notices</summary><pre>${esc(notices)}</pre></details></main>
 <script id="worker-source" type="text/plain">${workerText}</script>
+<script id="recovery-worker-source" type="text/plain">${recoveryText}</script>
 <script type="module">${js}</script></body></html>`;
   const size = measureHTML(html);
   if (!offline && size.applicationCodeBytes >= 500000)

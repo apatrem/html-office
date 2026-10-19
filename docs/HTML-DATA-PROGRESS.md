@@ -5,8 +5,8 @@ The user authorised autonomous continuation of all remaining [planned tasks](HTM
 | Task | Status | Evidence / next gate |
 | --- | --- | --- |
 | T01–T05b | Merged | PR #11; hybrid 0.2 document, all populated results, single IronCalc worker |
-| T06 | Implemented locally | Missing/stale/engine-version snapshot checks, monotonic calculation revisions, explicit recalculation; 49 unit tests and existing + snapshot browser flows pass |
-| T07 | In progress | Durable Save, copy, recovery, external-change and concurrent-save tests |
+| T06 | Merged in PR #12 | Missing/stale/engine-version snapshot checks, monotonic calculation revisions, explicit recalculation; 49 unit tests and existing + snapshot browser flows pass |
+| T07 | Review fixes complete; final CI pending | Explicit file binding and staged-write conflict checks; worker/IndexedDB drafts; source revision protection survives repeated restoration; 56 unit tests + ten save/recovery browser scenarios pass. Independent review reproduced three loss/race issues; regression tests cover failed-edit reconciliation, unresolved startup drafts and queued recovery writes. Five-case benchmark: standard code 252–266 kB, P&L warm max 49 ms, largest 100k×8 warm max 1.40 s with aggregate reuse; sampled browser-tree RSS 3.73 GB. Native picker/dialog coverage remains a later release check. |
 | T08–T11 | Pending | Grid/navigation, clipboard/fill, reference-aware structural commands, sheet groups/theme |
 | T12–T19 | Pending | Complete formula conformance, scenarios, conditional rules, import/refresh, pivot/charts and report outputs |
 | T20–T22 | Pending | Usable skill/tooling, fictional acceptance workbook, clean-install/blind/browser release checks |
