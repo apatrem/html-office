@@ -1,0 +1,6 @@
+{
+  "rows": 1000,
+  "columns": ["id", "region", "programme", "month", "visits", "price", "revenue", "cost"],
+  "regions": ["North", "South", "West"],
+  "programmes": ["Reading", "Arts", "Languages"]
+}
