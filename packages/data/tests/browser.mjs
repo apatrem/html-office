@@ -74,6 +74,9 @@ try {
   await page
     .getByText("Undo restored the previous workbook.", { exact: true })
     .waitFor();
+  assert.equal(await page.getByLabel("Cell address").inputValue(), "B2");
+  assert.equal(await page.getByLabel("Cell value").inputValue(), "100");
+  await page.getByRole("button", { name: "Summary", exact: true }).click();
   assert.match(await page.locator('[data-cell="B2"]').textContent(), /2,500/);
   await context.setOffline(true);
   await page.goto(pathToFileURL(saved).href);

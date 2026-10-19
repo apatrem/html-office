@@ -5,6 +5,7 @@ import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
+import { EditHistory, captureCells } from "../model/history.mjs";
 const $ = (id) => document.getElementById(id);
 let book = readModel($("workbook").textContent),
   sheetId = book.sheets[0].id,
@@ -13,7 +14,7 @@ let book = readModel($("workbook").textContent),
   loading = null,
   pendingEdit = null;
 const revisions = new CalculationRevision();
-const history = [];
+const history = new EditHistory();
 const config = JSON.parse($("engine-config").textContent);
 const status = (text) => {
   $("status").textContent = text;
@@ -29,7 +30,7 @@ const persistence = setupPersistence({
     pendingEdit = null;
     book = recovered;
     sheetId = book.sheets[0].id;
-    history.length = 0;
+    history.clear();
     render();
     choose("B2");
     const token = revisions.revision;
@@ -54,6 +55,13 @@ const grid = createGrid($("grid"), {
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   busy: () => !!loading,
   onSelect: (ref) => choose(ref, false),
+  onCommand: (event) => {
+    const key = event.key.toLowerCase();
+    if (["z", "y"].includes(key)) {
+      event.preventDefault();
+      void moveHistory(key === "y" || event.shiftKey ? "redo" : "undo");
+    }
+  },
   onEdit: (initial) => {
     if (initial !== undefined) {
       $("cell-type").value =
@@ -97,7 +105,8 @@ function render() {
   grid.draw();
   $("preview-note").textContent =
     "Arrow keys navigate · Shift selects a rectangle · F2 edits · Enter applies in the formula bar · Escape cancels form changes";
-  $("undo").disabled = !history.length || !!loading;
+  $("undo").disabled = !history.canUndo || !!loading;
+  $("redo").disabled = !history.canRedo || !!loading;
   $("apply").disabled = !!loading;
   $("recalculate").disabled = !!loading;
   $("cancel").disabled = !loading;
@@ -172,18 +181,10 @@ async function apply({ recalculateOnly = false } = {}) {
     const result = await session.calculate();
     if (!revisions.current(epoch)) return;
     const sheet = book.sheets.find((s) => s.id === target);
-    const previous = {
-      target,
-      ref,
-      cell: sheet.cells[ref],
-      snapshot: book.snapshot,
-      results: result.results.map((r) => ({
-        sheetId: r.sheetId,
-        ref: r.ref,
-        result: book.sheets.find((s) => s.id === r.sheetId).cells[r.ref]
-          ?.result,
-      })),
-    };
+    const refs = [{ sheetId: target, ref }, ...result.results],
+      before = captureCells(book, refs),
+      snapshotBefore = book.snapshot,
+      selectionBefore = { sheetId, ...grid.selection };
     if (!recalculateOnly) {
       sheet.cells[ref] = cell;
       touchPreview(sheet.cells, ref);
@@ -199,7 +200,15 @@ async function apply({ recalculateOnly = false } = {}) {
     persistence.changed(
       cellEdits([{ sheetId: target, ref }, ...result.results]),
     );
-    history.push(previous);
+    history.record({
+      before,
+      after: captureCells(book, refs),
+      snapshotBefore,
+      snapshotAfter: book.snapshot,
+      selectionBefore,
+      selectionAfter: { sheetId, ...grid.selection },
+      calculate: true,
+    });
     status("Calculated locally. Unsaved changes.");
     dispatchEvent(
       new CustomEvent("html-data:calculated", {
@@ -267,51 +276,73 @@ $("cancel").onclick = () => {
     "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
   );
 };
-$("undo").onclick = () => {
-  if (loading || !history.length) return;
-  const previous = history.pop(),
-    sheet = book.sheets.find((s) => s.id === previous.target);
-  if (previous.cell === undefined) delete sheet.cells[previous.ref];
-  else sheet.cells[previous.ref] = previous.cell;
-  for (const r of previous.results ?? []) {
-    const cell = book.sheets.find((s) => s.id === r.sheetId).cells[r.ref];
-    if (!cell) continue;
-    if (r.result === undefined) delete cell.result;
-    else cell.result = r.result;
-  }
-  if (previous.snapshot === undefined) delete book.snapshot;
-  else book.snapshot = previous.snapshot;
-  // Keep the loaded engine in its worker; synchronise it before the next edit.
-  const current = session;
-  current?.load(book).catch(() => {
-    if (session === current) {
-      current.dispose();
-      session = null;
-    }
-  });
-  const prior = pendingEdit;
+async function moveHistory(direction) {
+  if (loading) return;
+  const moved = history[direction](book);
+  if (!moved) return;
+  const epoch = revisions.begin(),
+    prior = pendingEdit;
   pendingEdit = null;
-  persistence.changed(
-    cellEdits([
-      ...(prior ? [prior] : []),
-      { sheetId: previous.target, ref: previous.ref },
-      ...(previous.results ?? []),
-    ]),
-  );
+  if (moved.selection) {
+    sheetId = moved.selection.sheetId;
+    grid.select(moved.selection.anchor, { notify: false });
+    grid.select(moved.selection.focus, { extend: true, notify: false });
+    choose(moved.selection.focus, false);
+  }
+  for (const edit of moved.edits)
+    touchPreview(
+      book.sheets.find((s) => s.id === edit.sheetId).cells,
+      edit.ref,
+    );
+  persistence.changed(cellEdits([...(prior ? [prior] : []), ...moved.edits]));
+  // Restore canonical known state immediately, then recalculate in the same adapter.
+  if (!moved.calculate) {
+    render();
+    status(
+      `${direction === "undo" ? "Undo" : "Redo"} restored the previous workbook.`,
+    );
+    return;
+  }
+  loading = new AbortController();
   render();
-  choose(selected);
-  status("Undo restored the previous workbook.");
-};
+  status("Restored workbook. Recalculating…");
+  try {
+    session ??= new EngineClient(config, $("worker-source").textContent);
+    await session.load(book);
+    const result = await session.calculate();
+    if (!revisions.current(epoch)) return;
+    for (const r of result.results)
+      book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
+        r.result;
+    book.snapshot = result.snapshot;
+    persistence.changed(cellEdits(result.results));
+    status(
+      `${direction === "undo" ? "Undo" : "Redo"} restored the previous workbook.`,
+    );
+  } catch (error) {
+    if (revisions.current(epoch)) {
+      session?.dispose();
+      session = null;
+      status(
+        `Workbook restored from history; recalculation unavailable: ${error.message}`,
+      );
+    }
+  } finally {
+    if (revisions.current(epoch)) {
+      loading = null;
+      render();
+    }
+  }
+}
+$("undo").onclick = () => moveHistory("undo");
+$("redo").onclick = () => moveHistory("redo");
 $("decimals").onclick = () => {
   if (loading) return;
   const sheet = book.sheets.find((s) => s.id === sheetId),
     old = sheet.cells[selected] ?? {};
-  history.push({
-    target: sheetId,
-    ref: selected,
-    cell: old,
-    snapshot: book.snapshot,
-  });
+  const refs = [{ sheetId, ref: selected }],
+    before = captureCells(book, refs),
+    selection = { sheetId, ...grid.selection };
   sheet.cells[selected] = {
     ...old,
     format: {
@@ -320,6 +351,15 @@ $("decimals").onclick = () => {
       digits: Math.min(15, (old.format?.digits ?? 0) + 1),
     },
   };
+  history.record({
+    before,
+    after: captureCells(book, refs),
+    snapshotBefore: book.snapshot,
+    snapshotAfter: book.snapshot,
+    selectionBefore: selection,
+    selectionAfter: selection,
+    calculate: false,
+  });
   // Formatting is browser-owned and excluded from the calculation fingerprint.
   persistence.changed(cellEdits([{ sheetId, ref: selected }]));
   render();
