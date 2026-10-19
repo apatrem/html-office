@@ -13,12 +13,13 @@ const source = JSON.parse(
 const original = await buildWorkbook(source, { offline: true });
 const browser = await chromium.launch();
 try {
-  for (const mode of ["changed-input", "missing-result"]) {
+  for (const mode of ["changed-input", "missing-result", "wrong-engine"]) {
     const parsed = readHTML(original),
       book = parsed.book;
     if (mode === "changed-input")
       book.sheets[0].cells.B2.input.value = 123.45678901234567;
-    else delete book.sheets[1].cells.B2.result;
+    else if (mode === "missing-result") delete book.sheets[1].cells.B2.result;
+    else book.snapshot.engine = "unrecognised/1";
     const file = resolve(out, `snapshot-${mode}.html`);
     await writeFile(file, replaceHTML(original, parsed, book));
     const page = await browser.newPage();
@@ -39,6 +40,7 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
+    assert.equal(await page.getByLabel("Cell value").inputValue(), "987654");
     const download = page.waitForEvent("download");
     await page.getByRole("button", { name: "Save a copy" }).click();
     const saved = resolve(out, `snapshot-${mode}-saved.html`);
@@ -62,6 +64,42 @@ try {
       `PASS snapshots: ${mode}, explicit recalc preserves attempted form input and saves precise results`,
     );
   }
+  const file = resolve(out, "snapshot-late-startup.html");
+  await writeFile(file, original);
+  const page = await browser.newPage();
+  await page.addInitScript(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    let first = true;
+    crypto.subtle.digest = async (...args) => {
+      const value = await digest(...args);
+      if (first) {
+        first = false;
+        globalThis.snapshotDigestWaiting = true;
+        await new Promise(
+          (resolve) => (globalThis.releaseSnapshotDigest = resolve),
+        );
+      }
+      return value;
+    };
+  });
+  await page.goto(pathToFileURL(file).href, { waitUntil: "commit" });
+  await page.waitForFunction(() => globalThis.snapshotDigestWaiting);
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
+  await page
+    .getByText("Calculated locally. Unsaved changes.", { exact: true })
+    .waitFor();
+  await page.evaluate(async () => {
+    globalThis.releaseSnapshotDigest();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  assert.equal(
+    await page.locator("#status").textContent(),
+    "Calculated locally. Unsaved changes.",
+  );
+  await page.close();
+  console.log(
+    "PASS snapshots: obsolete startup fingerprint cannot overwrite newer calculation status",
+  );
 } finally {
   await browser.close();
 }
