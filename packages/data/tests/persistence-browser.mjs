@@ -109,6 +109,50 @@ try {
     );
   }
   {
+    const hold = `const post=self.postMessage.bind(self), held=[];self.postMessage=value=>{if(value.kind==='stored'){held.push(value);post({kind:'test-held'})}else post(value)};self.addEventListener('message',({data})=>{if(data.kind==='test-release')held.splice(0).forEach(post)});`;
+    const html = original.replace(
+      /(<script id="recovery-worker-source"[^>]*>)/,
+      "$1" + hold,
+    );
+    const { page, context } = await setup("late-ack", html);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page.getByText("Saved to workbook.html.", { exact: true }).waitFor();
+    await page.evaluate(() => {
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (message) {
+        if (message.kind === "change") {
+          globalThis.recoveryProbe = this;
+          this.addEventListener("message", (event) => {
+            if (event.data.kind === "stored")
+              globalThis.recoveryAcknowledged = true;
+            if (event.data.kind === "test-held") globalThis.recoveryHeld = true;
+          });
+        }
+        return post.call(this, message);
+      };
+    });
+    await edit(page, 140);
+    await page.waitForFunction(() => globalThis.recoveryHeld === true);
+    await page.evaluate(() => (diskProbe.text += "\n<!-- newer -->"));
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await page
+      .locator("#save-status")
+      .filter({ hasText: "changed externally" })
+      .waitFor();
+    await page.evaluate(() =>
+      recoveryProbe.postMessage({ kind: "test-release" }),
+    );
+    await page.waitForFunction(() => globalThis.recoveryAcknowledged === true);
+    assert.match(
+      await page.locator("#save-status").textContent(),
+      /changed externally/,
+    );
+    await context.close();
+    console.log(
+      "PASS persistence: delayed recovery acknowledgement preserves a Save conflict warning",
+    );
+  }
+  {
     const { page, context, errors } = await setup("concurrent");
     await edit(page, 140);
     await page.evaluate(() => (diskProbe.held = true));

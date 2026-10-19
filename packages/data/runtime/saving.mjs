@@ -32,10 +32,16 @@ export function setupPersistence({ getBook, getPending, restore }) {
     recovery,
     recoveryFailed = false,
     recoveryReady = false,
+    saveInProgress = false,
+    feedbackRevision = null,
     protectedSource = false,
     draft;
   const messages = [];
   const saveStatus = (text) => ($("save-status").textContent = text);
+  const saveFeedback = (text) => {
+    feedbackRevision = dirty.revision;
+    saveStatus(text);
+  };
   const send = (message) => {
     if (recoveryFailed) return;
     if (recovery) recovery.send(message);
@@ -104,6 +110,8 @@ export function setupPersistence({ getBook, getPending, restore }) {
     } else if (
       message.kind === "stored" &&
       dirty.dirty &&
+      !saveInProgress &&
+      feedbackRevision !== dirty.revision &&
       message.revision === dirty.revision
     )
       saveStatus(
@@ -213,19 +221,20 @@ export function setupPersistence({ getBook, getPending, restore }) {
       a.download = `${getBook().id}.html`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      saveStatus(
+      saveFeedback(
         getPending()
           ? "Draft copy requested with the attempted input and stale results. Verify the downloaded HTML."
           : "Copy download requested. Open the downloaded HTML to verify it; the source file has not been saved.",
       );
     } catch (error) {
-      saveStatus(`Copy failed: ${error.message}. Your work remains open.`);
+      saveFeedback(`Copy failed: ${error.message}. Your work remains open.`);
     }
   };
   $("direct-save").disabled = true;
   $("direct-save").onclick = async () => {
     if (writer?.busy || !recoveryReady) return;
     $("direct-save").disabled = true;
+    saveInProgress = true;
     try {
       if (!writer) {
         if (typeof window.showSaveFilePicker !== "function")
@@ -270,7 +279,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
         shell(new DOMParser().parseFromString(captured.html, "text/html")),
       );
       send({ kind: "rebase", baseHash: sourceHash, clean: !dirty.dirty });
-      saveStatus(
+      saveFeedback(
         dirty.dirty
           ? "Earlier revision saved. Later changes remain unsaved."
           : pending
@@ -278,12 +287,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
             : `Saved to ${writer.handle.name}.`,
       );
     } catch (error) {
-      saveStatus(
+      saveFeedback(
         error.name === "AbortError"
           ? "Save cancelled. Your work remains open."
           : `Save failed: ${error.message}. Your work remains open.`,
       );
     } finally {
+      saveInProgress = false;
       $("direct-save").disabled = !recoveryReady;
     }
   };
