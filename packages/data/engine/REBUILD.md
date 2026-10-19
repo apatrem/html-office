@@ -11,3 +11,11 @@ The target-specific audit records the normal/build Cargo packages, including hos
 `bitcode_derive` 0.6.9 omits its licence text from the published crate. Its `.cargo_vcs_info.json` identifies upstream commit `f41da053c08178189aaee8c62f4c6e738add6eda`; `license-sources/bitcode_derive-LICENSE-MIT` is retained from that exact revision at https://raw.githubusercontent.com/SoftbearStudios/bitcode/f41da053c08178189aaee8c62f4c6e738add6eda/LICENSE-MIT . The audit rejects missing texts or an unreviewed licence expression.
 
 The surrounding Office code remains MIT. Third-party components retain their own terms. Audit scope is this exact build/feature/target closure; a dependency, toolchain or feature change requires a new audit.
+
+## Rebuild verification and transport
+
+Rebuild output goes into the temporary checkout's `office-artifacts/`, leaving approved artifacts untouched. Pass `--check` as the second argument to compare JavaScript, raw WASM and notices against the repository. Source/cache paths are remapped before compilation. On 19 October 2026, two independent checkout paths produced identical JavaScript, optimised WASM and notices. The raw WASM SHA-256 is recorded in `manifest.json` and verified in tests.
+
+`tools/pack-engine.mjs` creates a deterministic gzip transport with Node's level-9 zlib. The manifest pins compressed and decoded hashes separately. Transport compression bytes can depend on the Node/zlib version; a new compressed representation requires its own recorded digest even when the decoded engine is identical. `record-engine.mjs` must run after committing the artifact files so URLs refer to an immutable revision that actually contains them.
+
+The current custom build is 2,172,743 decoded WASM bytes and 707,874 gzip bytes, plus a 7,381-byte JavaScript wrapper. A fresh real HTTPS/file:// smoke confirmed the compressed asset was requested only on the first edit and passed both checks. These are measurements of this prototype, separate from the earlier upstream npm/Brotli measurement. See `bench/cdn-results.json` for the response sizes and environment.

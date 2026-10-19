@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { readHTML, replaceHTML } from "./html.mjs";
 import { writeCell, structuralEdit } from "./operations.mjs";
+import { jsonStringify } from "../../model/json.mjs";
 import { parseRange, address } from "../../model/workbook.mjs";
 import { EngineSession } from "../../engine/adapter.mjs";
 const [command, input, ...args] = process.argv.slice(2);
@@ -24,7 +25,7 @@ if (command === "inspect") {
       const ref = address(row, col);
       cells.push({ ref, cell: sheet.cells[ref] ?? null });
     }
-  console.log(JSON.stringify({ sheetId, cells }, null, 2));
+  console.log(jsonStringify({ sheetId, cells }));
 } else {
   const [patchFile, output] = args;
   if (!patchFile || !output || output === input)

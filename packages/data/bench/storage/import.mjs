@@ -74,6 +74,7 @@ export function convertWorkbook(
       else typed = { type: "text", value: String(c.v) };
       const cell = {};
       if (c.f) {
+        if (c.v === undefined) note("missingSourceFormulaCache");
         cell.formula = "=" + c.f;
         cell.result = typed;
         if (/\[[^\]]*\]|https?:|\b(?:WEBSERVICE|HYPERLINK)\s*\(/i.test(c.f))

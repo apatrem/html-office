@@ -5,60 +5,60 @@
       "id": "pnl",
       "runs": [
         {
-          "calculateMS": 14.099999964237213,
+          "calculateMS": 14.600000023841858,
           "result": 91612.64464580143
         },
         {
-          "calculateMS": 0.7999999523162842,
+          "calculateMS": 1,
           "result": 91966.59791454273
         },
         {
-          "calculateMS": 0.8999999761581421,
+          "calculateMS": 1,
           "result": 92323.16384644879
         },
         {
-          "calculateMS": 0.5999999642372131,
+          "calculateMS": 0.699999988079071,
           "result": 92682.36196977276
         },
         {
-          "calculateMS": 1,
+          "calculateMS": 1.0999999642372131,
           "result": 93044.21195213063
         }
       ],
       "longTasks": [
-        71
+        77
       ]
     },
     {
       "id": "100000x2-scans",
       "runs": [
         {
-          "calculateMS": 5940.800000011921,
+          "calculateMS": 10279.200000047684,
           "result": 3750001
         },
         {
-          "calculateMS": 5158.300000011921,
+          "calculateMS": 10214,
           "result": 3750002
         },
         {
-          "calculateMS": 5111.699999988079,
+          "calculateMS": 8976.899999976158,
           "result": 3750003
         },
         {
-          "calculateMS": 5309.700000047684,
+          "calculateMS": 8432.199999988079,
           "result": 3750004
         },
         {
-          "calculateMS": 5150.899999976158,
+          "calculateMS": 9497,
           "result": 3750005
         }
       ],
       "longTasks": [
-        6529,
-        5158,
-        5111,
-        5309,
-        5150
+        10934,
+        10214,
+        8976,
+        8432,
+        9497
       ]
     }
   ]

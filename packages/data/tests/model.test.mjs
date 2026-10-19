@@ -82,3 +82,15 @@ test("signed zero remains a JSON number and survives the canonical round trip", 
   positive.sheets[0].cells.B2.input.value = 0;
   assert.notEqual(await fingerprint(book), await fingerprint(positive));
 });
+test("labelled invalid reference files fail with the documented errors", async () => {
+  for (const [name, message] of [
+    ["unsupported-version", "Invalid workbook header"],
+    ["active-cell-field", "cell: unknown field onclick"],
+  ]) {
+    const text = await readFile(
+      new URL(`../fixtures/invalid/${name}.json`, import.meta.url),
+      "utf8",
+    );
+    assert.throws(() => parseWorkbook(text), new RegExp(message));
+  }
+});

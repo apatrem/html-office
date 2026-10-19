@@ -123,7 +123,8 @@ async function apply() {
   if (loading) return;
   const epoch = ++sequence,
     controller = new AbortController();
-  let touchedEngine = false;
+  let touchedEngine = false,
+    loadMetrics = null;
   try {
     const ref = $("cell-address").value,
       cell = enteredCell(),
@@ -140,7 +141,7 @@ async function apply() {
     touchedEngine = true;
     if (!session) {
       session = new EngineClient(config, $("worker-source").textContent);
-      await session.load(book);
+      loadMetrics = await session.load(book);
       if (epoch !== sequence) return;
     }
     if (epoch !== sequence) return;
@@ -171,6 +172,7 @@ async function apply() {
     dispatchEvent(
       new CustomEvent("html-data:calculated", {
         detail: {
+          loadMetrics,
           calculateMS: result.calculateMS,
           wasmMemoryBytes: result.wasmMemoryBytes,
         },

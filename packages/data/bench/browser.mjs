@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 // Measures the actual standalone file:// editor; no local server or fake calculator.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -22,9 +24,51 @@ const cases = [
 const filter = process.argv.includes("--pnl-only")
   ? (c) => c.id === "pnl"
   : () => true;
-const browser = await chromium.launch({
+const server = await chromium.launchServer({
   args: ["--enable-precise-memory-info"],
 });
+const browser = await chromium.connect(server.wsEndpoint());
+const run = promisify(execFile);
+function memorySampler() {
+  let peak = 0,
+    busy = false;
+  const root = server.process().pid;
+  async function sample() {
+    if (busy) return;
+    busy = true;
+    try {
+      const { stdout } = await run("ps", ["-axo", "pid=,ppid=,rss="]);
+      const rows = stdout
+        .trim()
+        .split("\n")
+        .map((line) => line.trim().split(/\s+/).map(Number));
+      const ids = new Set([root]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const [pid, parent] of rows)
+          if (ids.has(parent) && !ids.has(pid)) {
+            ids.add(pid);
+            changed = true;
+          }
+      }
+      let bytes = 0;
+      for (const [pid, , rss] of rows) if (ids.has(pid)) bytes += rss * 1024;
+      peak = Math.max(peak, bytes);
+    } catch {
+    } finally {
+      busy = false;
+    }
+  }
+  const timer = setInterval(sample, 200);
+  sample();
+  return async () => {
+    clearInterval(timer);
+    while (busy) await new Promise((r) => setTimeout(r, 10));
+    await sample();
+    return peak || null;
+  };
+}
 const report = {
   environment: {
     date: new Date().toISOString(),
@@ -37,7 +81,7 @@ const report = {
     memoryBytes: os.totalmem(),
   },
   method:
-    "Standalone offline file://; same pinned IronCalc as standard. Warm edit-to-paint includes result snapshot and DOM refresh. Five input changes after one engine load. Long tasks only during warm edits. WASM memory is maximum sampled allocated linear memory, not process RSS or exact peak. Cold file opening and initial engine/model load reported separately. Network delivery assessed separately.",
+    "Standalone offline file://; same pinned IronCalc as standard. Warm edit-to-paint includes result snapshot and DOM refresh. Five input changes after one engine load. Long tasks only during warm edits. WASM memory is maximum sampled allocated linear memory. Browser-tree RSS is sampled every 200ms via ps, sums processes including shared pages, and may miss short peaks; it is not unique physical memory. Cold file opening and initial engine/model load reported separately. Network delivery assessed separately.",
   cases: [],
 };
 try {
@@ -47,6 +91,17 @@ try {
     const html = await buildWorkbook(book, { offline: true }),
       file = resolve(out, `${item.id}.html`);
     await writeFile(file, html);
+    const stopMemorySampling = memorySampler();
+    const configMatch =
+        /<script id="engine-config"[^>]*>([\s\S]*?)<\/script>/.exec(html),
+      standardConfig = JSON.parse(configMatch[1]);
+    delete standardConfig.embedded;
+    const standardHTML = html
+      .replace(configMatch[1], JSON.stringify(standardConfig))
+      .replace("Offline engine embedded", "Verified engine loaded when needed");
+    const standardSize = measureHTML(standardHTML);
+    assert.ok(standardSize.applicationCodeBytes < 500000);
+    await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
     page.setDefaultTimeout(180000);
@@ -142,6 +197,9 @@ try {
       id: item.id,
       workload: book.metadata.benchmark,
       size: measureHTML(html),
+      standardSize,
+      initialEngineMetrics: first.loadMetrics,
+      sampledPeakBrowserTreeRSSBytes: await stopMemorySampling(),
       coldOpenMS,
       initialLoadEditToPaintMS: first.editToPaintMS,
       maximumSampledWasmMemoryBytes: Math.max(
@@ -154,6 +212,8 @@ try {
       correctness:
         "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
       targets: {
+        standardCodeUnder500000Bytes:
+          standardSize.applicationCodeBytes < 500000,
         pnlWarmUnder250MS: !isPL || warmMaxMS < 250,
         warmCalculationMainTaskUnder100MS: mainThreadMaxMS < 100,
       },
@@ -171,6 +231,7 @@ try {
   }
 } finally {
   await browser.close();
+  await server.close();
 }
 const outputArg = process.argv.indexOf("--output");
 if (outputArg >= 0)

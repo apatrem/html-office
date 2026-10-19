@@ -32,6 +32,8 @@ Use `@ironcalc/wasm` 0.9.0 as the prototype baseline. The measured WASM is 2,089
 
 Pin and verify all external executable components. Use SRI/CORS for script tags and verify fetched WASM against an approved digest before instantiation; reject mismatches. A failed load retains the workbook and saved previews and explains why recalculation is unavailable. No document data is sent to the CDN. Do not initiate engine, ECharts, or XLSX-library requests merely to view saved results. Offline builds must contain every browser dependency needed by their supported workflows.
 
+The 19 October Phase A prototype uses a narrow custom binding to the same IronCalc 0.9.0 source. Its pinned WASM is 2,172,743 decoded bytes / 707,874 precompressed gzip bytes; both transport and decoded digests are verified before instantiation. The JavaScript wrapper is 7,381 raw bytes. These measurements are distinct from the upstream npm artifact above. See [the prototype evidence](../packages/data/PHASE-A-REPORT.md); storage selection is held for joint T05b review.
+
 ## Authoritative document and saved results
 
 Use one versioned, documented, readable JSON workbook model in the HTML. Store sparse populated cells, typed inputs, Excel-style formula strings, formats, stable sheet identifiers, names/ranges, groups, scenario definitions, dropdowns, conditional rules, pivot definitions, and chart definitions. Formatting must remain separate from underlying values. Define date serial/locale, blank, Boolean, error, and numeric semantics explicitly. Engine objects/binary snapshots are derived state and never the sole authoritative content.

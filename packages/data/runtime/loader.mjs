@@ -12,6 +12,7 @@ function decode(text) {
   return Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 }
 export async function loadEngine(config, { signal } = {}) {
+  const started = performance.now();
   async function component(name) {
     const item = config[name];
     let bytes;
@@ -51,12 +52,20 @@ export async function loadEngine(config, { signal } = {}) {
   // Both components must pass integrity before any downloaded JS executes.
   const [js, wasm] = await Promise.all([component("js"), component("wasm")]);
   signal?.throwIfAborted();
+  const verifiedAt = performance.now();
   const url = URL.createObjectURL(new Blob([js], { type: "text/javascript" }));
   try {
     const module = await import(url);
     const exports = await module.default({ module_or_path: wasm });
     signal?.throwIfAborted();
-    return { ...module, wasmMemory: exports.memory };
+    return {
+      ...module,
+      wasmMemory: exports.memory,
+      loadingMetrics: {
+        fetchDecompressVerifyMS: verifiedAt - started,
+        importInstantiateMS: performance.now() - verifiedAt,
+      },
+    };
   } finally {
     URL.revokeObjectURL(url);
   }

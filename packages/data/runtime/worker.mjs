@@ -11,9 +11,15 @@ self.onmessage = (event) => {
       if (method === "load") {
         const start = performance.now();
         if (!module) module = await loadEngine(args[1]);
+        const loadedAt = performance.now();
         session ??= new EngineSession(module);
         session.load(args[0]);
-        value = { initialiseMS: performance.now() - start };
+        value = {
+          initialiseMS: performance.now() - start,
+          dependencyLoadMS: loadedAt - start,
+          modelLoadMS: performance.now() - loadedAt,
+          dependencyMetrics: module.loadingMetrics,
+        };
       } else if (method === "edit") {
         session.edit(...args);
         value = null;

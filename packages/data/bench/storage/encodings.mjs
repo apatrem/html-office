@@ -161,9 +161,17 @@ export function encodeWorkbook(
   }
   return next;
 }
+function record(value, allowed) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Expected storage object");
+  if (allowed)
+    for (const key of Object.keys(value))
+      if (!allowed.includes(key)) throw new Error("Unknown storage field");
+}
 export function decodeWorkbook(candidate) {
   if (!candidate.storageExperiment)
     return validateWorkbook(structuredClone(candidate));
+  record(candidate.storageExperiment, ["version", "encoding"]);
   if (candidate.storageExperiment.version !== 1)
     throw new Error("Unknown experimental version");
   const next = { ...candidate, sheets: [] };
@@ -184,6 +192,32 @@ export function decodeWorkbook(candidate) {
       columnTypes.length !== width
     )
       throw new Error("Invalid table shape");
+    record(table, [
+      "encoding",
+      "height",
+      "width",
+      "columnTypes",
+      "data",
+      "overrides",
+      "cellMetadata",
+    ]);
+    record(table.overrides);
+    record(table.cellMetadata);
+    if (
+      height > 1048576 ||
+      width > 16384 ||
+      !columnTypes.every((type) =>
+        ["number", "text", "date", "boolean", "error", "blank"].includes(type),
+      )
+    )
+      throw new Error("Invalid typed table schema");
+    if (
+      encoding === "columns" &&
+      (!Array.isArray(table.data) ||
+        table.data.length !== width ||
+        table.data.some((col) => !Array.isArray(col) || col.length !== height))
+    )
+      throw new Error("Invalid column vectors");
     let rows = table.data;
     if (encoding === "columns")
       rows = Array.from({ length: height }, (_, r) =>
@@ -226,7 +260,15 @@ export function decodeWorkbook(candidate) {
       const p = parseAddress(ref);
       if (p.row > height || p.column > width || cells[ref])
         throw new Error("Invalid/conflicting table override");
+      if (!cell.input || cell.formula || cell.result)
+        throw new Error("Override must contain one typed input");
       cells[ref] = structuredClone(cell);
+    }
+    for (const [ref, meta] of Object.entries(table.cellMetadata)) {
+      parseAddress(ref);
+      record(meta, ["role", "format"]);
+      if (!cells[ref]?.input || table.overrides[ref])
+        throw new Error("Orphan or duplicate table metadata");
     }
     next.sheets.push({ ...rest, cells });
   }

@@ -62,3 +62,34 @@ test("canonical model survives evaluation and cross-sheet edit, without binary a
     session.dispose();
   }
 });
+test("typed input precision, named ranges and valid spreadsheet errors cross the adapter boundary", async () => {
+  const source = structuredClone(book);
+  source.names.push({ name: "Unit_Fee", sheetId: "inputs", ref: "B3" });
+  source.sheets[0].cells.C1 = {
+    input: { type: "number", value: 1.2345678901234567 },
+  };
+  source.sheets[0].cells.C2 = { input: { type: "number", value: -0 } };
+  source.sheets[0].cells.C3 = { input: { type: "error", value: "#REF!" } };
+  source.sheets[1].cells.C1 = { formula: "=Inputs!C1" };
+  source.sheets[1].cells.C2 = { formula: "=Unit_Fee*Inputs!B2" };
+  source.sheets[1].cells.C3 = { formula: "=Inputs!C3+1" };
+  source.sheets[1].cells.DZ2001 = { formula: "=Inputs!C1+1" };
+  const session = new EngineSession({ Model });
+  try {
+    session.load(source);
+    const result = await session.calculate();
+    assert.equal(result.sheets[1].cells.C1.result.value, 1.2345678901234567);
+    assert.equal(result.sheets[1].cells.C2.result.value, 2500);
+    assert.deepEqual(result.sheets[1].cells.C3.result, {
+      type: "error",
+      value: "#REF!",
+    });
+    assert.ok(Object.is(session.result(0, "C2").value, -0));
+    assert.equal(
+      result.sheets[1].cells.DZ2001.result.value,
+      1.2345678901234567 + 1,
+    );
+  } finally {
+    session.dispose();
+  }
+});

@@ -87,3 +87,21 @@ for (const encoding of ["per-cell", "rows", "columns", "csv", "tsv"])
     assert.equal(decoded.sheets[0].cells.B2.input.value, Number.MIN_VALUE);
     assert.equal(decoded.sheets[0].cells.B3.input.value, Number.MAX_VALUE);
   });
+test("experimental blocks reject orphan metadata, duplicate sources and extra column vectors", () => {
+  const original = encodeWorkbook(fixture(), "columns", {
+    minimumDensity: 0.2,
+  });
+  for (const mutate of [
+    (c) => (c.sheets[0].table.cellMetadata.Z99 = { role: "header" }),
+    (c) => c.sheets[0].table.data.push([]),
+    (c) => (c.sheets[0].table.unrecognised = "do not discard"),
+    (c) =>
+      (c.sheets[0].table.overrides.B1 = {
+        input: { type: "number", value: 12 },
+      }),
+  ]) {
+    const c = structuredClone(original);
+    mutate(c);
+    assert.throws(() => decodeWorkbook(c));
+  }
+});

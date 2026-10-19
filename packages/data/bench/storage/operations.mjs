@@ -1,12 +1,6 @@
 // Assessment-only range operations. T10 will add the complete product command contract.
 import { parseAddress, address, validateCell } from "../../model/workbook.mjs";
 import { EngineSession } from "../../engine/adapter.mjs";
-export function inspectRange(book, sheetId, ref) {
-  const sheet = book.sheets.find((s) => s.id === sheetId);
-  if (!sheet) throw new Error("Unknown sheet");
-  parseAddress(ref);
-  return sheet.cells[ref];
-}
 export function writeCell(book, sheetId, ref, cell) {
   validateCell(cell);
   parseAddress(ref);

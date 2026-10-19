@@ -78,7 +78,7 @@ const report = {
   tokenizer:
     "gpt-tokenizer 4.0.3 / o200k_base; proxy counts in independent 262144-character chunks; boundary differences possible",
   method:
-    "All candidates preserve the same typed values/formulas/results/metadata. Payload minified size isolates encoding; actual standard HTML uses readable JSON (primitive arrays <=32 scalars per line) and includes the working editor, guide, notices and preview. CSV/TSV strings are JSON-escaped. Sparse sheets use cell records; dense candidate threshold 60%, <=2M slots. One sample of encode/parse time, not a performance guarantee. B/C sizes are explicitly counterfactual estimates, not implemented offline editing.",
+    "All candidates preserve the same converted typed values/formulas/results/metadata. Real-file storage uses original Excel caches; IronCalc recalculation is separate for evaluator conformance, and differences are counted. Source styles/complex features are not fully imported. Payload minified size isolates encoding; actual standard HTML uses readable JSON (primitive arrays <=32 scalars per line) and includes the working editor, guide, notices and preview. CSV/TSV strings are JSON-escaped. Sparse sheets use cell records; dense candidate threshold 60%, <=2M slots. One sample of encode/parse time, not a performance guarantee. B/C sizes are explicitly counterfactual estimates, not implemented offline editing.",
   evaluatorBytes,
   workbooks: [],
 };
@@ -95,6 +95,7 @@ for (const spec of fixtures) {
       rowLimit: spec.rowLimit ?? 0,
     }));
   } else book = spec.make();
+  const originalSource = sources ? structuredClone(book) : null;
   const session = new EngineSession({ Model });
   try {
     session.load(book);
@@ -102,6 +103,20 @@ for (const spec of fixtures) {
   } finally {
     session.dispose();
   }
+  const calculated = book;
+  if (originalSource) book = originalSource;
+  let sourceCacheDifferencesFromIronCalc = 0;
+  if (originalSource)
+    for (const [i, sheet] of book.sheets.entries())
+      for (const [ref, cell] of Object.entries(sheet.cells))
+        if (cell.formula) {
+          const expected = calculated.sheets[i].cells[ref].result;
+          if (
+            cell.result?.type !== expected.type ||
+            !Object.is(cell.result?.value, expected.value)
+          )
+            sourceCacheDifferencesFromIronCalc++;
+        }
   const analysisStart = performance.now(),
     a = analyse(book),
     analysisMS = performance.now() - analysisStart,
@@ -110,11 +125,12 @@ for (const spec of fixtures) {
     mismatches = 0,
     evaluationError = null;
   try {
-    evaluated = evaluateSimple(book, a);
+    evaluated = evaluateSimple(calculated, a);
     for (const [key, value] of evaluated) {
       const f = a.formulas.get(key),
-        expected = book.sheets.find((s) => s.id === f.sheetId).cells[f.ref]
-          .result;
+        expected = calculated.sheets.find((s) => s.id === f.sheetId).cells[
+          f.ref
+        ].result;
       if (
         value.type !== expected.type ||
         !Object.is(value.value, expected.value)
@@ -132,6 +148,12 @@ for (const spec of fixtures) {
     source: spec.source ?? "Committed fictional generator",
     sourceSha256: sourceHash,
     rowLimit: spec.rowLimit ?? null,
+    cacheOrigin: sources
+      ? "Original Excel cached values; freshness/provenance unknown; no current IronCalc snapshot claimed"
+      : "Calculated with pinned IronCalc",
+    sourceCacheDifferencesFromIronCalc: sources
+      ? sourceCacheDifferencesFromIronCalc
+      : null,
     sheets: book.sheets.length,
     populatedCells: book.sheets.reduce(
       (n, s) => n + Object.keys(s.cells).length,
