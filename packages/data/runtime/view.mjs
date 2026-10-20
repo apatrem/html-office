@@ -28,7 +28,7 @@ export function touchPreview(cells, ref) {
     old.columns = Math.max(old.columns, p.column);
   }
 }
-export function preview(sheet) {
+export function usedBounds(sheet) {
   let rows = 4,
     columns = 3;
   let cached = bounds.get(sheet.cells);
@@ -41,6 +41,11 @@ export function preview(sheet) {
     cached = { rows, columns };
     bounds.set(sheet.cells, cached);
   }
+  return cached;
+}
+export function preview(sheet) {
+  const cached = usedBounds(sheet);
+  let rows, columns;
   rows = cached.rows;
   columns = cached.columns;
   const truncated = rows > 30 || columns > 12;

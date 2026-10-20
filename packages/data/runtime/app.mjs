@@ -3,7 +3,8 @@ import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
 import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
-import { preview, touchPreview } from "./view.mjs";
+import { touchPreview } from "./view.mjs";
+import { createGrid } from "./grid.mjs";
 const $ = (id) => document.getElementById(id);
 let book = readModel($("workbook").textContent),
   sheetId = book.sheets[0].id,
@@ -49,9 +50,28 @@ function cellEdits(refs) {
     cell: book.sheets.find((s) => s.id === sheetId).cells[ref] ?? null,
   }));
 }
-function choose(ref) {
-  for (const b of $("grid").querySelectorAll("[data-cell]"))
-    b.setAttribute("aria-pressed", String(b.dataset.cell === ref));
+const grid = createGrid($("grid"), {
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  busy: () => !!loading,
+  onSelect: (ref) => choose(ref, false),
+  onEdit: (initial) => {
+    if (initial !== undefined) {
+      $("cell-type").value =
+        initial === "="
+          ? "formula"
+          : /[0-9.+-]/.test(initial)
+            ? "number"
+            : "text";
+      $("cell-value").value = initial;
+    }
+    if (initial === undefined && $("cell-type").value === "blank")
+      $("cell-type").value = "text";
+    $("cell-value").focus();
+    if (initial === undefined) $("cell-value").select();
+  },
+});
+function choose(ref, updateGrid = true) {
+  if (updateGrid) grid.select(ref, { notify: false });
   selected = ref;
   $("cell-address").value = ref;
   const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
@@ -74,51 +94,9 @@ function render() {
     };
     $("sheet-tabs").append(b);
   }
-  const sheet = book.sheets.find((s) => s.id === sheetId),
-    data = preview(sheet),
-    table = document.createElement("table");
-  table.setAttribute("aria-label", sheet.name);
-  const head = document.createElement("thead"),
-    heading = document.createElement("tr");
-  for (const label of [
-    "",
-    ...data.rows[0].map((_, c) => address(1, c + 1).replace(/\d+$/, "")),
-  ]) {
-    const th = document.createElement("th");
-    th.scope = "col";
-    th.textContent = label;
-    heading.append(th);
-  }
-  head.append(heading);
-  table.append(head);
-  const body = document.createElement("tbody");
-  for (const row of data.rows) {
-    const tr = document.createElement("tr"),
-      rowHeader = document.createElement("th");
-    rowHeader.scope = "row";
-    rowHeader.textContent = String(parseAddress(row[0].ref).row);
-    tr.append(rowHeader);
-    for (const { ref, cell, text } of row) {
-      const td = document.createElement("td"),
-        b = document.createElement("button");
-      b.dataset.cell = ref;
-      b.disabled = !!loading;
-      b.setAttribute("aria-label", `${ref}: ${text || "Empty"}`);
-      b.setAttribute("aria-pressed", String(ref === selected));
-      b.textContent = text || "\u00a0";
-      b.title = `${ref}${cell.formula ? ` · ${cell.formula}` : ""}`;
-      b.className = cell.role ?? "normal";
-      b.onclick = () => choose(ref);
-      td.append(b);
-      tr.append(td);
-    }
-    body.append(tr);
-  }
-  table.append(body);
-  $("grid").replaceChildren(table);
-  $("preview-note").textContent = data.truncated
-    ? "Preview shows the first 30 rows and 12 columns. All data remains embedded."
-    : "";
+  grid.draw();
+  $("preview-note").textContent =
+    "Arrow keys navigate · Shift selects a rectangle · F2 edits · Enter applies in the formula bar · Escape cancels form changes";
   $("undo").disabled = !history.length || !!loading;
   $("apply").disabled = !!loading;
   $("recalculate").disabled = !!loading;
@@ -139,8 +117,13 @@ function enteredCell() {
   delete cell.formula;
   delete cell.result;
   if (type === "formula") cell.formula = text;
-  else if (type === "blank") cell.input = { type };
-  else if (type === "number" || type === "date") {
+  else if (type === "blank") {
+    if (text)
+      throw new Error(
+        "Choose a text or number input type for nonempty content.",
+      );
+    cell.input = { type };
+  } else if (type === "number" || type === "date") {
     if (!text.trim()) throw new Error("Enter a number.");
     cell.input = { type, value: Number(text) };
   } else if (type === "boolean") {
@@ -209,7 +192,10 @@ async function apply({ recalculateOnly = false } = {}) {
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
     book.snapshot = result.snapshot;
-    if (!recalculateOnly) pendingEdit = null;
+    if (!recalculateOnly) {
+      pendingEdit = null;
+      choose(ref);
+    }
     persistence.changed(
       cellEdits([{ sheetId: target, ref }, ...result.results]),
     );
@@ -224,6 +210,7 @@ async function apply({ recalculateOnly = false } = {}) {
         },
       }),
     );
+    return true;
   } catch (error) {
     if (revisions.current(epoch)) {
       if (touchedEngine) {
@@ -242,6 +229,32 @@ async function apply({ recalculateOnly = false } = {}) {
   }
 }
 $("apply").onclick = apply;
+$("cell-value").addEventListener("keydown", async (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    const applied = await apply();
+    if (!loading) $(applied ? "grid" : "cell-value").focus();
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    if (pendingEdit?.sheetId === sheetId && pendingEdit.ref === selected) {
+      const cancelled = pendingEdit;
+      pendingEdit = null;
+      persistence.changed(cellEdits([cancelled]));
+      status("Attempted edit discarded. The committed cell is restored.");
+    }
+    choose(selected);
+    $("grid").focus();
+  }
+});
+$("cell-address").addEventListener("change", () => {
+  try {
+    parseAddress($("cell-address").value);
+    choose($("cell-address").value);
+  } catch (error) {
+    status(error.message);
+  }
+});
 $("recalculate").onclick = () => apply({ recalculateOnly: true });
 $("cancel").onclick = () => {
   revisions.cancel();
