@@ -49,7 +49,24 @@ try {
         input: { type: "number", value: 160 },
       });
       const delta = await client.calculate();
-      return { delta, hasSheets: "sheets" in delta };
+      await client.editMany([
+        {
+          sheetId: "inputs",
+          ref: "B2",
+          cell: { input: { type: "number", value: 140 } },
+        },
+        {
+          sheetId: "inputs",
+          ref: "B3",
+          cell: { input: { type: "number", value: 30 } },
+        },
+      ]);
+      const batch = await client.calculate();
+      return {
+        delta,
+        batch,
+        hasSheets: "sheets" in delta || "sheets" in batch,
+      };
     } finally {
       client.dispose();
     }
@@ -62,6 +79,11 @@ try {
   assert.equal(
     result.delta.results.find((r) => r.ref === "B2").result.value,
     4000,
+  );
+  assert.equal(
+    result.batch.results.find((r) => r.sheetId === "summary" && r.ref === "B2")
+      .result.value,
+    4200,
   );
   console.log(
     "PASS worker typed edit returns only formula results and snapshot",

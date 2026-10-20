@@ -1,4 +1,4 @@
-import { validateCell, parseAddress, address } from "../model/workbook.mjs";
+import { validateCell, parseAddress } from "../model/workbook.mjs";
 import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
 import { setupPersistence } from "./saving.mjs";
@@ -12,7 +12,7 @@ let book = readModel($("workbook").textContent),
   selected = "B2",
   session = null,
   loading = null,
-  pendingEdit = null;
+  pendingEdits = [];
 const revisions = new CalculationRevision();
 const history = new EditHistory();
 const config = JSON.parse($("engine-config").textContent);
@@ -21,13 +21,13 @@ const status = (text) => {
 };
 const persistence = setupPersistence({
   getBook: () => book,
-  getPending: () => pendingEdit,
+  getPending: () => (pendingEdits.length ? pendingEdits : null),
   restore: (recovered) => {
     revisions.cancel();
     session?.dispose();
     session = null;
     loading = null;
-    pendingEdit = null;
+    pendingEdits = [];
     book = recovered;
     sheetId = book.sheets[0].id;
     history.clear();
@@ -142,27 +142,30 @@ function enteredCell() {
   } else cell.input = { type, value: text };
   return cell;
 }
-async function apply({ recalculateOnly = false } = {}) {
+async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
   if (loading) return;
   const epoch = revisions.begin(),
     controller = new AbortController();
   let touchedEngine = false,
     loadMetrics = null;
   try {
-    const ref = recalculateOnly ? selected : $("cell-address").value,
-      cell = recalculateOnly
-        ? book.sheets.find((s) => s.id === sheetId).cells[selected]
-        : enteredCell(),
-      target = sheetId;
     if (!recalculateOnly) {
-      parseAddress(ref);
-      validateCell(cell);
-    } // Validate before downloading or mutating the engine.
+      edits ??= [
+        { sheetId, ref: $("cell-address").value, cell: enteredCell() },
+      ];
+      for (const edit of edits) {
+        parseAddress(edit.ref);
+        if (!book.sheets.some((s) => s.id === edit.sheetId))
+          throw new Error("Unknown sheet ID");
+        if (edit.cell !== null) validateCell(edit.cell);
+      }
+      if (!edits.length) return;
+    } else edits = [];
     loading = controller;
     if (!recalculateOnly) {
-      const prior = pendingEdit;
-      pendingEdit = { sheetId: target, ref, cell };
-      persistence.changed(cellEdits(prior ? [prior] : []));
+      const prior = pendingEdits;
+      pendingEdits = edits;
+      persistence.changed(cellEdits(prior));
     }
     render();
     status(
@@ -177,29 +180,36 @@ async function apply({ recalculateOnly = false } = {}) {
       if (!revisions.current(epoch)) return;
     }
     if (!revisions.current(epoch)) return;
-    if (!recalculateOnly) await session.edit(target, ref, cell);
+    if (!recalculateOnly) await session.editMany(edits);
     const result = await session.calculate();
     if (!revisions.current(epoch)) return;
-    const sheet = book.sheets.find((s) => s.id === target);
-    const refs = [{ sheetId: target, ref }, ...result.results],
+    const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
-    if (!recalculateOnly) {
-      sheet.cells[ref] = cell;
-      touchPreview(sheet.cells, ref);
+    for (const edit of edits) {
+      const sheet = book.sheets.find((s) => s.id === edit.sheetId);
+      if (edit.cell === null) delete sheet.cells[edit.ref];
+      else sheet.cells[edit.ref] = edit.cell;
+      touchPreview(sheet.cells, edit.ref);
     }
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
     book.snapshot = result.snapshot;
     if (!recalculateOnly) {
-      pendingEdit = null;
-      choose(ref);
+      pendingEdits = [];
+      if (selectionAfter) {
+        sheetId = selectionAfter.sheetId;
+        grid.select(selectionAfter.anchor, { notify: false });
+        grid.select(selectionAfter.focus, { extend: true, notify: false });
+        choose(selectionAfter.focus, false);
+      } else {
+        sheetId = edits[0].sheetId;
+        choose(edits[0].ref);
+      }
     }
-    persistence.changed(
-      cellEdits([{ sheetId: target, ref }, ...result.results]),
-    );
+    persistence.changed(cellEdits(refs));
     history.record({
       before,
       after: captureCells(book, refs),
@@ -246,10 +256,14 @@ $("cell-value").addEventListener("keydown", async (event) => {
   }
   if (event.key === "Escape") {
     event.preventDefault();
-    if (pendingEdit?.sheetId === sheetId && pendingEdit.ref === selected) {
-      const cancelled = pendingEdit;
-      pendingEdit = null;
-      persistence.changed(cellEdits([cancelled]));
+    if (
+      pendingEdits.some(
+        (edit) => edit.sheetId === sheetId && edit.ref === selected,
+      )
+    ) {
+      const cancelled = pendingEdits;
+      pendingEdits = [];
+      persistence.changed(cellEdits(cancelled));
       status("Attempted edit discarded. The committed cell is restored.");
     }
     choose(selected);
@@ -281,8 +295,8 @@ async function moveHistory(direction) {
   const moved = history[direction](book);
   if (!moved) return;
   const epoch = revisions.begin(),
-    prior = pendingEdit;
-  pendingEdit = null;
+    prior = pendingEdits;
+  pendingEdits = [];
   if (moved.selection) {
     sheetId = moved.selection.sheetId;
     grid.select(moved.selection.anchor, { notify: false });
@@ -294,7 +308,7 @@ async function moveHistory(direction) {
       book.sheets.find((s) => s.id === edit.sheetId).cells,
       edit.ref,
     );
-  persistence.changed(cellEdits([...(prior ? [prior] : []), ...moved.edits]));
+  persistence.changed(cellEdits([...prior, ...moved.edits]));
   // Restore canonical known state immediately, then recalculate in the same adapter.
   if (!moved.calculate) {
     render();
@@ -351,6 +365,14 @@ $("decimals").onclick = () => {
       digits: Math.min(15, (old.format?.digits ?? 0) + 1),
     },
   };
+  for (const attempt of pendingEdits) {
+    if (
+      attempt.sheetId === sheetId &&
+      attempt.ref === selected &&
+      attempt.cell !== null
+    )
+      attempt.cell = { ...attempt.cell, format: sheet.cells[selected].format };
+  }
   history.record({
     before,
     after: captureCells(book, refs),

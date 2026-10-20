@@ -93,3 +93,49 @@ test("typed input precision, named ranges and valid spreadsheet errors cross the
     session.dispose();
   }
 });
+test("batch edits preflight the whole transaction and recalculate linked results once", async () => {
+  const session = new EngineSession({ Model });
+  try {
+    session.load(book);
+    assert.throws(
+      () =>
+        session.editMany([
+          {
+            sheetId: "inputs",
+            ref: "B2",
+            cell: { input: { type: "number", value: 140 } },
+          },
+          {
+            sheetId: "unknown",
+            ref: "B3",
+            cell: { input: { type: "number", value: 30 } },
+          },
+        ]),
+      /sheet/i,
+    );
+    assert.equal(
+      (await session.calculate()).sheets[1].cells.B2.result.value,
+      2500,
+    );
+    session.editMany([
+      {
+        sheetId: "inputs",
+        ref: "B2",
+        cell: { input: { type: "number", value: 140 } },
+      },
+      {
+        sheetId: "inputs",
+        ref: "B3",
+        cell: { input: { type: "number", value: 30 } },
+      },
+    ]);
+    assert.equal(
+      (await session.calculate()).sheets[1].cells.B2.result.value,
+      4200,
+    );
+    session.editMany([{ sheetId: "inputs", ref: "B3", cell: null }]);
+    assert.equal("B3" in (await session.calculate()).sheets[0].cells, false);
+  } finally {
+    session.dispose();
+  }
+});

@@ -1,6 +1,7 @@
 import { readModel, writeModel } from "./document-model.mjs";
 import { DirtyState, FileWriter, digestText } from "./persistence.mjs";
 import { RecoveryClient } from "./recovery.mjs";
+import { overlayDraft, draftPatches } from "../model/pending.mjs";
 
 const payload = (doc) => {
   const matches = doc.querySelectorAll("#workbook");
@@ -48,45 +49,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
     else messages.push(message);
   };
   function documentBook() {
-    const book = getBook(),
-      attempt = getPending();
-    if (!attempt) return book;
-    const next = {
-      ...book,
-      sheets: book.sheets.map((s) =>
-        s.id !== attempt.sheetId
-          ? s
-          : {
-              ...s,
-              cells: {
-                ...s.cells,
-                [attempt.ref]: {
-                  ...attempt.cell,
-                  format: s.cells[attempt.ref]?.format ?? attempt.cell.format,
-                },
-              },
-            },
-      ),
-    };
-    // Avoid an undefined optional field, which is not JSON data.
-    const cell = next.sheets.find((s) => s.id === attempt.sheetId).cells[
-      attempt.ref
-    ];
-    if (cell.format === undefined) delete cell.format;
-    delete next.snapshot;
-    return next;
+    return overlayDraft(getBook(), getPending());
   }
   function changed(edits = []) {
     const revision = dirty.change(),
       attempt = getPending();
     const patches = edits.map((e) => ({ ...e, cell: e.cell ?? null }));
-    if (attempt) {
-      const current = getBook().sheets.find((s) => s.id === attempt.sheetId)
-        .cells[attempt.ref];
-      const cell = { ...attempt.cell };
-      if (current?.format) cell.format = current.format;
-      patches.push({ ...attempt, cell });
-    }
+    patches.push(...draftPatches(getBook(), attempt));
     send({
       kind: "change",
       revision,
