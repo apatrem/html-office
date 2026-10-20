@@ -13,6 +13,38 @@ const source = JSON.parse(
 const original = await buildWorkbook(source, { offline: true });
 const browser = await chromium.launch();
 try {
+  // Opening must verify results without building the large fingerprint on the UI
+  // thread. The recovery worker already receives the original inert JSON.
+  {
+    const file = resolve(out, "snapshot-worker-only.html");
+    await writeFile(file, original);
+    const page = await browser.newPage();
+    const requests = [];
+    await page.context().route(/^https?:\/\//, (route) => {
+      requests.push(route.request().url());
+      return route.abort();
+    });
+    await page.addInitScript(() => {
+      const digest = crypto.subtle.digest.bind(crypto.subtle);
+      globalThis.mainDigestCalls = 0;
+      crypto.subtle.digest = (...args) => {
+        globalThis.mainDigestCalls++;
+        return digest(...args);
+      };
+    });
+    await page.goto(pathToFileURL(file).href);
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    // Source payload, HTML shell and file-location identity only. Formula
+    // fingerprint verification runs in the existing recovery worker.
+    assert.equal(await page.evaluate(() => globalThis.mainDigestCalls), 3);
+    assert.deepEqual(requests, []);
+    await page.close();
+    console.log(
+      "PASS snapshots: startup verification stays in the recovery worker without engine requests",
+    );
+  }
   for (const mode of ["changed-input", "missing-result", "wrong-engine"]) {
     const parsed = readHTML(original),
       book = parsed.book;
