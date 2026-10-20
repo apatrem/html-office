@@ -273,6 +273,14 @@ try {
       "$1" + injection,
     );
     const { page, context, errors } = await setup("quota", limited);
+    await page.evaluate(() => {
+      const post = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (message) {
+        if (message.method === "calculate")
+          return setTimeout(() => post.call(this, message), 600);
+        return post.call(this, message);
+      };
+    });
     await edit(page, 140);
     await page
       .locator("#save-status")

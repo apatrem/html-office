@@ -30,7 +30,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
     sourceShell,
     writer,
     recovery,
-    recoveryFailed = false,
+    recoveryFailed = null,
     recoveryReady = false,
     saveInProgress = false,
     feedbackRevision = null,
@@ -100,7 +100,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
     );
     if (recoveryFailed)
       saveStatus(
-        "Unsaved changes. Recovery unavailable; use Save or Save a copy.",
+        `Unsaved changes. Recovery unavailable: ${recoveryFailed}. Use Save or Save a copy.`,
       );
   }
   function receive(message) {
@@ -120,7 +120,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
           : "Unsaved changes. Recovery stored.",
       );
     else if (message.kind === "error") {
-      recoveryFailed = true;
+      recoveryFailed = message.message || "Storage unavailable";
       recoveryReady = true;
       $("direct-save").disabled = false;
       messages.length = 0;
