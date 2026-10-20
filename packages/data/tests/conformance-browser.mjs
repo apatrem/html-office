@@ -22,7 +22,7 @@ try {
         requests = [];
       page.on("pageerror", (e) => errors.push(e.message));
       page.on("dialog", (d) => d.accept());
-      await context.route("https://**", async (route) => {
+      await context.route(/^https?:\/\//, async (route) => {
         const url = route.request().url();
         requests.push(url);
         if (
