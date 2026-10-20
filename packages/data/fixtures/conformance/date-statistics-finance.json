@@ -1,0 +1,680 @@
+{
+  "family": "date-statistics-finance",
+  "provenance": {
+    "method": "Independent hand-derived calendar/arithmetic/statistical cases, not captured from engine output. Apart from the explicit NPV error observations below, cases have not been run in Excel. Sample/population variance uses the n-1/n denominator; percentile ranks use 1+(n-1)k or (n+1)k; NPV discounts its first value at period1. Float tolerances are explicit per mathematically derived case. NPV error propagation was additionally observed in a fresh Microsoft Excel for Mac 16.114 workbook on 2026-10-20; both referenced =1/0 and direct 1/0 returned #DIV/0!, despite the generic support page saying reference errors are ignored.",
+    "sources": [
+      "https://support.microsoft.com/en-us/excel/excel-functions-alphabetical",
+      "https://support.microsoft.com/en-us/excel/functions/date-function",
+      "https://support.microsoft.com/en-us/excel/functions/edate-function",
+      "https://support.microsoft.com/en-us/excel/functions/eomonth-function",
+      "https://support.microsoft.com/en-us/excel/functions/median-function",
+      "https://support.microsoft.com/en-us/excel/functions/percentile-inc-function",
+      "https://support.microsoft.com/en-us/excel/functions/percentile-exc-function",
+      "https://support.microsoft.com/en-us/excel/functions/stdev-s-function",
+      "https://support.microsoft.com/en-us/excel/functions/npv-function",
+      "https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oi29500/989b9d25-033d-4717-b747-60218531c618"
+    ],
+    "checked": "2026-10-20",
+    "referenceObservation": {
+      "application": "Microsoft Excel for Mac",
+      "version": "16.114",
+      "date": "2026-10-20",
+      "method": "AppleScript, a fresh workbook closed without saving; no existing workbook content read or changed. A9=1/0, B1=NPV(0.1,A9:A9), B2=NPV(0.1,1/0), B3=NPV(0.1,110,121).",
+      "results": [
+        "#DIV/0!",
+        "#DIV/0!",
+        200
+      ]
+    }
+  },
+  "inputs": {
+    "A1": {
+      "input": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    "A2": {
+      "input": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    "A3": {
+      "input": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    "A4": {
+      "input": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    "B1": {
+      "input": {
+        "type": "number",
+        "value": 45292
+      }
+    },
+    "C1": {
+      "input": {
+        "type": "number",
+        "value": 110
+      }
+    },
+    "C2": {
+      "input": {
+        "type": "number",
+        "value": 121
+      }
+    },
+    "A9": {
+      "formula": "=1/0"
+    }
+  },
+  "cases": [
+    {
+      "id": "date-leap",
+      "functions": [
+        "DATE"
+      ],
+      "formula": "=DATE(2024,2,29)",
+      "expected": {
+        "type": "number",
+        "value": 45351
+      }
+    },
+    {
+      "id": "date-roll-month",
+      "functions": [
+        "DATE"
+      ],
+      "formula": "=DATE(2024,13,1)",
+      "expected": {
+        "type": "number",
+        "value": 45658
+      }
+    },
+    {
+      "id": "date-roll-day",
+      "functions": [
+        "DATE"
+      ],
+      "formula": "=DATE(2023,2,29)",
+      "expected": {
+        "type": "number",
+        "value": 44986
+      }
+    },
+    {
+      "id": "date-negative-year",
+      "functions": [
+        "DATE"
+      ],
+      "formula": "=DATE(-1,1,1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "year-reference",
+      "functions": [
+        "YEAR"
+      ],
+      "formula": "=YEAR(B1)",
+      "expected": {
+        "type": "number",
+        "value": 2024
+      }
+    },
+    {
+      "id": "year-date-formula",
+      "functions": [
+        "YEAR"
+      ],
+      "formula": "=YEAR(DATE(2024,12,31))",
+      "expected": {
+        "type": "number",
+        "value": 2024
+      }
+    },
+    {
+      "id": "year-negative",
+      "functions": [
+        "YEAR"
+      ],
+      "formula": "=YEAR(-1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "month-reference",
+      "functions": [
+        "MONTH"
+      ],
+      "formula": "=MONTH(B1)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "month-date-formula",
+      "functions": [
+        "MONTH"
+      ],
+      "formula": "=MONTH(DATE(2024,12,31))",
+      "expected": {
+        "type": "number",
+        "value": 12
+      }
+    },
+    {
+      "id": "month-negative",
+      "functions": [
+        "MONTH"
+      ],
+      "formula": "=MONTH(-1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "edate-leap-clamp",
+      "functions": [
+        "EDATE"
+      ],
+      "formula": "=EDATE(DATE(2024,1,31),1)",
+      "expected": {
+        "type": "number",
+        "value": 45351
+      }
+    },
+    {
+      "id": "edate-back",
+      "functions": [
+        "EDATE"
+      ],
+      "formula": "=EDATE(B1,-1)",
+      "expected": {
+        "type": "number",
+        "value": 45261
+      }
+    },
+    {
+      "id": "edate-truncated-month",
+      "functions": [
+        "EDATE"
+      ],
+      "formula": "=EDATE(B1,1.9)",
+      "expected": {
+        "type": "number",
+        "value": 45323
+      }
+    },
+    {
+      "id": "edate-bad-date",
+      "functions": [
+        "EDATE"
+      ],
+      "formula": "=EDATE(\"bad\",1)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "eomonth-leap",
+      "functions": [
+        "EOMONTH"
+      ],
+      "formula": "=EOMONTH(B1,1)",
+      "expected": {
+        "type": "number",
+        "value": 45351
+      }
+    },
+    {
+      "id": "eomonth-back",
+      "functions": [
+        "EOMONTH"
+      ],
+      "formula": "=EOMONTH(DATE(2024,2,29),-1)",
+      "expected": {
+        "type": "number",
+        "value": 45322
+      }
+    },
+    {
+      "id": "eomonth-negative-date",
+      "functions": [
+        "EOMONTH"
+      ],
+      "formula": "=EOMONTH(-1,0)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "median-scalar",
+      "functions": [
+        "MEDIAN"
+      ],
+      "formula": "=MEDIAN(1,3,2)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "median-even-range",
+      "functions": [
+        "MEDIAN"
+      ],
+      "formula": "=MEDIAN(A1:A4)",
+      "expected": {
+        "type": "number",
+        "value": 2.5
+      }
+    },
+    {
+      "id": "median-empty",
+      "functions": [
+        "MEDIAN"
+      ],
+      "formula": "=MEDIAN(Z1:Z2)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "median-error",
+      "functions": [
+        "MEDIAN"
+      ],
+      "formula": "=MEDIAN(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "percentile.inc-quarter",
+      "functions": [
+        "PERCENTILE.INC"
+      ],
+      "formula": "=PERCENTILE.INC(A1:A4,0.25)",
+      "expected": {
+        "type": "number",
+        "value": 1.75
+      }
+    },
+    {
+      "id": "percentile.inc-zero",
+      "functions": [
+        "PERCENTILE.INC"
+      ],
+      "formula": "=PERCENTILE.INC(A1:A4,0)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "percentile.inc-one",
+      "functions": [
+        "PERCENTILE.INC"
+      ],
+      "formula": "=PERCENTILE.INC(A1:A4,1)",
+      "expected": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    {
+      "id": "percentile.inc-invalid",
+      "functions": [
+        "PERCENTILE.INC"
+      ],
+      "formula": "=PERCENTILE.INC(A1:A4,1.1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "percentile.exc-quarter",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,0.25)",
+      "expected": {
+        "type": "number",
+        "value": 1.25
+      }
+    },
+    {
+      "id": "percentile.exc-minimum-rank",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,0.2)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "percentile.exc-maximum-rank",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,0.8)",
+      "expected": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    {
+      "id": "percentile.exc-zero",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,0)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "percentile.exc-one",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "percentile.exc-outside-rank",
+      "functions": [
+        "PERCENTILE.EXC"
+      ],
+      "formula": "=PERCENTILE.EXC(A1:A4,0.1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "percentile-legacy-alias",
+      "functions": [
+        "PERCENTILE"
+      ],
+      "formula": "=PERCENTILE(A1:A4,0.25)",
+      "expected": {
+        "type": "number",
+        "value": 1.75
+      }
+    },
+    {
+      "id": "percentile-zero",
+      "functions": [
+        "PERCENTILE"
+      ],
+      "formula": "=PERCENTILE(A1:A4,0)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "percentile-invalid",
+      "functions": [
+        "PERCENTILE"
+      ],
+      "formula": "=PERCENTILE(A1:A4,-0.1)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "quartile.inc-quarter",
+      "functions": [
+        "QUARTILE.INC"
+      ],
+      "formula": "=QUARTILE.INC(A1:A4,1)",
+      "expected": {
+        "type": "number",
+        "value": 1.75
+      }
+    },
+    {
+      "id": "quartile.inc-median",
+      "functions": [
+        "QUARTILE.INC"
+      ],
+      "formula": "=QUARTILE.INC(A1:A4,2)",
+      "expected": {
+        "type": "number",
+        "value": 2.5
+      }
+    },
+    {
+      "id": "quartile.inc-min",
+      "functions": [
+        "QUARTILE.INC"
+      ],
+      "formula": "=QUARTILE.INC(A1:A4,0)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "quartile.inc-max",
+      "functions": [
+        "QUARTILE.INC"
+      ],
+      "formula": "=QUARTILE.INC(A1:A4,4)",
+      "expected": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    {
+      "id": "quartile.inc-invalid",
+      "functions": [
+        "QUARTILE.INC"
+      ],
+      "formula": "=QUARTILE.INC(A1:A4,5)",
+      "expected": {
+        "type": "error",
+        "value": "#NUM!"
+      }
+    },
+    {
+      "id": "stdev.s-scalar",
+      "functions": [
+        "STDEV.S"
+      ],
+      "formula": "=STDEV.S(1,2,3)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "stdev.s-one-value",
+      "functions": [
+        "STDEV.S"
+      ],
+      "formula": "=STDEV.S(A1)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "stdev.s-error",
+      "functions": [
+        "STDEV.S"
+      ],
+      "formula": "=STDEV.S(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "stdev.p-one-value",
+      "functions": [
+        "STDEV.P"
+      ],
+      "formula": "=STDEV.P(A1)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "stdev.p-empty",
+      "functions": [
+        "STDEV.P"
+      ],
+      "formula": "=STDEV.P(Z1:Z2)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "stdev.p-error",
+      "functions": [
+        "STDEV.P"
+      ],
+      "formula": "=STDEV.P(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "npv-scalar",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,110,121)",
+      "expected": {
+        "type": "number",
+        "value": 200
+      },
+      "tolerance": 1e-11
+    },
+    {
+      "id": "npv-range",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,C1:C2)",
+      "expected": {
+        "type": "number",
+        "value": 200
+      },
+      "tolerance": 1e-11
+    },
+    {
+      "id": "npv-initial-cost-outside",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,C1:C2)-150",
+      "expected": {
+        "type": "number",
+        "value": 50
+      },
+      "tolerance": 1e-11
+    },
+    {
+      "id": "npv-zero-rate",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0,C1:C2)",
+      "expected": {
+        "type": "number",
+        "value": 231
+      },
+      "tolerance": 1e-11
+    },
+    {
+      "id": "npv-error",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,A9:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "stdev.s-sample-range",
+      "functions": [
+        "STDEV.S"
+      ],
+      "formula": "=STDEV.S(A1:A4)",
+      "expected": {
+        "type": "number",
+        "value": 1.2909944487358056
+      },
+      "tolerance": 1e-14
+    },
+    {
+      "id": "stdev.p-population-range",
+      "functions": [
+        "STDEV.P"
+      ],
+      "formula": "=STDEV.P(A1:A4)",
+      "expected": {
+        "type": "number",
+        "value": 1.118033988749895
+      },
+      "tolerance": 1e-14
+    },
+    {
+      "id": "npv-initial-cost-inside",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,-150,110,121)",
+      "expected": {
+        "type": "number",
+        "value": 45.454545454545425
+      },
+      "tolerance": 1e-11
+    },
+    {
+      "id": "npv-direct-error",
+      "functions": [
+        "NPV"
+      ],
+      "formula": "=NPV(0.1,1/0)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
-export const CONFORMANCE_FAMILIES = ["aggregation-logic", "lookup-text-number"];
+export const CONFORMANCE_FAMILIES = [
+  "aggregation-logic",
+  "lookup-text-number",
+  "date-statistics-finance",
+];
 export async function conformanceFixture(family) {
   const fixture = JSON.parse(
     await readFile(
