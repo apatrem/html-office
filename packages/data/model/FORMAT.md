@@ -68,3 +68,9 @@ Structural input movement is lossless: an insertion that would push populated ce
 ## Sheet navigation
 
 Groups are `{id,name,sheetIds,kind?,collapsed?}`. `kind` is `summary`, `inputs`, `raw`, or `calculations`; it supplies semantic navigation styling. `sheetIds` order controls tab order, while the workbook sheets array retains engine order and stable IDs. Existing custom groups and ungrouped sheets remain readable; navigation derives missing default groups and presents ungrouped sheets under Raw Data until an explicit change saves that organisation. Group collapse/order and moves do not alter calculation inputs or require the engine. Create/rename operations validate new names and calculate before publication; renamed formulas return from IronCalc to JSON. Legacy files whose sheet names start/end with an apostrophe can still be read; new create/rename commands reject those names. All operations participate in history and draft recovery.
+
+## Dropdown and scenario definitions
+
+Optional `validations` contains `{id,sheetId,ref,source}` records. IDs are unique and target rectangles on a sheet cannot overlap. A source is `{kind:"list",values:[typedValue,...]}` or `{kind:"range",sheetId,ref}`. Static lists contain 1–1,000 non-error typed choices; a workbook has at most 1,000 definitions. `ref` uses ordinary A1 ranges or the preserved `#REF!` tombstone. No per-cell metadata duplicates these definitions.
+
+Optional `scenario:{validationId}` points to one single-cell dropdown (or its deleted `#REF!` target). The canonical selector input stores the choice; visible assumption cells hold the alternatives once, and ordinary formulas choose among them in IronCalc. There is no per-scenario workbook or result cache. Dropdown validity and source staleness are derived, never saved as flags.
