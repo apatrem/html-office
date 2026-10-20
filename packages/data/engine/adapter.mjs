@@ -1,6 +1,7 @@
+import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
-import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell} from '../model/workbook.mjs';
+import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
 export function engineInput(cell) {
@@ -46,12 +47,23 @@ export class EngineSession {
       if(cell!==null)validateCell(cell);
       return {index,row,column,ref,cell:structuredClone(cell)};
     });
+    assertScenarioInputs(this.book, edits);
     this.engine.pauseEvaluation();
     try{for(const {index,row,column,ref,cell} of prepared){
       this.engine.setUserInput(index,row,column,cell===null?'':engineInput(cell));
       if(cell===null)delete this.book.sheets[index].cells[ref];
       else this.book.sheets[index].cells[ref]=cell;
     }}finally{this.engine.resumeEvaluation();}
+  }
+  configureValidations(header){
+    if(!header || typeof header !== 'object' || Array.isArray(header) || Object.keys(header).some(k => !['validations','scenario'].includes(k))) throw new Error('Invalid validation header');
+    const next={...this.book};
+    if(header.validations === undefined) delete next.validations;
+    else next.validations=structuredClone(header.validations);
+    if(header.scenario == null) delete next.scenario;
+    else next.scenario=structuredClone(header.scenario);
+    validateValidations(next);
+    this.book=next;
   }
   async structure(command){
     const beforeRefs=structureBeforeRefs(this.book,command),next=shiftWorkbook(this.book,command);

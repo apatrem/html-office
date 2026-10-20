@@ -88,6 +88,76 @@ try {
   console.log(
     "PASS worker typed edit returns only formula results and snapshot",
   );
+  const configured = await page.evaluate(async () => {
+    const client = new Client(
+      JSON.parse(document.querySelector("#engine-config").textContent),
+      document.querySelector("#worker-source").textContent,
+    );
+    const header = {
+      validations: [
+        {
+          id: "scenario",
+          sheetId: "inputs",
+          ref: "B2",
+          source: {
+            kind: "list",
+            values: [100, 140, 200].map((value) => ({ type: "number", value })),
+          },
+        },
+      ],
+      scenario: { validationId: "scenario" },
+    };
+    try {
+      await client.load(
+        readDocument(document.querySelector("#workbook").textContent),
+      );
+      await client.configureValidations(header);
+      await client.edit("inputs", "B2", {
+        input: { type: "number", value: 140 },
+      });
+      const selected = await client.calculate();
+      await client.configureValidations({ validations: [], scenario: null });
+      await client.edit("inputs", "B2", { formula: "=150" });
+      const unrestricted = await client.calculate();
+      let rejected;
+      try {
+        await client.configureValidations(header);
+      } catch (error) {
+        rejected = error.message;
+      }
+      await client.configureValidations({ validations: [], scenario: null });
+      await client.edit("inputs", "B2", {
+        input: { type: "number", value: 200 },
+      });
+      await client.configureValidations(header);
+      const retried = await client.calculate();
+      return { selected, unrestricted, rejected, retried };
+    } finally {
+      client.dispose();
+    }
+  });
+  assert.equal(
+    configured.selected.results.find(
+      (r) => r.sheetId === "summary" && r.ref === "B2",
+    ).result.value,
+    3500,
+  );
+  assert.equal(
+    configured.unrestricted.results.find(
+      (r) => r.sheetId === "summary" && r.ref === "B2",
+    ).result.value,
+    3750,
+  );
+  assert.match(configured.rejected, /selector.*input/i);
+  assert.equal(
+    configured.retried.results.find(
+      (r) => r.sheetId === "summary" && r.ref === "B2",
+    ).result.value,
+    5000,
+  );
+  console.log(
+    "PASS worker synchronizes dropdown metadata without replacing the engine and rejects computed scenario selectors",
+  );
 } finally {
   await browser.close();
 }

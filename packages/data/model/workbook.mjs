@@ -165,6 +165,69 @@ function jsonData(value) {
   }
   fail("Non-JSON data");
 }
+export const MAX_VALIDATIONS = 1000;
+export const MAX_DROPDOWN_VALUES = 1000;
+// Metadata-only validation is also used by editor commands, avoiding a whole-table
+// validation scan when the command only replaces dropdown definitions.
+export function validateValidations(book) {
+  const rules = book.validations === undefined ? [] : book.validations;
+  if (!Array.isArray(rules) || rules.length > MAX_VALIDATIONS)
+    fail("Expected at most 1,000 validation definitions");
+  const ids = new Set(),
+    targets = [],
+    sheetIds = new Set(book.sheets.map((s) => s.id));
+  for (const rule of rules) {
+    fields(rule, ["id", "sheetId", "ref", "source"], "validation");
+    if (!id(rule.id) || ids.has(rule.id) || !sheetIds.has(rule.sheetId))
+      fail("Duplicate/invalid validation ID or sheet");
+    ids.add(rule.id);
+    if (rule.ref !== "#REF!") {
+      const rect = parseRange(rule.ref);
+      for (const previous of targets)
+        if (
+          previous.sheetId === rule.sheetId &&
+          rect.top <= previous.bottom &&
+          rect.bottom >= previous.top &&
+          rect.left <= previous.right &&
+          rect.right >= previous.left
+        )
+          fail("Validation target ranges cannot overlap");
+      targets.push({ ...rect, sheetId: rule.sheetId });
+    }
+    const source = rule.source;
+    if (source?.kind === "list") {
+      fields(source, ["kind", "values"], "validation list");
+      if (
+        !Array.isArray(source.values) ||
+        !source.values.length ||
+        source.values.length > MAX_DROPDOWN_VALUES
+      )
+        fail("Validation lists require 1–1,000 typed choices");
+      for (const value of source.values) {
+        validateValue(value);
+        if (value.type === "error") fail("Validation choices cannot be errors");
+      }
+    } else if (source?.kind === "range") {
+      fields(source, ["kind", "sheetId", "ref"], "validation source");
+      if (!sheetIds.has(source.sheetId))
+        fail("Invalid validation source sheet");
+      if (source.ref !== "#REF!") parseRange(source.ref);
+    } else fail("Invalid validation source kind");
+  }
+  if (book.scenario !== undefined) {
+    fields(book.scenario, ["validationId"], "scenario");
+    const rule = rules.find((r) => r.id === book.scenario.validationId);
+    if (!rule) fail("Scenario requires an existing validation ID");
+    if (rule.ref !== "#REF!") {
+      const target = parseRange(rule.ref);
+      if (target.top !== target.bottom || target.left !== target.right)
+        fail("Scenario selector must be one cell");
+      const sheet = book.sheets.find((s) => s.id === rule.sheetId);
+      if (sheet.cells[address(target.top, target.left)]?.formula)
+        fail("Scenario selector must be an input cell");
+    }
+  }
+}
 export function validateWorkbook(book) {
   jsonData(book);
   fields(
@@ -180,6 +243,8 @@ export function validateWorkbook(book) {
       "names",
       "snapshot",
       "metadata",
+      "validations",
+      "scenario",
     ],
     "workbook",
   );
@@ -253,6 +318,7 @@ export function validateWorkbook(book) {
     named.add(name.name.toLowerCase());
     if (name.ref !== "#REF!") parseRange(name.ref);
   }
+  validateValidations(book);
   if (book.snapshot !== undefined) {
     fields(
       book.snapshot,

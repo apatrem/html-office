@@ -85,6 +85,22 @@ export function shiftWorkbook(book, command) {
       }
       return { ...sheet, cells };
     }),
+    ...(book.validations === undefined
+      ? {}
+      : {
+          validations: book.validations.map((rule) => ({
+            ...rule,
+            ref:
+              rule.sheetId === command.sheetId
+                ? shiftRange(rule.ref, command)
+                : rule.ref,
+            source:
+              rule.source.kind === "range" &&
+              rule.source.sheetId === command.sheetId
+                ? { ...rule.source, ref: shiftRange(rule.source.ref, command) }
+                : rule.source,
+          })),
+        }),
     names: book.names.map((name) =>
       name.sheetId === command.sheetId
         ? { ...name, ref: shiftRange(name.ref, command) }

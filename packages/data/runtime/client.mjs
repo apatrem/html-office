@@ -53,6 +53,14 @@ export class EngineClient {
     this.ready = this.ready.then(() => this.request("editMany", [edits]));
     return this.ready;
   }
+  configureValidations(header) {
+    this.ready = this.ready.then(() =>
+      this.request("configureValidations", [header]),
+    );
+    return this.ready.then((result) => {
+      if (!result.applied) throw new Error(result.message);
+    });
+  }
   async structure(command) {
     await this.ready;
     return this.request("structure", [command]);

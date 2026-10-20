@@ -1,3 +1,4 @@
+import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from "../model/organization.mjs";
 import { compactInputs } from "./literals.mjs";
 import { setupSheetNavigation } from "./sheets.mjs";
@@ -175,6 +176,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
           throw new Error("Unknown sheet ID");
         if (edit.cell !== null) validateCell(edit.cell);
       }
+      assertScenarioInputs(book, edits);
       if (!edits.length) return;
     } else edits = [];
     loading = controller;
