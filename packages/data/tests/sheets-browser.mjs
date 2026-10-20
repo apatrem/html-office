@@ -208,7 +208,7 @@ try {
   const offline = await browser.newContext({ acceptDownloads: true }),
     p = await offline.newPage(),
     requests = [];
-  await offline.route("https://**", (r) => {
+  await offline.route(/^https?:\/\//, (r) => {
     requests.push(r.request().url());
     return r.abort();
   });
