@@ -5,6 +5,7 @@ import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
+import { setupClipboard } from "./clipboard.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
 const $ = (id) => document.getElementById(id);
 let book = readModel($("workbook").textContent),
@@ -111,7 +112,11 @@ function render() {
   $("recalculate").disabled = !!loading;
   $("cancel").disabled = !loading;
   $("save").disabled = false;
+  $("retry-range").hidden = !pendingEdits.some((edit) => edit.range);
+  $("retry-range").disabled = !!loading;
   $("decimals").disabled = !!loading;
+  for (const id of ["paste-table", "fill-down", "fill-right"])
+    $(id).disabled = !!loading;
   for (const field of document.querySelectorAll(".fields input,.fields select"))
     field.disabled = !!loading;
 }
@@ -237,7 +242,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         session = null;
       }
       status(
-        `${error.message} Your attempted edit remains in the form; retry Apply edit.`,
+        `${error.message} ${pendingEdits.some((edit) => edit.range) ? "The attempted range is retained; use Retry pending range or Save a copy." : "Your attempted edit remains in the form; retry Apply edit."}`,
       );
     }
   } finally {
@@ -248,6 +253,20 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
   }
 }
 $("apply").onclick = apply;
+$("retry-range").onclick = () => {
+  if (!pendingEdits.length || loading) return;
+  const edits = structuredClone(pendingEdits),
+    first = edits[0],
+    last = edits.at(-1);
+  void apply({
+    edits,
+    selectionAfter: {
+      sheetId: first.sheetId,
+      anchor: first.ref,
+      focus: last.ref,
+    },
+  });
+};
 $("cell-value").addEventListener("keydown", async (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -287,7 +306,9 @@ $("cancel").onclick = () => {
   session = null;
   render();
   status(
-    "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
+    pendingEdits.some((edit) => edit.range)
+      ? "Calculation cancelled. Your attempted range is retained; use Retry pending range or Save a copy."
+      : "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
   );
 };
 async function moveHistory(direction) {
@@ -388,6 +409,14 @@ $("decimals").onclick = () => {
   status("Formatting changed. Unsaved changes.");
 };
 
+setupClipboard({
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  getSelection: () => grid.selection,
+  busy: () => !!loading,
+  apply,
+  status,
+  cancel: () => $("cancel").click(),
+});
 render();
 choose(selected);
 const initialRevision = revisions.revision;
