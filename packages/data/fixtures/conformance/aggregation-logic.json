@@ -1,0 +1,1192 @@
+{
+  "family": "aggregation-logic",
+  "provenance": {
+    "method": "Independent small fixtures with expected results hand-derived from the linked Microsoft function definitions; not measured in Excel and never copied from IronCalc output. Exact typed expectations are frozen; discrepancies fail the suite.",
+    "sources": [
+      "https://support.microsoft.com/en-us/excel/excel-functions-alphabetical",
+      "https://support.microsoft.com/en-us/excel/functions/sum-function",
+      "https://support.microsoft.com/en-us/excel/functions/sumif-function",
+      "https://support.microsoft.com/en-us/excel/functions/sumifs-function",
+      "https://support.microsoft.com/en-us/excel/ways-to-count-values-in-a-worksheet",
+      "https://support.microsoft.com/en-us/excel/functions/averageifs-function",
+      "https://support.microsoft.com/en-us/excel/functions/subtotal-function",
+      "https://support.microsoft.com/en-us/excel/functions/if-function",
+      "https://support.microsoft.com/en-us/excel/functions/ifs-function",
+      "https://support.microsoft.com/en-us/excel/functions/iferror-function",
+      "https://support.microsoft.com/en-us/excel/functions/ifna-function",
+      "https://support.microsoft.com/en-gb/excel/functions/countifs-function",
+      "https://support.microsoft.com/en-us/excel/detect-formula-errors-in-excel",
+      "https://support.microsoft.com/en-us/excel/functions/and-function",
+      "https://support.microsoft.com/en-us/excel/functions/or-function",
+      "https://en.itu.dk/-/media/EN/Research/About-ITU-Research/Technical-Reports/2011/ITUTR2011142pdf.pdf#page=157"
+    ],
+    "checked": "2026-10-20"
+  },
+  "inputs": {
+    "A1": {
+      "input": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    "A2": {
+      "input": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    "A3": {
+      "input": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    "A4": {
+      "input": {
+        "type": "text",
+        "value": "4"
+      }
+    },
+    "A7": {
+      "input": {
+        "type": "text",
+        "value": ""
+      }
+    },
+    "A8": {
+      "input": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    "A6": {
+      "input": {
+        "type": "blank"
+      }
+    },
+    "A9": {
+      "formula": "=1/0"
+    },
+    "A10": {
+      "formula": "=\"\""
+    },
+    "B1": {
+      "input": {
+        "type": "text",
+        "value": "apple"
+      }
+    },
+    "B2": {
+      "input": {
+        "type": "text",
+        "value": "pear"
+      }
+    },
+    "B3": {
+      "input": {
+        "type": "text",
+        "value": "apple"
+      }
+    },
+    "B4": {
+      "input": {
+        "type": "text",
+        "value": "*"
+      }
+    },
+    "B5": {
+      "input": {
+        "type": "text",
+        "value": ""
+      }
+    },
+    "C1": {
+      "input": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    "C2": {
+      "input": {
+        "type": "number",
+        "value": 20
+      }
+    },
+    "C3": {
+      "input": {
+        "type": "number",
+        "value": 30
+      }
+    },
+    "C4": {
+      "input": {
+        "type": "number",
+        "value": 40
+      }
+    },
+    "C5": {
+      "input": {
+        "type": "number",
+        "value": 50
+      }
+    },
+    "C6": {
+      "input": {
+        "type": "number",
+        "value": 60
+      }
+    },
+    "D1": {
+      "input": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    "D2": {
+      "input": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    "D3": {
+      "input": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    "D4": {
+      "input": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    "D5": {
+      "input": {
+        "type": "number",
+        "value": 5
+      }
+    },
+    "D6": {
+      "input": {
+        "type": "number",
+        "value": 6
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "sum-scalar",
+      "functions": [
+        "SUM"
+      ],
+      "formula": "=SUM(1,2,3)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "sum-mixed-range",
+      "functions": [
+        "SUM"
+      ],
+      "formula": "=SUM(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "sum-empty",
+      "functions": [
+        "SUM"
+      ],
+      "formula": "=SUM(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "sum-propagates-error",
+      "functions": [
+        "SUM"
+      ],
+      "formula": "=SUM(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "count-scalar",
+      "functions": [
+        "COUNT"
+      ],
+      "formula": "=COUNT(1,\"2\",TRUE)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "count-mixed-range",
+      "functions": [
+        "COUNT"
+      ],
+      "formula": "=COUNT(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "count-empty",
+      "functions": [
+        "COUNT"
+      ],
+      "formula": "=COUNT(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "counta-scalar",
+      "functions": [
+        "COUNTA"
+      ],
+      "formula": "=COUNTA(1,\"\",FALSE)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "counta-mixed-range",
+      "functions": [
+        "COUNTA"
+      ],
+      "formula": "=COUNTA(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "counta-empty",
+      "functions": [
+        "COUNTA"
+      ],
+      "formula": "=COUNTA(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "average-scalar",
+      "functions": [
+        "AVERAGE"
+      ],
+      "formula": "=AVERAGE(1,2,3)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "average-mixed-range",
+      "functions": [
+        "AVERAGE"
+      ],
+      "formula": "=AVERAGE(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "average-empty",
+      "functions": [
+        "AVERAGE"
+      ],
+      "formula": "=AVERAGE(Z1:Z2)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "average-propagates-error",
+      "functions": [
+        "AVERAGE"
+      ],
+      "formula": "=AVERAGE(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "min-scalar",
+      "functions": [
+        "MIN"
+      ],
+      "formula": "=MIN(3,2,1)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "min-mixed-range",
+      "functions": [
+        "MIN"
+      ],
+      "formula": "=MIN(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "min-empty",
+      "functions": [
+        "MIN"
+      ],
+      "formula": "=MIN(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "min-propagates-error",
+      "functions": [
+        "MIN"
+      ],
+      "formula": "=MIN(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "max-scalar",
+      "functions": [
+        "MAX"
+      ],
+      "formula": "=MAX(3,2,1)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "max-mixed-range",
+      "functions": [
+        "MAX"
+      ],
+      "formula": "=MAX(A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "max-empty",
+      "functions": [
+        "MAX"
+      ],
+      "formula": "=MAX(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "max-propagates-error",
+      "functions": [
+        "MAX"
+      ],
+      "formula": "=MAX(A1:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "counta-formula-empty-and-error",
+      "functions": [
+        "COUNTA"
+      ],
+      "formula": "=COUNTA(A1:A10)",
+      "expected": {
+        "type": "number",
+        "value": 8
+      }
+    },
+    {
+      "id": "countblank-mixed-range",
+      "functions": [
+        "COUNTBLANK"
+      ],
+      "formula": "=COUNTBLANK(A1:A10)",
+      "expected": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    {
+      "id": "countblank-empty-range",
+      "functions": [
+        "COUNTBLANK"
+      ],
+      "formula": "=COUNTBLANK(Z1:Z2)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "countblank-numbers",
+      "functions": [
+        "COUNTBLANK"
+      ],
+      "formula": "=COUNTBLANK(D1:D3)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "sumif-26",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B3,\"apple\",C1:C3)",
+      "expected": {
+        "type": "number",
+        "value": 40
+      }
+    },
+    {
+      "id": "sumif-27",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(D1:D3,\">1\")",
+      "expected": {
+        "type": "number",
+        "value": 5
+      }
+    },
+    {
+      "id": "sumif-28",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B6,\"\",C1:C6)",
+      "expected": {
+        "type": "number",
+        "value": 110
+      }
+    },
+    {
+      "id": "sumif-29",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B4,\"~*\",C1:C4)",
+      "expected": {
+        "type": "number",
+        "value": 40
+      }
+    },
+    {
+      "id": "sumif-30",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B3,\"missing\",C1:C3)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "sumifs-31",
+      "functions": [
+        "SUMIFS"
+      ],
+      "formula": "=SUMIFS(C1:C3,B1:B3,\"apple\",D1:D3,\">1\")",
+      "expected": {
+        "type": "number",
+        "value": 30
+      }
+    },
+    {
+      "id": "sumifs-32",
+      "functions": [
+        "SUMIFS"
+      ],
+      "formula": "=SUMIFS(C1:C3,B1:B3,\"missing\")",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "sumifs-33",
+      "functions": [
+        "SUMIFS"
+      ],
+      "formula": "=SUMIFS(C1:C3,B1:B2,\"apple\")",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "countif-34",
+      "functions": [
+        "COUNTIF"
+      ],
+      "formula": "=COUNTIF(D1:D3,\">=2\")",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "countif-35",
+      "functions": [
+        "COUNTIF"
+      ],
+      "formula": "=COUNTIF(B1:B6,\"\")",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "countif-36",
+      "functions": [
+        "COUNTIF"
+      ],
+      "formula": "=COUNTIF(B1:B4,\"~*\")",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "countif-37",
+      "functions": [
+        "COUNTIF"
+      ],
+      "formula": "=COUNTIF(B1:B3,\"missing\")",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "countifs-38",
+      "functions": [
+        "COUNTIFS"
+      ],
+      "formula": "=COUNTIFS(B1:B3,\"apple\",D1:D3,\">1\")",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "countifs-39",
+      "functions": [
+        "COUNTIFS"
+      ],
+      "formula": "=COUNTIFS(B1:B3,\"missing\")",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "countifs-40",
+      "functions": [
+        "COUNTIFS"
+      ],
+      "formula": "=COUNTIFS(B1:B3,\"apple\",D1:D2,\">1\")",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "averageif-41",
+      "functions": [
+        "AVERAGEIF"
+      ],
+      "formula": "=AVERAGEIF(B1:B3,\"apple\",C1:C3)",
+      "expected": {
+        "type": "number",
+        "value": 20
+      }
+    },
+    {
+      "id": "averageif-42",
+      "functions": [
+        "AVERAGEIF"
+      ],
+      "formula": "=AVERAGEIF(D1:D3,\">1\")",
+      "expected": {
+        "type": "number",
+        "value": 2.5
+      }
+    },
+    {
+      "id": "averageif-43",
+      "functions": [
+        "AVERAGEIF"
+      ],
+      "formula": "=AVERAGEIF(B1:B3,\"missing\",C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "averageifs-44",
+      "functions": [
+        "AVERAGEIFS"
+      ],
+      "formula": "=AVERAGEIFS(C1:C3,B1:B3,\"apple\",D1:D3,\">1\")",
+      "expected": {
+        "type": "number",
+        "value": 30
+      }
+    },
+    {
+      "id": "averageifs-45",
+      "functions": [
+        "AVERAGEIFS"
+      ],
+      "formula": "=AVERAGEIFS(C1:C3,B1:B3,\"missing\")",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "averageifs-46",
+      "functions": [
+        "AVERAGEIFS"
+      ],
+      "formula": "=AVERAGEIFS(C1:C3,B1:B2,\"apple\")",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "subtotal-sum",
+      "functions": [
+        "SUBTOTAL"
+      ],
+      "formula": "=SUBTOTAL(9,D1:D3)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "subtotal-average",
+      "functions": [
+        "SUBTOTAL"
+      ],
+      "formula": "=SUBTOTAL(1,D1:D3)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "subtotal-count",
+      "functions": [
+        "SUBTOTAL"
+      ],
+      "formula": "=SUBTOTAL(2,A1:A8)",
+      "expected": {
+        "type": "number",
+        "value": 3
+      }
+    },
+    {
+      "id": "subtotal-invalid-function",
+      "functions": [
+        "SUBTOTAL"
+      ],
+      "formula": "=SUBTOTAL(0,D1:D3)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "subtotal-ignores-nested",
+      "functions": [
+        "SUBTOTAL"
+      ],
+      "formula": "=SUBTOTAL(9,D1:D4)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      },
+      "inputs": {
+        "D4": {
+          "formula": "=SUBTOTAL(9,D1:D3)"
+        }
+      }
+    },
+    {
+      "id": "if-scalar",
+      "functions": [
+        "IF"
+      ],
+      "formula": "=IF(TRUE,7,9)",
+      "expected": {
+        "type": "number",
+        "value": 7
+      }
+    },
+    {
+      "id": "if-range-dependency",
+      "functions": [
+        "IF"
+      ],
+      "formula": "=IF(D1>0,SUM(D1:D3),0)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "if-lazy-error",
+      "functions": [
+        "IF"
+      ],
+      "formula": "=IF(TRUE,7,1/0)",
+      "expected": {
+        "type": "number",
+        "value": 7
+      }
+    },
+    {
+      "id": "if-condition-error",
+      "functions": [
+        "IF"
+      ],
+      "formula": "=IF(1/0,7,9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "ifs-first-match",
+      "functions": [
+        "IFS"
+      ],
+      "formula": "=IFS(TRUE,7,TRUE,9)",
+      "expected": {
+        "type": "number",
+        "value": 7
+      }
+    },
+    {
+      "id": "ifs-range-condition",
+      "functions": [
+        "IFS"
+      ],
+      "formula": "=IFS(D1>2,0,D2>1,SUM(D1:D3))",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "ifs-no-match",
+      "functions": [
+        "IFS"
+      ],
+      "formula": "=IFS(FALSE,1)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "ifs-condition-error",
+      "functions": [
+        "IFS"
+      ],
+      "formula": "=IFS(1/0,1)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "and-scalar",
+      "functions": [
+        "AND"
+      ],
+      "formula": "=AND(TRUE,1,0)",
+      "expected": {
+        "type": "boolean",
+        "value": false
+      }
+    },
+    {
+      "id": "and-range",
+      "functions": [
+        "AND"
+      ],
+      "formula": "=AND(D1:D3)",
+      "expected": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "and-propagates-error",
+      "functions": [
+        "AND"
+      ],
+      "formula": "=AND(FALSE,1/0)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "or-scalar",
+      "functions": [
+        "OR"
+      ],
+      "formula": "=OR(FALSE,0,2)",
+      "expected": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "or-range",
+      "functions": [
+        "OR"
+      ],
+      "formula": "=OR(D1:D3)",
+      "expected": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "or-propagates-error",
+      "functions": [
+        "OR"
+      ],
+      "formula": "=OR(TRUE,1/0)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "not-scalar",
+      "functions": [
+        "NOT"
+      ],
+      "formula": "=NOT(0)",
+      "expected": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    {
+      "id": "not-reference",
+      "functions": [
+        "NOT"
+      ],
+      "formula": "=NOT(D1)",
+      "expected": {
+        "type": "boolean",
+        "value": false
+      }
+    },
+    {
+      "id": "not-bad-type",
+      "functions": [
+        "NOT"
+      ],
+      "formula": "=NOT(\"text\")",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "iferror-value",
+      "functions": [
+        "IFERROR"
+      ],
+      "formula": "=IFERROR(5,\"fallback\")",
+      "expected": {
+        "type": "number",
+        "value": 5
+      }
+    },
+    {
+      "id": "iferror-reference-error",
+      "functions": [
+        "IFERROR"
+      ],
+      "formula": "=IFERROR(A9,\"fallback\")",
+      "expected": {
+        "type": "text",
+        "value": "fallback"
+      }
+    },
+    {
+      "id": "iferror-na",
+      "functions": [
+        "IFERROR"
+      ],
+      "formula": "=IFERROR(NA(),0)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "ifna-value",
+      "functions": [
+        "IFNA"
+      ],
+      "formula": "=IFNA(D1,0)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "ifna-na",
+      "functions": [
+        "IFNA"
+      ],
+      "formula": "=IFNA(NA(),0)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "ifna-other-error",
+      "functions": [
+        "IFNA"
+      ],
+      "formula": "=IFNA(A9,0)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "sumif-criterion-error",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B3,NA(),C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "sumifs-criterion-error",
+      "functions": [
+        "SUMIFS"
+      ],
+      "formula": "=SUMIFS(C1:C3,B1:B3,NA())",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "countif-criterion-error",
+      "functions": [
+        "COUNTIF"
+      ],
+      "formula": "=COUNTIF(B1:B3,NA())",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "countifs-criterion-error",
+      "functions": [
+        "COUNTIFS"
+      ],
+      "formula": "=COUNTIFS(B1:B3,NA())",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "averageif-criterion-error",
+      "functions": [
+        "AVERAGEIF"
+      ],
+      "formula": "=AVERAGEIF(B1:B3,NA(),C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "averageifs-criterion-error",
+      "functions": [
+        "AVERAGEIFS"
+      ],
+      "formula": "=AVERAGEIFS(C1:C3,B1:B3,NA())",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "sumif-resize-single-range",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B3,\"apple\",C1)",
+      "expected": {
+        "type": "number",
+        "value": 40
+      }
+    },
+    {
+      "id": "averageif-resize-single-range",
+      "functions": [
+        "AVERAGEIF"
+      ],
+      "formula": "=AVERAGEIF(B1:B3,\"apple\",C1)",
+      "expected": {
+        "type": "number",
+        "value": 20
+      }
+    },
+    {
+      "id": "dependency-combination",
+      "functions": [
+        "IF",
+        "SUM",
+        "AVERAGE"
+      ],
+      "formula": "=IF('Case 1'!H1=6,SUM(A1:A3)+AVERAGE(D1:D3),0)",
+      "expected": {
+        "type": "number",
+        "value": 8
+      }
+    },
+    {
+      "id": "cycle-error",
+      "functions": [],
+      "inputs": {
+        "F1": {
+          "formula": "=F2"
+        },
+        "F2": {
+          "formula": "=F1"
+        }
+      },
+      "formula": "=F1",
+      "expected": {
+        "type": "error",
+        "value": "#CIRC!"
+      }
+    },
+    {
+      "id": "if-incorrect-arity",
+      "functions": [
+        "IF"
+      ],
+      "formula": "=IF()",
+      "expected": {
+        "type": "error",
+        "value": "#ERROR!"
+      }
+    },
+    {
+      "id": "sumif-incorrect-arity",
+      "functions": [
+        "SUMIF"
+      ],
+      "formula": "=SUMIF(B1:B3)",
+      "expected": {
+        "type": "error",
+        "value": "#ERROR!"
+      }
+    },
+    {
+      "id": "sumif-range-error-criterion",
+      "functions": [
+        "SUMIF"
+      ],
+      "inputs": {
+        "E1": {
+          "formula": "=NA()"
+        },
+        "E2": {
+          "input": {
+            "type": "text",
+            "value": "apple"
+          }
+        }
+      },
+      "formula": "=SUMIF(B1:B3,E1:E2,C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "sumif-array-error-criterion",
+      "functions": [
+        "SUMIF"
+      ],
+      "inputs": {
+        "E1": {
+          "formula": "=NA()"
+        },
+        "E2": {
+          "input": {
+            "type": "text",
+            "value": "apple"
+          }
+        }
+      },
+      "formula": "=SUMIF(B1:B3,{#N/A;\"apple\"},C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    }
+  ]
+}

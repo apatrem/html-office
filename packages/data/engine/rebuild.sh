@@ -10,6 +10,7 @@ rust_compiler="${RUSTC:-rustc}"
 git clone --no-checkout https://github.com/ironcalc/IronCalc.git "$source_dir"
 git -C "$source_dir" checkout 297553dc3a37ec6b0f4821055220e3d26c4ac6a1
 git -C "$source_dir" apply "$engine_dir/binding-dependencies.patch"
+git -C "$source_dir" apply "$engine_dir/formula-compatibility.patch"
 cp "$engine_dir/typed-binding.rs" "$source_dir/bindings/wasm/src/lib.rs"
 cp "$engine_dir/Cargo.lock" "$source_dir/Cargo.lock"
 cd "$source_dir"

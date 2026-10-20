@@ -5,10 +5,18 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { buildWorkbook, measureHTML } from "../tools/build.mjs";
 import { pnl } from "../fixtures/generate.mjs";
+import { ENGINE } from "../engine/identity.mjs";
 test("pinned executable digests and retained notices match committed artifacts", async () => {
   const base = new URL("../engine/", import.meta.url),
     manifest = JSON.parse(await readFile(new URL("manifest.json", base)));
   assert.match(manifest.artifactCommit, /^[a-f0-9]{40}$/);
+  assert.equal(manifest.version, ENGINE);
+  assert.equal(
+    createHash("sha256")
+      .update(await readFile(new URL("formula-compatibility.patch", base)))
+      .digest("hex"),
+    manifest.compatibilityPatchSha256,
+  );
   for (const [kind, file] of [
     ["js", "ironcalc.mjs"],
     ["wasm", "ironcalc.wasm"],

@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { ENGINE } from "../engine/identity.mjs";
 const root = new URL("../engine/", import.meta.url);
 const commit = execFileSync(
   "git",
@@ -8,9 +9,12 @@ const commit = execFileSync(
   { encoding: "utf8" },
 ).trim();
 const manifest = {
-  version: "ironcalc/0.9.0+html-office-typed.1",
+  version: ENGINE,
   sourceCommit: "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
   artifactCommit: commit,
+  compatibilityPatchSha256: createHash("sha256")
+    .update(await readFile(new URL("formula-compatibility.patch", root)))
+    .digest("hex"),
 };
 for (const [name, file] of [
   ["js", "ironcalc.mjs"],

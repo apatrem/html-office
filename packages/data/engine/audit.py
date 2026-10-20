@@ -41,7 +41,7 @@ for i,pre in enumerate(re.findall(r'<pre>(.*?)</pre>',s,re.S)):
     retain(f'Rust 1.95.0 standard-library notice {i+1}',html.unescape(re.sub('<[^>]+>','',pre)))
 for name in ['MIT.txt','Apache-2.0.txt','Unicode-3.0.txt','BSD-2-Clause.txt','LLVM-exception.txt']:
     retain('Rust 1.95.0 '+name,(sysroot/'share/doc/rust/licenses'/name).read_text())
-notices='HTML Office typed IronCalc build — third-party notices\n\nIronCalc 0.9.0 source commit 297553dc3a37ec6b0f4821055220e3d26c4ac6a1; narrow custom WASM binding exposes getCellValue (see typed-binding.rs). No calculation semantics are intentionally changed.\n\n'
+notices='HTML Office typed IronCalc build — third-party notices\n\nIronCalc 0.9.0 source commit 297553dc3a37ec6b0f4821055220e3d26c4ac6a1; narrow custom WASM binding exposes getCellValue (see typed-binding.rs). The explicit formula-compatibility.patch intentionally corrects documented formula edge cases; see docs/decisions/006-formula-compatibility-patches.md and engine/REBUILD.md.\n\n'
 for digest,item in sorted(texts.items()): notices+='\n'.join(item['labels'])+'\n'+item['text']+'\n'
 (output/'THIRD-PARTY-NOTICES.txt').write_text(notices)
 report={'sourceCommit':'297553dc3a37ec6b0f4821055220e3d26c4ac6a1','target':'wasm32-unknown-unknown','features':'wasm default; no xlsx','rust':'1.95.0','wasmBindgen':'0.2.126','binaryen':'132.0.0','closure':'normal + build dependencies; proc-macro/build crates conservatively included; dev-only and other target dependencies excluded','packages':packages,'stdlibCopyrightSha256':hashlib.sha256(stdlib.read_bytes()).hexdigest(),'noticeBytes':len(notices.encode()),'noticesSha256':hashlib.sha256(notices.encode()).hexdigest()}
