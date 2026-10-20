@@ -12,7 +12,7 @@ export function captureCells(book, refs) {
       sheetId,
       ref,
       cell: structuredClone(
-        book.sheets.find((s) => s.id === sheetId).cells[ref] ?? null,
+        book.sheets.find((s) => s.id === sheetId)?.cells[ref] ?? null,
       ),
     }));
 }

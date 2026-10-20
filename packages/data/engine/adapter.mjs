@@ -1,3 +1,4 @@
+import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
@@ -66,6 +67,17 @@ export class EngineSession {
     // Rebind canonical names: the engine does not reliably relocate them itself.
     this.load(next);
     return {...await this.calculateDelta(),formulas,beforeRefs};
+  }
+  async organize(command){
+    const next=organizeWorkbook(this.book,command),beforeRefs=[],formulas=[];
+    if(command.type==='rename')this.engine.renameSheet(this.book.sheets.findIndex(s=>s.id===command.sheetId),command.name);
+    next.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){
+      beforeRefs.push({sheetId:sheet.id,ref});
+      const {row,column}=parseAddress(ref),formula=command.type==='rename'?this.engine.getCellContent(i,row,column):cell.formula;
+      validateCell({...cell,formula});sheet.cells[ref]={...cell,formula};formulas.push({sheetId:sheet.id,ref,formula});
+    }});
+    this.load(next);
+    return {...await this.calculateDelta(),beforeRefs,formulas};
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);

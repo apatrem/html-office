@@ -57,6 +57,10 @@ export class EngineClient {
     await this.ready;
     return this.request("structure", [command]);
   }
+  async organize(command) {
+    await this.ready;
+    return this.request("organize", [command]);
+  }
   async calculate() {
     await this.ready;
     return this.request("calculate", []);

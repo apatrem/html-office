@@ -1,4 +1,5 @@
 import { jsonStringify } from "./json.mjs";
+import { validateSheetName } from "./organization.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
@@ -199,6 +200,7 @@ export function validateWorkbook(book) {
     fields(sheet, ["id", "name", "cells", "metadata"], "sheet");
     if (!id(sheet.id) || ids.has(sheet.id)) fail("Duplicate/invalid sheet ID");
     ids.add(sheet.id);
+    validateSheetName(sheet.name, [], sheet.id);
     if (
       typeof sheet.name !== "string" ||
       !sheet.name.trim() ||
@@ -219,7 +221,7 @@ export function validateWorkbook(book) {
   const groupIds = new Set(),
     grouped = new Set();
   for (const group of book.groups) {
-    fields(group, ["id", "name", "sheetIds"], "group");
+    fields(group, ["id", "name", "sheetIds", "kind", "collapsed"], "group");
     if (
       !id(group.id) ||
       groupIds.has(group.id) ||
@@ -227,6 +229,13 @@ export function validateWorkbook(book) {
       !Array.isArray(group.sheetIds)
     )
       fail("Invalid group");
+    if (
+      group.kind !== undefined &&
+      !["summary", "inputs", "raw", "calculations"].includes(group.kind)
+    )
+      fail("Invalid group kind");
+    if (group.collapsed !== undefined && typeof group.collapsed !== "boolean")
+      fail("Invalid collapsed state");
     groupIds.add(group.id);
     for (const sheetId of group.sheetIds) {
       if (!ids.has(sheetId) || grouped.has(sheetId))

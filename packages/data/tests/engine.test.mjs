@@ -11,6 +11,58 @@ await init({
 const book = JSON.parse(
   await readFile(new URL("../fixtures/two-sheets.json", import.meta.url)),
 );
+test("sheet creation and quoted renames return canonical formulas and survive a fresh engine load", async () => {
+  const session = new EngineSession({ Model }),
+    source = structuredClone(book);
+  source.names = [{ name: "Participants", sheetId: "inputs", ref: "B2" }];
+  source.sheets[1].cells.C2 = { formula: "=Participants+Inputs!B3" };
+  try {
+    session.load(source);
+    const renamed = await session.organize({
+      type: "rename",
+      sheetId: "inputs",
+      name: "Next year's Inputs",
+    });
+    const formula = renamed.formulas.find(
+      (f) => f.sheetId === "summary" && f.ref === "B2",
+    );
+    assert.equal(
+      formula.formula,
+      "='Next year''s Inputs'!B2*'Next year''s Inputs'!B3",
+    );
+    assert.equal(
+      renamed.results.find((r) => r.ref === "B2").result.value,
+      2500,
+    );
+    const fresh = structuredClone(session.book);
+    session.load(fresh);
+    assert.equal(
+      (await session.calculateDelta()).results.find((r) => r.ref === "C2")
+        .result.value,
+      125,
+    );
+    const groupId = session.book.groups.find(
+      (g) => g.kind === "calculations",
+    ).id;
+    await session.organize({
+      type: "create",
+      id: "new_sheet",
+      name: "Forecast",
+      groupId,
+    });
+    assert.equal(session.book.sheets[2].id, "new_sheet");
+    assert.equal(session.book.sheets[0].id, "inputs");
+    session.edit("new_sheet", "A1", { formula: "='Next year''s Inputs'!B2*2" });
+    assert.equal(
+      (await session.calculateDelta()).results.find(
+        (r) => r.sheetId === "new_sheet",
+      ).result.value,
+      200,
+    );
+  } finally {
+    session.dispose();
+  }
+});
 test("raw values retain full precision and distinguish text, errors, Boolean and blank", () => {
   const engine = new Model("types", "en", "UTC", "en");
   try {
