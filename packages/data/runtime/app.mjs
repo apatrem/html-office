@@ -617,7 +617,9 @@ setupClipboard({
 render();
 choose(selected);
 const initialRevision = revisions.revision;
-const initialState = await snapshotState(book);
+const initialState = await persistence.initialSnapshot.catch(() =>
+  snapshotState(book),
+);
 if (revisions.current(initialRevision))
   status(
     initialState.state === "current"

@@ -22,6 +22,11 @@ function shell(doc) {
 export function setupPersistence({ getBook, getPending, restore }) {
   const $ = (id) => document.getElementById(id),
     dirty = new DirtyState();
+  let resolveInitialSnapshot, rejectInitialSnapshot;
+  const initialSnapshot = new Promise((resolve, reject) => {
+    resolveInitialSnapshot = resolve;
+    rejectInitialSnapshot = reject;
+  });
   const originalText = payload(document).textContent;
   const source = Promise.all([
     digestText(originalText),
@@ -74,7 +79,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
       );
   }
   function receive(message) {
-    if (message.kind === "ready") {
+    if (message.kind === "inspected") {
+      resolveInitialSnapshot(message.state);
+    } else if (message.kind === "inspection-failed") {
+      rejectInitialSnapshot(
+        new Error(message.message || "Snapshot verification unavailable"),
+      );
+    } else if (message.kind === "ready") {
       recoveryReady = true;
       $("direct-save").disabled = false;
     } else if (
@@ -90,6 +101,9 @@ export function setupPersistence({ getBook, getPending, restore }) {
           : "Unsaved changes. Recovery stored.",
       );
     else if (message.kind === "error") {
+      rejectInitialSnapshot(
+        new Error(message.message || "Recovery worker unavailable"),
+      );
       recoveryFailed = message.message || "Storage unavailable";
       recoveryReady = true;
       $("direct-save").disabled = false;
@@ -278,6 +292,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
     }
   });
   return {
+    initialSnapshot,
     changed,
     reset() {
       dirty.change();

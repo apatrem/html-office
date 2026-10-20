@@ -1,3 +1,4 @@
+import { snapshotState } from "../model/snapshots.mjs";
 import {
   shiftWorkbook,
   restoreHead,
@@ -19,7 +20,7 @@ const text = await readFile(
   "utf8",
 );
 const flush = () => new Promise((resolve) => setImmediate(resolve));
-function harness(existing) {
+function harness(existing, inspect = snapshotState) {
   let record = existing,
     release,
     held = false,
@@ -39,10 +40,11 @@ function harness(existing) {
   const context = vm.createContext({
     readModel,
     writeModel,
+    snapshotState: inspect,
     draftDatabase: () => database,
     shiftWorkbook,
     restoreHead,
-    self: { postMessage: (message) => events.push(message) },
+    self: { postMessage: (message) => events.push(structuredClone(message)) },
     Date,
     setTimeout: (fn) => {
       timers.set(++timerId, fn);
@@ -52,7 +54,10 @@ function harness(existing) {
   });
   vm.runInContext(source, context);
   return {
-    send: (data) => context.self.onmessage({ data }),
+    send: (data) => {
+      context.self.onmessage({ data });
+      return vm.runInContext("queue", context);
+    },
     get record() {
       return record;
     },
@@ -72,7 +77,7 @@ function harness(existing) {
 }
 test("a clean rebase invalidates an already queued recovery store", async () => {
   const h = harness();
-  h.send({ kind: "init", key: "key", baseHash: "base", text });
+  await h.send({ kind: "init", key: "key", baseHash: "base", text });
   await flush();
   h.send({ kind: "change", revision: 1, edits: [], snapshot: null });
   await flush();
@@ -90,11 +95,11 @@ test("a clean rebase invalidates an already queued recovery store", async () => 
 test("a save never deletes an unresolved recovery record", async () => {
   const existing = { schema: 1, modelText: text, revision: 4 },
     h = harness(existing);
-  h.send({ kind: "init", key: "key", baseHash: "base", text });
+  await h.send({ kind: "init", key: "key", baseHash: "base", text });
   h.send({ kind: "rebase", baseHash: "new", clean: true });
   await flush();
   assert.equal(h.record, existing);
-  assert.equal(h.events[0].kind, "draft");
+  assert.equal(h.events.at(-1).kind, "draft");
 });
 
 test("structural recovery reconciles pending cells before moving references in one change", async () => {
@@ -107,7 +112,7 @@ test("structural recovery reconciles pending cells before moving references in o
       index: 2,
       count: 1,
     };
-  h.send({ kind: "init", key: "key", baseHash: "base", text });
+  await h.send({ kind: "init", key: "key", baseHash: "base", text });
   await flush();
   h.send({
     kind: "change",
@@ -150,4 +155,28 @@ test("structural recovery reconciles pending cells before moving references in o
   assert.equal(recovered.sheets[0].cells.B4.input.value, 25);
   assert.equal(recovered.sheets[1].cells.B2.formula, formula);
   assert.deepEqual(recovered.metadata, source.metadata);
+});
+
+test("initial snapshot inspection is reported before the draft decision", async () => {
+  const h = harness({ schema: 1, modelText: text, revision: 4 });
+  await h.send({ kind: "init", key: "key", baseHash: "base", text });
+  assert.deepEqual(h.events[0], {
+    kind: "inspected",
+    state: await snapshotState(readModel(text)),
+  });
+  assert.equal(h.events[1].kind, "draft");
+});
+
+test("failed snapshot inspection still protects an existing recovery draft", async () => {
+  const existing = { schema: 1, modelText: text, revision: 4 };
+  const h = harness(existing, async () => {
+    throw new Error("Digest unavailable");
+  });
+  await h.send({ kind: "init", key: "key", baseHash: "base", text });
+  await h.send({ kind: "rebase", baseHash: "new", clean: true });
+  assert.equal(h.record, existing);
+  assert.deepEqual(
+    h.events.map((e) => e.kind),
+    ["inspection-failed", "draft"],
+  );
 });

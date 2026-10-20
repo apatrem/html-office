@@ -1,9 +1,9 @@
+import { snapshotState } from "../model/snapshots.mjs";
 import { shiftWorkbook, restoreHead } from "../model/structure.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
 import { draftDatabase } from "./persistence.mjs";
 let database,
   book,
-  seedText,
   key,
   baseHash,
   revision = 0,
@@ -31,17 +31,21 @@ self.onmessage = ({ data }) => {
   queue = queue.then(async () => {
     try {
       if (data.kind === "init") {
+        book = readModel(data.text);
+        try {
+          report({ kind: "inspected", state: await snapshotState(book) });
+        } catch (error) {
+          report({ kind: "inspection-failed", message: error.message });
+        }
         database = draftDatabase();
         key = data.key;
         baseHash = data.baseHash;
-        seedText = data.text;
         const existing = await database.get(key);
         blocked = !!existing;
         if (existing) report({ kind: "draft", record: existing });
         else report({ kind: "ready" });
       } else if (data.kind === "reset") {
         book = readModel(data.text);
-        seedText = null;
         revision = data.revision;
         hasChanges = true;
         protectedSource = !!data.protectedSource;
@@ -65,10 +69,6 @@ self.onmessage = ({ data }) => {
           report({ kind: "clean" });
         } else await store();
       } else if (data.kind === "change") {
-        if (!book) {
-          book = readModel(seedText);
-          seedText = null;
-        }
         const patch = (edits) => {
           for (const edit of edits ?? []) {
             const cells = book.sheets.find((s) => s.id === edit.sheetId).cells;
