@@ -1,6 +1,6 @@
 # Readable conditional formatting rules
 
-Status: core merged; highlight viewport rendering/authoring under T14 verification, 20 October 2026. Data bar rendering and worker summary integration follow separately.
+Status: core and highlight viewport rendering/authoring merged, 20 October 2026. Data bar rendering and worker summaries are under verification; data-bar authoring follows separately.
 
 Store optional `conditionalFormats` as an ordered array of explicit stable-ID sheet/range rules. At most 100 rules are accepted. Overlapping ranges are allowed: the first matching highlight wins as a whole style, and the first applicable data bar wins independently. These layers can coexist without changing a cell's value or semantic role. Rule creation, replacement, removal and reordering are metadata commands; header history preserves the order and structural edits shift/shrink ranges or retain an inactive `#REF!` tombstone.
 
@@ -11,3 +11,13 @@ Data bars accept typed numbers/dates, including saved formula results. Text, boo
 Scale summaries and presentations are derived. Do not expand Excel-sized blank rectangles or attach per-cell persisted flags/styles. The pure summary accepts sparse canonical overrides so a future worker can analyse committed values even while its recovery document contains pending edits. Rendering will use the bounded visible viewport; worker integration must suppress obsolete summaries and retain existing recovery/save guarantees. Formula-derived highlights require a verified current snapshot. Before startup/recovery verification or when an external edit invalidates the saved snapshot, suppress formula highlights and describe their unavailability; raw input highlights remain available. Repaint after verification succeeds. A failed attempted edit preserves the previous canonical values, verified snapshot and appearance until the new calculation commits. Saved stale results must continue to be identified as stale rather than becoming current through formatting.
 
 This feature is a small explicit rule system, not another formula evaluator or an assertion of exhaustive Excel conditional-format compatibility.
+
+
+## Derived browser scale analysis
+
+Reuse the existing recovery worker's decoded document and sparse changes, avoiding another full workbook copy. Automatic summaries run outside grid drawing, debounce repeated changes, and carry the UI dirty revision; ignore obsolete replies. Canonical overrides mask attempted recovery edits so bounds describe committed displayed values. Exclude unverified/stale formula results from automatic bounds, and suppress their bars. Fixed scales render immediately from definitions. Scrolling does not request analysis. Scale/geometry objects are derived and never written into the canonical workbook.
+
+IndexedDB failure is a storage error, not a calculation/analysis transport failure: retain the recovery warning and Save/Save-a-copy path, stop repeated failed writes, but keep worker model updates and analysis usable. An actual worker/model-analysis failure invalidates automatic bars, describes them as unavailable/updating and requires reopening to retry; fixed bars, values and workbook edits remain usable. Never fall back to a full synchronous UI-thread scale scan. Late storage acknowledgements must not clear a recovery failure warning. Existing explicit draft restore/discard and source-revision overwrite protections remain in force.
+
+
+Discarding an existing recovery record is acknowledgement-driven. Until the worker confirms successful deletion, retain the dialog, record identity and source-revision overwrite protection. On failed deletion or worker failure while the dialog is open, disable unavailable actions, permit restore only for compatible records and explain how to reopen when the record is incompatible. A late acknowledgement cannot clear a failure warning or implicitly release a protected source.
