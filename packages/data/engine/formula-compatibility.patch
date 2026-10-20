@@ -1,0 +1,259 @@
+diff --git a/base/src/functions/logical/and_or_xor_not.rs b/base/src/functions/logical/and_or_xor_not.rs
+index 20edaac..546b3ca 100644
+--- a/base/src/functions/logical/and_or_xor_not.rs
++++ b/base/src/functions/logical/and_or_xor_not.rs
+@@ -26,7 +26,7 @@ impl<'a> Model<'a> {
+             args,
+             cell,
+             |acc, value| acc.unwrap_or(true) && value,
+-            Some(false),
++            None,
+         )
+     }
+ 
+@@ -35,7 +35,7 @@ impl<'a> Model<'a> {
+             args,
+             cell,
+             |acc, value| acc.unwrap_or(false) || value,
+-            Some(true),
++            None,
+         )
+     }
+ 
+diff --git a/base/src/functions/math_and_trigonometry/mathematical.rs b/base/src/functions/math_and_trigonometry/mathematical.rs
+index de26a13..d17ae21 100644
+--- a/base/src/functions/math_and_trigonometry/mathematical.rs
++++ b/base/src/functions/math_and_trigonometry/mathematical.rs
+@@ -537,7 +537,7 @@ impl<'a> Model<'a> {
+     pub(crate) fn fn_sumifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
+         let mut total = 0.0;
+         let sum = |value| total += value;
+-        if let Err(e) = self.apply_ifs(args, cell, sum) {
++        if let Err(e) = self.apply_ifs(args, cell, sum, true) {
+             return e;
+         }
+         CalcResult::Number(total)
+diff --git a/base/src/functions/statistical/if_ifs.rs b/base/src/functions/statistical/if_ifs.rs
+index dbdac30..49198a2 100644
+--- a/base/src/functions/statistical/if_ifs.rs
++++ b/base/src/functions/statistical/if_ifs.rs
+@@ -27,6 +27,22 @@ fn array_node_to_calc_result(node: &ArrayNode, cell: CellReferenceIndex) -> Calc
+     }
+ }
+ 
++// Excel's plural criteria functions require identical rectangular shapes.
++fn same_shape(a: &Range, b: &Range) -> bool {
++    a.right.row - a.left.row == b.right.row - b.left.row
++        && a.right.column - a.left.column == b.right.column - b.left.column
++}
++
++// Single-criterion SUMIF/AVERAGEIF align from the sum/average range's top left.
++fn align_sum_range(mut sum: Range, criteria: &Range, cell: CellReferenceIndex) -> Result<Range, CalcResult> {
++    sum.right.row = sum.left.row + criteria.right.row - criteria.left.row;
++    sum.right.column = sum.left.column + criteria.right.column - criteria.left.column;
++    if sum.right.row > LAST_ROW || sum.right.column > LAST_COLUMN {
++        return Err(CalcResult::new_error(Error::REF, cell, "Aligned range exceeds worksheet bounds".to_string()));
++    }
++    Ok(sum)
++}
++
+ impl<'a> Model<'a> {
+     pub(crate) fn fn_countif(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
+         if args.len() == 2 {
+@@ -42,10 +58,10 @@ impl<'a> Model<'a> {
+     pub(crate) fn fn_averageif(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
+         if args.len() == 2 {
+             let arguments = vec![args[0].clone(), args[0].clone(), args[1].clone()];
+-            self.fn_averageifs(&arguments, cell)
++            self.averageifs(&arguments, cell, false)
+         } else if args.len() == 3 {
+             let arguments = vec![args[2].clone(), args[0].clone(), args[1].clone()];
+-            self.fn_averageifs(&arguments, cell)
++            self.averageifs(&arguments, cell, false)
+         } else {
+             CalcResult::new_args_number_error(cell)
+         }
+@@ -66,11 +82,12 @@ impl<'a> Model<'a> {
+         let ranges = &mut Vec::new();
+         for case_index in 0..case_count {
+             let criterion = self.evaluate_node_in_context(&args[case_index * 2 + 1], cell);
++            if criterion.is_error() { return criterion; }
+             criteria.push(criterion);
+             // NB: We cannot do:
+             // fn_criteria.push(build_criteria(&criterion));
+             // because criterion doesn't live long enough
+-            let result = self.evaluate_node_in_context(&args[case_index * 2], cell);
++            let result = self.evaluate_node_with_reference(&args[case_index * 2], cell);
+             if result.is_error() {
+                 return result;
+             }
+@@ -82,8 +99,11 @@ impl<'a> Model<'a> {
+                         "Ranges are in different sheets".to_string(),
+                     );
+                 }
+-                // TODO test ranges are of the same size as sum_range
+-                ranges.push(Range { left, right });
++                let range = Range { left, right };
++                if ranges.first().is_some_and(|first| !same_shape(first, &range)) {
++                    return CalcResult::new_error(Error::VALUE, cell, "Criteria ranges must have the same shape".to_string());
++                }
++                ranges.push(range);
+             } else {
+                 return CalcResult::new_error(Error::VALUE, cell, "Expected a range".to_string());
+             }
+@@ -196,6 +216,7 @@ impl<'a> Model<'a> {
+         args: &[Node],
+         cell: CellReferenceIndex,
+         apply: F,
++        strict_shapes: bool,
+     ) -> Result<(), CalcResult>
+     where
+         F: FnMut(f64),
+@@ -204,11 +225,11 @@ impl<'a> Model<'a> {
+         if args_count < 3 || args_count.is_multiple_of(2) {
+             return Err(CalcResult::new_args_number_error(cell));
+         }
+-        let arg_0 = self.evaluate_node_in_context(&args[0], cell);
++        let arg_0 = self.evaluate_node_with_reference(&args[0], cell);
+         if arg_0.is_error() {
+             return Err(arg_0);
+         }
+-        let sum_range = if let CalcResult::Range { left, right } = arg_0 {
++        let mut sum_range = if let CalcResult::Range { left, right } = arg_0 {
+             if left.sheet != right.sheet {
+                 return Err(CalcResult::new_error(
+                     Error::VALUE,
+@@ -233,12 +254,12 @@ impl<'a> Model<'a> {
+         let ranges = &mut Vec::new();
+         for case_index in 1..=case_count {
+             let criterion = self.evaluate_node_in_context(&args[case_index * 2], cell);
+-            // NB: criterion might be an error. That's ok
++            if criterion.is_error() { return Err(criterion); }
+             criteria.push(criterion);
+             // NB: We cannot do:
+             // fn_criteria.push(build_criteria(&criterion));
+             // because criterion doesn't live long enough
+-            let result = self.evaluate_node_in_context(&args[case_index * 2 - 1], cell);
++            let result = self.evaluate_node_with_reference(&args[case_index * 2 - 1], cell);
+             if result.is_error() {
+                 return Err(result);
+             }
+@@ -250,8 +271,11 @@ impl<'a> Model<'a> {
+                         "Ranges are in different sheets".to_string(),
+                     ));
+                 }
+-                // TODO test ranges are of the same size as sum_range
+-                ranges.push(Range { left, right });
++                let range = Range { left, right };
++                if strict_shapes && !same_shape(&sum_range, &range) {
++                    return Err(CalcResult::new_error(Error::VALUE, cell, "Criteria ranges must have the same shape".to_string()));
++                }
++                ranges.push(range);
+             } else {
+                 return Err(CalcResult::new_error(
+                     Error::VALUE,
+@@ -264,6 +288,7 @@ impl<'a> Model<'a> {
+             fn_criteria.push(build_criteria(criterion, self.locale));
+         }
+ 
++        if !strict_shapes { sum_range = align_sum_range(sum_range, &ranges[0], cell)?; }
+         self.run_ifs(&sum_range, ranges.as_slice(), &fn_criteria, cell, apply)
+     }
+ 
+@@ -340,7 +365,7 @@ impl<'a> Model<'a> {
+         node: &Node,
+         cell: CellReferenceIndex,
+     ) -> Result<Range, CalcResult> {
+-        let value = self.evaluate_node_in_context(node, cell);
++        let value = self.evaluate_node_with_reference(node, cell);
+         if value.is_error() {
+             return Err(value);
+         }
+@@ -408,9 +433,10 @@ impl<'a> Model<'a> {
+                 })
+                 .collect(),
+             _ => {
+-                // Single criterion: delegate to SUMIFS, which returns a scalar.
+                 let arguments = vec![sum_range.clone(), criteria_range.clone(), criteria.clone()];
+-                return self.fn_sumifs(&arguments, cell);
++                let mut total = 0.0;
++                if let Err(error) = self.apply_ifs(&arguments, cell, |value| total += value, false) { return error; }
++                return CalcResult::Number(total);
+             }
+         };
+ 
+@@ -425,6 +451,7 @@ impl<'a> Model<'a> {
+             Err(e) => return e,
+         };
+ 
++        let sum_range = match align_sum_range(sum_range, &criteria_range, cell) { Ok(range) => range, Err(error) => return error };
+         let mut output: Vec<Vec<ArrayNode>> = Vec::with_capacity(criteria_grid.len());
+         for criteria_row in &criteria_grid {
+             let mut out_row: Vec<ArrayNode> = Vec::with_capacity(criteria_row.len());
+@@ -450,6 +477,10 @@ impl<'a> Model<'a> {
+     }
+ 
+     pub(crate) fn fn_averageifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
++        self.averageifs(args, cell, true)
++    }
++
++    fn averageifs(&mut self, args: &[Node], cell: CellReferenceIndex, strict_shapes: bool) -> CalcResult {
+         let mut total = 0.0;
+         let mut count = 0.0;
+ 
+@@ -457,7 +488,7 @@ impl<'a> Model<'a> {
+             total += value;
+             count += 1.0;
+         };
+-        if let Err(e) = self.apply_ifs(args, cell, average) {
++        if let Err(e) = self.apply_ifs(args, cell, average, strict_shapes) {
+             return e;
+         }
+ 
+@@ -474,7 +505,7 @@ impl<'a> Model<'a> {
+     pub(crate) fn fn_minifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
+         let mut min = f64::INFINITY;
+         let apply_min = |value: f64| min = value.min(min);
+-        if let Err(e) = self.apply_ifs(args, cell, apply_min) {
++        if let Err(e) = self.apply_ifs(args, cell, apply_min, true) {
+             return e;
+         }
+ 
+@@ -487,7 +518,7 @@ impl<'a> Model<'a> {
+     pub(crate) fn fn_maxifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
+         let mut max = -f64::INFINITY;
+         let apply_max = |value: f64| max = value.max(max);
+-        if let Err(e) = self.apply_ifs(args, cell, apply_max) {
++        if let Err(e) = self.apply_ifs(args, cell, apply_max, true) {
+             return e;
+         }
+         if max.is_infinite() {
+diff --git a/base/src/test/test_fn_sumifs.rs b/base/src/test/test_fn_sumifs.rs
+index 7a42f32..c8c8dba 100644
+--- a/base/src/test/test_fn_sumifs.rs
++++ b/base/src/test/test_fn_sumifs.rs
+@@ -150,3 +150,24 @@ fn test_fn_sumifs_whole_column_sees_a_spill_beyond_the_used_area() {
+         assert_eq!(model.evaluation.restarts_in_last_evaluation, 1, "{formula}");
+     }
+ }
++
++#[test]
++fn office_criteria_shapes_errors_and_single_range_alignment() {
++    let mut model = new_empty_model();
++    for (cell, value) in [("B1", "apple"), ("B2", "pear"), ("B3", "apple"), ("C1", "10"), ("C2", "20"), ("C3", "30")] { model._set(cell, value); }
++    let cases = [
++        ("=SUMIFS(C1:C3,B1:B2,\"apple\")", "#VALUE!"),
++        ("=COUNTIFS(B1:B3,\"apple\",C1:C2,\">0\")", "#VALUE!"),
++        ("=AVERAGEIFS(C1:C3,B1:B2,\"apple\")", "#VALUE!"),
++        ("=SUMIF(B1:B3,NA(),C1:C3)", "#N/A"),
++        ("=COUNTIF(B1:B3,NA())", "#N/A"),
++        ("=AVERAGEIF(B1:B3,NA(),C1:C3)", "#N/A"),
++        ("=SUMIF(B1:B3,\"apple\",C1)", "40"),
++        ("=AVERAGEIF(B1:B3,\"apple\",C1)", "20"),
++        ("=AND(FALSE,1/0)", "#DIV/0!"),
++        ("=OR(TRUE,1/0)", "#DIV/0!"),
++    ];
++    for (i, (formula, _)) in cases.iter().enumerate() { model._set(&format!("H{}", i + 1), formula); }
++    model.evaluate();
++    for (i, (_, expected)) in cases.iter().enumerate() { assert_eq!(model._get_text(&format!("H{}", i + 1)), *expected); }
++}
