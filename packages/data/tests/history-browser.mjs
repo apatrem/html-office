@@ -70,6 +70,51 @@ try {
     .click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Redo", exact: true }).click();
+  // Cancelled and failed recalculation must retain the known restored state.
+  await enter("B3", "35");
+  await page.evaluate(() => {
+    const post = Worker.prototype.postMessage;
+    globalThis.historyMode = "delay";
+    Worker.prototype.postMessage = function (message) {
+      if (
+        message.method === "calculate" &&
+        globalThis.historyMode === "delay"
+      ) {
+        globalThis.historyMode = "normal";
+        return setTimeout(() => post.call(this, message), 500);
+      }
+      if (message.method === "calculate" && globalThis.historyMode === "fail") {
+        globalThis.historyMode = "normal";
+        return setTimeout(
+          () =>
+            this.dispatchEvent(
+              new MessageEvent("message", {
+                data: { id: message.id, error: "Injected redo failure" },
+              }),
+            ),
+          0,
+        );
+      }
+      return post.call(this, message);
+    };
+  });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Cancel calculation", exact: true })
+    .click();
+  assert.equal(await page.getByLabel("Cell value").inputValue(), "30");
+  await page.evaluate(() => (globalThis.historyMode = "fail"));
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await page
+    .locator("#status")
+    .filter({ hasText: "Injected redo failure" })
+    .waitFor();
+  assert.equal(await page.getByLabel("Cell value").inputValue(), "35");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByText("Undo restored the previous workbook.", { exact: true })
+    .waitFor();
+  assert.equal(await page.getByLabel("Cell value").inputValue(), "30");
   const waiting = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save a copy" }).click();
   const saved = resolve(out, "history-saved.html");
