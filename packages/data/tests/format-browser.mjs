@@ -32,13 +32,11 @@ try {
   page.on("dialog", (d) => d.accept());
   await page.goto(pathToFileURL(source).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
-  const styles = await page
-    .locator('[data-cell="A1"]')
-    .evaluate((el) => ({
-      background: getComputedStyle(el).backgroundColor,
-      color: getComputedStyle(el).color,
-      font: getComputedStyle(el).fontFamily,
-    }));
+  const styles = await page.locator('[data-cell="A1"]').evaluate((el) => ({
+    background: getComputedStyle(el).backgroundColor,
+    color: getComputedStyle(el).color,
+    font: getComputedStyle(el).fontFamily,
+  }));
   assert.equal(styles.background, "rgb(11, 28, 44)");
   assert.equal(styles.color, "rgb(255, 255, 255)");
   assert.match(styles.font, /Arial/);
