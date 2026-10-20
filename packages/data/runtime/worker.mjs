@@ -26,6 +26,8 @@ self.onmessage = (event) => {
       } else if (method === "editMany") {
         session.editMany(...args);
         value = null;
+      } else if (method === "structure") {
+        value = await session.structure(args[0]);
       } else if (method === "calculate") {
         const start = performance.now();
         value = await session.calculateDelta();

@@ -6,6 +6,11 @@ import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
 import { setupClipboard } from "./clipboard.mjs";
+import {
+  validateStructure,
+  shiftWorkbook,
+  captureHead,
+} from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
 const $ = (id) => document.getElementById(id);
 let book = readModel($("workbook").textContent),
@@ -115,7 +120,15 @@ function render() {
   $("retry-range").hidden = !pendingEdits.some((edit) => edit.range);
   $("retry-range").disabled = !!loading;
   $("decimals").disabled = !!loading;
-  for (const id of ["paste-table", "fill-down", "fill-right"])
+  for (const id of [
+    "paste-table",
+    "fill-down",
+    "fill-right",
+    "insert-row",
+    "delete-row",
+    "insert-column",
+    "delete-column",
+  ])
     $(id).disabled = !!loading;
   for (const field of document.querySelectorAll(".fields input,.fields select"))
     field.disabled = !!loading;
@@ -299,6 +312,7 @@ $("cell-address").addEventListener("change", () => {
 });
 $("recalculate").onclick = () => apply({ recalculateOnly: true });
 $("cancel").onclick = () => {
+  const structural = loading?.operation === "structure";
   revisions.cancel();
   loading?.abort();
   loading = null;
@@ -306,11 +320,98 @@ $("cancel").onclick = () => {
   session = null;
   render();
   status(
-    pendingEdits.some((edit) => edit.range)
-      ? "Calculation cancelled. Your attempted range is retained; use Retry pending range or Save a copy."
-      : "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
+    structural
+      ? "Row/column operation cancelled. Your previous work is retained."
+      : !pendingEdits.length
+        ? "Calculation cancelled. Your workbook remains open."
+        : pendingEdits.some((edit) => edit.range)
+          ? "Calculation cancelled. Your attempted range is retained; use Retry pending range or Save a copy."
+          : "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
   );
 };
+async function applyStructure(axis, action) {
+  if (loading) return;
+  const selectedRange = grid.selection,
+    command = {
+      sheetId,
+      axis,
+      action,
+      index: axis === "row" ? selectedRange.top : selectedRange.left,
+      count:
+        axis === "row"
+          ? selectedRange.bottom - selectedRange.top + 1
+          : selectedRange.right - selectedRange.left + 1,
+    };
+  const epoch = revisions.begin();
+  try {
+    validateStructure(command, book);
+    loading = new AbortController();
+    loading.operation = "structure";
+    render();
+    status("Updating row/column references and recalculating…");
+    if (!session) {
+      session = new EngineClient(config, $("worker-source").textContent);
+      await session.load(book);
+    }
+    if (!revisions.current(epoch)) return;
+    const result = await session.structure(command);
+    if (!revisions.current(epoch)) return;
+    const before = captureCells(book, result.beforeRefs),
+      headBefore = captureHead(book),
+      snapshotBefore = book.snapshot,
+      selectionBefore = { sheetId, ...grid.selection },
+      priorRestoration = cellEdits(pendingEdits),
+      next = shiftWorkbook(book, command);
+    for (const f of result.formulas) {
+      const cells = next.sheets.find((s) => s.id === f.sheetId).cells;
+      cells[f.ref] = { ...cells[f.ref], formula: f.formula };
+    }
+    for (const r of result.results)
+      next.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
+        r.result;
+    next.snapshot = result.snapshot;
+    book = next;
+    pendingEdits = [];
+    const after = captureCells(book, result.formulas),
+      headAfter = captureHead(book);
+    history.record({
+      structure: command,
+      before,
+      after,
+      headBefore,
+      headAfter,
+      snapshotBefore,
+      snapshotAfter: book.snapshot,
+      selectionBefore,
+      selectionAfter: selectionBefore,
+      calculate: true,
+    });
+    persistence.changed(cellEdits(result.formulas), {
+      beforeEdits: priorRestoration,
+      structure: command,
+      head: headAfter,
+    });
+    render();
+    choose(selected, false);
+    status("Row/column references updated. Unsaved changes.");
+  } catch (error) {
+    if (revisions.current(epoch)) {
+      session?.dispose();
+      session = null;
+      status(
+        `Row/column operation not applied: ${error.message}. Your previous work is retained.`,
+      );
+    }
+  } finally {
+    if (revisions.current(epoch)) {
+      loading = null;
+      render();
+    }
+  }
+}
+for (const axis of ["row", "column"])
+  for (const action of ["insert", "delete"])
+    $(action + "-" + axis).onclick = () => applyStructure(axis, action);
 async function moveHistory(direction) {
   if (loading) return;
   const priorRestoration = cellEdits(pendingEdits);
