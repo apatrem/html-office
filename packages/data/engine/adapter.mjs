@@ -27,13 +27,21 @@ export class EngineSession {
       this.engine.resumeEvaluation();
     }catch(error){this.dispose();throw error;}
   }
-  edit(sheetId,ref,cell){
-    validateCell(cell);
-    const index=this.book.sheets.findIndex(s=>s.id===sheetId),{row,column}=parseAddress(ref);
-    if(index<0)throw new Error('Unknown sheet ID');
+  edit(sheetId,ref,cell){this.editMany([{sheetId,ref,cell}]);}
+  editMany(edits){
+    if(!Array.isArray(edits))throw new Error('Expected cell edits');
+    const prepared=edits.map(({sheetId,ref,cell})=>{
+      const index=this.book.sheets.findIndex(s=>s.id===sheetId),{row,column}=parseAddress(ref);
+      if(index<0)throw new Error('Unknown sheet ID');
+      if(cell!==null)validateCell(cell);
+      return {index,row,column,ref,cell:structuredClone(cell)};
+    });
     this.engine.pauseEvaluation();
-    try{this.engine.setUserInput(index,row,column,engineInput(cell));this.book.sheets[index].cells[ref]=structuredClone(cell);}
-    finally{this.engine.resumeEvaluation();}
+    try{for(const {index,row,column,ref,cell} of prepared){
+      this.engine.setUserInput(index,row,column,cell===null?'':engineInput(cell));
+      if(cell===null)delete this.book.sheets[index].cells[ref];
+      else this.book.sheets[index].cells[ref]=cell;
+    }}finally{this.engine.resumeEvaluation();}
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);

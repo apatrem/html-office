@@ -49,6 +49,10 @@ export class EngineClient {
     this.ready = this.ready.then(() => this.request("edit", args));
     return this.ready;
   }
+  editMany(edits) {
+    this.ready = this.ready.then(() => this.request("editMany", [edits]));
+    return this.ready;
+  }
   async calculate() {
     await this.ready;
     return this.request("calculate", []);
