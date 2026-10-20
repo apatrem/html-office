@@ -158,6 +158,32 @@ try {
         true,
       );
     }
+    // Prevent an unbounded old print viewport from actually rendering millions
+    // of grid cells while this regression inspects its computed layout.
+    await page.evaluate(() => {
+      const request = requestAnimationFrame;
+      globalThis.ribbonOriginalRAF = request;
+      window.requestAnimationFrame = (callback) =>
+        matchMedia("print").matches ? 0 : request(callback);
+    });
+    await page.emulateMedia({ media: "print" });
+    assert.ok(
+      await page
+        .locator("#grid")
+        .evaluate((el) => el.clientHeight <= innerHeight),
+    );
+    assert.ok((await page.locator("#grid [data-cell]").count()) < 600);
+    await page.emulateMedia({ media: "screen" });
+    await page.evaluate(() => {
+      window.requestAnimationFrame = globalThis.ribbonOriginalRAF;
+      delete globalThis.ribbonOriginalRAF;
+    });
+    await page.emulateMedia({ media: "print" });
+    await page.waitForFunction(
+      () => document.getElementById("grid").clientHeight <= innerHeight,
+    );
+    assert.ok((await page.locator("#grid [data-cell]").count()) < 600);
+    await page.emulateMedia({ media: "screen" });
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
