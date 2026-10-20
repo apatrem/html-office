@@ -1,3 +1,4 @@
+import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from "../model/organization.mjs";
@@ -130,6 +131,7 @@ function render() {
   $("decimals").disabled = !!loading;
   for (const id of [
     "manage-sheets",
+    "manage-dropdowns",
     "format-apply",
     "paste-table",
     "fill-down",
@@ -143,6 +145,7 @@ function render() {
   for (const field of document.querySelectorAll(".fields input,.fields select"))
     field.disabled = !!loading;
   dropdowns.draw();
+  dropdownSettings.draw();
 }
 function enteredCell() {
   const type = $("cell-type").value,
@@ -334,7 +337,7 @@ $("cancel").onclick = () => {
   render();
   status(
     operation
-      ? `${operation === "structure" ? "Row/column" : "Sheet"} operation cancelled. Your previous work is retained.`
+      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : "Sheet"} operation cancelled. Your previous work is retained.`
       : !pendingEdits.length
         ? "Calculation cancelled. Your workbook remains open."
         : pendingEdits.some((edit) => edit.range)
@@ -469,6 +472,22 @@ async function moveHistory(direction) {
   });
   // Restore canonical known state immediately, then recalculate in the same adapter.
   if (!moved.calculate) {
+    if (session && moved.head) {
+      loading = new AbortController();
+      render();
+      try {
+        await session.configureValidations({
+          validations: book.validations,
+          scenario: book.scenario,
+        });
+      } catch {
+        session?.dispose();
+        session = null;
+      } finally {
+        if (revisions.current(epoch)) loading = null;
+      }
+      if (!revisions.current(epoch)) return;
+    }
     render();
     status(
       `${direction === "undo" ? "Undo" : "Redo"} restored the previous workbook.`,
@@ -611,6 +630,53 @@ async function applyOrganization(command) {
     status(`Sheet groups not changed: ${error.message}`);
   }
 }
+async function applyValidationHeader(next) {
+  if (loading) return;
+  const epoch = revisions.begin();
+  try {
+    assertScenarioInputs(next, pendingEdits);
+    const headBefore = captureHead(book),
+      selection = { sheetId, ...grid.selection };
+    loading = new AbortController();
+    loading.operation = "dropdown";
+    render();
+    if (session)
+      await session.configureValidations({
+        validations: next.validations,
+        scenario: next.scenario,
+      });
+    if (!revisions.current(epoch)) return;
+    book = next;
+    const headAfter = captureHead(book);
+    history.record({
+      before: [],
+      after: [],
+      headBefore,
+      headAfter,
+      snapshotBefore: book.snapshot,
+      snapshotAfter: book.snapshot,
+      selectionBefore: selection,
+      selectionAfter: selection,
+      calculate: false,
+    });
+    persistence.changed([], { head: headAfter });
+    status("Dropdown settings updated. Unsaved changes.");
+    return true;
+  } catch (error) {
+    if (revisions.current(epoch)) {
+      session?.dispose();
+      session = null;
+      status(
+        `Dropdown settings not applied: ${error.message}. Your previous work is retained.`,
+      );
+    }
+  } finally {
+    if (revisions.current(epoch)) {
+      loading = null;
+      render();
+    }
+  }
+}
 const navigation = setupSheetNavigation($("sheet-tabs"), {
   getBook: () => book,
   getSheetId: () => sheetId,
@@ -631,6 +697,14 @@ const dropdowns = setupDropdowns({
   isSnapshotCurrent: () =>
     !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
   apply,
+});
+const dropdownSettings = setupDropdownSettings({
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  getSelection: () => grid.selection,
+  busy: () => !!loading,
+  apply: applyValidationHeader,
+  status,
 });
 setupClipboard({
   getSheet: () => book.sheets.find((s) => s.id === sheetId),

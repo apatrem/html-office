@@ -190,6 +190,8 @@ export function setupPersistence({ getBook, getPending, restore }) {
     copy.querySelector("#recovery-message").textContent = "";
     copy.querySelector("#paste-preview")?.replaceChildren();
     copy.querySelector("#sheet-context")?.replaceChildren();
+    copy.querySelector("#dropdown-context")?.replaceChildren();
+    copy.querySelector("#dropdown-list-values")?.replaceChildren();
     const pasteText = copy.querySelector("#paste-text");
     if (pasteText) pasteText.textContent = "";
     copy.querySelector("#restore-draft").textContent = "Restore draft";
