@@ -1,3 +1,4 @@
+import { populateBarFields, readBarFields } from "./bar-settings.mjs";
 import {
   setConditionalFormat,
   removeConditionalFormat,
@@ -17,11 +18,15 @@ export function setupConditionalSettings({
   let id,
     original,
     dirty = false;
-  const highlights = () =>
-    (getBook().conditionalFormats ?? []).filter((r) => r.kind === "highlight");
+  const definitions = () => getBook().conditionalFormats ?? [];
   function draw() {
     for (const field of dialog.querySelectorAll("button,input,select,textarea"))
       field.disabled = busy();
+    const isBar = $("conditional-kind").value === "dataBar";
+    $("conditional-highlight-fields").hidden = isBar;
+    $("conditional-bar-fields").hidden = !isBar;
+    $("conditional-fixed-fields").hidden =
+      $("conditional-scale").value !== "fixed";
     const unary = ["isBlank", "isError"].includes(
         $("conditional-operator").value,
       ),
@@ -35,7 +40,7 @@ export function setupConditionalSettings({
       busy() || !$("conditional-use-background").checked;
     $("conditional-color").disabled =
       busy() || !$("conditional-use-color").checked;
-    const rules = highlights(),
+    const rules = definitions(),
       index = rules.findIndex((r) => r.id === id);
     $("conditional-remove").disabled = busy() || !original;
     $("conditional-earlier").disabled = busy() || dirty || index <= 0;
@@ -50,9 +55,11 @@ export function setupConditionalSettings({
         : String(value?.value ?? "");
   function populate() {
     const book = getBook();
-    original = highlights().find((r) => r.id === $("conditional-rule").value);
+    original = definitions().find((r) => r.id === $("conditional-rule").value);
     id = original?.id ?? `conditional_${crypto.randomUUID()}`;
     dirty = false;
+    $("conditional-kind").value = original?.kind ?? "highlight";
+    populateBarFields($, original);
     $("conditional-sheet").replaceChildren(
       ...book.sheets.map((s) => new Option(s.name, s.id)),
     );
@@ -62,39 +69,37 @@ export function setupConditionalSettings({
       end = address(r.bottom, r.right);
     $("conditional-ref").value =
       original?.ref ?? (start === end ? start : `${start}:${end}`);
-    $("conditional-operator").value = original?.condition.operator ?? "eq";
+    $("conditional-operator").value = original?.condition?.operator ?? "eq";
     $("conditional-type").value =
-      original?.condition.values[0]?.type ?? "number";
-    $("conditional-value").value = original
-      ? text(original.condition.values[0])
-      : "0";
-    $("conditional-upper").value = original
-      ? text(original.condition.values[1])
-      : "100";
-    $("conditional-use-background").checked =
-      !original || Object.hasOwn(original.style, "background");
-    $("conditional-background").value = original?.style.background ?? "#FFEB9C";
-    $("conditional-use-color").checked =
-      !!original && Object.hasOwn(original.style, "color");
-    $("conditional-color").value = original?.style.color ?? "#000000";
+      original?.condition?.values[0]?.type ?? "number";
+    $("conditional-value").value =
+      original?.kind === "highlight" ? text(original.condition.values[0]) : "0";
+    $("conditional-upper").value =
+      original?.kind === "highlight"
+        ? text(original.condition.values[1])
+        : "100";
+    const style = original?.style ?? { background: "#FFEB9C" };
+    $("conditional-use-background").checked = Object.hasOwn(
+      style,
+      "background",
+    );
+    $("conditional-background").value = style.background ?? "#FFEB9C";
+    $("conditional-use-color").checked = Object.hasOwn(style, "color");
+    $("conditional-color").value = style.color ?? "#000000";
     $("conditional-bold").value =
-      original?.style.bold === undefined
-        ? "inherit"
-        : original.style.bold
-          ? "bold"
-          : "normal";
+      style.bold === undefined ? "inherit" : style.bold ? "bold" : "normal";
     $("conditional-context").textContent =
-      "Highlights change appearance while preserving cell values and number formats.";
+      "Rules change appearance while preserving cell values and number formats. Automatic bars update from committed values.";
     draw();
   }
   function options(selected = "") {
     const book = getBook();
     $("conditional-rule").replaceChildren(
-      new Option("New highlight", ""),
-      ...highlights().map(
+      new Option("New rule", ""),
+      ...definitions().map(
         (r, i) =>
           new Option(
-            `${i + 1}. ${book.sheets.find((s) => s.id === r.sheetId).name}!${r.ref} · ${r.condition.operator}`,
+            `${i + 1}. ${book.sheets.find((s) => s.id === r.sheetId).name}!${r.ref} · ${r.kind === "dataBar" ? "data bar" : r.condition.operator}`,
             r.id,
           ),
       ),
@@ -136,7 +141,7 @@ export function setupConditionalSettings({
       if (action === "remove") next = removeConditionalFormat(book, id);
       else if (action === "earlier" || action === "later") {
         if (dirty) throw new Error("Save rule edits before changing priority.");
-        const rules = highlights(),
+        const rules = definitions(),
           index = rules.findIndex((r) => r.id === id),
           other = rules[index + (action === "earlier" ? -1 : 1)];
         if (!other) throw new Error("Rule is already at the end.");
@@ -145,6 +150,13 @@ export function setupConditionalSettings({
           id,
           book.conditionalFormats.findIndex((r) => r.id === other.id),
         );
+      } else if ($("conditional-kind").value === "dataBar") {
+        next = setConditionalFormat(book, {
+          id,
+          sheetId: $("conditional-sheet").value,
+          ref: $("conditional-ref").value.trim().toUpperCase(),
+          ...readBarFields($),
+        });
       } else {
         const operator = $("conditional-operator").value,
           values = ["isBlank", "isError"].includes(operator)
