@@ -378,7 +378,18 @@ try {
       await page.getByLabel("Cell address").fill("B3");
       await edit(page, 30);
     } else if (transition === "undo") {
+      await page.evaluate(() => {
+        const post = Worker.prototype.postMessage;
+        Worker.prototype.postMessage = function (message) {
+          if (message.method === "load")
+            return setTimeout(() => post.call(this, message), 500);
+          return post.call(this, message);
+        };
+      });
       await page.getByRole("button", { name: "Undo", exact: true }).click();
+      await page
+        .getByText("Undo restored the previous workbook.", { exact: true })
+        .waitFor();
     } else {
       await page
         .getByRole("button", { name: "Recalculate", exact: true })
