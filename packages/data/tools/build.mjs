@@ -20,6 +20,7 @@ Standard mode reads and formats without requests; the first calculation-changing
 Saving: Save writes only an explicitly selected file and rejects another document/revision or detected external changes. Save a copy requests a complete download; it is not proof that the source file was saved. An attempted calculation edit saved while pending is an uncalculated draft with no current snapshot.
 Recovery: local IndexedDB drafts are written by an embedded worker, bound to workbook identity, source path hash and base revision. Restoration is explicit. A draft from another source revision can be opened only as a copy; it cannot overwrite an existing file. If browser recovery is blocked/full, work remains open and can be saved/copied. No recovery or workbook data is sent to a server.
 Range editing: select one rectangle using Shift/arrows or pointer drag. Ctrl/Cmd+C and V in Data grids retain typed values, formulas and supported semantic formats. Copied/fill formulas relocate relative and mixed A1 references, including quoted cross-sheet references; absolute parts and formula string literals stay unchanged. Excel/Markdown/CSV table paste is values-first and previews before applying. Leading zeros remain text; ambiguous date/number locale requires a text/US/European choice. External text beginning with = is literal. Fill down uses the first selected row; Fill right uses the first column. Each batch is one undoable calculation. Maximum clipboard/fill rectangle: 2,000,000 cells. A pending range saved/copied includes all attempted cells and no current result snapshot. Escape from its selected cell discards the attempted transaction; calculation cancellation retains it for Retry pending range or Save a copy.
+Formatting: Format selection applies semantic role and number format to the selected rectangle without changing typed values or formula precision. The workbook locale controls number/date display only; formula names and decimal syntax remain English. Dates use the Excel 1900 calendar, including fictitious 29 February 1900 (serial 60); date formatting hides time fractions, and negative/out-of-range serials display #### without altering the value. Shared branding lives in style#charte (Slides-compatible CSS variables): --ink/--acc/--lig/--alert/--tint/--bg/--font and optional --header-bg/--header-ink/--row-label-bg/--row-label-ink/--assumption-bg/--assumption-ink/--calculation-bg. Build with --charte FILE to embed the same brand stylesheet as a deck.
 Structural editing: Insert/Delete rows or columns uses the current rectangular selection's row/column span. Formulas are rewritten by IronCalc and the resulting strings are saved in the model. Named ranges are {name,sheetId,ref}; ref is an A1 rectangle or "#REF!" if entirely removed. Broken names return typed reference errors, including after reopening. Stable sheet IDs and unrelated typed values/styles are preserved. The operation commits only after successful recalculation, is undoable, and moves recovery references atomically. Insertion that would push populated cells outside Excel's bounds fails unchanged.
 This implementation is not yet the complete V1. Its grid renders a bounded viewport across Excel-sized row/column bounds; all populated cells remain embedded. Arrow keys navigate, Shift selects a rectangle, F2 edits, Enter applies from the formula bar and Escape restores the form.
 Full source and format: https://github.com/apatrem/html-office/tree/main/packages/data . No installable Data skill is distributed yet. Compatible skill-download links will be supplied when Data is packaged; do not use the Slides skill as a Data editor.`;
@@ -47,6 +48,7 @@ export async function buildWorkbook(
     modelCodecPath,
     serializeModel = writeModel,
     formatGuide = guide,
+    charte,
   } = {},
 ) {
   let book = parseWorkbook(stringifyWorkbook(input));
@@ -136,7 +138,17 @@ export async function buildWorkbook(
     new URL("engine/THIRD-PARTY-NOTICES.txt", root),
     "utf8",
   );
-  const initial = preview(book.sheets[0]);
+  const brand = await readFile(
+    charte ??
+      new URL(
+        "../../../plugin/skills/html-slides/assets/default.css",
+        import.meta.url,
+      ),
+    "utf8",
+  );
+  if (/<\/style/i.test(brand))
+    throw new Error("Brand CSS cannot close its style element");
+  const initial = preview(book.sheets[0], book.locale);
   const rows = initial.rows
     .map(
       (row) =>
@@ -152,13 +164,14 @@ export async function buildWorkbook(
     .join("");
   const configText = JSON.stringify(config).replaceAll("<", "\\u003c");
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(book.title)}</title><style>${css}</style></head><body>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(book.title)}</title><style id="charte">${brand}</style><style>${css}</style></head><body>
 <header><small>HTML OFFICE · DATA / PHASE A PROTOTYPE</small><h1>${esc(book.title)}</h1><p>Portable workbook · ${offline ? "Offline engine embedded" : "Verified engine loaded when needed"} · ${modelCodecPath ? "Storage comparison" : "Hybrid JSON storage"}</p></header>
 <script id="workbook" type="application/json" data-document-content>${serializeModel(book)}</script>
 <script id="engine-config" type="application/json">${configText}</script>
 <main><nav id="sheet-tabs" aria-label="Sheets"></nav><section class="panel" aria-label="Workbook editor">
 <div class="fields"><label>Cell address<input id="cell-address" value="B2"></label><label>Input type<select id="cell-type"><option>number</option><option>text</option><option>boolean</option><option>blank</option><option>date</option><option>error</option><option>formula</option></select></label><label>Cell value<input id="cell-value" value="100"></label></div>
 <div class="toolbar"><button id="apply">Apply edit</button><button id="recalculate">Recalculate</button><button id="cancel" disabled>Cancel calculation</button><button id="undo" disabled>Undo</button><button id="redo" disabled>Redo</button><button id="decimals">More decimals</button><button id="paste-table">Paste table</button><button id="retry-range" hidden>Retry pending range</button><button id="fill-down">Fill down</button><button id="fill-right">Fill right</button><button id="insert-row">Insert rows</button><button id="delete-row">Delete rows</button><button id="insert-column">Insert columns</button><button id="delete-column">Delete columns</button><button id="direct-save">Save</button><button id="save">Save a copy</button></div>
+<div class="fields format-fields"><label>Style role<select id="format-role" aria-label="Style role"><option value="normal">Normal</option><option value="header">Header</option><option value="rowHeader">Row label</option><option value="assumption">Assumption</option><option value="calculation">Calculation</option></select></label><label>Number format<select id="format-kind" aria-label="Number format"><option value="general">General</option><option value="number">Number</option><option value="currency">Currency</option><option value="accounting">Accounting</option><option value="date">Date</option><option value="percent">Percent</option></select></label><label>Decimal places<input id="format-digits" type="number" min="0" max="15" value="2"></label><label>Currency code<input id="format-currency" value="EUR" maxlength="3"></label><button id="format-apply">Format selection</button></div>
 <dialog id="paste-dialog" aria-labelledby="paste-title"><h2 id="paste-title">Paste values</h2><p>Paste an Excel or Markdown table. Values beginning with = remain literal text. Preview and choose how ambiguous dates/numbers should be read.</p><label>Table text<textarea id="paste-text" rows="6"></textarea></label><div class="paste-options"><label>Table syntax<select id="paste-syntax"><option value="auto">Auto: Excel / Markdown</option><option value="tsv">Excel / TSV</option><option value="markdown">Markdown</option><option value="csv">CSV</option></select></label><label>Value typing<select id="paste-typing"><option value="auto">Automatic, ask if ambiguous</option><option value="text">Keep every value as text</option><option value="en-US">US: 1,234.50 / MM/DD/YYYY</option><option value="fr-FR">European: 1 234,50 / DD/MM/YYYY</option></select></label></div><pre id="paste-preview" role="status"></pre><button id="paste-apply">Apply table</button><button id="paste-cancel">Cancel paste</button></dialog><p id="save-status" role="status">Saved file opened.</p><dialog id="recovery-dialog"><h2>Recover unsaved work</h2><p id="recovery-message"></p><button id="restore-draft">Restore draft</button><button id="discard-draft">Discard draft</button></dialog><p id="status" role="status">Checking saved results…</p><div id="grid"><table aria-label="${esc(book.sheets[0].name)}"><thead><tr><th></th>${initial.rows[0].map((_, c) => `<th scope="col">${address(1, c + 1).replace(/\d+$/, "")}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div><p id="preview-note"></p></section>
 <details><summary>Embedded format guide</summary><pre data-document-content>${esc(formatGuide)}</pre></details><details><summary>Third-party notices</summary><pre>${esc(notices)}</pre></details></main>
 <script id="worker-source" type="text/plain">${workerText}</script>
@@ -185,6 +198,7 @@ if (
     : "dist/data/prototype.html";
   const html = await buildWorkbook(readModel(await readFile(input, "utf8")), {
     offline: args.includes("--offline"),
+    charte: args.includes("--charte") ? option("--charte") : undefined,
   });
   await mkdir(dirname(resolve(output)), { recursive: true });
   await writeFile(output, html);
