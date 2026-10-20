@@ -173,6 +173,9 @@ export function setupPersistence({ getBook, getPending, restore }) {
     copy.querySelector("#status").textContent = "Checking saved results…";
     copy.querySelector("#save-status").textContent = "Saved file opened.";
     copy.querySelector("#recovery-message").textContent = "";
+    copy.querySelector("#paste-preview")?.replaceChildren();
+    const pasteText = copy.querySelector("#paste-text");
+    if (pasteText) pasteText.textContent = "";
     copy.querySelector("#restore-draft").textContent = "Restore draft";
     copy.querySelector("#restore-draft").disabled = false;
     for (const dialog of copy.querySelectorAll("dialog"))
