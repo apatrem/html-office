@@ -13,7 +13,7 @@ import { display, usedBounds } from "./view.mjs";
 // One focusable grid, a bounded DOM viewport, and a single rectangular selection.
 export function createGrid(
   root,
-  { getSheet, busy, onSelect, onEdit, onCommand },
+  { getSheet, getLocale = () => "en-US", busy, onSelect, onEdit, onCommand },
 ) {
   let anchor = "B2",
     focus = "B2",
@@ -60,7 +60,7 @@ export function createGrid(
       for (let col = v.left; col <= v.right; col++) {
         const ref = address(row, col),
           cell = sheet.cells[ref] ?? {},
-          text = display(cell),
+          text = display(cell, getLocale()),
           selected =
             row >= r.top && row <= r.bottom && col >= r.left && col <= r.right;
         const b = node(

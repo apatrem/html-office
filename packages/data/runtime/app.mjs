@@ -1,4 +1,4 @@
-import { validateCell, parseAddress } from "../model/workbook.mjs";
+import { validateCell, parseAddress, address } from "../model/workbook.mjs";
 import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
 import { setupPersistence } from "./saving.mjs";
@@ -59,6 +59,7 @@ function cellEdits(refs) {
 }
 const grid = createGrid($("grid"), {
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  getLocale: () => book.locale,
   busy: () => !!loading,
   onSelect: (ref) => choose(ref, false),
   onCommand: (event) => {
@@ -90,6 +91,10 @@ function choose(ref, updateGrid = true) {
   $("cell-address").value = ref;
   const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
     value = cell.input ?? { type: "blank" };
+  $("format-role").value = cell.role ?? "normal";
+  $("format-kind").value = cell.format?.kind ?? "general";
+  $("format-digits").value = cell.format?.digits ?? 2;
+  $("format-currency").value = cell.format?.currency ?? "EUR";
   $("cell-type").value = cell.formula ? "formula" : value.type;
   $("cell-value").value =
     cell.formula ?? (value.type === "blank" ? "" : String(value.value));
@@ -121,6 +126,7 @@ function render() {
   $("retry-range").disabled = !!loading;
   $("decimals").disabled = !!loading;
   for (const id of [
+    "format-apply",
     "paste-table",
     "fill-down",
     "fill-right",
@@ -476,43 +482,79 @@ async function moveHistory(direction) {
 }
 $("undo").onclick = () => moveHistory("undo");
 $("redo").onclick = () => moveHistory("redo");
-$("decimals").onclick = () => {
+function formatSelection(transform) {
   if (loading) return;
-  const sheet = book.sheets.find((s) => s.id === sheetId),
-    old = sheet.cells[selected] ?? {};
-  const refs = [{ sheetId, ref: selected }],
-    before = captureCells(book, refs),
-    selection = { sheetId, ...grid.selection };
-  sheet.cells[selected] = {
-    ...old,
-    format: {
-      ...old.format,
-      kind: old.format?.kind ?? "number",
-      digits: Math.min(15, (old.format?.digits ?? 0) + 1),
-    },
-  };
-  for (const attempt of pendingEdits) {
-    if (
-      attempt.sheetId === sheetId &&
-      attempt.ref === selected &&
-      attempt.cell !== null
-    )
-      attempt.cell = { ...attempt.cell, format: sheet.cells[selected].format };
+  try {
+    const sheet = book.sheets.find((s) => s.id === sheetId),
+      r = grid.selection;
+    if ((r.bottom - r.top + 1) * (r.right - r.left + 1) > 2000000)
+      throw new Error("Formatting rectangle exceeds 2,000,000 cells");
+    const edits = [];
+    for (let row = r.top; row <= r.bottom; row++)
+      for (let col = r.left; col <= r.right; col++) {
+        const ref = address(row, col),
+          cell = transform(sheet.cells[ref] ?? {});
+        validateCell(cell);
+        edits.push({ sheetId, ref, cell });
+      }
+    const before = captureCells(book, edits),
+      selection = { sheetId, ...r };
+    for (const edit of edits) {
+      sheet.cells[edit.ref] = edit.cell;
+      touchPreview(sheet.cells, edit.ref);
+    }
+    const formats = new Map(edits.map((e) => [e.ref, e.cell]));
+    for (const attempt of pendingEdits) {
+      const styled = attempt.sheetId === sheetId && formats.get(attempt.ref);
+      if (styled && attempt.cell !== null)
+        attempt.cell = {
+          ...attempt.cell,
+          format: styled.format,
+          role: styled.role,
+        };
+    }
+    history.record({
+      before,
+      after: captureCells(book, edits),
+      snapshotBefore: book.snapshot,
+      snapshotAfter: book.snapshot,
+      selectionBefore: selection,
+      selectionAfter: selection,
+      calculate: false,
+    });
+    persistence.changed(cellEdits(edits));
+    render();
+    status("Formatting changed. Unsaved changes.");
+  } catch (error) {
+    status(`Formatting not applied: ${error.message}`);
   }
-  history.record({
-    before,
-    after: captureCells(book, refs),
-    snapshotBefore: book.snapshot,
-    snapshotAfter: book.snapshot,
-    selectionBefore: selection,
-    selectionAfter: selection,
-    calculate: false,
-  });
-  // Formatting is browser-owned and excluded from the calculation fingerprint.
-  persistence.changed(cellEdits([{ sheetId, ref: selected }]));
-  render();
-  status("Formatting changed. Unsaved changes.");
+}
+$("format-apply").onclick = () => {
+  const digits = Number($("format-digits").value),
+    currency = $("format-currency").value.toUpperCase(),
+    kind = $("format-kind").value,
+    role = $("format-role").value;
+  if (!$("format-digits").value.trim())
+    return status("Enter decimal places between 0 and 15.");
+  formatSelection((cell) => ({
+    ...cell,
+    role,
+    format: {
+      kind,
+      digits,
+      ...(["currency", "accounting"].includes(kind) ? { currency } : {}),
+    },
+  }));
 };
+$("decimals").onclick = () =>
+  formatSelection((cell) => ({
+    ...cell,
+    format: {
+      ...cell.format,
+      kind: cell.format?.kind ?? "number",
+      digits: Math.min(15, (cell.format?.digits ?? 0) + 1),
+    },
+  }));
 
 setupClipboard({
   getSheet: () => book.sheets.find((s) => s.id === sheetId),

@@ -1,11 +1,36 @@
 import { address, parseAddress } from "../model/workbook.mjs";
-export function display(cell) {
+const numberFormats = new Map(),
+  dateFormats = new Map();
+export function display(cell, locale = "en-US") {
   const v = cell?.formula ? cell.result : cell?.input;
   if (!v || v.type === "blank") return "";
   if (v.type === "boolean") return v.value ? "TRUE" : "FALSE";
   if (v.type === "error" || v.type === "text") return v.value;
   const f = cell.format ?? { kind: "general" };
-  if (f.kind === "date" || v.type === "date") return `Excel date ${v.value}`;
+  if (f.kind === "date" || v.type === "date") {
+    const serial = Math.floor(v.value);
+    if (serial < 0 || serial > 2958465) return "####";
+    let formatter = dateFormats.get(locale);
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: "UTC",
+        calendar: "gregory",
+      });
+      dateFormats.set(locale, formatter);
+    }
+    const date = new Date(
+      Date.UTC(1899, 11, 31) + (serial > 59 ? serial - 1 : serial) * 86400000,
+    );
+    if (serial === 60)
+      return formatter
+        .formatToParts(date)
+        .map((part) => (part.type === "day" ? "29" : part.value))
+        .join("");
+    return formatter.format(date);
+  }
   if (f.kind === "general") return String(v.value);
   const options = {
     minimumFractionDigits: f.digits ?? 2,
@@ -17,7 +42,13 @@ export function display(cell) {
     options.currency = f.currency ?? "EUR";
     if (f.kind === "accounting") options.currencySign = "accounting";
   }
-  return new Intl.NumberFormat("en-US", options).format(v.value);
+  const key = locale + JSON.stringify(options);
+  let formatter = numberFormats.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, options);
+    numberFormats.set(key, formatter);
+  }
+  return formatter.format(v.value);
 }
 const bounds = new WeakMap();
 export function touchPreview(cells, ref) {
@@ -43,7 +74,7 @@ export function usedBounds(sheet) {
   }
   return cached;
 }
-export function preview(sheet) {
+export function preview(sheet, locale) {
   const cached = usedBounds(sheet);
   let rows, columns;
   rows = cached.rows;
@@ -57,7 +88,7 @@ export function preview(sheet) {
       Array.from({ length: columns }, (_, c) => ({
         ref: address(r + 1, c + 1),
         cell: sheet.cells[address(r + 1, c + 1)] ?? {},
-        text: display(sheet.cells[address(r + 1, c + 1)]),
+        text: display(sheet.cells[address(r + 1, c + 1)], locale),
       })),
     ),
   };

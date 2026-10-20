@@ -14,4 +14,12 @@
   --title-size:34px;
   --title-track:-.035em;
   --body-size:16px;
+  /* Optional Office semantic roles, also consumed by HTML Data. */
+  --header-bg:var(--ink);
+  --header-ink:var(--bg);
+  --row-label-bg:color-mix(in srgb,var(--lig) 35%,var(--bg));
+  --row-label-ink:var(--acc);
+  --assumption-bg:#FFF6D8;
+  --assumption-ink:var(--alert);
+  --calculation-bg:var(--tint);
 }

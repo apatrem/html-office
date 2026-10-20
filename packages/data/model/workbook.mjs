@@ -29,6 +29,14 @@ function fields(value, allowed, where) {
     if (!allowed.includes(key)) fail(`${where}: unknown field ${key}`);
 }
 const id = (v) => typeof v === "string" && /^[a-zA-Z][\w-]{0,79}$/.test(v);
+function supportedLocale(value) {
+  if (typeof value !== "string" || value.length > 64) return false;
+  try {
+    return Intl.NumberFormat.supportedLocalesOf([value]).length === 1;
+  } catch {
+    return false;
+  }
+}
 export function parseAddress(ref) {
   const match = /^([A-Z]{1,3})([1-9]\d{0,6})$/.exec(ref);
   if (!match) fail(`Invalid address: ${ref}`);
@@ -180,7 +188,7 @@ export function validateWorkbook(book) {
     !id(book.id) ||
     typeof book.title !== "string" ||
     book.dateSystem !== "excel1900" ||
-    book.locale !== "en-US"
+    !supportedLocale(book.locale)
   )
     fail("Invalid workbook header");
   if (!Array.isArray(book.sheets) || book.sheets.length === 0)
