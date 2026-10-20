@@ -1,6 +1,6 @@
 # Scenario inputs and dropdown bindings
 
-Status: implementation under T13 verification, 20 October 2026.
+Status: implemented and merged in PRs #29–#31, 20 October 2026.
 
 A scenario is one canonical input cell that selects among visible assumption cells using ordinary IronCalc formulas. Its descriptor references a generic single-cell dropdown validation. Definitions contain typed static choices or stable-sheet-ID A1 source ranges; they do not own another active value, scenario workbook or result cache. This keeps the complete model readable and editable through the embedded JSON.
 

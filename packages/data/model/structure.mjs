@@ -101,6 +101,17 @@ export function shiftWorkbook(book, command) {
                 : rule.source,
           })),
         }),
+    ...(book.conditionalFormats === undefined
+      ? {}
+      : {
+          conditionalFormats: book.conditionalFormats.map((rule) => ({
+            ...rule,
+            ref:
+              rule.sheetId === command.sheetId
+                ? shiftRange(rule.ref, command)
+                : rule.ref,
+          })),
+        }),
     names: book.names.map((name) =>
       name.sheetId === command.sheetId
         ? { ...name, ref: shiftRange(name.ref, command) }

@@ -228,6 +228,99 @@ export function validateValidations(book) {
     }
   }
 }
+export const MAX_CONDITIONAL_FORMATS = 100;
+export function validateConditionalFormats(book) {
+  const rules =
+    book.conditionalFormats === undefined ? [] : book.conditionalFormats;
+  if (!Array.isArray(rules) || rules.length > MAX_CONDITIONAL_FORMATS)
+    fail("Invalid conditional format count");
+  const seen = new Set(),
+    color = (value) =>
+      typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+  for (const rule of rules) {
+    fields(
+      rule,
+      [
+        "id",
+        "sheetId",
+        "ref",
+        "kind",
+        ...(rule?.kind === "highlight"
+          ? ["condition", "style"]
+          : ["scale", "positiveColor", "negativeColor"]),
+      ],
+      "conditional format",
+    );
+    if (
+      !id(rule.id) ||
+      seen.has(rule.id) ||
+      !book.sheets.some((s) => s.id === rule.sheetId)
+    )
+      fail("Invalid conditional format identity");
+    seen.add(rule.id);
+    if (rule.ref !== "#REF!") parseRange(rule.ref);
+    if (rule.kind === "highlight") {
+      fields(rule.condition, ["operator", "values"], "highlight condition");
+      const { operator, values } = rule.condition;
+      if (!Array.isArray(values)) fail("Expected typed condition values");
+      for (const value of values) validateValue(value);
+      const count = ["isBlank", "isError"].includes(operator)
+        ? 0
+        : ["between", "notBetween"].includes(operator)
+          ? 2
+          : ["eq", "ne", "gt", "gte", "lt", "lte", "contains"].includes(
+                operator,
+              )
+            ? 1
+            : -1;
+      if (values.length !== count)
+        fail("Invalid highlight operator/value count");
+      if (
+        ["gt", "gte", "lt", "lte", "between", "notBetween"].includes(operator)
+      ) {
+        if (
+          !values.every(
+            (v) =>
+              ["number", "date"].includes(v.type) && v.type === values[0].type,
+          )
+        )
+          fail("Ordered conditions need one numeric/date type");
+        if (count === 2 && values[0].value > values[1].value)
+          fail("Inverted condition bounds");
+      }
+      if (operator === "contains" && values[0].type !== "text")
+        fail("Contains requires text");
+      fields(rule.style, ["background", "color", "bold"], "highlight style");
+      if (
+        !Object.keys(rule.style).length ||
+        (Object.hasOwn(rule.style, "background") &&
+          !color(rule.style.background)) ||
+        (Object.hasOwn(rule.style, "color") && !color(rule.style.color)) ||
+        (Object.hasOwn(rule.style, "bold") &&
+          typeof rule.style.bold !== "boolean")
+      )
+        fail("Invalid highlight style");
+    } else if (rule.kind === "dataBar") {
+      fields(
+        rule.scale,
+        rule.scale?.kind === "auto" ? ["kind"] : ["kind", "min", "max"],
+        "data bar scale",
+      );
+      if (
+        rule.scale.kind !== "auto" &&
+        (rule.scale.kind !== "fixed" ||
+          !Number.isFinite(rule.scale.min) ||
+          !Number.isFinite(rule.scale.max) ||
+          rule.scale.min > 0 ||
+          rule.scale.max < 0 ||
+          rule.scale.min >= rule.scale.max)
+      )
+        fail("Invalid data bar scale; fixed bounds must include zero");
+      if (!color(rule.positiveColor) || !color(rule.negativeColor))
+        fail("Invalid data bar color");
+    } else fail("Invalid conditional format kind");
+  }
+}
 export function validateWorkbook(book) {
   jsonData(book);
   fields(
@@ -245,6 +338,7 @@ export function validateWorkbook(book) {
       "metadata",
       "validations",
       "scenario",
+      "conditionalFormats",
     ],
     "workbook",
   );
@@ -319,6 +413,7 @@ export function validateWorkbook(book) {
     if (name.ref !== "#REF!") parseRange(name.ref);
   }
   validateValidations(book);
+  validateConditionalFormats(book);
   if (book.snapshot !== undefined) {
     fields(
       book.snapshot,
