@@ -26,6 +26,17 @@ self.onmessage = (event) => {
       } else if (method === "editMany") {
         session.editMany(...args);
         value = null;
+      } else if (method === "configureValidations") {
+        const previous = session.book;
+        try {
+          session.configureValidations(args[0]);
+          value = { applied: true };
+        } catch (error) {
+          // Only an unchanged header is a safe validation rejection. Transport or
+          // post-mutation failures keep the ordinary failed-session behavior.
+          if (session.book !== previous) throw error;
+          value = { applied: false, message: error.message };
+        }
       } else if (method === "structure") {
         value = await session.structure(args[0]);
       } else if (method === "organize") {

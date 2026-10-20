@@ -222,6 +222,9 @@ export function validateValidations(book) {
       const target = parseRange(rule.ref);
       if (target.top !== target.bottom || target.left !== target.right)
         fail("Scenario selector must be one cell");
+      const sheet = book.sheets.find((s) => s.id === rule.sheetId);
+      if (sheet.cells[address(target.top, target.left)]?.formula)
+        fail("Scenario selector must be an input cell");
     }
   }
 }

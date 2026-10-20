@@ -1,6 +1,6 @@
 # Formula compatibility fixes in the single IronCalc engine
 
-Status: implementation candidate under T12 verification, 20 October 2026. This does not approve a release or relax the conformance/performance gates.
+Status: accepted implementation, verified in T12 and merged in PRs #25, #27 and #28 on 20 October 2026. This does not approve the complete V1 release or relax subsequent verification gates.
 
 The first frozen aggregation/logic fixtures exposed incorrect results in the pinned upstream 0.9.0 calculation core: plural criteria functions accepted unequal range shapes; criteria errors became empty matches; single-criterion sum/average ranges were not aligned from their top-left reference; AND/OR skipped later errors. Further boundary cases exposed lost single-cell references in XLOOKUP and empty strings retained by TEXTJOIN despite ignore_empty. Review also found that lifted SUMIF criteria needed per-element error propagation. Expectations are independent small calculations derived from the reference documentation, not copied from engine output. They are not a claim of validation against every Excel behaviour.
 

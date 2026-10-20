@@ -53,6 +53,12 @@ test("typed static/range dropdowns and the single scenario selector survive cano
 });
 test("ambiguous IDs, overlapping targets and dangling scenario bindings are rejected", () => {
   const changes = [
+    (b) =>
+      (b.validations[0].source.values = Array.from({ length: 1001 }, () => ({
+        type: "text",
+        value: "Base",
+      }))),
+    (b) => (b.sheets[0].cells.B2 = { formula: "=1" }),
     (b) => (b.validations = null),
     (b) => b.validations.push({ ...rule(), ref: "D1" }),
     (b) => b.validations.push({ ...rule(), id: "other", ref: "B2:C4" }),
