@@ -70,7 +70,10 @@ export function matchesCondition(value, { operator, values }) {
 }
 // Scan populated cells, never the potentially Excel-sized blank rectangle. This
 // pure summary can run in a worker; overrides recover canonical cells under a draft.
-export function conditionalScales(book, { overrides = [] } = {}) {
+export function conditionalScales(
+  book,
+  { overrides = [], formulaResultsCurrent = true } = {},
+) {
   const compiled = compileConditionalFormats(book),
     scales = {},
     bySheet = new Map();
@@ -91,6 +94,7 @@ export function conditionalScales(book, { overrides = [] } = {}) {
     if (!automatic.length) continue;
     const replacements = bySheet.get(sheet.id);
     function inspect(ref, cell) {
+      if (cell?.formula && !formulaResultsCurrent) return;
       const value = valueOf(cell);
       if (!numeric(value)) return;
       const point = parseAddress(ref);
@@ -156,7 +160,7 @@ export function conditionalPresentation(
           ...bar,
           color: bar.negative ? rule.negativeColor : rule.positiveColor,
         };
-      }
+      } else result.pendingBar = true;
     }
   }
   return result;

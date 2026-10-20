@@ -28,6 +28,7 @@ let book = compactInputs(readModel($("workbook").textContent)),
   session = null,
   loading = null,
   pendingEdits = [];
+let conditionalScales = {};
 const revisions = new CalculationRevision();
 const history = new EditHistory();
 // Reuse verified fingerprints across formatting/history; recovery starts a new trust boundary.
@@ -41,6 +42,14 @@ const status = (text) => {
 };
 const persistence = setupPersistence({
   getBook: () => book,
+  isSnapshotCurrent: () =>
+    !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  onConditionalScales: (scales) => {
+    const repaint =
+      Object.keys(conditionalScales).length || Object.keys(scales ?? {}).length;
+    conditionalScales = scales ?? {};
+    if (repaint) grid.draw();
+  },
   getPending: () => (pendingEdits.length ? pendingEdits : null),
   restore: (recovered) => {
     revisions.cancel();
@@ -59,6 +68,7 @@ const persistence = setupPersistence({
       if (revisions.current(token)) {
         if (value.state === "current") trustSnapshot();
         dropdowns.draw();
+        persistence.refreshConditionalScales();
         grid.draw();
         status(
           value.state === "current"
@@ -80,6 +90,7 @@ const grid = createGrid($("grid"), {
   decorateCell: createConditionalDecorator(
     () => book,
     () => !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+    () => conditionalScales,
   ),
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getLocale: () => book.locale,
@@ -737,11 +748,14 @@ setupRibbon();
 render();
 choose(selected);
 const initialRevision = revisions.revision;
-const initialState = await persistence.initialSnapshot.catch(() =>
-  snapshotState(book),
-);
+let fallbackInspection = false;
+const initialState = await persistence.initialSnapshot.catch(() => {
+  fallbackInspection = true;
+  return snapshotState(book);
+});
 if (revisions.current(initialRevision)) {
   if (initialState.state === "current") trustSnapshot();
+  if (fallbackInspection) persistence.refreshConditionalScales();
   dropdowns.draw();
   grid.draw();
   status(

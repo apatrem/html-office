@@ -277,3 +277,19 @@ test("summary lookups require an own entry for prototype-shaped rule IDs", () =>
     );
   }
 });
+
+test("unverified formula results do not influence automatic data bar bounds", () => {
+  const book = fixture();
+  book.sheets[0].cells.A7.result = n(9000);
+  assert.deepEqual(conditionalScales(book, { formulaResultsCurrent: false }), {
+    bar: { min: -100, max: 50, count: 3 },
+  });
+  assert.equal(conditionalScales(book).bar.max, 9000);
+  assert.deepEqual(
+    conditionalScales(book, {
+      formulaResultsCurrent: false,
+      overrides: [{ sheetId: "s", ref: "A2", cell: { input: n(200) } }],
+    }),
+    { bar: { min: -100, max: 200, count: 3 } },
+  );
+});

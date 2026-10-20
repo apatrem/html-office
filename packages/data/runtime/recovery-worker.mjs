@@ -1,3 +1,4 @@
+import { conditionalScales } from "../model/conditional.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { shiftWorkbook, restoreHead } from "../model/structure.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
@@ -10,11 +11,55 @@ let database,
   blocked = false,
   hasChanges = false,
   protectedSource = false,
+  storageFailed = false,
   timer,
+  analysisTimer,
+  canonicalOverrides = [],
+  formulaResultsCurrent = false,
   queue = Promise.resolve();
 const report = (value) => self.postMessage(value);
+function storageError(error) {
+  storageFailed = true;
+  report({ kind: "storage-error", message: error.message });
+}
+async function storage(action) {
+  if (storageFailed) return false;
+  try {
+    await action();
+    return true;
+  } catch (error) {
+    storageError(error);
+    return false;
+  }
+}
+function analyse() {
+  if (
+    !book?.conditionalFormats?.some(
+      (r) => r.kind === "dataBar" && r.scale.kind === "auto",
+    )
+  )
+    return;
+  report({
+    kind: "conditional-scales",
+    revision,
+    scales: conditionalScales(book, {
+      overrides: canonicalOverrides,
+      formulaResultsCurrent,
+    }),
+  });
+}
+function scheduleAnalysis(data) {
+  canonicalOverrides = data.canonicalOverrides ?? [];
+  formulaResultsCurrent = !!data.formulaResultsCurrent;
+  clearTimeout(analysisTimer);
+  analysisTimer = setTimeout(() => {
+    queue = queue
+      .then(analyse)
+      .catch((error) => report({ kind: "error", message: error.message }));
+  }, 20);
+}
 async function store() {
-  if (blocked || !hasChanges || !book) return;
+  if (storageFailed || blocked || !hasChanges || !book) return;
   const record = {
     schema: 1,
     documentId: book.id,
@@ -24,8 +69,8 @@ async function store() {
     modelText: writeModel(book, { pretty: false }),
     protectedSource,
   };
-  await database.put(key, record);
-  report({ kind: "stored", revision: record.revision });
+  if (await storage(() => database.put(key, record)))
+    report({ kind: "stored", revision: record.revision });
 }
 self.onmessage = ({ data }) => {
   queue = queue.then(async () => {
@@ -33,14 +78,20 @@ self.onmessage = ({ data }) => {
       if (data.kind === "init") {
         book = readModel(data.text);
         try {
-          report({ kind: "inspected", state: await snapshotState(book) });
+          const state = await snapshotState(book);
+          formulaResultsCurrent = state.state === "current";
+          report({ kind: "inspected", state });
         } catch (error) {
           report({ kind: "inspection-failed", message: error.message });
         }
+        analyse();
         database = draftDatabase();
         key = data.key;
         baseHash = data.baseHash;
-        const existing = await database.get(key);
+        let existing;
+        await storage(async () => {
+          existing = await database.get(key);
+        });
         blocked = !!existing;
         if (existing) report({ kind: "draft", record: existing });
         else report({ kind: "ready" });
@@ -51,22 +102,24 @@ self.onmessage = ({ data }) => {
         protectedSource = !!data.protectedSource;
         blocked = false;
         clearTimeout(timer);
+        scheduleAnalysis(data);
         await store();
+      } else if (data.kind === "analyse") {
+        if (data.revision === revision) scheduleAnalysis(data);
       } else if (data.kind === "discard") {
+        if (!(await storage(() => database.delete(key)))) return;
         blocked = false;
-        await database.delete(key);
         if (hasChanges) await store();
-        report({ kind: "ready" });
+        report({ kind: "ready", discarded: true });
       } else if (data.kind === "rebase") {
-        // Only an explicit restore/discard may resolve a previous draft.
         if (blocked) return;
         protectedSource = false;
         baseHash = data.baseHash;
         if (data.clean) {
           hasChanges = false;
           clearTimeout(timer);
-          await database.delete(key);
-          report({ kind: "clean" });
+          if (await storage(() => database.delete(key)))
+            report({ kind: "clean" });
         } else await store();
       } else if (data.kind === "change") {
         const patch = (edits) => {
@@ -84,6 +137,7 @@ self.onmessage = ({ data }) => {
         else delete book.snapshot;
         revision = data.revision;
         hasChanges = true;
+        scheduleAnalysis(data);
         clearTimeout(timer);
         timer = setTimeout(() => {
           queue = queue

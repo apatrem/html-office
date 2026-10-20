@@ -2,14 +2,23 @@ import {
   compileConditionalFormats,
   conditionalPresentation,
 } from "../model/conditional.mjs";
-export function createConditionalDecorator(getBook, isSnapshotCurrent) {
-  let definitions, compiled;
+export function createConditionalDecorator(
+  getBook,
+  isSnapshotCurrent,
+  getScales = () => ({}),
+) {
+  let definitions, compiled, fixed;
   return (element, sheetId, ref, cell) => {
     const book = getBook();
     if (!book.conditionalFormats?.length) return;
     if (definitions !== book.conditionalFormats) {
       definitions = book.conditionalFormats;
       compiled = compileConditionalFormats(book);
+      fixed = Object.fromEntries(
+        book.conditionalFormats
+          .filter((r) => r.kind === "dataBar" && r.scale.kind === "fixed")
+          .map((r) => [r.id, r.scale]),
+      );
     }
     if (cell.formula && !isSnapshotCurrent()) {
       element.setAttribute(
@@ -18,13 +27,46 @@ export function createConditionalDecorator(getBook, isSnapshotCurrent) {
       );
       return;
     }
-    const { highlight } = conditionalPresentation(compiled, sheetId, ref, cell);
-    if (!highlight) return;
-    if (highlight.background)
-      element.style.backgroundColor = highlight.background;
-    if (highlight.color) element.style.color = highlight.color;
-    if (highlight.bold !== undefined)
-      element.style.fontWeight = highlight.bold ? "bold" : "normal";
-    element.setAttribute("aria-description", "Conditional highlight");
+    const { highlight, bar, pendingBar } = conditionalPresentation(
+      compiled,
+      sheetId,
+      ref,
+      cell,
+      { ...fixed, ...getScales() },
+    );
+    const descriptions = [];
+    if (highlight) {
+      if (highlight.background)
+        element.style.backgroundColor = highlight.background;
+      if (highlight.color) element.style.color = highlight.color;
+      if (highlight.bold !== undefined)
+        element.style.fontWeight = highlight.bold ? "bold" : "normal";
+      descriptions.push("Conditional highlight");
+    }
+    if (bar) {
+      const fill = document.createElement("span"),
+        axis = document.createElement("span"),
+        text = document.createElement("span");
+      fill.className = "data-bar-fill";
+      axis.className = "data-bar-axis";
+      text.className = "data-bar-text";
+      fill.setAttribute("aria-hidden", "true");
+      axis.setAttribute("aria-hidden", "true");
+      Object.assign(fill.style, {
+        left: `${bar.left}%`,
+        width: `${bar.width}%`,
+        backgroundColor: bar.color,
+      });
+      axis.style.left = `${bar.axis}%`;
+      text.textContent = element.textContent;
+      element.replaceChildren(fill, axis, text);
+      descriptions.push(
+        `Data bar: ${bar.negative ? "negative" : "nonnegative"}, ${bar.width.toFixed(1)}% of scale; zero axis ${bar.axis.toFixed(1)}%.`,
+      );
+    }
+    if (pendingBar)
+      descriptions.push("Automatic data bar unavailable or updating.");
+    if (descriptions.length)
+      element.setAttribute("aria-description", descriptions.join(". "));
   };
 }

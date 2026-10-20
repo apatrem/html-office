@@ -19,7 +19,13 @@ function shell(doc) {
   return copy.outerHTML;
 }
 
-export function setupPersistence({ getBook, getPending, restore }) {
+export function setupPersistence({
+  getBook,
+  getPending,
+  restore,
+  isSnapshotCurrent = () => false,
+  onConditionalScales = () => {},
+}) {
   const $ = (id) => document.getElementById(id),
     dirty = new DirtyState();
   let resolveInitialSnapshot, rejectInitialSnapshot;
@@ -37,11 +43,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
     writer,
     recovery,
     recoveryFailed = null,
+    workerFailed = false,
     recoveryReady = false,
     saveInProgress = false,
     feedbackRevision = null,
     protectedSource = false,
-    draft;
+    draft,
+    discardPending = false;
   const messages = [];
   const saveStatus = (text) => ($("save-status").textContent = text);
   const saveFeedback = (text) => {
@@ -49,20 +57,43 @@ export function setupPersistence({ getBook, getPending, restore }) {
     saveStatus(text);
   };
   const send = (message) => {
-    if (recoveryFailed) return;
+    if (workerFailed) return;
     if (recovery) recovery.send(message);
     else messages.push(message);
   };
   function documentBook() {
     return overlayDraft(getBook(), getPending());
   }
+  function analysisOptions() {
+    return {
+      formulaResultsCurrent: isSnapshotCurrent(),
+      canonicalOverrides: (getBook().conditionalFormats?.some(
+        (r) => r.kind === "dataBar" && r.scale.kind === "auto",
+      )
+        ? (getPending() ?? [])
+        : []
+      ).map((edit) => ({
+        sheetId: edit.sheetId,
+        ref: edit.ref,
+        cell:
+          getBook().sheets.find((s) => s.id === edit.sheetId).cells[edit.ref] ??
+          null,
+      })),
+    };
+  }
+  function refreshConditionalScales() {
+    onConditionalScales(null);
+    send({ kind: "analyse", revision: dirty.revision, ...analysisOptions() });
+  }
   function changed(edits = [], changes = {}) {
     const revision = dirty.change(),
       attempt = getPending();
     const patches = edits.map((e) => ({ ...e, cell: e.cell ?? null }));
     patches.push(...draftPatches(getBook(), attempt));
+    onConditionalScales(null);
     send({
       kind: "change",
+      ...analysisOptions(),
       ...changes,
       revision,
       edits: patches,
@@ -78,18 +109,35 @@ export function setupPersistence({ getBook, getPending, restore }) {
         `Unsaved changes. Recovery unavailable: ${recoveryFailed}. Use Save or Save a copy.`,
       );
   }
+  const compatibleDraft = (record) =>
+    record?.schema === 1 &&
+    record.documentId === getBook().id &&
+    typeof record.modelText === "string";
   function receive(message) {
-    if (message.kind === "inspected") {
+    if (message.kind === "conditional-scales") {
+      if (!workerFailed && message.revision === dirty.revision)
+        onConditionalScales(message.scales);
+    } else if (message.kind === "inspected") {
       resolveInitialSnapshot(message.state);
     } else if (message.kind === "inspection-failed") {
       rejectInitialSnapshot(
         new Error(message.message || "Snapshot verification unavailable"),
       );
     } else if (message.kind === "ready") {
+      if (discardPending) {
+        if (!message.discarded) return;
+        discardPending = false;
+        draft = null;
+        protectedSource = false;
+        $("discard-draft").disabled = false;
+        $("recovery-dialog").close();
+        saveStatus(dirty.dirty ? "Unsaved changes." : "Saved file opened.");
+      }
       recoveryReady = true;
       $("direct-save").disabled = false;
     } else if (
       message.kind === "stored" &&
+      !recoveryFailed &&
       dirty.dirty &&
       !saveInProgress &&
       feedbackRevision !== dirty.revision &&
@@ -100,14 +148,28 @@ export function setupPersistence({ getBook, getPending, restore }) {
           ? "Unsaved draft includes the attempted edit; its results are not current. Recovery stored."
           : "Unsaved changes. Recovery stored.",
       );
-    else if (message.kind === "error") {
+    else if (["error", "storage-error"].includes(message.kind)) {
+      if (message.kind === "error") {
+        workerFailed = true;
+        onConditionalScales(null);
+      }
       rejectInitialSnapshot(
         new Error(message.message || "Recovery worker unavailable"),
       );
       recoveryFailed = message.message || "Storage unavailable";
-      recoveryReady = true;
-      $("direct-save").disabled = false;
-      messages.length = 0;
+      if ($("recovery-dialog").open) {
+        const reason = discardPending
+          ? "Draft not discarded"
+          : "Recovery unavailable";
+        discardPending = false;
+        $("discard-draft").disabled = true;
+        $("restore-draft").disabled = !compatibleDraft(draft);
+        $("recovery-message").textContent =
+          `${reason}: ${message.message}. The record and source-revision protection are retained. ${compatibleDraft(draft) ? "Restore the draft, or reopen this file to retry." : "Reopen this file to resolve the incompatible recovery record."}`;
+      }
+      recoveryReady = !$("recovery-dialog").open;
+      $("direct-save").disabled = !recoveryReady;
+      if (workerFailed) messages.length = 0;
       saveStatus(
         `Recovery unavailable: ${message.message}. Your work remains open; use Save or Save a copy.`,
       );
@@ -115,10 +177,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
       recoveryReady = false;
       $("direct-save").disabled = true;
       draft = message.record;
-      const compatible =
-        draft?.schema === 1 &&
-        draft.documentId === getBook().id &&
-        typeof draft.modelText === "string";
+      const compatible = compatibleDraft(draft);
       protectedSource =
         !compatible || !!draft.protectedSource || draft.baseHash !== sourceHash;
       $("recovery-message").textContent = compatible
@@ -126,6 +185,7 @@ export function setupPersistence({ getBook, getPending, restore }) {
           ? "A draft belongs to a different file revision. You can open it as a copy; direct overwrite of this file will be blocked."
           : "A recoverable draft exists for this file. Restoring replaces any current unsaved changes. Nothing is written to disk automatically."
         : "A recovery record cannot be read by this version. Keep this file open or discard that record.";
+      $("discard-draft").disabled = false;
       $("restore-draft").disabled = !compatible;
       $("restore-draft").textContent = protectedSource
         ? "Open draft as a copy"
@@ -156,8 +216,10 @@ export function setupPersistence({ getBook, getPending, restore }) {
       writer = undefined;
       restore(book);
       dirty.change();
+      onConditionalScales(null);
       send({
         kind: "reset",
+        ...analysisOptions(),
         text: draft.modelText,
         revision: dirty.revision,
         protectedSource,
@@ -175,11 +237,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
     }
   };
   $("discard-draft").onclick = () => {
+    if (discardPending || workerFailed) return;
+    discardPending = true;
+    $("discard-draft").disabled = true;
+    $("restore-draft").disabled = true;
+    $("recovery-message").textContent =
+      "Discarding the recovery record… Source-revision protection remains active until storage confirms deletion.";
     send({ kind: "discard" });
-    draft = null;
-    protectedSource = false;
-    $("recovery-dialog").close();
-    saveStatus(dirty.dirty ? "Unsaved changes." : "Saved file opened.");
   };
   function capture() {
     const copy = document.documentElement.cloneNode(true),
@@ -299,10 +363,13 @@ export function setupPersistence({ getBook, getPending, restore }) {
   return {
     initialSnapshot,
     changed,
+    refreshConditionalScales,
     reset() {
       dirty.change();
+      onConditionalScales(null);
       send({
         kind: "reset",
+        ...analysisOptions(),
         text: writeModel(documentBook()),
         revision: dirty.revision,
         protectedSource,
