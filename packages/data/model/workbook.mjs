@@ -236,7 +236,7 @@ export function validateWorkbook(book) {
     )
       fail("Invalid named range");
     named.add(name.name.toLowerCase());
-    parseRange(name.ref);
+    if (name.ref !== "#REF!") parseRange(name.ref);
   }
   if (book.snapshot !== undefined) {
     fields(
