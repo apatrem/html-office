@@ -50,3 +50,11 @@ Numbers are finite IEEE-754 doubles, independent of displayed rounding. Preserve
 Policy A saves every populated formula result without a rectangular position cutoff. Snapshots identify engine/version, time and the calculation-relevant fingerprint. An input/formula edit invalidates the matching snapshot; retain the old fingerprint or remove the snapshot until recalculation. Do not invent or round saved results. Formatting does not invalidate calculations. The browser displays externally stale results as stale and recalculates with the same IronCalc worker. Standard mode loads the verified engine when needed; offline mode embeds it. There is no second formula evaluator.
 
 See [ADR-005](../../../docs/decisions/005-data-storage.md) for the decision, [Phase A evidence](../PHASE-A-REPORT.md) for limits, and [the storage review](../bench/storage/REVIEW.md) for the isolated HTML-only trials. Later T06–T22 work remains separate.
+
+## Structural edits and named references
+
+Named ranges retain `{name, sheetId, ref}`. `ref` is an A1 rectangle or the explicit string `"#REF!"` when a structural edit removes every referenced cell. Partial deletion shrinks the range; insertion relocates or expands it. Stable sheet IDs remain unchanged. Row/column operations obtain formula rewrites from IronCalc and return them to the readable model. A generated filename or opaque engine state is never required to restore references.
+
+IronCalc's current structural methods do not reliably relocate defined names, and its public binding accepts only range-shaped name definitions. The adapter therefore rebinds the canonical names after a structural operation. Broken names point to a derived typed `#REF!` cell in a temporary engine-only sheet. That helper contains no workbook inputs, is omitted from the document/model/results, and is recreated from the canonical broken binding on load. Formula strings such as `=Metric` stay readable and return a typed reference error after save/reopen. There is still one evaluator.
+
+Structural input movement is lossless: an insertion that would push populated cells past Excel's row/column bounds is rejected before the engine changes. A blank tail of an explicit named range is clipped to grid bounds; a reference moved wholly beyond the grid becomes `#REF!`.

@@ -1,3 +1,4 @@
+import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
@@ -17,11 +18,19 @@ export class EngineSession {
     try{
       this.engine.pauseEvaluation();
       // Avoid accidental name collisions with the default or intermediate sheet names.
-      let prefix='__office_';
-      while(book.sheets.some(s=>s.name.toLowerCase().startsWith(prefix)))prefix='_'+prefix;
+      let prefix='__office_', prefixIndex=0;
+      while(book.sheets.some(s=>s.name.toLowerCase().startsWith(prefix)))prefix=`__office${++prefixIndex}_`;
       book.sheets.forEach((_,i)=>{if(i)this.engine.newSheet();this.engine.renameSheet(i,`${prefix}${i}`);});
       book.sheets.forEach((s,i)=>this.engine.renameSheet(i,s.name));
-      for(const name of book.names){const sheet=book.sheets.find(s=>s.id===name.sheetId);this.engine.newDefinedName(name.name,undefined,`'${sheet.name.replaceAll("'","''")}'!${name.ref}`);}
+      // IronCalc accepts only range-shaped defined names. Broken canonical names
+      // point to one derived typed-error cell; it is never part of saved data.
+      let brokenSheet;
+      if(book.names.some(name=>name.ref==='#REF!')){
+        brokenSheet=`${prefix}errors`;
+        this.engine.newSheet();this.engine.renameSheet(book.sheets.length,brokenSheet);
+        this.engine.setUserInput(book.sheets.length,1,1,'#REF!');
+      }
+      for(const name of book.names){const sheet=book.sheets.find(s=>s.id===name.sheetId);const ref=name.ref==='#REF!'?`'${brokenSheet}'!$A$1`:`'${sheet.name.replaceAll("'","''")}'!${name.ref}`;this.engine.newDefinedName(name.name,undefined,ref);}
       book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells)){const {row,column}=parseAddress(ref);this.engine.setUserInput(i,row,column,engineInput(cell));}});
       // resumeEvaluation enables future evaluation but does not evaluate by itself.
       this.engine.resumeEvaluation();
@@ -42,6 +51,21 @@ export class EngineSession {
       if(cell===null)delete this.book.sheets[index].cells[ref];
       else this.book.sheets[index].cells[ref]=cell;
     }}finally{this.engine.resumeEvaluation();}
+  }
+  async structure(command){
+    const beforeRefs=structureBeforeRefs(this.book,command),next=shiftWorkbook(this.book,command);
+    const index=this.book.sheets.findIndex(s=>s.id===command.sheetId);
+    const method=(command.action==='insert'?'insert':'delete')+(command.axis==='row'?'Rows':'Columns');
+    this.engine.pauseEvaluation();
+    try{this.engine[method](index,command.index,command.count);}finally{this.engine.resumeEvaluation();}
+    const formulas=[];
+    next.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){
+      const {row,column}=parseAddress(ref),formula=this.engine.getCellContent(i,row,column);
+      validateCell({...cell,formula});sheet.cells[ref]={...cell,formula};formulas.push({sheetId:sheet.id,ref,formula});
+    }});
+    // Rebind canonical names: the engine does not reliably relocate them itself.
+    this.load(next);
+    return {...await this.calculateDelta(),formulas,beforeRefs};
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);
