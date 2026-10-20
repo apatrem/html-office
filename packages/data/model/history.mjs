@@ -1,3 +1,4 @@
+import { shiftWorkbook, inverseStructure, restoreHead } from "./structure.mjs";
 export function captureCells(book, refs) {
   const seen = new Set();
   return refs
@@ -37,9 +38,21 @@ export class EditHistory {
       to = redo ? this.past : this.future;
     const entry = from.pop();
     if (!entry) return null;
+    const structure = entry.structure
+        ? redo
+          ? entry.structure
+          : inverseStructure(entry.structure)
+        : undefined,
+      head = redo ? entry.headAfter : entry.headBefore;
+    if (structure) {
+      const shifted = shiftWorkbook(book, structure);
+      Object.assign(book, shifted);
+    }
+    if (head) restoreHead(book, head);
     const edits = redo ? entry.after : entry.before;
     for (const { sheetId, ref, cell } of edits) {
-      const cells = book.sheets.find((s) => s.id === sheetId).cells;
+      const cells = book.sheets.find((s) => s.id === sheetId)?.cells;
+      if (!cells) continue;
       if (cell === null) delete cells[ref];
       else cells[ref] = structuredClone(cell);
     }
@@ -49,6 +62,8 @@ export class EditHistory {
     to.push(entry);
     return {
       edits,
+      structure,
+      head,
       selection: structuredClone(
         redo ? entry.selectionAfter : entry.selectionBefore,
       ),

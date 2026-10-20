@@ -112,3 +112,20 @@ export function structureBeforeRefs(book, command) {
     }
   return refs;
 }
+// Headers contain workbook/sheet metadata, but never duplicate source cells.
+export function captureHead(book) {
+  const { sheets, snapshot, ...head } = book;
+  return structuredClone({
+    ...head,
+    sheets: sheets.map(({ cells, ...sheet }) => sheet),
+  });
+}
+export function restoreHead(book, head) {
+  const cells = new Map(book.sheets.map((sheet) => [sheet.id, sheet.cells]));
+  for (const key of Object.keys(book)) delete book[key];
+  Object.assign(book, structuredClone(head));
+  book.sheets = book.sheets.map((sheet) => ({
+    ...sheet,
+    cells: cells.get(sheet.id) ?? {},
+  }));
+}

@@ -51,13 +51,14 @@ export function setupPersistence({ getBook, getPending, restore }) {
   function documentBook() {
     return overlayDraft(getBook(), getPending());
   }
-  function changed(edits = []) {
+  function changed(edits = [], changes = {}) {
     const revision = dirty.change(),
       attempt = getPending();
     const patches = edits.map((e) => ({ ...e, cell: e.cell ?? null }));
     patches.push(...draftPatches(getBook(), attempt));
     send({
       kind: "change",
+      ...changes,
       revision,
       edits: patches,
       snapshot: attempt ? null : (getBook().snapshot ?? null),
