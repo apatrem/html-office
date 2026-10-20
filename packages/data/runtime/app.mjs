@@ -1,3 +1,4 @@
+import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from "../model/organization.mjs";
 import { compactInputs } from "./literals.mjs";
@@ -25,6 +26,11 @@ let book = compactInputs(readModel($("workbook").textContent)),
   pendingEdits = [];
 const revisions = new CalculationRevision();
 const history = new EditHistory();
+// Reuse verified fingerprints across formatting/history; recovery starts a new trust boundary.
+const verifiedSnapshots = new Set();
+function trustSnapshot() {
+  if (book.snapshot) verifiedSnapshots.add(book.snapshot.fingerprint);
+}
 const config = JSON.parse($("engine-config").textContent);
 const status = (text) => {
   $("status").textContent = text;
@@ -39,18 +45,22 @@ const persistence = setupPersistence({
     loading = null;
     pendingEdits = [];
     book = compactInputs(recovered);
+    verifiedSnapshots.clear();
     sheetId = book.sheets[0].id;
     history.clear();
     render();
     choose("B2");
     const token = revisions.revision;
     void snapshotState(book).then((value) => {
-      if (revisions.current(token))
+      if (revisions.current(token)) {
+        if (value.state === "current") trustSnapshot();
+        dropdowns.draw();
         status(
           value.state === "current"
             ? "Saved results are current."
             : "Saved results are stale or missing. Apply an edit to recalculate.",
         );
+      }
     });
   },
 });
@@ -102,6 +112,7 @@ function choose(ref, updateGrid = true) {
   $("cell-type").value = cell.formula ? "formula" : value.type;
   $("cell-value").value =
     cell.formula ?? (value.type === "blank" ? "" : String(value.value));
+  dropdowns.draw();
 }
 function render() {
   navigation.draw();
@@ -131,6 +142,7 @@ function render() {
     $(id).disabled = !!loading;
   for (const field of document.querySelectorAll(".fields input,.fields select"))
     field.disabled = !!loading;
+  dropdowns.draw();
 }
 function enteredCell() {
   const type = $("cell-type").value,
@@ -215,6 +227,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
     book.snapshot = result.snapshot;
+    trustSnapshot();
     if (!recalculateOnly) {
       pendingEdits = [];
       if (selectionAfter) {
@@ -382,6 +395,7 @@ async function applyLayout(command, structural = false) {
         r.result;
     next.snapshot = result.snapshot;
     book = next;
+    trustSnapshot();
     pendingEdits = [];
     const after = captureCells(book, result.formulas),
       headAfter = captureHead(book);
@@ -473,6 +487,7 @@ async function moveHistory(direction) {
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
     book.snapshot = result.snapshot;
+    trustSnapshot();
     persistence.changed(cellEdits(result.results));
     status(
       `${direction === "undo" ? "Undo" : "Redo"} restored the previous workbook.`,
@@ -608,6 +623,15 @@ const navigation = setupSheetNavigation($("sheet-tabs"), {
   apply: applyOrganization,
   status,
 });
+const dropdowns = setupDropdowns({
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  getSelection: () => grid.selection,
+  busy: () => !!loading,
+  isSnapshotCurrent: () =>
+    !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  apply,
+});
 setupClipboard({
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getSelection: () => grid.selection,
@@ -622,9 +646,12 @@ const initialRevision = revisions.revision;
 const initialState = await persistence.initialSnapshot.catch(() =>
   snapshotState(book),
 );
-if (revisions.current(initialRevision))
+if (revisions.current(initialRevision)) {
+  if (initialState.state === "current") trustSnapshot();
+  dropdowns.draw();
   status(
     initialState.state === "current"
       ? "Saved results are current."
       : "Saved results are stale or missing. Apply an edit to recalculate.",
   );
+}
