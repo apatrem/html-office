@@ -1,0 +1,92 @@
+{
+  "environment": {
+    "date": "2026-10-20T19:48:11.128Z",
+    "node": "v26.0.0",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "logicalCPUs": 10,
+    "memoryBytes": 25769803776
+  },
+  "method": "Standalone offline file://; same pinned IronCalc as standard. Warm edit-to-paint includes result snapshot and DOM refresh. Five input changes after one engine load. Long tasks only during warm edits. WASM memory is maximum sampled allocated linear memory. Browser-tree RSS is sampled every 200ms via ps, sums processes including shared pages, and may miss short peaks; it is not unique physical memory. Cold file opening and initial engine/model load reported separately. Network delivery assessed separately.",
+  "cases": [
+    {
+      "id": "pnl",
+      "workload": {
+        "kind": "pnl",
+        "months": 24,
+        "actualMonths": 12,
+        "forecastMonths": 12,
+        "expectedRevenue": 91261.28465042303,
+        "expectedNetIncome": 20846.13884983012,
+        "expectedNPV": 8437.718577841142
+      },
+      "size": {
+        "applicationCodeBytes": 1287842,
+        "documentContentBytes": 113600,
+        "totalHTMLBytes": 1401442
+      },
+      "standardSize": {
+        "applicationCodeBytes": 331594,
+        "documentContentBytes": 113600,
+        "totalHTMLBytes": 445194
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 127.30000001192093,
+        "dependencyLoadMS": 29.399999976158142,
+        "modelLoadMS": 97.90000003576279,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 26.69999998807907,
+          "importInstantiateMS": 2.699999988079071
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 865910784,
+      "coldOpenMS": 91.85241599999995,
+      "initialLoadEditToPaintMS": 181.89999997615814,
+      "maximumSampledWasmMemoryBytes": 1703936,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 1.7000000476837158,
+          "wasmMemoryBytes": 1703936,
+          "editToPaintMS": 47.60000002384186
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 3.5,
+          "wasmMemoryBytes": 1703936,
+          "editToPaintMS": 48.69999998807907
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 0.5999999642372131,
+          "wasmMemoryBytes": 1703936,
+          "editToPaintMS": 48.69999998807907
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1,
+          "wasmMemoryBytes": 1703936,
+          "editToPaintMS": 48.5
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 0.3999999761581421,
+          "wasmMemoryBytes": 1703936,
+          "editToPaintMS": 48
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 10420237,
+      "warmMaxMS": 48.69999998807907,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnder500000Bytes": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    }
+  ]
+}

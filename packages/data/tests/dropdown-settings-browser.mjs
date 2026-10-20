@@ -31,6 +31,8 @@ try {
   });
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
+  await page.getByRole("tab", { name: "Data", exact: true }).click();
+
   await page
     .getByRole("button", { name: "Dropdown settings", exact: true })
     .click();
@@ -55,6 +57,8 @@ try {
     .waitFor();
   assert.equal(requests.length, 2);
   await context.setOffline(true);
+  await page.getByRole("tab", { name: "Data", exact: true }).click();
+
   await page
     .getByRole("button", { name: "Dropdown settings", exact: true })
     .click();
@@ -148,6 +152,8 @@ try {
     return readHTML(await readFile(file, "utf8")).book;
   }
   async function openNew(page) {
+    await page.getByRole("tab", { name: "Data", exact: true }).click();
+
     await page
       .getByRole("button", { name: "Dropdown settings", exact: true })
       .click();
@@ -220,6 +226,8 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
+    await page.getByRole("tab", { name: "Data", exact: true }).click();
+
     await page
       .getByRole("button", { name: "Dropdown settings", exact: true })
       .click();
@@ -323,6 +331,8 @@ try {
     );
     await page.getByLabel("Cell address").fill("H2");
     await page.keyboard.press("Tab");
+    await page.getByRole("tab", { name: "Data", exact: true }).click();
+
     await page
       .getByRole("button", { name: "Dropdown settings", exact: true })
       .click();
