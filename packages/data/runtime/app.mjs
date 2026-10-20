@@ -1,4 +1,5 @@
 import { organizeWorkbook } from "../model/organization.mjs";
+import { compactInputs } from "./literals.mjs";
 import { setupSheetNavigation } from "./sheets.mjs";
 import { validateCell, parseAddress, address } from "../model/workbook.mjs";
 import { readModel } from "./document-model.mjs";
@@ -15,7 +16,7 @@ import {
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
 const $ = (id) => document.getElementById(id);
-let book = readModel($("workbook").textContent),
+let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
   selected = "B2",
   session = null,
@@ -36,7 +37,7 @@ const persistence = setupPersistence({
     session = null;
     loading = null;
     pendingEdits = [];
-    book = recovered;
+    book = compactInputs(recovered);
     sheetId = book.sheets[0].id;
     history.clear();
     render();
