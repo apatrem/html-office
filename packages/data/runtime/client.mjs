@@ -53,6 +53,10 @@ export class EngineClient {
     this.ready = this.ready.then(() => this.request("editMany", [edits]));
     return this.ready;
   }
+  async structure(command) {
+    await this.ready;
+    return this.request("structure", [command]);
+  }
   async calculate() {
     await this.ready;
     return this.request("calculate", []);
