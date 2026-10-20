@@ -191,6 +191,9 @@ export function setupPersistence({ getBook, getPending, restore }) {
     copy.querySelector("#paste-preview")?.replaceChildren();
     copy.querySelector("#sheet-context")?.replaceChildren();
     copy.querySelector("#dropdown-context")?.replaceChildren();
+    copy.querySelector("#conditional-context")?.replaceChildren();
+    for (const field of copy.querySelectorAll("#conditional-dialog textarea"))
+      field.replaceChildren();
     copy.querySelector("#dropdown-list-values")?.replaceChildren();
     const pasteText = copy.querySelector("#paste-text");
     if (pasteText) pasteText.textContent = "";

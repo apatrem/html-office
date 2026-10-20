@@ -1,3 +1,5 @@
+import { setupConditionalSettings } from "./conditional-settings.mjs";
+import { createConditionalDecorator } from "./conditional.mjs";
 import { setupRibbon } from "./ribbon.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
@@ -57,6 +59,7 @@ const persistence = setupPersistence({
       if (revisions.current(token)) {
         if (value.state === "current") trustSnapshot();
         dropdowns.draw();
+        grid.draw();
         status(
           value.state === "current"
             ? "Saved results are current."
@@ -74,6 +77,10 @@ function cellEdits(refs) {
   }));
 }
 const grid = createGrid($("grid"), {
+  decorateCell: createConditionalDecorator(
+    () => book,
+    () => !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  ),
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getLocale: () => book.locale,
   busy: () => !!loading,
@@ -133,6 +140,7 @@ function render() {
   for (const id of [
     "manage-sheets",
     "manage-dropdowns",
+    "manage-conditional",
     "format-apply",
     "paste-table",
     "fill-down",
@@ -147,6 +155,7 @@ function render() {
     field.disabled = !!loading;
   dropdowns.draw();
   dropdownSettings.draw();
+  conditionalSettings.draw();
 }
 function enteredCell() {
   const type = $("cell-type").value,
@@ -338,7 +347,7 @@ $("cancel").onclick = () => {
   render();
   status(
     operation
-      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : "Sheet"} operation cancelled. Your previous work is retained.`
+      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : operation === "conditional" ? "Conditional formatting" : "Sheet"} operation cancelled. Your previous work is retained.`
       : !pendingEdits.length
         ? "Calculation cancelled. Your workbook remains open."
         : pendingEdits.some((edit) => edit.range)
@@ -631,7 +640,7 @@ async function applyOrganization(command) {
     status(`Sheet groups not changed: ${error.message}`);
   }
 }
-async function applyValidationHeader(next) {
+async function applyDefinitionHeader(next, label = "Dropdown settings") {
   if (loading) return;
   const epoch = revisions.begin();
   try {
@@ -639,9 +648,10 @@ async function applyValidationHeader(next) {
     const headBefore = captureHead(book),
       selection = { sheetId, ...grid.selection };
     loading = new AbortController();
-    loading.operation = "dropdown";
+    loading.operation =
+      label === "Dropdown settings" ? "dropdown" : "conditional";
     render();
-    if (session)
+    if (session && label === "Dropdown settings")
       await session.configureValidations({
         validations: next.validations,
         scenario: next.scenario,
@@ -661,14 +671,14 @@ async function applyValidationHeader(next) {
       calculate: false,
     });
     persistence.changed([], { head: headAfter });
-    status("Dropdown settings updated. Unsaved changes.");
+    status(`${label} updated. Unsaved changes.`);
     return true;
   } catch (error) {
     if (revisions.current(epoch)) {
       session?.dispose();
       session = null;
       status(
-        `Dropdown settings not applied: ${error.message}. Your previous work is retained.`,
+        `${label} not applied: ${error.message}. Your previous work is retained.`,
       );
     }
   } finally {
@@ -704,7 +714,15 @@ const dropdownSettings = setupDropdownSettings({
   getSheetId: () => sheetId,
   getSelection: () => grid.selection,
   busy: () => !!loading,
-  apply: applyValidationHeader,
+  apply: applyDefinitionHeader,
+  status,
+});
+const conditionalSettings = setupConditionalSettings({
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  getSelection: () => grid.selection,
+  busy: () => !!loading,
+  apply: (next) => applyDefinitionHeader(next, "Conditional formatting"),
   status,
 });
 setupClipboard({
@@ -725,6 +743,7 @@ const initialState = await persistence.initialSnapshot.catch(() =>
 if (revisions.current(initialRevision)) {
   if (initialState.state === "current") trustSnapshot();
   dropdowns.draw();
+  grid.draw();
   status(
     initialState.state === "current"
       ? "Saved results are current."
