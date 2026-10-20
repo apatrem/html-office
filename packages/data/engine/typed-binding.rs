@@ -1,4 +1,4 @@
-//! HTML Office's narrow binding to unmodified IronCalc 0.9.0 calculation semantics.
+//! HTML Office's narrow binding to IronCalc 0.9.0 with formula-compatibility.patch.
 //! MIT, with constructor/tokenizer patterns adapted from upstream MIT/Apache bindings.
 use wasm_bindgen::{prelude::*, JsValue};
 use ironcalc_base::{cell::CellValue, types::CellType, UserModel};

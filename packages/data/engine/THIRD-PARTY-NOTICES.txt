@@ -1,6 +1,6 @@
 HTML Office typed IronCalc build — third-party notices
 
-IronCalc 0.9.0 source commit 297553dc3a37ec6b0f4821055220e3d26c4ac6a1; narrow custom WASM binding exposes getCellValue (see typed-binding.rs). No calculation semantics are intentionally changed.
+IronCalc 0.9.0 source commit 297553dc3a37ec6b0f4821055220e3d26c4ac6a1; narrow custom WASM binding exposes getCellValue (see typed-binding.rs). The explicit formula-compatibility.patch intentionally corrects documented formula edge cases; see docs/decisions/006-formula-compatibility-patches.md and engine/REBUILD.md.
 
 csv@1.4.0/COPYING
 csv-core@0.1.13/COPYING
