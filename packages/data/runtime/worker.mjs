@@ -28,6 +28,8 @@ self.onmessage = (event) => {
         value = null;
       } else if (method === "structure") {
         value = await session.structure(args[0]);
+      } else if (method === "organize") {
+        value = await session.organize(args[0]);
       } else if (method === "calculate") {
         const start = performance.now();
         value = await session.calculateDelta();

@@ -73,6 +73,13 @@ test("address and range limits are explicit", () => {
   for (const ref of ["A0", "XFE1", "A1048577", "a1", "B2:A1", "A:A"])
     assert.throws(() => parseRange(ref));
 });
+test("legacy quoted-edge sheet names remain readable even though new commands reject them", async () => {
+  const book = await fixture();
+  for (const name of ["'Budget", "Budget'"]) {
+    book.sheets[0].name = name;
+    assert.equal(parseWorkbook(stringifyWorkbook(book)).sheets[0].name, name);
+  }
+});
 test("signed zero remains a JSON number and survives the canonical round trip", async () => {
   const book = await fixture();
   book.sheets[0].cells.B2.input.value = -0;

@@ -219,7 +219,7 @@ export function validateWorkbook(book) {
   const groupIds = new Set(),
     grouped = new Set();
   for (const group of book.groups) {
-    fields(group, ["id", "name", "sheetIds"], "group");
+    fields(group, ["id", "name", "sheetIds", "kind", "collapsed"], "group");
     if (
       !id(group.id) ||
       groupIds.has(group.id) ||
@@ -227,6 +227,13 @@ export function validateWorkbook(book) {
       !Array.isArray(group.sheetIds)
     )
       fail("Invalid group");
+    if (
+      group.kind !== undefined &&
+      !["summary", "inputs", "raw", "calculations"].includes(group.kind)
+    )
+      fail("Invalid group kind");
+    if (group.collapsed !== undefined && typeof group.collapsed !== "boolean")
+      fail("Invalid collapsed state");
     groupIds.add(group.id);
     for (const sheetId of group.sheetIds) {
       if (!ids.has(sheetId) || grouped.has(sheetId))
