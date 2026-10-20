@@ -1,3 +1,5 @@
+import { organizeWorkbook } from "../model/organization.mjs";
+import { setupSheetNavigation } from "./sheets.mjs";
 import { validateCell, parseAddress, address } from "../model/workbook.mjs";
 import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
@@ -54,7 +56,7 @@ function cellEdits(refs) {
   return refs.map(({ sheetId, ref }) => ({
     sheetId,
     ref,
-    cell: book.sheets.find((s) => s.id === sheetId).cells[ref] ?? null,
+    cell: book.sheets.find((s) => s.id === sheetId)?.cells[ref] ?? null,
   }));
 }
 const grid = createGrid($("grid"), {
@@ -100,19 +102,7 @@ function choose(ref, updateGrid = true) {
     cell.formula ?? (value.type === "blank" ? "" : String(value.value));
 }
 function render() {
-  $("sheet-tabs").replaceChildren();
-  for (const sheet of book.sheets) {
-    const b = document.createElement("button");
-    b.textContent = sheet.name;
-    b.disabled = !!loading;
-    b.setAttribute("aria-pressed", String(sheet.id === sheetId));
-    b.onclick = () => {
-      sheetId = sheet.id;
-      render();
-      choose(selected);
-    };
-    $("sheet-tabs").append(b);
-  }
+  navigation.draw();
   grid.draw();
   $("preview-note").textContent =
     "Arrow keys navigate · Shift selects a rectangle · F2 edits · Enter applies in the formula bar · Escape cancels form changes";
@@ -126,6 +116,7 @@ function render() {
   $("retry-range").disabled = !!loading;
   $("decimals").disabled = !!loading;
   for (const id of [
+    "manage-sheets",
     "format-apply",
     "paste-table",
     "fill-down",
@@ -318,7 +309,7 @@ $("cell-address").addEventListener("change", () => {
 });
 $("recalculate").onclick = () => apply({ recalculateOnly: true });
 $("cancel").onclick = () => {
-  const structural = loading?.operation === "structure";
+  const operation = loading?.operation;
   revisions.cancel();
   loading?.abort();
   loading = null;
@@ -326,8 +317,8 @@ $("cancel").onclick = () => {
   session = null;
   render();
   status(
-    structural
-      ? "Row/column operation cancelled. Your previous work is retained."
+    operation
+      ? `${operation === "structure" ? "Row/column" : "Sheet"} operation cancelled. Your previous work is retained.`
       : !pendingEdits.length
         ? "Calculation cancelled. Your workbook remains open."
         : pendingEdits.some((edit) => edit.range)
@@ -348,26 +339,37 @@ async function applyStructure(axis, action) {
           ? selectedRange.bottom - selectedRange.top + 1
           : selectedRange.right - selectedRange.left + 1,
     };
-  const epoch = revisions.begin();
+  return applyLayout(command, true);
+}
+async function applyLayout(command, structural = false) {
+  if (loading) return;
+  const label = structural ? "Row/column" : "Sheet",
+    epoch = revisions.begin();
   try {
-    validateStructure(command, book);
+    if (structural) validateStructure(command, book);
+    else organizeWorkbook(book, command);
     loading = new AbortController();
-    loading.operation = "structure";
+    loading.operation = structural ? "structure" : "sheet";
     render();
-    status("Updating row/column references and recalculating…");
+    status(
+      `Updating ${structural ? "row/column" : "sheet"} references and recalculating…`,
+    );
     if (!session) {
       session = new EngineClient(config, $("worker-source").textContent);
       await session.load(book);
     }
     if (!revisions.current(epoch)) return;
-    const result = await session.structure(command);
+    const result =
+      await session[structural ? "structure" : "organize"](command);
     if (!revisions.current(epoch)) return;
     const before = captureCells(book, result.beforeRefs),
       headBefore = captureHead(book),
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection },
       priorRestoration = cellEdits(pendingEdits),
-      next = shiftWorkbook(book, command);
+      next = structural
+        ? shiftWorkbook(book, command)
+        : organizeWorkbook(book, command);
     for (const f of result.formulas) {
       const cells = next.sheets.find((s) => s.id === f.sheetId).cells;
       cells[f.ref] = { ...cells[f.ref], formula: f.formula };
@@ -381,7 +383,7 @@ async function applyStructure(axis, action) {
     const after = captureCells(book, result.formulas),
       headAfter = captureHead(book);
     history.record({
-      structure: command,
+      structure: structural ? command : undefined,
       before,
       after,
       headBefore,
@@ -389,23 +391,31 @@ async function applyStructure(axis, action) {
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,
-      selectionAfter: selectionBefore,
+      selectionAfter:
+        command.type === "create"
+          ? { sheetId: command.id, anchor: "A1", focus: "A1" }
+          : selectionBefore,
       calculate: true,
     });
     persistence.changed(cellEdits(result.formulas), {
       beforeEdits: priorRestoration,
-      structure: command,
+      structure: structural ? command : undefined,
       head: headAfter,
     });
+    if (command.type === "create") {
+      sheetId = command.id;
+      choose("A1");
+    }
     render();
     choose(selected, false);
-    status("Row/column references updated. Unsaved changes.");
+    status(`${label} references updated. Unsaved changes.`);
+    return true;
   } catch (error) {
     if (revisions.current(epoch)) {
       session?.dispose();
       session = null;
       status(
-        `Row/column operation not applied: ${error.message}. Your previous work is retained.`,
+        `${label} operation not applied: ${error.message}. Your previous work is retained.`,
       );
     }
   } finally {
@@ -431,11 +441,10 @@ async function moveHistory(direction) {
     grid.select(moved.selection.focus, { extend: true, notify: false });
     choose(moved.selection.focus, false);
   }
-  for (const edit of moved.edits)
-    touchPreview(
-      book.sheets.find((s) => s.id === edit.sheetId).cells,
-      edit.ref,
-    );
+  for (const edit of moved.edits) {
+    const cells = book.sheets.find((s) => s.id === edit.sheetId)?.cells;
+    if (cells) touchPreview(cells, edit.ref);
+  }
   persistence.changed(cellEdits(moved.edits), {
     beforeEdits: priorRestoration,
     structure: moved.structure,
@@ -556,6 +565,46 @@ $("decimals").onclick = () =>
     },
   }));
 
+async function applyOrganization(command) {
+  if (loading) return;
+  if (["create", "rename"].includes(command.type)) return applyLayout(command);
+  try {
+    const next = organizeWorkbook(book, command),
+      headBefore = captureHead(book),
+      selection = { sheetId, ...grid.selection };
+    book = next;
+    const headAfter = captureHead(book);
+    history.record({
+      before: [],
+      after: [],
+      headBefore,
+      headAfter,
+      snapshotBefore: book.snapshot,
+      snapshotAfter: book.snapshot,
+      selectionBefore: selection,
+      selectionAfter: selection,
+      calculate: false,
+    });
+    persistence.changed([], { head: headAfter });
+    render();
+    status("Sheet groups updated. Unsaved changes.");
+    return true;
+  } catch (error) {
+    status(`Sheet groups not changed: ${error.message}`);
+  }
+}
+const navigation = setupSheetNavigation($("sheet-tabs"), {
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  busy: () => !!loading,
+  select: (id) => {
+    sheetId = id;
+    render();
+    choose(selected);
+  },
+  apply: applyOrganization,
+  status,
+});
 setupClipboard({
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getSelection: () => grid.selection,
