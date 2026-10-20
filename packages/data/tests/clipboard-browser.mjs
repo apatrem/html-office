@@ -173,15 +173,13 @@ try {
   await page.evaluate(() => {
     const data = new DataTransfer();
     data.setData("text/html", "<b>unsupported rich-only clipboard</b>");
-    document
-      .querySelector("#grid")
-      .dispatchEvent(
-        new ClipboardEvent("paste", {
-          clipboardData: data,
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
+    document.querySelector("#grid").dispatchEvent(
+      new ClipboardEvent("paste", {
+        clipboardData: data,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
   });
   await page
     .locator("#status")
