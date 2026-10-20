@@ -1,3 +1,4 @@
+import { setupRibbon } from "./ribbon.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
@@ -714,6 +715,7 @@ setupClipboard({
   status,
   cancel: () => $("cancel").click(),
 });
+setupRibbon();
 render();
 choose(selected);
 const initialRevision = revisions.revision;
