@@ -26,6 +26,8 @@ This is a **size-only lower bound, not a usable integrated toolbar**. WASM borde
 
 The upstream component is a scrolling single toolbar. It is not exported as a standalone package API; extraction reaches into `src/components/Toolbar/Toolbar.tsx`. It depends on React, React DOM, translation, icons, colour/menu/theme/border components and some WASM UI helpers. Its callback interface could be adapted to our commands, but its formatting strings/theme/border/merge features differ from our smaller canonical contract. Showing unsupported buttons would mislead users. Initial formatting must keep working before calculation-engine initialization.
 
+Source-level accessibility/responsive inspection is mixed: action buttons use native buttons and ARIA labels, but the overflow left/right affordances are click-only divs under explicit accessibility TODO suppressions. Arrow visibility updates on mount and scroll, without resize observation. The strip supports horizontal overflow and has no tabbed/group keyboard navigation. These are findings in the pinned source, not browser certification of this stubbed probe; extraction would need keyboard and viewport verification/fixes. The native ribbon must test accessible tabs, overflow reachability and resize behaviour directly.
+
 The included runtime package declarations are MIT or ISC (see the measured closure). IronCalc offers MIT/Apache-2.0 options. These declarations are not a completed redistribution/notice audit. Licensing is not the rejection reason; no assessment dependency is adopted by the Data runtime.
 
 ## Selected approach and verification
