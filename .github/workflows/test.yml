@@ -57,4 +57,14 @@ jobs:
       - run: npm --prefix packages/data run format:check
       - run: npm run test:data
       - name: Measure the P&L and 50k/100k-row browser workloads
-        run: node --expose-gc packages/data/bench/browser.mjs --check --output dist/data-bench/ci-results.json
+        run: node --expose-gc packages/data/bench/browser.mjs --check --profile --output dist/data-bench/ci-results.json
+      - name: Retain Data benchmark diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: data-benchmark-diagnostics
+          retention-days: 7
+          path: |
+            dist/data-bench/ci-results.json
+            dist/data-bench/browser-results.json
+            dist/data-bench/profiles/*.cpuprofile

@@ -25,7 +25,7 @@ try {
     errors = [],
     requests = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await context.route("https://**", (r) => {
+  await context.route(/^https?:\/\//, (r) => {
     requests.push(r.request().url());
     return r.abort();
   });

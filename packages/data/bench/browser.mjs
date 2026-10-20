@@ -21,9 +21,15 @@ const cases = [
     make: () => large(r),
   })),
 ];
-const filter = process.argv.includes("--pnl-only")
-  ? (c) => c.id === "pnl"
-  : () => true;
+const caseArg = process.argv.indexOf("--case");
+const profiling = process.argv.includes("--profile");
+const filter =
+  caseArg >= 0
+    ? (c) => c.id === process.argv[caseArg + 1]
+    : process.argv.includes("--pnl-only")
+      ? (c) => c.id === "pnl"
+      : () => true;
+assert.ok(cases.some(filter), "Unknown benchmark workload");
 const server = await chromium.launchServer({
   args: ["--enable-precise-memory-info"],
 });
@@ -105,6 +111,10 @@ try {
     await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
+    const cdp =
+      profiling || process.argv.includes("--cpu-throttle")
+        ? await context.newCDPSession(page)
+        : null;
     page.setDefaultTimeout(180000);
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -150,6 +160,14 @@ try {
     await page.getByRole("button", { name: "Apply edit" }).click();
     await page.waitForFunction(() => window.measurements.length === 1);
     const first = await page.evaluate(() => window.measurements[0]);
+    if (process.argv.includes("--cpu-throttle"))
+      await cdp.send("Emulation.setCPUThrottlingRate", {
+        rate: Number(process.argv[process.argv.indexOf("--cpu-throttle") + 1]),
+      });
+    if (profiling) {
+      await cdp.send("Profiler.enable");
+      await cdp.send("Profiler.start");
+    }
     await page.evaluate(() => {
       window.measurements = [];
       window.longTasks = [];
@@ -170,6 +188,14 @@ try {
         mainJSHeapBytes: performance.memory?.usedJSHeapSize ?? null,
       };
     });
+    if (profiling) {
+      const { profile } = await cdp.send("Profiler.stop");
+      await mkdir(resolve(out, "profiles"), { recursive: true });
+      await writeFile(
+        resolve(out, "profiles", `${item.id}.cpuprofile`),
+        JSON.stringify(profile),
+      );
+    }
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Save a copy" }).click();
     const download = await downloadPromise;
