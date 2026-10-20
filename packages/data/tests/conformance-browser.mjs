@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 import {
+  CONFORMANCE_FAMILIES,
   conformanceFixture,
   conformanceDifferences,
 } from "../fixtures/conformance.mjs";
@@ -13,7 +14,7 @@ const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
 try {
-  for (const family of ["aggregation-logic"])
+  for (const family of CONFORMANCE_FAMILIES)
     for (const offline of [false, true]) {
       const { book, fixture } = await conformanceFixture(family),
         context = await browser.newContext({ acceptDownloads: true }),

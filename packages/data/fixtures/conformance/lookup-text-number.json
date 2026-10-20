@@ -1,0 +1,870 @@
+{
+  "family": "lookup-text-number",
+  "provenance": {
+    "method": "Independent small hand-derived fixtures, not measured in Excel and never copied from engine output. Definitions/examples from the linked primary Microsoft function documentation; English formula/number locale.",
+    "sources": [
+      "https://support.microsoft.com/en-us/excel/excel-functions-alphabetical",
+      "https://support.microsoft.com/en-us/excel/functions/xlookup-function",
+      "https://support.microsoft.com/en-us/excel/functions/index-function",
+      "https://support.microsoft.com/en-us/excel/functions/match-function",
+      "https://support.microsoft.com/en-us/excel/functions/round-function",
+      "https://support.microsoft.com/en-us/excel/functions/text-function",
+      "https://support.microsoft.com/en-us/excel/functions/textjoin-function",
+      "https://support.microsoft.com/en-us/excel/functions/concatenate-function"
+    ],
+    "checked": "2026-10-20"
+  },
+  "inputs": {
+    "A1": {
+      "input": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    "A2": {
+      "input": {
+        "type": "number",
+        "value": 20
+      }
+    },
+    "A3": {
+      "input": {
+        "type": "number",
+        "value": 30
+      }
+    },
+    "B1": {
+      "input": {
+        "type": "text",
+        "value": "ten"
+      }
+    },
+    "B2": {
+      "input": {
+        "type": "text",
+        "value": "twenty"
+      }
+    },
+    "B3": {
+      "input": {
+        "type": "text",
+        "value": "thirty"
+      }
+    },
+    "C1": {
+      "input": {
+        "type": "number",
+        "value": 30
+      }
+    },
+    "C2": {
+      "input": {
+        "type": "number",
+        "value": 20
+      }
+    },
+    "C3": {
+      "input": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    "D1": {
+      "input": {
+        "type": "text",
+        "value": "café"
+      }
+    },
+    "A9": {
+      "formula": "=1/0"
+    }
+  },
+  "cases": [
+    {
+      "id": "xlookup-exact",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(20,A1:A3,B1:B3)",
+      "expected": {
+        "type": "text",
+        "value": "twenty"
+      },
+      "afterRowInsertion": "=XLOOKUP(20,A2:A4,B2:B4)"
+    },
+    {
+      "id": "xlookup-missing",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(99,A1:A3,B1:B3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "xlookup-fallback",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(99,A1:A3,B1:B3,\"missing\")",
+      "expected": {
+        "type": "text",
+        "value": "missing"
+      }
+    },
+    {
+      "id": "xlookup-next-smaller",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(25,A1:A3,B1:B3,, -1)",
+      "expected": {
+        "type": "text",
+        "value": "twenty"
+      }
+    },
+    {
+      "id": "xlookup-wildcard",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(\"t*\",B1:B3,A1:A3,,2)",
+      "expected": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    {
+      "id": "xlookup-single-cell",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(10,A1,B1)",
+      "expected": {
+        "type": "text",
+        "value": "ten"
+      }
+    },
+    {
+      "id": "index-table",
+      "functions": [
+        "INDEX"
+      ],
+      "formula": "=INDEX(A1:B3,2,2)",
+      "expected": {
+        "type": "text",
+        "value": "twenty"
+      }
+    },
+    {
+      "id": "index-column",
+      "functions": [
+        "INDEX"
+      ],
+      "formula": "=INDEX(B1:B3,3)",
+      "expected": {
+        "type": "text",
+        "value": "thirty"
+      }
+    },
+    {
+      "id": "index-out-of-bounds",
+      "functions": [
+        "INDEX"
+      ],
+      "formula": "=INDEX(A1:B3,4,1)",
+      "expected": {
+        "type": "error",
+        "value": "#REF!"
+      }
+    },
+    {
+      "id": "match-exact",
+      "functions": [
+        "MATCH"
+      ],
+      "formula": "=MATCH(20,A1:A3,0)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "match-approximate",
+      "functions": [
+        "MATCH"
+      ],
+      "formula": "=MATCH(25,A1:A3,1)",
+      "expected": {
+        "type": "number",
+        "value": 2
+      }
+    },
+    {
+      "id": "match-descending",
+      "functions": [
+        "MATCH"
+      ],
+      "formula": "=MATCH(25,C1:C3,-1)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "match-wildcard",
+      "functions": [
+        "MATCH"
+      ],
+      "formula": "=MATCH(\"t*\",B1:B3,0)",
+      "expected": {
+        "type": "number",
+        "value": 1
+      }
+    },
+    {
+      "id": "match-missing",
+      "functions": [
+        "MATCH"
+      ],
+      "formula": "=MATCH(99,A1:A3,0)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "round-decimal",
+      "functions": [
+        "ROUND"
+      ],
+      "formula": "=ROUND(2.675,2)",
+      "expected": {
+        "type": "number",
+        "value": 2.68
+      }
+    },
+    {
+      "id": "round-negative",
+      "functions": [
+        "ROUND"
+      ],
+      "formula": "=ROUND(-1.25,1)",
+      "expected": {
+        "type": "number",
+        "value": -1.3
+      }
+    },
+    {
+      "id": "round-hundreds",
+      "functions": [
+        "ROUND"
+      ],
+      "formula": "=ROUND(1234,-2)",
+      "expected": {
+        "type": "number",
+        "value": 1200
+      }
+    },
+    {
+      "id": "round-bad-value",
+      "functions": [
+        "ROUND"
+      ],
+      "formula": "=ROUND(\"text\",1)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "roundup-positive",
+      "functions": [
+        "ROUNDUP"
+      ],
+      "formula": "=ROUNDUP(1.21,1)",
+      "expected": {
+        "type": "number",
+        "value": 1.3
+      }
+    },
+    {
+      "id": "roundup-negative",
+      "functions": [
+        "ROUNDUP"
+      ],
+      "formula": "=ROUNDUP(-1.21,1)",
+      "expected": {
+        "type": "number",
+        "value": -1.3
+      }
+    },
+    {
+      "id": "roundup-reference",
+      "functions": [
+        "ROUNDUP"
+      ],
+      "formula": "=ROUNDUP(A1,-2)",
+      "expected": {
+        "type": "number",
+        "value": 100
+      }
+    },
+    {
+      "id": "roundup-error",
+      "functions": [
+        "ROUNDUP"
+      ],
+      "formula": "=ROUNDUP(A9,1)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "rounddown-positive",
+      "functions": [
+        "ROUNDDOWN"
+      ],
+      "formula": "=ROUNDDOWN(1.29,1)",
+      "expected": {
+        "type": "number",
+        "value": 1.2
+      }
+    },
+    {
+      "id": "rounddown-negative",
+      "functions": [
+        "ROUNDDOWN"
+      ],
+      "formula": "=ROUNDDOWN(-1.29,1)",
+      "expected": {
+        "type": "number",
+        "value": -1.2
+      }
+    },
+    {
+      "id": "rounddown-reference",
+      "functions": [
+        "ROUNDDOWN"
+      ],
+      "formula": "=ROUNDDOWN(A1,-2)",
+      "expected": {
+        "type": "number",
+        "value": 0
+      }
+    },
+    {
+      "id": "rounddown-error",
+      "functions": [
+        "ROUNDDOWN"
+      ],
+      "formula": "=ROUNDDOWN(A9,1)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "abs-scalar",
+      "functions": [
+        "ABS"
+      ],
+      "formula": "=ABS(-2.5)",
+      "expected": {
+        "type": "number",
+        "value": 2.5
+      }
+    },
+    {
+      "id": "abs-reference",
+      "functions": [
+        "ABS"
+      ],
+      "formula": "=ABS(A1)",
+      "expected": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    {
+      "id": "abs-error",
+      "functions": [
+        "ABS"
+      ],
+      "formula": "=ABS(A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "concatenate-scalar",
+      "functions": [
+        "CONCATENATE"
+      ],
+      "formula": "=CONCATENATE(\"a\",\"b\",1)",
+      "expected": {
+        "type": "text",
+        "value": "ab1"
+      }
+    },
+    {
+      "id": "concatenate-references",
+      "functions": [
+        "CONCATENATE"
+      ],
+      "formula": "=CONCATENATE(B1,B2)",
+      "expected": {
+        "type": "text",
+        "value": "tentwenty"
+      }
+    },
+    {
+      "id": "concatenate-error",
+      "functions": [
+        "CONCATENATE"
+      ],
+      "formula": "=CONCATENATE(\"a\",A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "textjoin-range",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",TRUE,B1:B3)",
+      "expected": {
+        "type": "text",
+        "value": "ten|twenty|thirty"
+      }
+    },
+    {
+      "id": "textjoin-scalar",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"-\",FALSE,\"a\",\"\",\"b\")",
+      "expected": {
+        "type": "text",
+        "value": "a--b"
+      }
+    },
+    {
+      "id": "textjoin-error",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",TRUE,A9:A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "trim-scalar",
+      "functions": [
+        "TRIM"
+      ],
+      "formula": "=TRIM(\"  a   b  \")",
+      "expected": {
+        "type": "text",
+        "value": "a b"
+      }
+    },
+    {
+      "id": "trim-reference",
+      "functions": [
+        "TRIM"
+      ],
+      "formula": "=TRIM(B1)",
+      "expected": {
+        "type": "text",
+        "value": "ten"
+      }
+    },
+    {
+      "id": "trim-error",
+      "functions": [
+        "TRIM"
+      ],
+      "formula": "=TRIM(A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "clean-controls",
+      "functions": [
+        "CLEAN"
+      ],
+      "formula": "=CLEAN(\"a\tb\nc\")",
+      "expected": {
+        "type": "text",
+        "value": "abc"
+      }
+    },
+    {
+      "id": "clean-reference",
+      "functions": [
+        "CLEAN"
+      ],
+      "formula": "=CLEAN(D1)",
+      "expected": {
+        "type": "text",
+        "value": "café"
+      }
+    },
+    {
+      "id": "clean-error",
+      "functions": [
+        "CLEAN"
+      ],
+      "formula": "=CLEAN(A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "left-scalar",
+      "functions": [
+        "LEFT"
+      ],
+      "formula": "=LEFT(\"café\",2)",
+      "expected": {
+        "type": "text",
+        "value": "ca"
+      }
+    },
+    {
+      "id": "left-reference",
+      "functions": [
+        "LEFT"
+      ],
+      "formula": "=LEFT(B2,3)",
+      "expected": {
+        "type": "text",
+        "value": "twe"
+      }
+    },
+    {
+      "id": "left-negative-length",
+      "functions": [
+        "LEFT"
+      ],
+      "formula": "=LEFT(\"abc\",-1)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "right-scalar",
+      "functions": [
+        "RIGHT"
+      ],
+      "formula": "=RIGHT(\"café\",2)",
+      "expected": {
+        "type": "text",
+        "value": "fé"
+      }
+    },
+    {
+      "id": "right-reference",
+      "functions": [
+        "RIGHT"
+      ],
+      "formula": "=RIGHT(B2,3)",
+      "expected": {
+        "type": "text",
+        "value": "nty"
+      }
+    },
+    {
+      "id": "right-negative-length",
+      "functions": [
+        "RIGHT"
+      ],
+      "formula": "=RIGHT(\"abc\",-1)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "mid-scalar",
+      "functions": [
+        "MID"
+      ],
+      "formula": "=MID(\"café\",2,2)",
+      "expected": {
+        "type": "text",
+        "value": "af"
+      }
+    },
+    {
+      "id": "mid-reference",
+      "functions": [
+        "MID"
+      ],
+      "formula": "=MID(B2,2,3)",
+      "expected": {
+        "type": "text",
+        "value": "wen"
+      }
+    },
+    {
+      "id": "mid-invalid-start",
+      "functions": [
+        "MID"
+      ],
+      "formula": "=MID(\"abc\",0,1)",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "len-scalar",
+      "functions": [
+        "LEN"
+      ],
+      "formula": "=LEN(\"café\")",
+      "expected": {
+        "type": "number",
+        "value": 4
+      }
+    },
+    {
+      "id": "len-reference",
+      "functions": [
+        "LEN"
+      ],
+      "formula": "=LEN(B2)",
+      "expected": {
+        "type": "number",
+        "value": 6
+      }
+    },
+    {
+      "id": "len-error",
+      "functions": [
+        "LEN"
+      ],
+      "formula": "=LEN(A9)",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "text-percent",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(0.125,\"0.0%\")",
+      "expected": {
+        "type": "text",
+        "value": "12.5%"
+      }
+    },
+    {
+      "id": "text-number",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(1234.56,\"#,##0.00\")",
+      "expected": {
+        "type": "text",
+        "value": "1,234.56"
+      }
+    },
+    {
+      "id": "text-date",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(45292,\"yyyy-mm-dd\")",
+      "expected": {
+        "type": "text",
+        "value": "2024-01-01"
+      }
+    },
+    {
+      "id": "text-error",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(A9,\"0\")",
+      "expected": {
+        "type": "error",
+        "value": "#DIV/0!"
+      }
+    },
+    {
+      "id": "value-grouped-number",
+      "functions": [
+        "VALUE"
+      ],
+      "formula": "=VALUE(\"1,234.5\")",
+      "expected": {
+        "type": "number",
+        "value": 1234.5
+      }
+    },
+    {
+      "id": "value-currency",
+      "functions": [
+        "VALUE"
+      ],
+      "formula": "=VALUE(\"$1,234.50\")",
+      "expected": {
+        "type": "number",
+        "value": 1234.5
+      }
+    },
+    {
+      "id": "value-percent",
+      "functions": [
+        "VALUE"
+      ],
+      "formula": "=VALUE(\"12.5%\")",
+      "expected": {
+        "type": "number",
+        "value": 0.125
+      }
+    },
+    {
+      "id": "value-reference",
+      "functions": [
+        "VALUE"
+      ],
+      "formula": "=VALUE(A1)",
+      "expected": {
+        "type": "number",
+        "value": 10
+      }
+    },
+    {
+      "id": "value-invalid",
+      "functions": [
+        "VALUE"
+      ],
+      "formula": "=VALUE(\"not a number\")",
+      "expected": {
+        "type": "error",
+        "value": "#VALUE!"
+      }
+    },
+    {
+      "id": "xlookup-reverse-duplicate",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(20,A1:A3,B1:B3,,0,-1)",
+      "expected": {
+        "type": "text",
+        "value": "thirty"
+      },
+      "inputs": {
+        "A3": {
+          "input": {
+            "type": "number",
+            "value": 20
+          }
+        }
+      }
+    },
+    {
+      "id": "textjoin-ignore-empty",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",TRUE,B1:B3)",
+      "expected": {
+        "type": "text",
+        "value": "ten|thirty"
+      },
+      "inputs": {
+        "B2": {
+          "input": {
+            "type": "text",
+            "value": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "xlookup-single-lookup-reference",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(10,A1,B1:B1)",
+      "expected": {
+        "type": "text",
+        "value": "ten"
+      }
+    },
+    {
+      "id": "xlookup-single-return-reference",
+      "functions": [
+        "XLOOKUP"
+      ],
+      "formula": "=XLOOKUP(10,A1:A1,B1)",
+      "expected": {
+        "type": "text",
+        "value": "ten"
+      }
+    },
+    {
+      "id": "textjoin-ignore-empty-scalar",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",TRUE,\"ten\",\"\",\"thirty\")",
+      "expected": {
+        "type": "text",
+        "value": "ten|thirty"
+      }
+    },
+    {
+      "id": "textjoin-ignore-formula-empty",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",TRUE,B1:B3)",
+      "expected": {
+        "type": "text",
+        "value": "ten|thirty"
+      },
+      "inputs": {
+        "B2": {
+          "formula": "=\"\""
+        }
+      }
+    },
+    {
+      "id": "textjoin-keep-formula-empty",
+      "functions": [
+        "TEXTJOIN"
+      ],
+      "formula": "=TEXTJOIN(\"|\",FALSE,B1:B3)",
+      "expected": {
+        "type": "text",
+        "value": "ten||thirty"
+      },
+      "inputs": {
+        "B2": {
+          "formula": "=\"\""
+        }
+      }
+    }
+  ]
+}
