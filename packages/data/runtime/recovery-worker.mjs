@@ -1,3 +1,4 @@
+import { shiftWorkbook, restoreHead } from "../model/structure.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
 import { draftDatabase } from "./persistence.mjs";
 let database,
@@ -68,11 +69,17 @@ self.onmessage = ({ data }) => {
           book = readModel(seedText);
           seedText = null;
         }
-        for (const edit of data.edits ?? []) {
-          const cells = book.sheets.find((s) => s.id === edit.sheetId).cells;
-          if (edit.cell === null) delete cells[edit.ref];
-          else cells[edit.ref] = edit.cell;
-        }
+        const patch = (edits) => {
+          for (const edit of edits ?? []) {
+            const cells = book.sheets.find((s) => s.id === edit.sheetId).cells;
+            if (edit.cell === null) delete cells[edit.ref];
+            else cells[edit.ref] = edit.cell;
+          }
+        };
+        patch(data.beforeEdits);
+        if (data.structure) book = shiftWorkbook(book, data.structure);
+        if (data.head) restoreHead(book, data.head);
+        patch(data.edits);
         if (data.snapshot) book.snapshot = data.snapshot;
         else delete book.snapshot;
         revision = data.revision;

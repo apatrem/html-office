@@ -65,3 +65,59 @@ test("absent cells and redo invalidation survive repeated moves", () => {
   h.clear();
   assert.equal(h.canUndo, false);
 });
+test("structural undo/redo moves inputs without storing the whole source sheet", async () => {
+  const { shiftWorkbook, structureBeforeRefs } = await import(
+    "../model/structure.mjs"
+  );
+  const { captureHead } = await import("../model/structure.mjs");
+  const book = {
+    id: "test",
+    names: [{ name: "Point", sheetId: "main", ref: "A2" }],
+    groups: [],
+    sheets: [
+      {
+        id: "main",
+        name: "Main",
+        cells: {
+          A1: { input: { type: "number", value: 1 } },
+          A2: { input: { type: "number", value: 2 } },
+          C3: { formula: "=SUM(A1:A2)", result: { type: "number", value: 3 } },
+          D9: { input: { type: "text", value: "keep" } },
+        },
+      },
+    ],
+  };
+  const original = structuredClone(book),
+    h = new EditHistory(),
+    command = {
+      sheetId: "main",
+      axis: "row",
+      action: "delete",
+      index: 2,
+      count: 1,
+    };
+  const before = captureCells(book, structureBeforeRefs(book, command)),
+    headBefore = captureHead(book),
+    next = shiftWorkbook(book, command);
+  next.sheets[0].cells.C2 = {
+    formula: "=SUM(A1:#REF!)",
+    result: { type: "error", value: "#REF!" },
+  };
+  const after = captureCells(next, [{ sheetId: "main", ref: "C2" }]);
+  Object.assign(book, next);
+  h.record({
+    before,
+    after,
+    structure: command,
+    headBefore,
+    headAfter: captureHead(next),
+    calculate: true,
+  });
+  const undone = h.undo(book);
+  assert.deepEqual(book, original);
+  assert.equal(undone.structure.action, "insert");
+  h.redo(book);
+  assert.equal(book.sheets[0].cells.A2, undefined);
+  assert.equal(book.sheets[0].cells.D8.input.value, "keep");
+  assert.equal(book.names[0].ref, "#REF!");
+});

@@ -1,3 +1,8 @@
+import {
+  shiftWorkbook,
+  restoreHead,
+  captureHead,
+} from "../model/structure.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -35,6 +40,8 @@ function harness(existing) {
     readModel,
     writeModel,
     draftDatabase: () => database,
+    shiftWorkbook,
+    restoreHead,
     self: { postMessage: (message) => events.push(message) },
     Date,
     setTimeout: (fn) => {
@@ -88,4 +95,59 @@ test("a save never deletes an unresolved recovery record", async () => {
   await flush();
   assert.equal(h.record, existing);
   assert.equal(h.events[0].kind, "draft");
+});
+
+test("structural recovery reconciles pending cells before moving references in one change", async () => {
+  const h = harness(),
+    source = readModel(text),
+    command = {
+      sheetId: "inputs",
+      axis: "row",
+      action: "insert",
+      index: 2,
+      count: 1,
+    };
+  h.send({ kind: "init", key: "key", baseHash: "base", text });
+  await flush();
+  h.send({
+    kind: "change",
+    revision: 1,
+    edits: [
+      {
+        sheetId: "inputs",
+        ref: "B2",
+        cell: { input: { type: "number", value: 140 } },
+      },
+    ],
+    snapshot: null,
+  });
+  await flush();
+  const next = shiftWorkbook(source, command),
+    formula = "=Inputs!B3*Inputs!B4";
+  h.send({
+    kind: "change",
+    revision: 2,
+    beforeEdits: [
+      { sheetId: "inputs", ref: "B2", cell: source.sheets[0].cells.B2 },
+    ],
+    structure: command,
+    head: captureHead(next),
+    edits: [
+      {
+        sheetId: "summary",
+        ref: "B2",
+        cell: { ...source.sheets[1].cells.B2, formula },
+      },
+    ],
+    snapshot: null,
+  });
+  await flush();
+  h.timers();
+  await flush();
+  const recovered = readModel(h.record.modelText);
+  assert.equal(recovered.sheets[0].cells.B2, undefined);
+  assert.equal(recovered.sheets[0].cells.B3.input.value, 100);
+  assert.equal(recovered.sheets[0].cells.B4.input.value, 25);
+  assert.equal(recovered.sheets[1].cells.B2.formula, formula);
+  assert.deepEqual(recovered.metadata, source.metadata);
 });

@@ -313,10 +313,10 @@ $("cancel").onclick = () => {
 };
 async function moveHistory(direction) {
   if (loading) return;
+  const priorRestoration = cellEdits(pendingEdits);
   const moved = history[direction](book);
   if (!moved) return;
-  const epoch = revisions.begin(),
-    prior = pendingEdits;
+  const epoch = revisions.begin();
   pendingEdits = [];
   if (moved.selection) {
     sheetId = moved.selection.sheetId;
@@ -329,7 +329,11 @@ async function moveHistory(direction) {
       book.sheets.find((s) => s.id === edit.sheetId).cells,
       edit.ref,
     );
-  persistence.changed(cellEdits([...prior, ...moved.edits]));
+  persistence.changed(cellEdits(moved.edits), {
+    beforeEdits: priorRestoration,
+    structure: moved.structure,
+    head: moved.head,
+  });
   // Restore canonical known state immediately, then recalculate in the same adapter.
   if (!moved.calculate) {
     render();
