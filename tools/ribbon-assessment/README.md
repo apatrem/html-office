@@ -33,3 +33,8 @@ The included runtime package declarations are MIT or ISC (see the measured closu
 ## Selected approach and verification
 
 Implement a native HTML/CSS ribbon with small JavaScript tab/focus handling and existing command elements. Aim for a small incremental footprint and measure the complete resulting standard file; do not assume the budget from an isolated component. Provide File/Home/Formulas/Data/View groups as actual supported commands warrant, quick-access save/history, a compact formula bar, clear scenario controls and bottom sheet navigation. Preserve readable JSON, existing worker/edit/history/recovery operations and shared branding. Keyboard, narrow-width, offline, save/reopen and existing regression/performance checks are required before merging it.
+
+
+## CDN alternative remains available
+
+The size result rejects straightforward **embedded** adaptation, not a lazily loaded editing ribbon. The user explicitly accepts a CDN as an option if needed. A CDN version would need an immutable, integrity-verified complete asset/dependency bundle, command adapters, request-free document viewing, failure/retry behaviour, accessibility checks and licence notices; `--offline` would embed those assets. Download/parse latency and cache behaviour must be measured separately. See the [documented comparison and adoption criteria](../../docs/HTML-DATA-RIBBON-PLAN.md#assessment-results-and-cdn-alternative).
