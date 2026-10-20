@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  parseDelimited,
   translateFormula,
   parsePaste,
   rangePatches,
@@ -93,4 +94,15 @@ test("internal copy/fill preserve types and styles and shift formulas across a r
   assert.equal(fill[1].cell.formula, "=$A2+1");
   assert.equal(fill[2].cell.formula, "=$A3+1");
   assert.throws(() => rangePatches("two", "XFD1048576", [[{}, {}]]), /bounds/);
+});
+
+test("A1-like defined names outside cell bounds remain names when copied", () => {
+  assert.equal(translateFormula("=XFE1+A1", 1, 1), "=XFE1+B2");
+  assert.equal(translateFormula("=A1048577+A1", 1, 1), "=A1048577+B2");
+  assert.equal(translateFormula("=XFD1048576", 1, 1), "=#REF!");
+});
+test("a final closed quoted empty field remains an explicit row", () => {
+  assert.deepEqual(parseDelimited('a\n""'), [["a"], [""]]);
+  assert.deepEqual(parseDelimited('a\n""\n'), [["a"], [""]]);
+  assert.equal(parsePaste('a\n""').length, 2);
 });

@@ -53,6 +53,19 @@ export function translateFormula(formula, rows, cols) {
       (i === 0 || !/[\p{L}\p{N}_.]/u.test(formula[i - 1])) &&
       token.exec(formula.slice(i));
     if (match) {
+      // A1-shaped tokens beyond cell bounds can be defined names (e.g. XFE1).
+      try {
+        for (const part of match[2].split(":")) {
+          const original = part.replaceAll("$", "").toUpperCase();
+          if (/^[A-Z]+[0-9]+$/.test(original)) parseAddress(original);
+          else if (/^[0-9]+$/.test(original)) address(Number(original), 1);
+          else parseAddress(original + "1");
+        }
+      } catch {
+        out += match[0];
+        i += match[0].length;
+        continue;
+      }
       try {
         out +=
           match[1] +
@@ -103,7 +116,7 @@ export function parseDelimited(text, delimiter = "\t") {
     }
   }
   if (quoted) throw new Error("Unclosed quoted field");
-  if (value || row.length || !rows.length) {
+  if (value || closed || row.length || !rows.length) {
     field();
     rows.push(row);
   }
