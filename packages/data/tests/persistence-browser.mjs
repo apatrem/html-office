@@ -109,7 +109,7 @@ try {
     );
   }
   {
-    const hold = `const post=self.postMessage.bind(self), held=[];self.postMessage=value=>{if(value.kind==='stored'){held.push(value);post({kind:'test-held'})}else post(value)};self.addEventListener('message',({data})=>{if(data.kind==='test-release')held.splice(0).forEach(post)});`;
+    const hold = `const post=self.postMessage.bind(self), held=[];self.postMessage=value=>{if(value.kind==='stored'){held.push(value);post({kind:'test-held'})}else post(value)};self.addEventListener('message',({data})=>{if(data.kind==='test-release')held.splice(0).forEach(value=>post(value))});`;
     const html = original.replace(
       /(<script id="recovery-worker-source"[^>]*>)/,
       "$1" + hold,
@@ -183,6 +183,10 @@ try {
   {
     const { page, context, errors } = await setup("failed");
     await edit(page, 140);
+    await page
+      .locator("#save-status")
+      .filter({ hasText: "Recovery stored" })
+      .waitFor();
     await page.evaluate(() => (diskProbe.fail = true));
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page
@@ -190,10 +194,7 @@ try {
       .filter({ hasText: "Disk full" })
       .waitFor();
     assert.equal(await page.evaluate(() => diskProbe.writes), 0);
-    await page
-      .locator("#save-status")
-      .filter({ hasText: "Recovery stored" })
-      .waitFor();
+    assert.match(await page.locator("#save-status").textContent(), /Disk full/);
     await page.reload();
     await page.getByRole("dialog").waitFor();
     await page
