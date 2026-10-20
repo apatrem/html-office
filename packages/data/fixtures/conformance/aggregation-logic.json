@@ -1143,6 +1143,50 @@
         "type": "error",
         "value": "#ERROR!"
       }
+    },
+    {
+      "id": "sumif-range-error-criterion",
+      "functions": [
+        "SUMIF"
+      ],
+      "inputs": {
+        "E1": {
+          "formula": "=NA()"
+        },
+        "E2": {
+          "input": {
+            "type": "text",
+            "value": "apple"
+          }
+        }
+      },
+      "formula": "=SUMIF(B1:B3,E1:E2,C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
+    },
+    {
+      "id": "sumif-array-error-criterion",
+      "functions": [
+        "SUMIF"
+      ],
+      "inputs": {
+        "E1": {
+          "formula": "=NA()"
+        },
+        "E2": {
+          "input": {
+            "type": "text",
+            "value": "apple"
+          }
+        }
+      },
+      "formula": "=SUMIF(B1:B3,{#N/A;\"apple\"},C1:C3)",
+      "expected": {
+        "type": "error",
+        "value": "#N/A"
+      }
     }
   ]
 }

@@ -34,7 +34,7 @@ index de26a13..d17ae21 100644
          }
          CalcResult::Number(total)
 diff --git a/base/src/functions/statistical/if_ifs.rs b/base/src/functions/statistical/if_ifs.rs
-index dbdac30..49198a2 100644
+index dbdac30..ff4cc11 100644
 --- a/base/src/functions/statistical/if_ifs.rs
 +++ b/base/src/functions/statistical/if_ifs.rs
 @@ -27,6 +27,22 @@ fn array_node_to_calc_result(node: &ArrayNode, cell: CellReferenceIndex) -> Calc
@@ -182,7 +182,7 @@ index dbdac30..49198a2 100644
              }
          };
  
-@@ -425,6 +451,7 @@ impl<'a> Model<'a> {
+@@ -425,10 +451,15 @@ impl<'a> Model<'a> {
              Err(e) => return e,
          };
  
@@ -190,7 +190,15 @@ index dbdac30..49198a2 100644
          let mut output: Vec<Vec<ArrayNode>> = Vec::with_capacity(criteria_grid.len());
          for criteria_row in &criteria_grid {
              let mut out_row: Vec<ArrayNode> = Vec::with_capacity(criteria_row.len());
-@@ -450,6 +477,10 @@ impl<'a> Model<'a> {
+             for criterion in criteria_row {
++                if let CalcResult::Error { error, .. } = criterion {
++                    out_row.push(ArrayNode::Error(error.clone()));
++                    continue;
++                }
+                 let fn_criteria = [build_criteria(criterion, self.locale)];
+                 let mut total = 0.0;
+                 let node = match self.run_ifs(
+@@ -450,6 +481,10 @@ impl<'a> Model<'a> {
      }
  
      pub(crate) fn fn_averageifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
@@ -201,7 +209,7 @@ index dbdac30..49198a2 100644
          let mut total = 0.0;
          let mut count = 0.0;
  
-@@ -457,7 +488,7 @@ impl<'a> Model<'a> {
+@@ -457,7 +492,7 @@ impl<'a> Model<'a> {
              total += value;
              count += 1.0;
          };
@@ -210,7 +218,7 @@ index dbdac30..49198a2 100644
              return e;
          }
  
-@@ -474,7 +505,7 @@ impl<'a> Model<'a> {
+@@ -474,7 +509,7 @@ impl<'a> Model<'a> {
      pub(crate) fn fn_minifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
          let mut min = f64::INFINITY;
          let apply_min = |value: f64| min = value.min(min);
@@ -219,7 +227,7 @@ index dbdac30..49198a2 100644
              return e;
          }
  
-@@ -487,7 +518,7 @@ impl<'a> Model<'a> {
+@@ -487,7 +522,7 @@ impl<'a> Model<'a> {
      pub(crate) fn fn_maxifs(&mut self, args: &[Node], cell: CellReferenceIndex) -> CalcResult {
          let mut max = -f64::INFINITY;
          let apply_max = |value: f64| max = value.max(max);
@@ -228,11 +236,59 @@ index dbdac30..49198a2 100644
              return e;
          }
          if max.is_infinite() {
+diff --git a/base/src/functions/text/common.rs b/base/src/functions/text/common.rs
+index 06334b0..6294e8e 100644
+--- a/base/src/functions/text/common.rs
++++ b/base/src/functions/text/common.rs
+@@ -1040,7 +1040,9 @@ impl<'a> Model<'a> {
+                                 CalcResult::Number(value) => {
+                                     values.push(format!("{value}"));
+                                 }
+-                                CalcResult::String(value) => values.push(value),
++                                CalcResult::String(value) => {
++                    if !ignore_empty || !value.is_empty() { values.push(value); }
++                },
+                                 CalcResult::Boolean(value) => {
+                                     if value {
+                                         values.push("TRUE".to_string())
+@@ -1067,7 +1069,9 @@ impl<'a> Model<'a> {
+                     }
+                 }
+                 error @ CalcResult::Error { .. } => return error,
+-                CalcResult::String(value) => values.push(value),
++                CalcResult::String(value) => {
++                    if !ignore_empty || !value.is_empty() { values.push(value); }
++                },
+                 CalcResult::Boolean(value) => {
+                     if value {
+                         values.push("TRUE".to_string())
+diff --git a/base/src/functions/xlookup.rs b/base/src/functions/xlookup.rs
+index 394ff94..b9004bc 100644
+--- a/base/src/functions/xlookup.rs
++++ b/base/src/functions/xlookup.rs
+@@ -213,7 +213,7 @@ impl<'a> Model<'a> {
+             SearchMode::StartAtFirstItem
+         };
+         // lookup_array
+-        match self.evaluate_node_in_context(&args[1], cell) {
++        match self.evaluate_node_with_reference(&args[1], cell) {
+             CalcResult::Range { left, right } => {
+                 let is_row_vector = if left.row == right.row {
+                     false
+@@ -228,7 +228,7 @@ impl<'a> Model<'a> {
+                     };
+                 };
+                 // return array
+-                match self.evaluate_node_in_context(&args[2], cell) {
++                match self.evaluate_node_with_reference(&args[2], cell) {
+                     CalcResult::Range {
+                         left: result_left,
+                         right: result_right,
 diff --git a/base/src/test/test_fn_sumifs.rs b/base/src/test/test_fn_sumifs.rs
-index 7a42f32..c8c8dba 100644
+index 7a42f32..7cef700 100644
 --- a/base/src/test/test_fn_sumifs.rs
 +++ b/base/src/test/test_fn_sumifs.rs
-@@ -150,3 +150,24 @@ fn test_fn_sumifs_whole_column_sees_a_spill_beyond_the_used_area() {
+@@ -150,3 +150,48 @@ fn test_fn_sumifs_whole_column_sees_a_spill_beyond_the_used_area() {
          assert_eq!(model.evaluation.restarts_in_last_evaluation, 1, "{formula}");
      }
  }
@@ -252,6 +308,58 @@ index 7a42f32..c8c8dba 100644
 +        ("=AVERAGEIF(B1:B3,\"apple\",C1)", "20"),
 +        ("=AND(FALSE,1/0)", "#DIV/0!"),
 +        ("=OR(TRUE,1/0)", "#DIV/0!"),
++    ];
++    for (i, (formula, _)) in cases.iter().enumerate() { model._set(&format!("H{}", i + 1), formula); }
++    model.evaluate();
++    for (i, (_, expected)) in cases.iter().enumerate() { assert_eq!(model._get_text(&format!("H{}", i + 1)), *expected); }
++}
++
++
++#[test]
++fn office_sumif_lifted_error_criteria() {
++    for criteria in ["E1:E2", "{#N/A;\"apple\"}"] {
++        let mut model = new_empty_model();
++        for (cell, value) in [("B1", "apple"), ("B2", "pear"), ("B3", "apple"), ("C1", "10"), ("C2", "20"), ("C3", "30"), ("E1", "=NA()"), ("E2", "apple")] { model._set(cell, value); }
++        model._set("H1", &format!("=SUMIF(B1:B3,{criteria},C1:C3)"));
++        model.evaluate();
++        assert_eq!(model._get_text("H1"), "#N/A", "{criteria}");
++        assert_eq!(model._get_text("H2"), "40", "{criteria}");
++    }
++}
++
++#[test]
++fn office_xlookup_single_cell_ranges() {
++    let mut model = new_empty_model();
++    model._set("A1", "10");
++    model._set("B1", "ten");
++    for (cell, formula) in [("H1", "=XLOOKUP(10,A1,B1)"), ("H2", "=XLOOKUP(10,A1:A1,B1)"), ("H3", "=XLOOKUP(10,A1,B1:B1)"), ("H4", "=XLOOKUP(20,A1,B1,\"missing\")")] { model._set(cell, formula); }
++    model.evaluate();
++    for cell in ["H1", "H2", "H3"] { assert_eq!(model._get_text(cell), "ten", "{cell}"); }
++    assert_eq!(model._get_text("H4"), "missing");
++}
+diff --git a/base/src/test/text_functions/fn_textjoin.rs b/base/src/test/text_functions/fn_textjoin.rs
+index 3d2a403..4fc96bc 100644
+--- a/base/src/test/text_functions/fn_textjoin.rs
++++ b/base/src/test/text_functions/fn_textjoin.rs
+@@ -59,3 +59,23 @@ fn whole_column_sees_a_spill_beyond_the_used_area() {
+     assert_eq!(model._get_text("A1"), "9");
+     assert_eq!(model.evaluation.restarts_in_last_evaluation, 0);
+ }
++
++
++#[test]
++fn office_textjoin_empty_strings() {
++    let mut model = new_empty_model();
++    model._set("B1", "ten");
++    model._set("B2", "=\"\"");
++    model._set("B3", "thirty");
++    let cases = [
++        ("=TEXTJOIN(\"|\",TRUE,B1:B3)", "ten|thirty"),
++        ("=TEXTJOIN(\"|\",FALSE,B1:B3)", "ten||thirty"),
++        ("=TEXTJOIN(\"|\",TRUE,B1,\"\",B3)", "ten|thirty"),
++        ("=TEXTJOIN(\"|\",FALSE,B1,\"\",B3)", "ten||thirty"),
++        ("=TEXTJOIN(\"|\",TRUE,B1,B2,B3)", "ten|thirty"),
++        ("=TEXTJOIN(\"|\",FALSE,B1,B2,B3)", "ten||thirty"),
 +    ];
 +    for (i, (formula, _)) in cases.iter().enumerate() { model._set(&format!("H{}", i + 1), formula); }
 +    model.evaluate();
