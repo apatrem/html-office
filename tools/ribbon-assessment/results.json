@@ -1,0 +1,88 @@
+{
+  "upstream": {
+    "repository": "https://github.com/ironcalc/IronCalc",
+    "revision": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
+    "sourceArchiveSHA256": "03318945c434bc2c13543b92b61601a95922b18f007490d68aabdf7aa7247319"
+  },
+  "method": "Production minified browser JS + CSS, all peer runtimes bundled; English locale. Upstream Toolbar exported directly from pinned source. WASM enums/color/name helpers stubbed: lower bound, not a functional integration, excludes command adapters and additional notices. No dependency enters the Data runtime.",
+  "results": [
+    {
+      "name": "react-runtime",
+      "jsBytes": 222934,
+      "cssBytes": 0,
+      "totalRawBytes": 222934,
+      "gzipBytesForInformationOnly": 68937,
+      "runtimePackages": [
+        {
+          "name": "react",
+          "version": "19.3.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "react-dom",
+          "version": "19.3.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "scheduler",
+          "version": "0.28.0",
+          "declaredLicense": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "upstream-toolbar-lower-bound",
+      "jsBytes": 367698,
+      "cssBytes": 22713,
+      "totalRawBytes": 390411,
+      "gzipBytesForInformationOnly": 115378,
+      "runtimePackages": [
+        {
+          "name": "html-parse-stringify",
+          "version": "4.0.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "i18next",
+          "version": "26.5.3",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "lucide-react",
+          "version": "1.60.0",
+          "declaredLicense": "ISC"
+        },
+        {
+          "name": "react",
+          "version": "19.3.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "react-colorful",
+          "version": "5.8.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "react-dom",
+          "version": "19.3.1",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "react-i18next",
+          "version": "17.1.0",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "scheduler",
+          "version": "0.28.0",
+          "declaredLicense": "MIT"
+        },
+        {
+          "name": "use-sync-external-store",
+          "version": "1.7.0",
+          "declaredLicense": "MIT"
+        }
+      ]
+    }
+  ]
+}
