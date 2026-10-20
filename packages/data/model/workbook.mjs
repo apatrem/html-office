@@ -1,5 +1,4 @@
 import { jsonStringify } from "./json.mjs";
-import { validateSheetName } from "./organization.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
@@ -200,7 +199,6 @@ export function validateWorkbook(book) {
     fields(sheet, ["id", "name", "cells", "metadata"], "sheet");
     if (!id(sheet.id) || ids.has(sheet.id)) fail("Duplicate/invalid sheet ID");
     ids.add(sheet.id);
-    validateSheetName(sheet.name, [], sheet.id);
     if (
       typeof sheet.name !== "string" ||
       !sheet.name.trim() ||
