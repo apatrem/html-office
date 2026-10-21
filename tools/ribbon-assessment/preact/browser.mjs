@@ -272,6 +272,149 @@ try {
       await context.close();
     }
 
+  // Engine failures with the toolbar mounted (standard mode): the attempted
+  // input is retained and saved as an uncalculated draft, the toolbar is
+  // disabled while busy and usable afterwards, and retry calculates once.
+  // R04's CDN/decompression toolbar-load failures do not apply: the toolbar
+  // is embedded in every R05 sample.
+  for (const variant of ["preact", "react-upstream"])
+    for (const mode of ["blocked", "bad-js", "cancel"]) {
+      const context = await browser.newContext({
+        acceptDownloads: true,
+        viewport: { width: 1440, height: 1000 },
+      });
+      let broken = true,
+        release;
+      const held = new Promise((r) => (release = r));
+      await context.route(
+        "https://raw.githubusercontent.com/**",
+        async (route) => {
+          if (broken && mode === "blocked") return route.abort();
+          if (broken && mode === "cancel") await held;
+          const wasm = route.request().url().includes(".wasm");
+          let body = await readFile(
+            resolve(
+              repo,
+              "packages/data/engine/vendor",
+              wasm ? "ironcalc.wasm.gz" : "ironcalc.mjs",
+            ),
+          );
+          if (broken && mode === "bad-js" && !wasm)
+            body = Buffer.concat([
+              body,
+              Buffer.from("\nglobalThis.unverifiedExecuted=true;"),
+            ]);
+          try {
+            await route.fulfill({
+              body,
+              headers: {
+                "access-control-allow-origin": "*",
+                "content-type": wasm ? "application/wasm" : "text/javascript",
+              },
+            });
+          } catch {
+            /* The cancelled download may already be closed. */
+          }
+        },
+      );
+      const page = await context.newPage(),
+        errors = [];
+      page.on("pageerror", (e) => errors.push(e.message));
+      page.on("dialog", (d) => d.accept());
+      await page.goto(
+        pathToFileURL(resolve(out, `toolbar-${variant}.html`)).href,
+      );
+      await page.getByText(ready, { exact: true }).waitFor();
+      const toolbar = page.locator("#spike-toolbar");
+      const button = (label) =>
+        toolbar.getByRole("button", { name: label, exact: true });
+      await page.getByRole("button", { name: "Inputs", exact: true }).click();
+      await page.getByLabel("Cell address").fill("E2");
+      await page.keyboard.press("Tab");
+      await page.getByLabel("Cell value", { exact: true }).fill("0.05");
+      await page
+        .getByRole("button", { name: "Apply edit", exact: true })
+        .click();
+      if (mode === "cancel") {
+        await page.waitForFunction(
+          () =>
+            document.querySelector('#spike-toolbar [aria-label="Bold"]')
+              ?.disabled,
+        );
+        assert.equal(
+          await button("Format as percentage").isDisabled(),
+          true,
+          "busy toolbar is disabled",
+        );
+        await page.getByRole("button", { name: "Cancel calculation" }).click();
+        release();
+        await page
+          .getByText(
+            "Calculation cancelled. Your attempted edit is retained; retry Apply edit.",
+            { exact: true },
+          )
+          .waitFor();
+      } else
+        await page
+          .locator("#status")
+          .filter({
+            hasText:
+              mode === "blocked"
+                ? "retry Apply edit"
+                : "integrity check failed",
+          })
+          .waitFor();
+      assert.equal(
+        await page.evaluate(() => globalThis.unverifiedExecuted),
+        undefined,
+      );
+      // Engine-free formatting still works on the failed cell and keeps the attempt.
+      await page.waitForFunction(
+        () =>
+          !document.querySelector(
+            '#spike-toolbar [aria-label="Format as percentage"]',
+          )?.disabled,
+      );
+      await button("Increase decimal places").click();
+      await page
+        .getByText("Formatting changed. Unsaved changes.", { exact: true })
+        .waitFor();
+      const draftPath = resolve(out, `failure-${variant}-${mode}.html`),
+        { book: draft } = await savedBook(page, draftPath);
+      const cell = draft.sheets.find((s) => s.id === "inputs").cells.E2;
+      assert.equal(cell.input.value, 0.05, "attempted input is saved");
+      assert.equal(cell.format.digits, 2, "formatting applied to the attempt");
+      assert.equal(
+        draft.snapshot,
+        undefined,
+        "uncalculated draft has no current snapshot",
+      );
+      broken = false;
+      await page
+        .getByRole("button", { name: "Apply edit", exact: true })
+        .click();
+      await page
+        .getByText("Calculated locally. Unsaved changes.", { exact: true })
+        .waitFor();
+      assert.deepEqual(errors, []);
+      results.failures ??= [];
+      results.failures.push({ variant, mode, passed: true });
+      await context.close();
+    }
+
+  // Each sample embeds the licence texts of its own dependency closure.
+  const build = JSON.parse(
+    await readFile(resolve(here, "results/build.json"), "utf8"),
+  );
+  for (const variant of ["preact", "react-upstream"]) {
+    const html = await readFile(
+      resolve(out, `toolbar-${variant}.html`),
+      "utf8",
+    );
+    for (const name of build.notices[variant].packages)
+      assert.ok(html.includes(`--- ${name} `), `${variant} notice for ${name}`);
+  }
+
   // Narrow/desktop layout, keyboard overflow and screenshots.
   for (const variant of ["preact", "react-upstream"]) {
     const { context, page, errors } = await setup(
@@ -350,6 +493,7 @@ console.log(
   JSON.stringify(
     {
       functional: results.functional.map((r) => [r.name, r.passed]),
+      failures: results.failures,
       layout: results.layout,
       timings: results.timings,
     },
