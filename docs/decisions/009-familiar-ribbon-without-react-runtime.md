@@ -1,6 +1,8 @@
 # Familiar ribbon with the existing native editor
 
-Status: accepted implementation direction following the user-authorised assessment, 20 October 2026.
+Status: superseded on 21 October 2026 by [ADR-010](010-manual-formatting-and-ironcalc-toolbar.md), which replaces the tabbed native ribbon with a single IronCalc toolbar band. Retained as the record of the shipped R02 ribbon until that migration lands.
+
+Original status: accepted implementation direction following the user-authorised assessment, 20 October 2026.
 
 Follow-up, 21 October 2026: the current native implementation remains in place, but the user has reopened selection through [R04, a functional toolbar assessment](../HTML-DATA-RIBBON-PLAN.md#r04--functional-ironcalc-toolbar-and-delivery-assessment). Compare lazy CDN delivery, our lightweight implementation and compressed embedding before the user chooses. The earlier size-only probe does not reject CDN delivery. This note preserves the original decision below; no replacement architecture has been selected.
 

@@ -1,6 +1,6 @@
 # HTML Data ribbon assessment and implementation
 
-Current checkpoint, 21 October 2026: the user requests the separate **R04 functional toolbar assessment** below before selecting a delivery strategy. The existing native ribbon remains the working default. Import and the remaining T15–T22 implementation are paused; R04 does not resume them. The earlier approvals and measurements below are historical context, not a decision against CDN delivery.
+Current checkpoint, 21 October 2026: after the R04 report the user chose a **lighter fork of the actual IronCalc toolbar on Preact** with its complete formatting features. The design is recorded in [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md); R05 below is the spike, followed by production tasks F01–F06. The native ribbon remains the working default until F04. Import and T15–T22 remain paused. R01–R04 below are historical context.
 
 Approved direction: 20 October 2026. The user requests a ribbon-based interface familiar to Excel users, asks for an assessment plan, then authorises implementation and resumption of the remaining Data plan. This replaces the earlier pause. Existing portability, JSON, engine, licence, code-size and performance requirements remain in force.
 
@@ -104,3 +104,28 @@ Dependencies: R04b and R04c. Scope S, report and sample links.
 - [x] **Stop for the user's choice between A, B and C.** Record a new decision only after that choice; do not change the shipped default, reinterpret the size ceiling, or resume import automatically.
 
 Completion means decision-ready evidence, not adoption of a preferred candidate. ADR-009 remains the current implementation record while this selection is reopened.
+
+
+## R05 — Preact fork spike (C-léger 1)
+
+Status: authorised by the user on 21 October 2026. Assessment tooling only; production Data sources and gates stay unchanged.
+
+Build the pinned IronCalc toolbar (`297553dc3a37ec6b0f4821055220e3d26c4ac6a1`) against `preact/compat` instead of React, replacing i18next with a static dictionary of the keys actually used and `lucide-react` with build-time SVG icons. Include the toolbar and the right-drawer panels it opens or ADR-010 requires: cell styles (catalogue, custom-style editor), themes (list, preview, editor) and regional settings. Built-in themes/locales/time zones that upstream reads from WASM are copied as static data. Apply ADR-010 patches: add **Centre across selection**, hide merge, remove custom number formats, keep R04's accessibility/capability patches.
+
+- Measure raw/gzip JS and CSS per component and per dependency, with the complete notice text. Compare with R04's React build (395,103 bytes) and project the standard P&L total against the 750,000-byte ceiling.
+- Re-run R04's functional/failure browser cases on an embedded Preact variant; record every React-19/`preact/compat` incompatibility and the patch or workaround used.
+- Panels may use a recording host stub where ADR-010 model features do not exist yet; record which callbacks are wired and which only record intents.
+- Decision gate: confirm Preact for F04, or fall back to a framework-free port if compatibility or size fails. Report to the user before production migration.
+
+## Production tasks after R05
+
+Each task is a separate reviewable increment with the existing unit/browser/format/P&L gates and independent review. Paths are indicative.
+
+- **F01 — Model and contract.** `cellStyle` replaces `role` (fixtures rewritten), cell/row/column `style`, dimensions, style-only cells, `namedStyles`, `link`, colour/theme references, charte slot tokens, enriched number-format presets. Validation, history/recovery round trips, structural relocation of row/column styles and internal links, embedded guide update, and the 750,000-byte Data ceiling in build/bench gates.
+- **F02 — Rendering.** Layer resolution, fonts, theme colours with tint, borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
+- **F03 — Commands.** Formatting commands with the 50,000-cell guard, command-time auto-fit, resize by drag/keyboard, painter, clear formatting, links and popover, clipboard/fill carrying formatting.
+- **F04 — Interface migration.** Embedded Preact toolbar behind a deliberate command/state API (replacing R04's source injection), file bar menus, context menus, scenario selector and sheet tabs; remove the tabbed ribbon and replace its tests.
+- **F05 — Panels.** Cell-style catalogue and editor, theme picker/editor writing the workbook charte, regional settings.
+- **F06 — PNG.** Model-generated SVG of the selection rasterised to PNG, stale-result band and size limits.
+
+T15 import acceptance gains ADR-010 conversions: merges to `centerContinuous` or unmerge, number-format codes to presets, diagonal borders and unsupported alignment reported in diagnostics.
