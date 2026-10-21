@@ -1,0 +1,116 @@
+.assessment-note {
+  padding: 8px 12px;
+  border: 1px solid var(--lig);
+  border-radius: 4px;
+  background: var(--tint);
+  margin: 8px 0;
+}
+.assessment-note p {
+  margin: 4px 0;
+  font-size: 12px;
+}
+.assessment-advanced {
+  margin: 8px 0;
+}
+.assessment-advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+}
+.ic-root {
+  --toolbar-height: 40px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  position: relative;
+  min-width: 0;
+}
+.ic-root .ic-toolbar-container {
+  min-width: 0;
+  scrollbar-width: thin;
+}
+.ic-root .ic-button {
+  box-shadow: none;
+}
+.ic-root button:focus-visible,
+.light-toolbar button:focus-visible {
+  outline: 2px solid #2f80ed;
+  outline-offset: 1px;
+}
+.ic-root .ic-toolbar-scroll-arrow {
+  padding: 0;
+  z-index: 2;
+}
+.light-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  height: 40px;
+  overflow-x: auto;
+  min-width: 0;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  scrollbar-width: thin;
+  font:
+    12px Arial,
+    sans-serif;
+}
+.light-group {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+  padding-right: 16px;
+  border-right: 1px solid #e0e0e0;
+}
+.light-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border: 0;
+  border-radius: 4px;
+  color: #272525;
+  background: transparent;
+}
+.light-toolbar button:hover:enabled {
+  background: #f2f2f2;
+}
+.light-toolbar button:disabled {
+  opacity: 0.35;
+}
+.light-toolbar svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}
+.light-toolbar input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font: 12px Arial;
+}
+.light-toolbar select {
+  padding: 4px;
+  border: 0;
+  font: 12px Arial;
+  max-width: 130px;
+}
+.assessment-no-grid td,
+.assessment-no-grid th,
+.assessment-no-grid .grid-cell {
+  border-color: transparent !important;
+}
+@media print {
+  .assessment-note,
+  #assessment-mount,
+  .assessment-advanced {
+    display: none !important;
+  }
+}

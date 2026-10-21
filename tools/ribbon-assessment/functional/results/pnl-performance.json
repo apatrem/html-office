@@ -1,0 +1,126 @@
+{
+  "browser": "151.0.7922.34",
+  "conditions": "Same fictional 24-month P&L, offline file://, one engine warm-up then five Base growth edits .021 through .025, two-animation-frame edit-to-paint timing; baseline then native then actual upstream, uncontrolled browser GC. No network. Existing P&L warm<250ms and main-task<100ms gates unchanged. Does not replace the full five-workload release suite.",
+  "cases": [
+    {
+      "mode": "baseline",
+      "runs": [
+        {
+          "editToPaintMs": 182.10000002384186,
+          "calculateMs": 15.400000035762787,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.30000001192093,
+          "calculateMs": 1.5,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 47.19999998807907,
+          "calculateMs": 2.099999964237213,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.5,
+          "calculateMs": 0.5,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 49.200000047683716,
+          "calculateMs": 3.099999964237213,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.19999998807907,
+          "calculateMs": 0.699999988079071,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 49.200000047683716,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    },
+    {
+      "mode": "native",
+      "runs": [
+        {
+          "editToPaintMs": 149.30000001192093,
+          "calculateMs": 13.900000035762787,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 47.799999952316284,
+          "calculateMs": 1.600000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.5,
+          "calculateMs": 0.8999999761581421,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.80000001192093,
+          "calculateMs": 0.5,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 47.700000047683716,
+          "calculateMs": 1,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.69999998807907,
+          "calculateMs": 0.6000000238418579,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 48.80000001192093,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    },
+    {
+      "mode": "embedded",
+      "runs": [
+        {
+          "editToPaintMs": 148.69999998807907,
+          "calculateMs": 14,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.5,
+          "calculateMs": 1.600000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.80000001192093,
+          "calculateMs": 0.8999999761581421,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 49.09999996423721,
+          "calculateMs": 0.699999988079071,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 49.09999996423721,
+          "calculateMs": 1,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.700000047683716,
+          "calculateMs": 0.6000000238418579,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 49.09999996423721,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    }
+  ]
+}

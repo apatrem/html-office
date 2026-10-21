@@ -1,5 +1,7 @@
 # HTML Data ribbon assessment and implementation
 
+Current checkpoint, 21 October 2026: the user requests the separate **R04 functional toolbar assessment** below before selecting a delivery strategy. The existing native ribbon remains the working default. Import and the remaining T15–T22 implementation are paused; R04 does not resume them. The earlier approvals and measurements below are historical context, not a decision against CDN delivery.
+
 Approved direction: 20 October 2026. The user requests a ribbon-based interface familiar to Excel users, asks for an assessment plan, then authorises implementation and resumption of the remaining Data plan. This replaces the earlier pause. Existing portability, JSON, engine, licence, code-size and performance requirements remain in force.
 
 ## R01 — Assess reuse before selecting an implementation
@@ -48,3 +50,57 @@ A future richer ribbon could be fetched only when the user enters editing, while
 This moves code outside the standard embedded budget, but does not remove download, parsing, integration, accessibility or licence costs. Browser caching may reduce later transfers but cannot guarantee availability or eliminate the first download for each browser/cache state. The 115,378-byte gzip figure in the extraction probe is transfer information for the lower-bound JS/CSS measurement, not a measured complete CDN integration or first-edit latency. The complete adapter/runtime/notices and any real helper payload still need measurement.
 
 Standard mode could require a connection for the first ribbon load. `--offline` must embed the same pinned editing assets and notices so editing remains available without a connection; its larger size is allowed under the existing offline policy. Preserve an immediately usable lightweight editing path where practical, or explicitly assess any change to the current engine-free formatting behaviour before adopting a mandatory remote ribbon.
+
+## R04 — Functional IronCalc toolbar and delivery assessment
+
+Status: assessment completed on 21 October 2026; delivery choice remains open. Results and limitations are in [the functional assessment report](HTML-DATA-TOOLBAR-ASSESSMENT.md), tracked in [issue #38](https://github.com/apatrem/html-office/issues/38), ahead of any delivery selection. The user prefers IronCalc's appearance and requests this assessment as a separate task. **115 kB compressed is not itself a reason to reject CDN delivery.** The existing extraction is a size-only lower bound with throwing helper stubs, not a working toolbar. This task must produce functional evidence before recommending a production choice.
+
+Compare these three candidates on the same fictional P&L workbook and supported command set:
+
+| Candidate | Prototype / comparison required |
+| --- | --- |
+| A — Actual IronCalc toolbar, lazy CDN | Adapt the pinned upstream toolbar, package its complete runtime dependency closure, and load it on explicit editing activation. Use immutable assets with executable/CSS integrity verification. Distinguish local HTTP simulation from an actual CDN measurement. |
+| B — Our lightweight implementation | Use the current native ribbon as the measured baseline; provide a bounded visual/interaction prototype closer to the preferred IronCalc toolbar. Identify what can match through CSS/layout and what would require new components. Do not call the existing ribbon a completed visual replica. |
+| C — Actual IronCalc toolbar, compressed inside HTML | Reuse A's functional toolbar and adapters, storing compressed assets inside the file and decoding locally. Include loader, compression encoding, notices, integrity verification, browser support and save/reopen behavior in the measurement. No ribbon network request is allowed. |
+
+The standard-mode embedded-code ceiling remains 500,000 bytes. Report stored HTML bytes and decoded executable/CSS bytes separately; compression does not silently redefine the existing raw application-code accounting. A budget interpretation or exception, if needed for C, belongs in the user decision. Offline distribution may be larger under the existing policy. Readable canonical workbook data and the embedded LLM guide must remain directly readable rather than compressed with the UI.
+
+### R04a — Working upstream command path
+
+Dependencies: completed R01–R02 and T14. Scope M, isolated assessment tools and a small command adapter.
+
+- [x] Pin source, lock dependencies and replace every throwing probe helper with real behavior; record local upstream patches and complete redistribution notices.
+- [x] Wire supported actions through the existing canonical commands, history and recovery. Verify undo/redo, supported number formats and conditional-format dialog entry, with selection state reflected in the toolbar. List unsupported commands explicitly and hide or visibly disable them; no fake handlers or new formatting schema merely to make the probe look complete.
+- [x] Demonstrate editing, scenario recalculation and save/reopen on a usable fictional workbook. Formatting must not initialize the calculation engine; any unavoidable coupling is a reported blocker, not a hidden requirement change.
+
+Verification: focused adapter/helper tests and real-browser edit/history/save/reopen checks. Archive pinned source, reproducible build instructions, supported-command matrix and a runnable HTML sample. Checkpoint: establish functional feasibility before drawing conclusions from bundle size.
+
+### R04b — Two delivery paths for the same upstream toolbar
+
+Dependency: R04a. Scope M, loaders, isolated build variants and browser checks.
+
+- [x] Produce A and C using the same adapter and asset revision, plus an embedded `--offline` variant for A. Viewing the standard document must not request toolbar assets. Test activation from a local `file://` HTML, including CORS and integrity behavior.
+- [x] Test first load, cached reopen, disconnected startup, blocked/corrupt assets and retry. A failure leaves the workbook readable, preserves pending edits and provides a clear recovery/fallback path. Offline files must edit with zero network requests; explicitly record compression API support/fallback limits.
+- [x] Verify save-copy and reopen retain the chosen prototype's assets/configuration and behavior. Include JS, CSS, peers, real helpers, adapters, loaders and required notices in all size totals.
+
+Verification: browser request logs and integrity/failure tests for both distributions. Record actual transfer bytes separately from gzip/Brotli estimates, alongside asset hashes and the test serving environment. Do not publish a production CDN endpoint or replace the default editor as part of this experiment.
+
+### R04c — Lightweight visual alternative
+
+Dependencies: R04a's command matrix; can precede R04b if useful. Scope M, assessment-only native markup/CSS and interaction checks.
+
+- [x] Provide a comparable usable sample showing how closely a lightweight implementation can match the preferred IronCalc appearance for the same supported actions.
+- [x] Verify keyboard focus/menu operation, labels and overflow/resize at narrow and desktop widths; compare those same interactions with the upstream prototypes.
+- [x] Record added code/dependencies, components still requiring implementation, and ongoing maintenance of a replica versus the upstream extraction and patches.
+
+Verification: screenshots at 320/768/1024/1440px and focused browser flows. Preserve the current production ribbon while the comparison remains open.
+
+### R04d — Evidence report and user decision
+
+Dependencies: R04b and R04c. Scope S, report and sample links.
+
+- [x] Publish one comparison table covering complete HTML/stored/decoded code size, compressed payload plus encoding/loader overhead, first-edit and cached latency, parsing/decompression/main-thread work, network/offline behavior, supported actions, accessibility, licences and maintenance. Use identical workbook/browser/hardware, disclose cache/network conditions and repeated-run ranges; distinguish measured results from estimates.
+- [x] Supply reproducible commands and three clearly labelled usable HTML samples, a recommendation with limitations, and independent review of the functional prototypes. Run the existing correctness/code-size/P&L gates on any proposed production-path change; do not weaken them to make a candidate pass.
+- [x] **Stop for the user's choice between A, B and C.** Record a new decision only after that choice; do not change the shipped default, reinterpret the size ceiling, or resume import automatically.
+
+Completion means decision-ready evidence, not adoption of a preferred candidate. ADR-009 remains the current implementation record while this selection is reopened.
