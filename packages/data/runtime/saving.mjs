@@ -1,7 +1,8 @@
 import { readModel, writeModel } from "./document-model.mjs";
 import { DirtyState, FileWriter, digestText } from "./persistence.mjs";
 import { RecoveryClient } from "./recovery.mjs";
-import { overlayDraft, draftPatches } from "../model/pending.mjs";
+import { overlayDraft, draftPatches, pendingList } from "../model/pending.mjs";
+import { captureHead } from "../model/structure.mjs";
 
 const payload = (doc) => {
   const matches = doc.querySelectorAll("#workbook");
@@ -85,16 +86,27 @@ export function setupPersistence({
     onConditionalScales(null);
     send({ kind: "analyse", revision: dirty.revision, ...analysisOptions() });
   }
+  // Pending rich-paste link changes live in the sheet head: recovery receives
+  // the head of the overlaid draft while they exist and once more after they
+  // are published, replaced or discarded.
+  let pendingLinks = false;
   function changed(edits = [], changes = {}) {
     const revision = dirty.change(),
       attempt = getPending();
     const patches = edits.map((e) => ({ ...e, cell: e.cell ?? null }));
     patches.push(...draftPatches(getBook(), attempt));
+    const linked = pendingList(attempt).some((a) => a.link !== undefined),
+      head =
+        changes.head || linked || pendingLinks
+          ? captureHead(documentBook())
+          : undefined;
+    pendingLinks = linked;
     onConditionalScales(null);
     send({
       kind: "change",
       ...analysisOptions(),
       ...changes,
+      ...(head ? { head } : {}),
       revision,
       edits: patches,
       snapshot: attempt ? null : (getBook().snapshot ?? null),

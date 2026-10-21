@@ -335,6 +335,14 @@ export function pastedLinks(book, sheetId, edits, links, origin) {
     }
     result.set(edit.ref, link);
   }
+  // The resulting sheet must stay within the per-sheet link limit.
+  const sheet = book.sheets.find((s) => s.id === sheetId),
+    count = new Set(Object.keys(sheet?.links ?? {}));
+  for (const [ref, link] of result)
+    if (link) count.add(ref);
+    else count.delete(ref);
+  if (count.size > MAX_LINKS_PER_SHEET)
+    fail("Paste would exceed 10,000 links on this sheet");
   return { links: result, dropped };
 }
 // Applies link changes carried by edits ({link: object | null}) to a sheet.

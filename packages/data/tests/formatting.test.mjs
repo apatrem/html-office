@@ -494,3 +494,21 @@ test("rich copy carries links; paste replaces target links atomically and safely
     /https, http or mailto/,
   );
 });
+
+test("rich paste rejects a result above the per-sheet link limit", async () => {
+  const { pastedLinks } = await import("../model/formatting.mjs");
+  const book = fixture();
+  book.sheets[0].links = {};
+  for (let r = 1; r <= 10000; r++)
+    book.sheets[0].links["Z" + r] = { url: "https://example.org/" + r };
+  validateWorkbook(book);
+  const edits = [{ sheetId: "inputs", ref: "C6", cell: null }];
+  const source = { "0,0": { url: "https://example.org/new" } };
+  assert.throws(
+    () => pastedLinks(book, "inputs", edits, source, { row: 6, column: 3 }),
+    /10,000 links/,
+  );
+  // Replacing an existing link keeps the count unchanged.
+  const replace = [{ sheetId: "inputs", ref: "Z1", cell: null }];
+  pastedLinks(book, "inputs", replace, source, { row: 1, column: 26 });
+});

@@ -231,6 +231,10 @@ try {
     await page
       .getByText("Formatting changed. Unsaved changes.", { exact: true })
       .waitFor();
+    await page
+      .locator("#save-status")
+      .filter({ hasText: "Recovery stored" })
+      .waitFor();
     const draft = (await copy(page, "formatting-pending.html")).book;
     const cell = draft.sheets[0].cells.B2;
     assert.equal(cell.input.value, "old", "attempted paste kept");
@@ -246,6 +250,19 @@ try {
       "pending paste keeps its link in the draft",
     );
     assert.equal(draft.snapshot, undefined);
+    // Automatic recovery keeps the pending paste's link change too.
+    await page.reload();
+    await page
+      .getByRole("dialog")
+      .filter({ hasText: "Recover unsaved work" })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click();
+    const recovered = (await copy(page, "formatting-pending-recovered.html"))
+      .book;
+    assert.deepEqual(recovered.sheets[0].links, draft.sheets[0].links);
+    assert.deepEqual(recovered.sheets[0].cells.B2, draft.sheets[0].cells.B2);
     assert.deepEqual(pageErrors, []);
     await blocked.close();
   }
