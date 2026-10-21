@@ -1,16 +1,16 @@
 import { VERSION, address } from "../model/workbook.mjs";
 const input = (
   value,
-  role = "normal",
+  cellStyle = "normal",
   format = { kind: "number", digits: 0 },
 ) => ({
   input: { type: typeof value === "string" ? "text" : "number", value },
-  role,
+  cellStyle,
   format,
 });
 const formula = (value, format = { kind: "number", digits: 0 }) => ({
   formula: value,
-  role: "calculation",
+  cellStyle: "calculation",
   format,
 });
 const money = { kind: "currency", currency: "EUR", digits: 0 },

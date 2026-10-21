@@ -125,7 +125,7 @@ export function setupClipboard({
         return {
           ...edit,
           cell: {
-            ...(old.role ? { role: old.role } : {}),
+            ...(old.cellStyle ? { cellStyle: old.cellStyle } : {}),
             ...(old.format ? { format: old.format } : {}),
             ...edit.cell,
           },

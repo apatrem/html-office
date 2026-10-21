@@ -37,7 +37,7 @@ const fixtures = sources ?? [
       const b = large({ rows: 50000, columns: 8, preaggregate: true });
       for (const s of b.sheets)
         for (const c of Object.values(s.cells)) {
-          delete c.role;
+          delete c.cellStyle;
           delete c.format;
         }
       return b;

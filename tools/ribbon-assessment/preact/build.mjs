@@ -371,9 +371,9 @@ book.title = "Community Learning — fictional P&L";
 const inputs = book.sheets.find((s) => s.id === "inputs").cells;
 inputs.A10 = {
   input: { type: "text", value: "Active scenario" },
-  role: "rowHeader",
+  cellStyle: "rowHeader",
 };
-inputs.B10 = { input: { type: "text", value: "Base" }, role: "assumption" };
+inputs.B10 = { input: { type: "text", value: "Base" }, cellStyle: "assumption" };
 for (const [row, name, growth] of [
   [2, "Base", 0.02],
   [3, "Upside", 0.04],
@@ -381,17 +381,17 @@ for (const [row, name, growth] of [
 ]) {
   inputs["D" + row] = {
     input: { type: "text", value: name },
-    role: "rowHeader",
+    cellStyle: "rowHeader",
   };
   inputs["E" + row] = {
     input: { type: "number", value: growth },
     format: { kind: "percent", digits: 1 },
-    role: "assumption",
+    cellStyle: "assumption",
   };
 }
 inputs.B2 = {
   formula: "=XLOOKUP(B10,D2:D4,E2:E4)",
-  role: "calculation",
+  cellStyle: "calculation",
   format: { kind: "percent", digits: 1 },
 };
 book.validations = [

@@ -3,7 +3,11 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 import { large } from "../fixtures/generate.mjs";
 const out = resolve("dist/data-test");
@@ -136,7 +140,7 @@ try {
   );
   const largeBook = large({ rows: 100000, columns: 8, preaggregate: true });
   const html = await buildWorkbook(largeBook, { calculate: false });
-  assert.ok(measureHTML(html).applicationCodeBytes < 500000);
+  assert.ok(measureHTML(html).applicationCodeBytes < STANDARD_CODE_CEILING);
   const largeFile = resolve(out, "grid-large.html");
   await writeFile(largeFile, html);
   const ctx = await browser.newContext(),

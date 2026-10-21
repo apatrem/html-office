@@ -92,7 +92,7 @@ test("experimental blocks reject orphan metadata, duplicate sources and extra co
     minimumDensity: 0.2,
   });
   for (const mutate of [
-    (c) => (c.sheets[0].table.cellMetadata.Z99 = { role: "header" }),
+    (c) => (c.sheets[0].table.cellMetadata.Z99 = { cellStyle: "header" }),
     (c) => c.sheets[0].table.data.push([]),
     (c) => (c.sheets[0].table.unrecognised = "do not discard"),
     (c) =>

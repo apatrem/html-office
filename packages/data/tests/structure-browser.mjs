@@ -66,7 +66,7 @@ try {
     assert.deepEqual(saved.groups, book.groups);
     const moved = axis === "row" ? "B3" : "C2";
     assert.equal(saved.sheets[0].cells[moved].input.value, 100);
-    assert.equal(saved.sheets[0].cells[moved].role, "assumption");
+    assert.equal(saved.sheets[0].cells[moved].cellStyle, "assumption");
     await jump(page, axis === "row" ? "B3" : "C2");
     await page
       .getByRole("button", { name: `Delete ${plural}`, exact: true })

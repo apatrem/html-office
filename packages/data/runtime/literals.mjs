@@ -19,7 +19,7 @@ export function compactInputs(book, limit = 8192) {
       const format = cell.format,
         style = [
           value.type,
-          cell.role ?? "",
+          cell.cellStyle ?? "",
           format?.kind ?? "",
           format?.digits ?? "",
           format?.currency ?? "",

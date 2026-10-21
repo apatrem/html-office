@@ -6,7 +6,7 @@ The document header and sparse cell schema are those of the validated `html-data
 
 ## Sheet representations
 
-Freeform sheets use `cells`, a map from Excel A1 addresses to explicit input/formula records. Formulas always remain there, with their full-precision typed `result`, role and format. An explicit blank is `{ "input": { "type": "blank" } }`; empty text has a text value of `""`. A missing cell has no record.
+Freeform sheets use `cells`, a map from Excel A1 addresses to explicit input/formula records. Formulas always remain there, with their full-precision typed `result`, `cellStyle` and format. `cellStyle` names a cell style: `header`, `rowHeader`, `assumption`, `calculation` or `normal` (the default). An explicit blank is `{ "input": { "type": "blank" } }`; empty text has a text value of `""`. A missing cell has no record.
 
 Authors declare a raw-data table with `sheet.metadata.layout: "table"`. The writer uses row storage if the A1 rectangle containing input cells is at least 60% populated and has at most 2,000,000 slots. It otherwise retains sparse cells without allocating the rectangle. These are conservative initial encoding rules, not engine capacity guarantees. One A1 table per sheet is supported initially; arbitrary offset/multiple blocks are not implemented.
 
@@ -19,7 +19,7 @@ A row table has these fields:
 | `columnTypes` | One type per column: number, text, date, boolean, error or blank |
 | `data` | Exactly `height` JSON row arrays, each with exactly `width` scalar/null entries |
 | `overrides` | A1-addressed complete typed input cells for blanks or type exceptions |
-| `cellMetadata` | A1-addressed role/format objects for non-null array inputs; never another value |
+| `cellMetadata` | A1-addressed `cellStyle`/format objects for non-null array inputs; never another value |
 
 `null` means no array input at that position. A missing cell has no array value, override or sparse record. `""` is empty text, distinct from `null`. Explicit blanks and mixed-type exceptions use an override and a null placeholder. Sparse formulas may occupy null positions in the table rectangle. Inputs in that rectangle belong only to `data` or `overrides`; duplicate sources are rejected. Override coordinates must be inside the table; orphan/duplicate metadata and inconsistent dimensions are rejected.
 

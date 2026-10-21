@@ -63,7 +63,7 @@ Status, 19 October 2026: T01–T04 implemented as an experimental prototype; T05
 
 The custom WASM is 2,172,743 decoded bytes; its precompressed transport is **707,874 bytes**. The wrapper is 7,381 raw bytes. A fresh real HTTPS test observed both integrity checks passing on the first edit only; see [CDN receipt](bench/cdn-results.json). Browser-reported compressed wrapper body was ${n(cdn.items.find((i) => i.kind === "js").wireSizes.responseBodySize)} bytes. Fresh offline reopening relies on the embedded build, not HTTP cache assumptions.
 
-Standard application code includes JavaScript, CSS, UI scaffold, all dependency notices and, conservatively, generated grid markup/text. Model JSON and the inert guide are content. Every measured standard fixture stays below **500,000 bytes**; offline code is larger because it contains the compressed engine. Data/content size is reported separately and can be much larger.
+Standard application code includes JavaScript, CSS, UI scaffold, all dependency notices and, conservatively, generated grid markup/text. Model JSON and the inert guide are content. Every measured standard fixture stays below the **750,000-byte** Data ceiling (ADR-010); offline code is larger because it contains the compressed engine. Data/content size is reported separately and can be much larger.
 
 ## Browser evidence before storage adoption
 

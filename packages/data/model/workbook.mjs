@@ -99,7 +99,7 @@ export function validateValue(value) {
   fail(`Invalid typed value: ${type}`);
 }
 export function validateCell(cell) {
-  fields(cell, ["input", "formula", "result", "format", "role"], "cell");
+  fields(cell, ["input", "formula", "result", "format", "cellStyle"], "cell");
   if (cell.formula !== undefined) {
     if (
       typeof cell.formula !== "string" ||
@@ -115,12 +115,12 @@ export function validateCell(cell) {
     validateValue(cell.result);
   }
   if (
-    cell.role !== undefined &&
+    cell.cellStyle !== undefined &&
     !["header", "rowHeader", "assumption", "calculation", "normal"].includes(
-      cell.role,
+      cell.cellStyle,
     )
   )
-    fail("Invalid role");
+    fail("Invalid cell style");
   if (cell.format !== undefined) {
     fields(cell.format, ["kind", "digits", "currency"], "format");
     if (

@@ -79,7 +79,7 @@ test("internal copy/fill preserve types and styles and shift formulas across a r
   const sheet = {
     id: "one",
     cells: {
-      A1: { input: { type: "text", value: "001" }, role: "header" },
+      A1: { input: { type: "text", value: "001" }, cellStyle: "header" },
       B1: { formula: "=$A1+1", format: { kind: "number", digits: 2 } },
     },
   };
@@ -88,7 +88,7 @@ test("internal copy/fill preserve types and styles and shift formulas across a r
       origin: copied.origin,
     });
   assert.equal(patches[0].cell.input.value, "001");
-  assert.equal(patches[0].cell.role, "header");
+  assert.equal(patches[0].cell.cellStyle, "header");
   assert.equal(patches[1].cell.formula, "=$A3+1");
   const fill = fillRange(sheet, "B1:B3", "down");
   assert.equal(fill[1].cell.formula, "=$A2+1");

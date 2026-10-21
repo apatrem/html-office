@@ -266,7 +266,7 @@ export function decodeWorkbook(candidate) {
     }
     for (const [ref, meta] of Object.entries(table.cellMetadata)) {
       parseAddress(ref);
-      record(meta, ["role", "format"]);
+      record(meta, ["cellStyle", "format"]);
       if (!cells[ref]?.input || table.overrides[ref])
         throw new Error("Orphan or duplicate table metadata");
     }

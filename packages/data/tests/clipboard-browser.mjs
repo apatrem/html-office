@@ -3,7 +3,11 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
@@ -67,7 +71,7 @@ try {
   await calculated(page);
   let saved = await copied(page, "clipboard-internal.html");
   assert.equal(saved.sheets[0].cells.E5.input.value, 100);
-  assert.equal(saved.sheets[0].cells.E5.role, "assumption");
+  assert.equal(saved.sheets[0].cells.E5.cellStyle, "assumption");
   assert.equal(saved.sheets[0].cells.F5.formula, "=$B5+E$3+$B$3");
   assert.equal(saved.sheets[0].cells.F6.result.value, 125);
   await jump(page, "F5");
@@ -292,7 +296,8 @@ try {
   }
   assert.deepEqual(errors, []);
   assert.ok(
-    measureHTML(await buildWorkbook(book)).applicationCodeBytes < 500000,
+    measureHTML(await buildWorkbook(book)).applicationCodeBytes <
+      STANDARD_CODE_CEILING,
   );
   console.log(
     "PASS clipboard: native cross-tab range copy, mixed-reference fill, batch undo/redo, typed table preview and portable save/reopen",

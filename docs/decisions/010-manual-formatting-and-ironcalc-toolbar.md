@@ -31,7 +31,7 @@ Effective appearance is resolved property by property: **cell style → column s
 
 ### Cell styles (named styles)
 
-- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `row-label`, `assumption`, `calculation`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style }]`.
+- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `rowHeader`, `assumption`, `calculation`, plus the default `normal`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style }]`.
 - Excel "Input" and "Calculation" are our `assumption` and `calculation` (charte appearance, labelled accordingly), not duplicates. Built-in IDs are reserved lowercase names; custom styles get generated stable IDs and editable display names.
 - Editing a style updates every cell using it. Deleting a style in use requires confirmation and leaves those cells without a cell style. IronCalc's custom-style editor is included.
 

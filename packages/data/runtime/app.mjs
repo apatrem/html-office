@@ -125,7 +125,7 @@ function choose(ref, updateGrid = true) {
   $("cell-address").value = ref;
   const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
     value = cell.input ?? { type: "blank" };
-  $("format-role").value = cell.role ?? "normal";
+  $("format-role").value = cell.cellStyle ?? "normal";
   $("format-kind").value = cell.format?.kind ?? "general";
   $("format-digits").value = cell.format?.digits ?? 2;
   $("format-currency").value = cell.format?.currency ?? "EUR";
@@ -577,7 +577,7 @@ function formatSelection(transform) {
         attempt.cell = {
           ...attempt.cell,
           format: styled.format,
-          role: styled.role,
+          cellStyle: styled.cellStyle,
         };
     }
     history.record({
@@ -600,12 +600,12 @@ $("format-apply").onclick = () => {
   const digits = Number($("format-digits").value),
     currency = $("format-currency").value.toUpperCase(),
     kind = $("format-kind").value,
-    role = $("format-role").value;
+    cellStyle = $("format-role").value;
   if (!$("format-digits").value.trim())
     return status("Enter decimal places between 0 and 15.");
   formatSelection((cell) => ({
     ...cell,
-    role,
+    cellStyle,
     format: {
       kind,
       digits,

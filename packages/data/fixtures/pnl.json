@@ -14,7 +14,7 @@
             "type": "text",
             "value": "Total revenue"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -22,7 +22,7 @@
         },
         "B2": {
           "formula": "=SUM(Calculations!B4:Y4)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -34,7 +34,7 @@
             "type": "text",
             "value": "Net income"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -42,7 +42,7 @@
         },
         "B3": {
           "formula": "=SUM(Calculations!B10:Y10)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -54,7 +54,7 @@
             "type": "text",
             "value": "Cash flow NPV (initial investment separate)"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -62,7 +62,7 @@
         },
         "B4": {
           "formula": "=NPV((1+Inputs!B7)^(1/12)-1,Calculations!B12:Y12)-Inputs!B8",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -74,7 +74,7 @@
             "type": "text",
             "value": "24-month business review"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -91,7 +91,7 @@
             "type": "text",
             "value": "Monthly participant growth"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -102,7 +102,7 @@
             "type": "number",
             "value": 0.02
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -113,7 +113,7 @@
             "type": "text",
             "value": "Fee per participant"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -124,7 +124,7 @@
             "type": "number",
             "value": 25
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -136,7 +136,7 @@
             "type": "text",
             "value": "Variable cost per participant"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -147,7 +147,7 @@
             "type": "number",
             "value": 8
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -159,7 +159,7 @@
             "type": "text",
             "value": "Monthly fixed costs"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -170,7 +170,7 @@
             "type": "number",
             "value": 1500
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -182,7 +182,7 @@
             "type": "text",
             "value": "Tax rate"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -193,7 +193,7 @@
             "type": "number",
             "value": 0.2
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -204,7 +204,7 @@
             "type": "text",
             "value": "Annual discount rate"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -215,7 +215,7 @@
             "type": "number",
             "value": 0.1
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -226,7 +226,7 @@
             "type": "text",
             "value": "Initial investment"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -237,7 +237,7 @@
             "type": "number",
             "value": 10000
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -249,7 +249,7 @@
             "type": "text",
             "value": "Planning assumptions"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -266,7 +266,7 @@
             "type": "text",
             "value": "Month"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -277,7 +277,7 @@
             "type": "text",
             "value": "Participants"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -288,7 +288,7 @@
             "type": "number",
             "value": 1
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -299,7 +299,7 @@
             "type": "number",
             "value": 100
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -310,7 +310,7 @@
             "type": "number",
             "value": 2
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -321,7 +321,7 @@
             "type": "number",
             "value": 105
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -332,7 +332,7 @@
             "type": "number",
             "value": 3
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -343,7 +343,7 @@
             "type": "number",
             "value": 110
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -354,7 +354,7 @@
             "type": "number",
             "value": 4
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -365,7 +365,7 @@
             "type": "number",
             "value": 115
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -376,7 +376,7 @@
             "type": "number",
             "value": 5
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -387,7 +387,7 @@
             "type": "number",
             "value": 120
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -398,7 +398,7 @@
             "type": "number",
             "value": 6
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -409,7 +409,7 @@
             "type": "number",
             "value": 125
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -420,7 +420,7 @@
             "type": "number",
             "value": 7
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -431,7 +431,7 @@
             "type": "number",
             "value": 130
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -442,7 +442,7 @@
             "type": "number",
             "value": 8
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -453,7 +453,7 @@
             "type": "number",
             "value": 135
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -464,7 +464,7 @@
             "type": "number",
             "value": 9
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -475,7 +475,7 @@
             "type": "number",
             "value": 140
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -486,7 +486,7 @@
             "type": "number",
             "value": 10
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -497,7 +497,7 @@
             "type": "number",
             "value": 145
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -508,7 +508,7 @@
             "type": "number",
             "value": 11
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -519,7 +519,7 @@
             "type": "number",
             "value": 150
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -530,7 +530,7 @@
             "type": "number",
             "value": 12
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -541,7 +541,7 @@
             "type": "number",
             "value": 155
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -558,7 +558,7 @@
             "type": "text",
             "value": "Monthly P\u0026L"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -569,7 +569,7 @@
             "type": "text",
             "value": "Period"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -580,7 +580,7 @@
             "type": "text",
             "value": "Participants"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -591,7 +591,7 @@
             "type": "text",
             "value": "Revenue"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -602,7 +602,7 @@
             "type": "text",
             "value": "Variable costs"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -613,7 +613,7 @@
             "type": "text",
             "value": "Contribution"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -624,7 +624,7 @@
             "type": "text",
             "value": "Fixed costs"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -635,7 +635,7 @@
             "type": "text",
             "value": "Operating profit"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -646,7 +646,7 @@
             "type": "text",
             "value": "Tax"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -657,7 +657,7 @@
             "type": "text",
             "value": "Net income"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -668,7 +668,7 @@
             "type": "text",
             "value": "Operating margin"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -679,7 +679,7 @@
             "type": "text",
             "value": "Operating cash flow"
           },
-          "role": "rowHeader",
+          "cellStyle": "rowHeader",
           "format": {
             "kind": "number",
             "digits": 0
@@ -690,7 +690,7 @@
             "type": "text",
             "value": "Actual 1"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -701,7 +701,7 @@
             "type": "number",
             "value": 1
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -709,7 +709,7 @@
         },
         "B3": {
           "formula": "=Actuals!B2",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -717,7 +717,7 @@
         },
         "B4": {
           "formula": "=B3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -726,7 +726,7 @@
         },
         "B5": {
           "formula": "=B3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -735,7 +735,7 @@
         },
         "B6": {
           "formula": "=B4-B5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -744,7 +744,7 @@
         },
         "B7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -753,7 +753,7 @@
         },
         "B8": {
           "formula": "=B6-B7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -762,7 +762,7 @@
         },
         "B9": {
           "formula": "=MAX(0,B8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -771,7 +771,7 @@
         },
         "B10": {
           "formula": "=B8-B9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -780,7 +780,7 @@
         },
         "B11": {
           "formula": "=IFERROR(B8/B4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -788,7 +788,7 @@
         },
         "B12": {
           "formula": "=B10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -800,7 +800,7 @@
             "type": "text",
             "value": "Actual 2"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -811,7 +811,7 @@
             "type": "number",
             "value": 2
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -819,7 +819,7 @@
         },
         "C3": {
           "formula": "=Actuals!B3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -827,7 +827,7 @@
         },
         "C4": {
           "formula": "=C3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -836,7 +836,7 @@
         },
         "C5": {
           "formula": "=C3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -845,7 +845,7 @@
         },
         "C6": {
           "formula": "=C4-C5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -854,7 +854,7 @@
         },
         "C7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -863,7 +863,7 @@
         },
         "C8": {
           "formula": "=C6-C7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -872,7 +872,7 @@
         },
         "C9": {
           "formula": "=MAX(0,C8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -881,7 +881,7 @@
         },
         "C10": {
           "formula": "=C8-C9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -890,7 +890,7 @@
         },
         "C11": {
           "formula": "=IFERROR(C8/C4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -898,7 +898,7 @@
         },
         "C12": {
           "formula": "=C10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -910,7 +910,7 @@
             "type": "text",
             "value": "Actual 3"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -921,7 +921,7 @@
             "type": "number",
             "value": 3
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -929,7 +929,7 @@
         },
         "D3": {
           "formula": "=Actuals!B4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -937,7 +937,7 @@
         },
         "D4": {
           "formula": "=D3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -946,7 +946,7 @@
         },
         "D5": {
           "formula": "=D3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -955,7 +955,7 @@
         },
         "D6": {
           "formula": "=D4-D5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -964,7 +964,7 @@
         },
         "D7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -973,7 +973,7 @@
         },
         "D8": {
           "formula": "=D6-D7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -982,7 +982,7 @@
         },
         "D9": {
           "formula": "=MAX(0,D8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -991,7 +991,7 @@
         },
         "D10": {
           "formula": "=D8-D9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1000,7 +1000,7 @@
         },
         "D11": {
           "formula": "=IFERROR(D8/D4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1008,7 +1008,7 @@
         },
         "D12": {
           "formula": "=D10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1020,7 +1020,7 @@
             "type": "text",
             "value": "Actual 4"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1031,7 +1031,7 @@
             "type": "number",
             "value": 4
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1039,7 +1039,7 @@
         },
         "E3": {
           "formula": "=Actuals!B5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1047,7 +1047,7 @@
         },
         "E4": {
           "formula": "=E3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1056,7 +1056,7 @@
         },
         "E5": {
           "formula": "=E3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1065,7 +1065,7 @@
         },
         "E6": {
           "formula": "=E4-E5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1074,7 +1074,7 @@
         },
         "E7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1083,7 +1083,7 @@
         },
         "E8": {
           "formula": "=E6-E7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1092,7 +1092,7 @@
         },
         "E9": {
           "formula": "=MAX(0,E8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1101,7 +1101,7 @@
         },
         "E10": {
           "formula": "=E8-E9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1110,7 +1110,7 @@
         },
         "E11": {
           "formula": "=IFERROR(E8/E4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1118,7 +1118,7 @@
         },
         "E12": {
           "formula": "=E10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1130,7 +1130,7 @@
             "type": "text",
             "value": "Actual 5"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1141,7 +1141,7 @@
             "type": "number",
             "value": 5
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1149,7 +1149,7 @@
         },
         "F3": {
           "formula": "=Actuals!B6",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1157,7 +1157,7 @@
         },
         "F4": {
           "formula": "=F3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1166,7 +1166,7 @@
         },
         "F5": {
           "formula": "=F3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1175,7 +1175,7 @@
         },
         "F6": {
           "formula": "=F4-F5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1184,7 +1184,7 @@
         },
         "F7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1193,7 +1193,7 @@
         },
         "F8": {
           "formula": "=F6-F7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1202,7 +1202,7 @@
         },
         "F9": {
           "formula": "=MAX(0,F8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1211,7 +1211,7 @@
         },
         "F10": {
           "formula": "=F8-F9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1220,7 +1220,7 @@
         },
         "F11": {
           "formula": "=IFERROR(F8/F4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1228,7 +1228,7 @@
         },
         "F12": {
           "formula": "=F10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1240,7 +1240,7 @@
             "type": "text",
             "value": "Actual 6"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1251,7 +1251,7 @@
             "type": "number",
             "value": 6
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1259,7 +1259,7 @@
         },
         "G3": {
           "formula": "=Actuals!B7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1267,7 +1267,7 @@
         },
         "G4": {
           "formula": "=G3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1276,7 +1276,7 @@
         },
         "G5": {
           "formula": "=G3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1285,7 +1285,7 @@
         },
         "G6": {
           "formula": "=G4-G5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1294,7 +1294,7 @@
         },
         "G7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1303,7 +1303,7 @@
         },
         "G8": {
           "formula": "=G6-G7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1312,7 +1312,7 @@
         },
         "G9": {
           "formula": "=MAX(0,G8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1321,7 +1321,7 @@
         },
         "G10": {
           "formula": "=G8-G9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1330,7 +1330,7 @@
         },
         "G11": {
           "formula": "=IFERROR(G8/G4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1338,7 +1338,7 @@
         },
         "G12": {
           "formula": "=G10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1350,7 +1350,7 @@
             "type": "text",
             "value": "Actual 7"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1361,7 +1361,7 @@
             "type": "number",
             "value": 7
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1369,7 +1369,7 @@
         },
         "H3": {
           "formula": "=Actuals!B8",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1377,7 +1377,7 @@
         },
         "H4": {
           "formula": "=H3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1386,7 +1386,7 @@
         },
         "H5": {
           "formula": "=H3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1395,7 +1395,7 @@
         },
         "H6": {
           "formula": "=H4-H5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1404,7 +1404,7 @@
         },
         "H7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1413,7 +1413,7 @@
         },
         "H8": {
           "formula": "=H6-H7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1422,7 +1422,7 @@
         },
         "H9": {
           "formula": "=MAX(0,H8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1431,7 +1431,7 @@
         },
         "H10": {
           "formula": "=H8-H9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1440,7 +1440,7 @@
         },
         "H11": {
           "formula": "=IFERROR(H8/H4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1448,7 +1448,7 @@
         },
         "H12": {
           "formula": "=H10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1460,7 +1460,7 @@
             "type": "text",
             "value": "Actual 8"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1471,7 +1471,7 @@
             "type": "number",
             "value": 8
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1479,7 +1479,7 @@
         },
         "I3": {
           "formula": "=Actuals!B9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1487,7 +1487,7 @@
         },
         "I4": {
           "formula": "=I3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1496,7 +1496,7 @@
         },
         "I5": {
           "formula": "=I3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1505,7 +1505,7 @@
         },
         "I6": {
           "formula": "=I4-I5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1514,7 +1514,7 @@
         },
         "I7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1523,7 +1523,7 @@
         },
         "I8": {
           "formula": "=I6-I7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1532,7 +1532,7 @@
         },
         "I9": {
           "formula": "=MAX(0,I8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1541,7 +1541,7 @@
         },
         "I10": {
           "formula": "=I8-I9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1550,7 +1550,7 @@
         },
         "I11": {
           "formula": "=IFERROR(I8/I4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1558,7 +1558,7 @@
         },
         "I12": {
           "formula": "=I10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1570,7 +1570,7 @@
             "type": "text",
             "value": "Actual 9"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1581,7 +1581,7 @@
             "type": "number",
             "value": 9
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1589,7 +1589,7 @@
         },
         "J3": {
           "formula": "=Actuals!B10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1597,7 +1597,7 @@
         },
         "J4": {
           "formula": "=J3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1606,7 +1606,7 @@
         },
         "J5": {
           "formula": "=J3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1615,7 +1615,7 @@
         },
         "J6": {
           "formula": "=J4-J5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1624,7 +1624,7 @@
         },
         "J7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1633,7 +1633,7 @@
         },
         "J8": {
           "formula": "=J6-J7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1642,7 +1642,7 @@
         },
         "J9": {
           "formula": "=MAX(0,J8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1651,7 +1651,7 @@
         },
         "J10": {
           "formula": "=J8-J9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1660,7 +1660,7 @@
         },
         "J11": {
           "formula": "=IFERROR(J8/J4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1668,7 +1668,7 @@
         },
         "J12": {
           "formula": "=J10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1680,7 +1680,7 @@
             "type": "text",
             "value": "Actual 10"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1691,7 +1691,7 @@
             "type": "number",
             "value": 10
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1699,7 +1699,7 @@
         },
         "K3": {
           "formula": "=Actuals!B11",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1707,7 +1707,7 @@
         },
         "K4": {
           "formula": "=K3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1716,7 +1716,7 @@
         },
         "K5": {
           "formula": "=K3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1725,7 +1725,7 @@
         },
         "K6": {
           "formula": "=K4-K5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1734,7 +1734,7 @@
         },
         "K7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1743,7 +1743,7 @@
         },
         "K8": {
           "formula": "=K6-K7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1752,7 +1752,7 @@
         },
         "K9": {
           "formula": "=MAX(0,K8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1761,7 +1761,7 @@
         },
         "K10": {
           "formula": "=K8-K9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1770,7 +1770,7 @@
         },
         "K11": {
           "formula": "=IFERROR(K8/K4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1778,7 +1778,7 @@
         },
         "K12": {
           "formula": "=K10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1790,7 +1790,7 @@
             "type": "text",
             "value": "Actual 11"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1801,7 +1801,7 @@
             "type": "number",
             "value": 11
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1809,7 +1809,7 @@
         },
         "L3": {
           "formula": "=Actuals!B12",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1817,7 +1817,7 @@
         },
         "L4": {
           "formula": "=L3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1826,7 +1826,7 @@
         },
         "L5": {
           "formula": "=L3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1835,7 +1835,7 @@
         },
         "L6": {
           "formula": "=L4-L5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1844,7 +1844,7 @@
         },
         "L7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1853,7 +1853,7 @@
         },
         "L8": {
           "formula": "=L6-L7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1862,7 +1862,7 @@
         },
         "L9": {
           "formula": "=MAX(0,L8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1871,7 +1871,7 @@
         },
         "L10": {
           "formula": "=L8-L9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1880,7 +1880,7 @@
         },
         "L11": {
           "formula": "=IFERROR(L8/L4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1888,7 +1888,7 @@
         },
         "L12": {
           "formula": "=L10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1900,7 +1900,7 @@
             "type": "text",
             "value": "Actual 12"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1911,7 +1911,7 @@
             "type": "number",
             "value": 12
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1919,7 +1919,7 @@
         },
         "M3": {
           "formula": "=Actuals!B13",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -1927,7 +1927,7 @@
         },
         "M4": {
           "formula": "=M3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1936,7 +1936,7 @@
         },
         "M5": {
           "formula": "=M3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1945,7 +1945,7 @@
         },
         "M6": {
           "formula": "=M4-M5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1954,7 +1954,7 @@
         },
         "M7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1963,7 +1963,7 @@
         },
         "M8": {
           "formula": "=M6-M7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1972,7 +1972,7 @@
         },
         "M9": {
           "formula": "=MAX(0,M8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1981,7 +1981,7 @@
         },
         "M10": {
           "formula": "=M8-M9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -1990,7 +1990,7 @@
         },
         "M11": {
           "formula": "=IFERROR(M8/M4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -1998,7 +1998,7 @@
         },
         "M12": {
           "formula": "=M10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2010,7 +2010,7 @@
             "type": "text",
             "value": "Forecast 1"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2021,7 +2021,7 @@
             "type": "number",
             "value": 13
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2029,7 +2029,7 @@
         },
         "N3": {
           "formula": "=M3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2037,7 +2037,7 @@
         },
         "N4": {
           "formula": "=N3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2046,7 +2046,7 @@
         },
         "N5": {
           "formula": "=N3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2055,7 +2055,7 @@
         },
         "N6": {
           "formula": "=N4-N5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2064,7 +2064,7 @@
         },
         "N7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2073,7 +2073,7 @@
         },
         "N8": {
           "formula": "=N6-N7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2082,7 +2082,7 @@
         },
         "N9": {
           "formula": "=MAX(0,N8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2091,7 +2091,7 @@
         },
         "N10": {
           "formula": "=N8-N9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2100,7 +2100,7 @@
         },
         "N11": {
           "formula": "=IFERROR(N8/N4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2108,7 +2108,7 @@
         },
         "N12": {
           "formula": "=N10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2120,7 +2120,7 @@
             "type": "text",
             "value": "Forecast 2"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2131,7 +2131,7 @@
             "type": "number",
             "value": 14
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2139,7 +2139,7 @@
         },
         "O3": {
           "formula": "=N3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2147,7 +2147,7 @@
         },
         "O4": {
           "formula": "=O3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2156,7 +2156,7 @@
         },
         "O5": {
           "formula": "=O3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2165,7 +2165,7 @@
         },
         "O6": {
           "formula": "=O4-O5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2174,7 +2174,7 @@
         },
         "O7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2183,7 +2183,7 @@
         },
         "O8": {
           "formula": "=O6-O7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2192,7 +2192,7 @@
         },
         "O9": {
           "formula": "=MAX(0,O8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2201,7 +2201,7 @@
         },
         "O10": {
           "formula": "=O8-O9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2210,7 +2210,7 @@
         },
         "O11": {
           "formula": "=IFERROR(O8/O4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2218,7 +2218,7 @@
         },
         "O12": {
           "formula": "=O10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2230,7 +2230,7 @@
             "type": "text",
             "value": "Forecast 3"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2241,7 +2241,7 @@
             "type": "number",
             "value": 15
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2249,7 +2249,7 @@
         },
         "P3": {
           "formula": "=O3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2257,7 +2257,7 @@
         },
         "P4": {
           "formula": "=P3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2266,7 +2266,7 @@
         },
         "P5": {
           "formula": "=P3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2275,7 +2275,7 @@
         },
         "P6": {
           "formula": "=P4-P5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2284,7 +2284,7 @@
         },
         "P7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2293,7 +2293,7 @@
         },
         "P8": {
           "formula": "=P6-P7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2302,7 +2302,7 @@
         },
         "P9": {
           "formula": "=MAX(0,P8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2311,7 +2311,7 @@
         },
         "P10": {
           "formula": "=P8-P9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2320,7 +2320,7 @@
         },
         "P11": {
           "formula": "=IFERROR(P8/P4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2328,7 +2328,7 @@
         },
         "P12": {
           "formula": "=P10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2340,7 +2340,7 @@
             "type": "text",
             "value": "Forecast 4"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2351,7 +2351,7 @@
             "type": "number",
             "value": 16
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2359,7 +2359,7 @@
         },
         "Q3": {
           "formula": "=P3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2367,7 +2367,7 @@
         },
         "Q4": {
           "formula": "=Q3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2376,7 +2376,7 @@
         },
         "Q5": {
           "formula": "=Q3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2385,7 +2385,7 @@
         },
         "Q6": {
           "formula": "=Q4-Q5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2394,7 +2394,7 @@
         },
         "Q7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2403,7 +2403,7 @@
         },
         "Q8": {
           "formula": "=Q6-Q7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2412,7 +2412,7 @@
         },
         "Q9": {
           "formula": "=MAX(0,Q8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2421,7 +2421,7 @@
         },
         "Q10": {
           "formula": "=Q8-Q9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2430,7 +2430,7 @@
         },
         "Q11": {
           "formula": "=IFERROR(Q8/Q4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2438,7 +2438,7 @@
         },
         "Q12": {
           "formula": "=Q10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2450,7 +2450,7 @@
             "type": "text",
             "value": "Forecast 5"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2461,7 +2461,7 @@
             "type": "number",
             "value": 17
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2469,7 +2469,7 @@
         },
         "R3": {
           "formula": "=Q3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2477,7 +2477,7 @@
         },
         "R4": {
           "formula": "=R3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2486,7 +2486,7 @@
         },
         "R5": {
           "formula": "=R3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2495,7 +2495,7 @@
         },
         "R6": {
           "formula": "=R4-R5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2504,7 +2504,7 @@
         },
         "R7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2513,7 +2513,7 @@
         },
         "R8": {
           "formula": "=R6-R7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2522,7 +2522,7 @@
         },
         "R9": {
           "formula": "=MAX(0,R8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2531,7 +2531,7 @@
         },
         "R10": {
           "formula": "=R8-R9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2540,7 +2540,7 @@
         },
         "R11": {
           "formula": "=IFERROR(R8/R4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2548,7 +2548,7 @@
         },
         "R12": {
           "formula": "=R10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2560,7 +2560,7 @@
             "type": "text",
             "value": "Forecast 6"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2571,7 +2571,7 @@
             "type": "number",
             "value": 18
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2579,7 +2579,7 @@
         },
         "S3": {
           "formula": "=R3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2587,7 +2587,7 @@
         },
         "S4": {
           "formula": "=S3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2596,7 +2596,7 @@
         },
         "S5": {
           "formula": "=S3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2605,7 +2605,7 @@
         },
         "S6": {
           "formula": "=S4-S5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2614,7 +2614,7 @@
         },
         "S7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2623,7 +2623,7 @@
         },
         "S8": {
           "formula": "=S6-S7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2632,7 +2632,7 @@
         },
         "S9": {
           "formula": "=MAX(0,S8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2641,7 +2641,7 @@
         },
         "S10": {
           "formula": "=S8-S9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2650,7 +2650,7 @@
         },
         "S11": {
           "formula": "=IFERROR(S8/S4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2658,7 +2658,7 @@
         },
         "S12": {
           "formula": "=S10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2670,7 +2670,7 @@
             "type": "text",
             "value": "Forecast 7"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2681,7 +2681,7 @@
             "type": "number",
             "value": 19
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2689,7 +2689,7 @@
         },
         "T3": {
           "formula": "=S3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2697,7 +2697,7 @@
         },
         "T4": {
           "formula": "=T3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2706,7 +2706,7 @@
         },
         "T5": {
           "formula": "=T3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2715,7 +2715,7 @@
         },
         "T6": {
           "formula": "=T4-T5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2724,7 +2724,7 @@
         },
         "T7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2733,7 +2733,7 @@
         },
         "T8": {
           "formula": "=T6-T7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2742,7 +2742,7 @@
         },
         "T9": {
           "formula": "=MAX(0,T8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2751,7 +2751,7 @@
         },
         "T10": {
           "formula": "=T8-T9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2760,7 +2760,7 @@
         },
         "T11": {
           "formula": "=IFERROR(T8/T4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2768,7 +2768,7 @@
         },
         "T12": {
           "formula": "=T10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2780,7 +2780,7 @@
             "type": "text",
             "value": "Forecast 8"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2791,7 +2791,7 @@
             "type": "number",
             "value": 20
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2799,7 +2799,7 @@
         },
         "U3": {
           "formula": "=T3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2807,7 +2807,7 @@
         },
         "U4": {
           "formula": "=U3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2816,7 +2816,7 @@
         },
         "U5": {
           "formula": "=U3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2825,7 +2825,7 @@
         },
         "U6": {
           "formula": "=U4-U5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2834,7 +2834,7 @@
         },
         "U7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2843,7 +2843,7 @@
         },
         "U8": {
           "formula": "=U6-U7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2852,7 +2852,7 @@
         },
         "U9": {
           "formula": "=MAX(0,U8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2861,7 +2861,7 @@
         },
         "U10": {
           "formula": "=U8-U9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2870,7 +2870,7 @@
         },
         "U11": {
           "formula": "=IFERROR(U8/U4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2878,7 +2878,7 @@
         },
         "U12": {
           "formula": "=U10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2890,7 +2890,7 @@
             "type": "text",
             "value": "Forecast 9"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2901,7 +2901,7 @@
             "type": "number",
             "value": 21
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2909,7 +2909,7 @@
         },
         "V3": {
           "formula": "=U3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -2917,7 +2917,7 @@
         },
         "V4": {
           "formula": "=V3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2926,7 +2926,7 @@
         },
         "V5": {
           "formula": "=V3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2935,7 +2935,7 @@
         },
         "V6": {
           "formula": "=V4-V5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2944,7 +2944,7 @@
         },
         "V7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2953,7 +2953,7 @@
         },
         "V8": {
           "formula": "=V6-V7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2962,7 +2962,7 @@
         },
         "V9": {
           "formula": "=MAX(0,V8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2971,7 +2971,7 @@
         },
         "V10": {
           "formula": "=V8-V9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -2980,7 +2980,7 @@
         },
         "V11": {
           "formula": "=IFERROR(V8/V4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -2988,7 +2988,7 @@
         },
         "V12": {
           "formula": "=V10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3000,7 +3000,7 @@
             "type": "text",
             "value": "Forecast 10"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3011,7 +3011,7 @@
             "type": "number",
             "value": 22
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3019,7 +3019,7 @@
         },
         "W3": {
           "formula": "=V3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3027,7 +3027,7 @@
         },
         "W4": {
           "formula": "=W3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3036,7 +3036,7 @@
         },
         "W5": {
           "formula": "=W3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3045,7 +3045,7 @@
         },
         "W6": {
           "formula": "=W4-W5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3054,7 +3054,7 @@
         },
         "W7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3063,7 +3063,7 @@
         },
         "W8": {
           "formula": "=W6-W7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3072,7 +3072,7 @@
         },
         "W9": {
           "formula": "=MAX(0,W8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3081,7 +3081,7 @@
         },
         "W10": {
           "formula": "=W8-W9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3090,7 +3090,7 @@
         },
         "W11": {
           "formula": "=IFERROR(W8/W4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -3098,7 +3098,7 @@
         },
         "W12": {
           "formula": "=W10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3110,7 +3110,7 @@
             "type": "text",
             "value": "Forecast 11"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3121,7 +3121,7 @@
             "type": "number",
             "value": 23
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3129,7 +3129,7 @@
         },
         "X3": {
           "formula": "=W3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3137,7 +3137,7 @@
         },
         "X4": {
           "formula": "=X3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3146,7 +3146,7 @@
         },
         "X5": {
           "formula": "=X3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3155,7 +3155,7 @@
         },
         "X6": {
           "formula": "=X4-X5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3164,7 +3164,7 @@
         },
         "X7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3173,7 +3173,7 @@
         },
         "X8": {
           "formula": "=X6-X7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3182,7 +3182,7 @@
         },
         "X9": {
           "formula": "=MAX(0,X8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3191,7 +3191,7 @@
         },
         "X10": {
           "formula": "=X8-X9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3200,7 +3200,7 @@
         },
         "X11": {
           "formula": "=IFERROR(X8/X4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -3208,7 +3208,7 @@
         },
         "X12": {
           "formula": "=X10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3220,7 +3220,7 @@
             "type": "text",
             "value": "Forecast 12"
           },
-          "role": "header",
+          "cellStyle": "header",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3231,7 +3231,7 @@
             "type": "number",
             "value": 24
           },
-          "role": "normal",
+          "cellStyle": "normal",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3239,7 +3239,7 @@
         },
         "Y3": {
           "formula": "=X3*(1+Inputs!$B$2)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "number",
             "digits": 0
@@ -3247,7 +3247,7 @@
         },
         "Y4": {
           "formula": "=Y3*Inputs!$B$3",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3256,7 +3256,7 @@
         },
         "Y5": {
           "formula": "=Y3*Inputs!$B$4",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3265,7 +3265,7 @@
         },
         "Y6": {
           "formula": "=Y4-Y5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3274,7 +3274,7 @@
         },
         "Y7": {
           "formula": "=Inputs!$B$5",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3283,7 +3283,7 @@
         },
         "Y8": {
           "formula": "=Y6-Y7",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3292,7 +3292,7 @@
         },
         "Y9": {
           "formula": "=MAX(0,Y8*Inputs!$B$6)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3301,7 +3301,7 @@
         },
         "Y10": {
           "formula": "=Y8-Y9",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -3310,7 +3310,7 @@
         },
         "Y11": {
           "formula": "=IFERROR(Y8/Y4,0)",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "percent",
             "digits": 1
@@ -3318,7 +3318,7 @@
         },
         "Y12": {
           "formula": "=Y10",
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",

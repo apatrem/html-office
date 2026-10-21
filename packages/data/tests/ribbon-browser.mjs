@@ -3,7 +3,11 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 import { scenarioWorkbook } from "../fixtures/scenarios.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 const out = resolve("dist/data-test");
@@ -17,7 +21,8 @@ try {
       ),
       html = await buildWorkbook(scenarioWorkbook(), { offline });
     await writeFile(file, html);
-    if (!offline) assert.ok(measureHTML(html).applicationCodeBytes < 500000);
+    if (!offline)
+      assert.ok(measureHTML(html).applicationCodeBytes < STANDARD_CODE_CEILING);
     const context = await browser.newContext({
         acceptDownloads: true,
         viewport: { width: 1440, height: 1000 },
