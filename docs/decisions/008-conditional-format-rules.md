@@ -1,6 +1,6 @@
 # Readable conditional formatting rules
 
-Status: core and highlight viewport rendering/authoring merged, 20 October 2026. Data bar rendering and worker summaries are under verification; data-bar authoring follows separately.
+Status: core and highlight viewport rendering/authoring merged, 20 October 2026. Data bar rendering/worker summaries are in PR #36; bar authoring is under verification.
 
 Store optional `conditionalFormats` as an ordered array of explicit stable-ID sheet/range rules. At most 100 rules are accepted. Overlapping ranges are allowed: the first matching highlight wins as a whole style, and the first applicable data bar wins independently. These layers can coexist without changing a cell's value or semantic role. Rule creation, replacement, removal and reordering are metadata commands; header history preserves the order and structural edits shift/shrink ranges or retain an inactive `#REF!` tombstone.
 
