@@ -103,7 +103,8 @@
   max-width: 130px;
 }
 .assessment-no-grid td,
-.assessment-no-grid th {
+.assessment-no-grid th,
+.assessment-no-grid .grid-cell {
   border-color: transparent !important;
 }
 @media print {

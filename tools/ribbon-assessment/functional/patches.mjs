@@ -53,10 +53,12 @@ export function patchToolbar(source) {
     'endIcon={<ChevronDown size={12} />}\n                aria-label={t("toolbar.format_number")}\n              >',
   );
   // Fix upstream overflow affordances as part of the measured extraction.
-  source = source.replaceAll(
-    '<div\n          className="ic-toolbar-scroll-arrow',
-    '<button type="button" aria-label="Scroll toolbar"\n          className="ic-toolbar-scroll-arrow',
-  );
+  for (const side of ["left", "right"])
+    source = replaceOnce(
+      source,
+      `<div\n          className="ic-toolbar-scroll-arrow ic-toolbar-scroll-arrow--${side}"`,
+      `<button type="button" aria-label="Scroll toolbar ${side}"\n          className="ic-toolbar-scroll-arrow ic-toolbar-scroll-arrow--${side}"`,
+    );
   for (const icon of ["ChevronLeft", "ChevronRight"])
     source = replaceOnce(
       source,

@@ -100,6 +100,24 @@ try {
       await activate(page);
       assert.equal(requests.length, mode === "cdn" && !offline ? 2 : 0);
       const toolbar = page.locator("#assessment-mount");
+      const gridCell = page.locator('#grid [data-cell="B2"]');
+      const gridBorder = await gridCell.evaluate(
+        (el) => getComputedStyle(el).borderTopColor,
+      );
+      const lines = toolbar.getByRole("button", {
+        name: "Show/hide grid lines",
+        exact: true,
+      });
+      await lines.click();
+      assert.equal(
+        await gridCell.evaluate((el) => getComputedStyle(el).borderTopColor),
+        "rgba(0, 0, 0, 0)",
+      );
+      await lines.click();
+      assert.equal(
+        await gridCell.evaluate((el) => getComputedStyle(el).borderTopColor),
+        gridBorder,
+      );
       const pct = toolbar.getByRole("button", {
         name: mode === "native" ? "Percentage" : "Format as percentage",
         exact: true,
@@ -201,6 +219,8 @@ try {
       if (offline) assert.deepEqual(requests, []);
       results.push({
         name,
+        strategy: mode,
+        delivery: mode === "cdn" && offline ? "embedded" : mode,
         checks: "edit-format/menu/undo/redo/conditional/scenario/save/reopen",
         passed: true,
         requests,
@@ -280,7 +300,9 @@ try {
     await page.waitForFunction(
       () =>
         !document.getElementById("apply").disabled &&
-        document.getElementById("status").textContent.includes("attempted edit"),
+        document
+          .getElementById("status")
+          .textContent.includes("attempted edit"),
     );
     await page.locator("#activate-toolbar").click();
     await page
@@ -337,6 +359,24 @@ try {
     await activate(page);
     for (const width of [320, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
+      if (mode === "embedded" && width === 320) {
+        const right = page.getByRole("button", {
+          name: "Scroll toolbar right",
+          exact: true,
+        });
+        await right.waitFor();
+        await right.focus();
+        await page.keyboard.press("Enter");
+        await page.waitForFunction(
+          () => document.querySelector(".ic-toolbar-container").scrollLeft > 0,
+        );
+        await page
+          .getByRole("button", { name: "Scroll toolbar left", exact: true })
+          .waitFor();
+        await page
+          .locator(".ic-toolbar-container")
+          .evaluate((el) => el.scrollTo({ left: 0, behavior: "instant" }));
+      }
       await page
         .locator("#assessment-mount")
         .screenshot({ path: resolve(out, `${mode}-${width}-toolbar.png`) });

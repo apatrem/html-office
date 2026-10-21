@@ -333,6 +333,7 @@ for (const offline of [false, true]) {
   );
   for (const mode of ["cdn", "native", "embedded"]) {
     const config = {
+      strategy: mode,
       mode: mode === "cdn" && offline ? "embedded" : mode,
       ...assets,
     };
@@ -354,7 +355,7 @@ for (const offline of [false, true]) {
     if (start < 0 || end < start) throw new Error("Host ribbon shell changed");
     html =
       html.slice(0, start) +
-      `<section class="assessment-note"><strong>Toolbar assessment · ${mode}${offline ? " · offline" : ""}</strong><p>Fictional data. 12 actual + 12 forecast months. Grey actions are not supported yet.</p><button id="activate-toolbar">Enable editing toolbar</button><p id="toolbar-status" role="status"></p></section><div class="ic-root" id="assessment-mount"></div><details class="assessment-advanced"><summary>Existing editing commands / fallback</summary>` +
+      `<section class="assessment-note"><strong>Toolbar assessment · ${mode}${offline ? (mode === "cdn" ? " strategy · offline toolbar embedded" : " · offline") : " strategy"}</strong><p>Fictional data. 12 actual + 12 forecast months. Grey actions are not supported yet.</p><button id="activate-toolbar">Enable editing toolbar</button><p id="toolbar-status" role="status"></p></section><div class="ic-root" id="assessment-mount"></div><details class="assessment-advanced"><summary>Existing editing commands / fallback</summary>` +
       html.slice(start, end) +
       "</details>" +
       html.slice(end);
@@ -370,6 +371,8 @@ for (const offline of [false, true]) {
     await writeFile(resolve(out, file), html);
     sizes.push({
       file,
+      strategy: mode,
+      delivery: config.mode,
       ...measureHTML(html),
       decodedToolbarBytes:
         mode === "native" ? Buffer.byteLength(native) : js.length + css.length,
