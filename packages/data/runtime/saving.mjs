@@ -1,8 +1,12 @@
 import { readModel, writeModel } from "./document-model.mjs";
 import { DirtyState, FileWriter, digestText } from "./persistence.mjs";
 import { RecoveryClient } from "./recovery.mjs";
-import { overlayDraft, draftPatches, pendingList } from "../model/pending.mjs";
-import { captureHead } from "../model/structure.mjs";
+import {
+  overlayDraft,
+  draftPatches,
+  pendingList,
+  draftHead,
+} from "../model/pending.mjs";
 
 const payload = (doc) => {
   const matches = doc.querySelectorAll("#workbook");
@@ -95,10 +99,11 @@ export function setupPersistence({
       attempt = getPending();
     const patches = edits.map((e) => ({ ...e, cell: e.cell ?? null }));
     patches.push(...draftPatches(getBook(), attempt));
-    const linked = pendingList(attempt).some((a) => a.link !== undefined),
+    const linkEdits = pendingList(attempt).filter((a) => a.link !== undefined),
+      linked = linkEdits.length > 0,
       head =
         changes.head || linked || pendingLinks
-          ? captureHead(documentBook())
+          ? draftHead(getBook(), attempt, changes.head)
           : undefined;
     pendingLinks = linked;
     onConditionalScales(null);

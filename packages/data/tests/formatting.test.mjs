@@ -512,3 +512,50 @@ test("rich paste rejects a result above the per-sheet link limit", async () => {
   const replace = [{ sheetId: "inputs", ref: "Z1", cell: null }];
   pastedLinks(book, "inputs", replace, source, { row: 1, column: 26 });
 });
+
+test("the recovery head overlays pending links without copying sheet cells", async () => {
+  const { draftHead, overlayDraft } = await import("../model/pending.mjs");
+  const { captureHead } = await import("../model/structure.mjs");
+  const book = fixture();
+  const big = {};
+  for (let r = 1; r <= 100000; r++)
+    for (const c of "ABCDEFGH")
+      big[c + r] = { input: { type: "number", value: r } };
+  book.sheets.push({
+    id: "big",
+    name: "Big",
+    cells: big,
+    links: { A1: { url: "https://example.org/old" } },
+  });
+  const pending = [
+    {
+      sheetId: "big",
+      ref: "A1",
+      cell: { input: { type: "number", value: 2 } },
+      link: { url: "https://example.org/new" },
+    },
+    {
+      sheetId: "big",
+      ref: "B2",
+      cell: { input: { type: "number", value: 3 } },
+      link: null,
+    },
+  ];
+  const start = performance.now();
+  const head = draftHead(book, pending);
+  assert.ok(performance.now() - start < 50, "no cell materialization");
+  assert.deepEqual(head, captureHead(overlayDraft(book, pending)));
+  assert.equal(
+    book.sheets[2].links.A1.url,
+    "https://example.org/old",
+    "canonical untouched",
+  );
+  // A caller-supplied head is reused and overlaid, not recaptured.
+  const supplied = captureHead(book);
+  supplied.title = "Renamed";
+  assert.equal(draftHead(book, pending, supplied).title, "Renamed");
+  assert.equal(
+    draftHead(book, [], supplied).sheets[2].links.A1.url,
+    "https://example.org/old",
+  );
+});
