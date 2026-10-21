@@ -11,11 +11,23 @@ npm ci --prefix tools/ribbon-assessment --ignore-scripts
 node --test tools/ribbon-assessment/functional/adapter.test.mjs
 node tools/ribbon-assessment/functional/build.mjs --source /path/to/IronCalc
 node tools/ribbon-assessment/functional/browser.mjs
+node tools/ribbon-assessment/functional/performance.mjs
 ```
 
 The build extracts committed source via `git archive`; local upstream changes are ignored. It writes fictional P&L samples, the baseline, adapted source and size receipts to ignored `dist/toolbar-functional/`. The browser test starts a gzip/CORS/cache-enabled loopback asset server on port 8765 and tests local-file HTML. Keep the build stable while tests collect timings. Requires the repository's existing Playwright Chromium installation.
 
 `--asset-base https://...` builds a CDN sample with that asset directory. The default loopback base is a controlled simulation, not an Internet CDN. The checked-in `../vendor/` assets are experimental immutable-CDN fixtures, rebuilt by this tool from the pinned source and lockfile; they are not a public package API or production release.
+
+The actual Internet comparison uses the immutable experimental assets below. Run it separately from the local test (which expects its default loopback build):
+
+```sh
+node tools/ribbon-assessment/functional/build.mjs --source /path/to/IronCalc --asset-base https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor
+node tools/ribbon-assessment/functional/cdn-browser.mjs
+node tools/ribbon-assessment/functional/performance.mjs
+node tools/ribbon-assessment/functional/copy-samples.mjs /path/to/a/new/sample-directory
+```
+
+The copy command creates a comparison index and six samples and refuses to overwrite an existing directory. The [final report](../../../docs/HTML-DATA-TOOLBAR-ASSESSMENT.md) links the size, browser, actual-CDN and P&L receipts in `results/`. The native sample carries only its applicable icon notices; the upstream samples include runtime dependency attribution texts, including declared prebundled helper dependencies.
 
 ## Integration boundary
 

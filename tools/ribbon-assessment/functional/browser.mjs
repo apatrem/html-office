@@ -100,24 +100,22 @@ try {
       await activate(page);
       assert.equal(requests.length, mode === "cdn" && !offline ? 2 : 0);
       const toolbar = page.locator("#assessment-mount");
-      const gridCell = page.locator('#grid [data-cell="B2"]');
-      const gridBorder = await gridCell.evaluate(
-        (el) => getComputedStyle(el).borderTopColor,
-      );
+      // Viewport resize can replace virtual cells; inspect the current node atomically.
+      const border = () =>
+        page.evaluate(
+          () =>
+            getComputedStyle(document.querySelector('#grid [data-cell="B2"]'))
+              .borderTopColor,
+        );
+      const gridBorder = await border();
       const lines = toolbar.getByRole("button", {
         name: "Show/hide grid lines",
         exact: true,
       });
       await lines.click();
-      assert.equal(
-        await gridCell.evaluate((el) => getComputedStyle(el).borderTopColor),
-        "rgba(0, 0, 0, 0)",
-      );
+      assert.equal(await border(), "rgba(0, 0, 0, 0)");
       await lines.click();
-      assert.equal(
-        await gridCell.evaluate((el) => getComputedStyle(el).borderTopColor),
-        gridBorder,
-      );
+      assert.equal(await border(), gridBorder);
       const pct = toolbar.getByRole("button", {
         name: mode === "native" ? "Percentage" : "Format as percentage",
         exact: true,

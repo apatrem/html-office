@@ -1,0 +1,579 @@
+{
+  "testedAt": "2026-10-21T07:03:01.589Z",
+  "browser": "151.0.7922.34",
+  "platform": "darwin",
+  "arch": "arm64",
+  "conditions": "Actual Internet jsDelivr GitHub CDN, immutable experimental commit, file:// HTML, five fresh browser contexts with same-context cached reopen. No routing/mocking/throttling. Cold denotes browser cache; CDN edge cache state is uncontrolled. No workbook data is sent in requests.",
+  "assetUrls": {
+    "js": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+    "css": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css"
+  },
+  "timings": [
+    {
+      "run": 0,
+      "cache": "cold",
+      "mode": "cdn",
+      "assetsReadyMs": 180.69999998807907,
+      "parseExecuteMs": 22.69999998807907,
+      "mountMs": 14.100000023841858,
+      "readyMs": 224.79999995231628,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 178.30000001192093,
+          "transferSize": 114601,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 178.4000000357628,
+          "transferSize": 4570,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 115174
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 4631
+        }
+      ]
+    },
+    {
+      "run": 0,
+      "cache": "cached",
+      "mode": "cdn",
+      "assetsReadyMs": 16.700000047683716,
+      "parseExecuteMs": 23.099999964237213,
+      "mountMs": 8.200000047683716,
+      "readyMs": 49.700000047683716,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 1.899999976158142,
+          "transferSize": 0,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 1.0999999642372131,
+          "transferSize": 0,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "cache": "cold",
+      "mode": "cdn",
+      "assetsReadyMs": 115.10000002384186,
+      "parseExecuteMs": 19.5,
+      "mountMs": 9.199999988079071,
+      "readyMs": 148,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 114.30000001192093,
+          "transferSize": 114601,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 83.30000001192093,
+          "transferSize": 4570,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 5036
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 114778
+        }
+      ]
+    },
+    {
+      "run": 1,
+      "cache": "cached",
+      "mode": "cdn",
+      "assetsReadyMs": 16.600000023841858,
+      "parseExecuteMs": 18.19999998807907,
+      "mountMs": 8.099999964237213,
+      "readyMs": 48.69999998807907,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 1.699999988079071,
+          "transferSize": 0,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 0.8999999761581421,
+          "transferSize": 0,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "cache": "cold",
+      "mode": "cdn",
+      "assetsReadyMs": 116.79999995231628,
+      "parseExecuteMs": 19.599999964237213,
+      "mountMs": 9.800000011920929,
+      "readyMs": 148,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 115.80000001192093,
+          "transferSize": 114601,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 86.69999998807907,
+          "transferSize": 4570,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 5040
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 114766
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "cache": "cached",
+      "mode": "cdn",
+      "assetsReadyMs": 15.800000011920929,
+      "parseExecuteMs": 18.399999976158142,
+      "mountMs": 8.100000023841858,
+      "readyMs": 48.19999998807907,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 1.199999988079071,
+          "transferSize": 0,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 0.5999999642372131,
+          "transferSize": 0,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "cache": "cold",
+      "mode": "cdn",
+      "assetsReadyMs": 115.60000002384186,
+      "parseExecuteMs": 19.600000023841858,
+      "mountMs": 9.199999988079071,
+      "readyMs": 148,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 114.5,
+          "transferSize": 114601,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 114.5,
+          "transferSize": 4570,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 115170
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 4630
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "cache": "cached",
+      "mode": "cdn",
+      "assetsReadyMs": 16.5,
+      "parseExecuteMs": 18.600000023841858,
+      "mountMs": 8.199999988079071,
+      "readyMs": 49.60000002384186,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 1.699999988079071,
+          "transferSize": 0,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 0.9000000357627869,
+          "transferSize": 0,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        }
+      ]
+    },
+    {
+      "run": 4,
+      "cache": "cold",
+      "mode": "cdn",
+      "assetsReadyMs": 120.69999998807907,
+      "parseExecuteMs": 19.900000035762787,
+      "mountMs": 9.199999988079071,
+      "readyMs": 151.5,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 89.5,
+          "transferSize": 4570,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 119.80000001192093,
+          "transferSize": 114601,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 5037
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": false,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 114777
+        }
+      ]
+    },
+    {
+      "run": 4,
+      "cache": "cached",
+      "mode": "cdn",
+      "assetsReadyMs": 16.399999976158142,
+      "parseExecuteMs": 21.19999998807907,
+      "mountMs": 8.200000047683716,
+      "readyMs": 52.5,
+      "longTasks": [],
+      "resources": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "duration": 1.5999999642372131,
+          "transferSize": 0,
+          "encodedBodySize": 114301,
+          "decodedBodySize": 372390
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "duration": 0.9000000357627869,
+          "transferSize": 0,
+          "encodedBodySize": 4270,
+          "decodedBodySize": 22713
+        }
+      ],
+      "transfers": [
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.js",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "114301"
+          },
+          "encodedDataLength": 0
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor/toolbar.css",
+          "status": 200,
+          "fromDiskCache": true,
+          "headers": {
+            "content-encoding": "br",
+            "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable",
+            "timing-allow-origin": "*",
+            "access-control-allow-origin": "*",
+            "content-length": "4270"
+          },
+          "encodedDataLength": 0
+        }
+      ]
+    }
+  ]
+}

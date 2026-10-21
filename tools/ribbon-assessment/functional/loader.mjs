@@ -17,6 +17,12 @@ status.textContent =
 let ready = false;
 globalThis.toolbarAssessmentMetrics = { mode: config.mode };
 const metrics = globalThis.toolbarAssessmentMetrics;
+// Reuse the existing grid viewport layout when the experimental UI changes height.
+const layoutObserver = new ResizeObserver(() =>
+  window.dispatchEvent(new Event("resize")),
+);
+layoutObserver.observe(mount);
+layoutObserver.observe(document.querySelector(".assessment-note"));
 async function verified(bytes, sha) {
   const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((n) => n.toString(16).padStart(2, "0"))

@@ -1,0 +1,182 @@
+{
+  "upstream": {
+    "revision": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
+    "archiveSha256": "8afa8a00a282118212abc10dfc7bf23954d1ee8302ea79dc4a6f88556ac179d3"
+  },
+  "assetBase": "https://cdn.jsdelivr.net/gh/apatrem/html-office@4ea4fd2e1c4cfc2c8175a9e078db5e8bf55432d0/tools/ribbon-assessment/vendor",
+  "patched": [
+    {
+      "file": "components/Toolbar/Toolbar.tsx",
+      "added": 29,
+      "removed": 27
+    },
+    {
+      "file": "components/FormatMenu/FormatMenu.tsx",
+      "added": 2,
+      "removed": 2
+    },
+    {
+      "file": "components/Menu/Menu.tsx",
+      "added": 1,
+      "removed": 0
+    }
+  ],
+  "runtimePackages": [
+    {
+      "name": "@babel/runtime",
+      "version": "7.29.10",
+      "license": "MIT"
+    },
+    {
+      "name": "html-parse-stringify",
+      "version": "4.0.1",
+      "license": "MIT"
+    },
+    {
+      "name": "i18next",
+      "version": "26.5.3",
+      "license": "MIT"
+    },
+    {
+      "name": "lucide-react",
+      "version": "1.60.0",
+      "license": "ISC"
+    },
+    {
+      "name": "react",
+      "version": "19.3.1",
+      "license": "MIT"
+    },
+    {
+      "name": "react-colorful",
+      "version": "5.8.1",
+      "license": "MIT"
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.1",
+      "license": "MIT"
+    },
+    {
+      "name": "react-i18next",
+      "version": "17.1.0",
+      "license": "MIT"
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "license": "MIT"
+    },
+    {
+      "name": "use-sync-external-store",
+      "version": "1.7.0",
+      "license": "MIT"
+    }
+  ],
+  "assets": {
+    "js": {
+      "bytes": 372390,
+      "sha256": "152e981de39b4fbdb94232b6d0556c295cadabfc28ddccc135cc26c72ba04cbe",
+      "gzipBytes": 112704,
+      "brotliBytes": 98040,
+      "base64GzipBytes": 150272
+    },
+    "css": {
+      "bytes": 22713,
+      "sha256": "230c72f8c3fd4e2927d8cc81a31ea5dde3c38cdaa4614f11a13dc4c4987901f3",
+      "gzipBytes": 4071,
+      "brotliBytes": 3584,
+      "base64GzipBytes": 5428
+    }
+  },
+  "loaderBytes": 3422,
+  "nativeBytes": 15890,
+  "noticeBytes": 14553,
+  "nativeNoticeBytes": 3278,
+  "sizes": [
+    {
+      "file": "toolbar-cdn.html",
+      "strategy": "cdn",
+      "delivery": "cdn",
+      "applicationCodeBytes": 371460,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 487791,
+      "decodedToolbarBytes": 395103,
+      "baseline": {
+        "applicationCodeBytes": 349618,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 465949
+      }
+    },
+    {
+      "file": "toolbar-native.html",
+      "strategy": "native",
+      "delivery": "native",
+      "applicationCodeBytes": 376072,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 492403,
+      "decodedToolbarBytes": 15890,
+      "baseline": {
+        "applicationCodeBytes": 349618,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 465949
+      }
+    },
+    {
+      "file": "toolbar-embedded.html",
+      "strategy": "embedded",
+      "delivery": "embedded",
+      "applicationCodeBytes": 527289,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 643620,
+      "decodedToolbarBytes": 395103,
+      "baseline": {
+        "applicationCodeBytes": 349618,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 465949
+      }
+    },
+    {
+      "file": "toolbar-cdn-offline.html",
+      "strategy": "cdn",
+      "delivery": "embedded",
+      "applicationCodeBytes": 1483555,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 1599886,
+      "decodedToolbarBytes": 395103,
+      "baseline": {
+        "applicationCodeBytes": 1305866,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 1422197
+      }
+    },
+    {
+      "file": "toolbar-native-offline.html",
+      "strategy": "native",
+      "delivery": "native",
+      "applicationCodeBytes": 1332322,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 1448653,
+      "decodedToolbarBytes": 15890,
+      "baseline": {
+        "applicationCodeBytes": 1305866,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 1422197
+      }
+    },
+    {
+      "file": "toolbar-embedded-offline.html",
+      "strategy": "embedded",
+      "delivery": "embedded",
+      "applicationCodeBytes": 1483539,
+      "documentContentBytes": 116331,
+      "totalHTMLBytes": 1599870,
+      "decodedToolbarBytes": 395103,
+      "baseline": {
+        "applicationCodeBytes": 1305866,
+        "documentContentBytes": 116331,
+        "totalHTMLBytes": 1422197
+      }
+    }
+  ]
+}

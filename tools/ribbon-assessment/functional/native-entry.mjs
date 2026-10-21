@@ -73,6 +73,7 @@ export function mountNative(node, bridge, icons) {
     button("Decrease font size", "Minus"),
     Object.assign(document.createElement("input"), {
       value: "12",
+      ariaLabel: "Font size",
       disabled: true,
       title: unsupported,
     }),
@@ -128,7 +129,7 @@ export function mountNative(node, bridge, icons) {
     const old = formats.querySelector("[data-current]");
     if (old) old.remove();
     if (![...formats.options].some((o) => o.value === value)) {
-      const o = new Option("Current: " + value, value);
+      const o = new Option("Current format", value);
       o.dataset.current = "";
       formats.add(o);
     }

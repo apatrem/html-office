@@ -141,6 +141,19 @@ const packages = [
       .filter(Boolean),
   ),
 ].sort();
+// Include declared runtime dependencies too: a distributed ESM file may already
+// inline helpers, so metafile membership alone is insufficient for attribution.
+for (const name of packages) {
+  const metadata = JSON.parse(
+    await readFile(
+      resolve(here, "../node_modules", name, "package.json"),
+      "utf8",
+    ),
+  );
+  for (const dependency of Object.keys(metadata.dependencies ?? {}))
+    if (!packages.includes(dependency)) packages.push(dependency);
+}
+packages.sort();
 let notices =
   "IronCalc toolbar assessment, source " +
   revision +
@@ -166,6 +179,12 @@ for (const name of packages) {
   notices += "\n\n--- " + name + " " + metadata.version + " ---\n" + license;
 }
 await writeFile(resolve(vendor, "NOTICES.txt"), notices);
+const nativeNotices =
+  "Static Lucide icons, lucide-react 1.60.0 (build-time rendering only)\n\n" +
+  (await readFile(
+    resolve(here, "../node_modules/lucide-react/LICENSE"),
+    "utf8",
+  ));
 const bridge = await readFile(resolve(here, "host-bridge.mjs"), "utf8");
 const app = await build({
   ...common,
@@ -365,7 +384,7 @@ for (const offline of [false, true]) {
     );
     html = html.replace(
       "</body>",
-      `<script type="application/json" id="toolbar-config">${JSON.stringify(config).replaceAll("<", "\\u003c")}</script>${compressed}<details><summary>Toolbar third-party notices</summary><pre>${esc(notices)}</pre></details></body>`,
+      `<script type="application/json" id="toolbar-config">${JSON.stringify(config).replaceAll("<", "\\u003c")}</script>${compressed}<details><summary>Toolbar third-party notices</summary><pre>${esc(mode === "native" ? nativeNotices : notices)}</pre></details></body>`,
     );
     const file = `toolbar-${mode}${offline ? "-offline" : ""}.html`;
     await writeFile(resolve(out, file), html);
@@ -400,6 +419,7 @@ const report = {
   loaderBytes: Buffer.byteLength(loader),
   nativeBytes: Buffer.byteLength(native),
   noticeBytes: Buffer.byteLength(notices),
+  nativeNoticeBytes: Buffer.byteLength(nativeNotices),
   sizes,
 };
 await writeFile(
