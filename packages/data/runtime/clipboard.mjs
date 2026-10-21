@@ -1,3 +1,4 @@
+import { presentation } from "../model/formatting.mjs";
 import { address, parseAddress } from "../model/workbook.mjs";
 import {
   copyRange,
@@ -125,8 +126,7 @@ export function setupClipboard({
         return {
           ...edit,
           cell: {
-            ...(old.cellStyle ? { cellStyle: old.cellStyle } : {}),
-            ...(old.format ? { format: old.format } : {}),
+            ...presentation(old),
             ...edit.cell,
           },
         };

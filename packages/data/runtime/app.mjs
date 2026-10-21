@@ -21,6 +21,7 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
+import { presentation, PRESENTATION_FIELDS } from "../model/formatting.mjs";
 const $ = (id) => document.getElementById(id);
 let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
@@ -575,9 +576,12 @@ function formatSelection(transform) {
       const styled = attempt.sheetId === sheetId && formats.get(attempt.ref);
       if (styled && attempt.cell !== null)
         attempt.cell = {
-          ...attempt.cell,
-          format: styled.format,
-          cellStyle: styled.cellStyle,
+          ...Object.fromEntries(
+            Object.entries(attempt.cell).filter(
+              ([key]) => !PRESENTATION_FIELDS.includes(key),
+            ),
+          ),
+          ...presentation(styled),
         };
     }
     history.record({

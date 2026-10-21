@@ -65,6 +65,50 @@ Structural input movement is lossless: an insertion that would push populated ce
 
 `style#charte` embeds the same CSS brand tokens as Slides; Data builds accept `--charte FILE`. Optional semantic role tokens in the default shared brand are `--header-bg/--header-ink`, `--row-label-bg/--row-label-ink`, `--assumption-bg/--assumption-ink`, and `--calculation-bg`. Existing custom Slides themes without these tokens fall back to their `--ink`, `--bg`, `--acc`, `--lig`, `--alert`, `--callout`, `--tint`, and `--font` values. Formatting a selected rectangle is undoable and does not download the calculation engine or invalidate its fingerprint.
 
+## Manual formatting, cell styles and links
+
+[ADR-010](../../../docs/decisions/010-manual-formatting-and-ironcalc-toolbar.md) defines presentation-only fields. None of them changes values or the calculation fingerprint. The effective appearance resolves property by property: cell style, then column `style`, then row `style`, then the cell's own `style`, then conditional formatting.
+
+- **`cellStyle`** names a cell style. Built-in IDs are reserved:
+  - `normal`, `header`, `rowHeader`, `assumption` (Excel "Input") and `calculation`;
+  - `good`, `bad`, `neutral`, `checkCell`, `explanatoryText`, `linkedCell`, `note`, `output`, `warningText`;
+  - `title`, `heading1`–`heading4`, `total` and `hyperlink`;
+  - `accent1`–`accent6`, plus `-20`, `-40` and `-60` variants (for example `accent3-40`);
+  - `comma`, `comma0`, `currency`, `currency0` and `percent`.
+
+  Custom styles live in workbook `namedStyles: [{id, name, style}]`, with at most 200. A custom ID must not be a built-in one, and display names are unique ignoring case.
+- **`style`** holds only overridden properties:
+  - `bold`, `italic`, `underline` and `strike` are booleans;
+  - `fontSize` is in points, 1–409, in half-point steps;
+  - `fontFamily` is a family name only (letters, digits, spaces, `_`, `-`); absent means the charte font;
+  - `color` and `background`;
+  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is one of `thin`, `medium`, `thick`, `double`, `dotted`, `mediumdashed`, `mediumdashdot`, `mediumdashdotdot` or `slantdashdot`;
+  - `align.horizontal`: `general`, `left`, `center`, `right` or `centerContinuous`;
+  - `align.vertical`: `top`, `center` or `bottom`;
+  - `align.wrap`: boolean.
+
+  Diagonal borders, merges, rotation, indentation and other alignments are not part of V1.
+- **Colours** are `#RRGGBB` or `{theme, tint?}`:
+  - `theme` is a charte token: `ink`, `acc`, `mid`, `lig`, `alert`, `tint`, `callout`, `bd`, `t2`, `bg`, or an Excel slot `dk1`, `lt1`, `dk2`, `lt2`, `accent1`–`accent6`, `hlink`, `folHlink`;
+  - `tint` is between -1 (darker) and 1 (lighter).
+- **Rows and columns.** A sheet may have `rows` keyed `"1"`–`"1048576"` and `columns` keyed `"A"`–`"XFD"`:
+  - row entries: `{style?, height?, customHeight?}`, with `height` 1–600 px; `customHeight: true` marks a manually set height that auto-fit must keep;
+  - column entries: `{style?, width?}`, with `width` 1–2000 px.
+
+  Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
+- **A style-only cell** has no `input` or `formula`. It is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format`, `style` and `link` for array values.
+- **`link`** is either `{url}` or `{sheetId, ref}`:
+  - `url` accepts only `https:`, `http:` or `mailto:` and is at most 2,048 characters;
+  - `ref` is an A1 cell or range, relocated by structural edits like named ranges, and becomes `"#REF!"` when its target is deleted.
+- **Number formats** may add:
+  - `dateStyle: "short" | "long"` for `date`;
+  - `scale: "thousands" | "millions"` for number, currency and accounting;
+  - `negative: "minus" | "parentheses" | "red" | "redParentheses"` for number, currency, accounting and percent.
+
+  Custom Excel format codes are not accepted.
+
+Rendering, commands and the IronCalc toolbar that use these fields are delivered separately (F02–F06). Until then the browser preserves them through edits, paste, history, recovery and saving, but does not draw them.
+
 ## Sheet navigation
 
 Groups are `{id,name,sheetIds,kind?,collapsed?}`. `kind` is `summary`, `inputs`, `raw`, or `calculations`; it supplies semantic navigation styling. `sheetIds` order controls tab order, while the workbook sheets array retains engine order and stable IDs. Existing custom groups and ungrouped sheets remain readable; navigation derives missing default groups and presents ungrouped sheets under Raw Data until an explicit change saves that organisation. Group collapse/order and moves do not alter calculation inputs or require the engine. Create/rename operations validate new names and calculate before publication; renamed formulas return from IronCalc to JSON. Legacy files whose sheet names start/end with an apostrophe can still be read; new create/rename commands reject those names. All operations participate in history and draft recovery.

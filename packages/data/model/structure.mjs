@@ -65,12 +65,49 @@ export function shiftRange(ref, command) {
     end = address(row ? last : r.bottom, row ? r.right : last);
   return start === end ? start : `${start}:${end}`;
 }
+// Row/column formatting and dimensions follow their row or column; entries in
+// deleted rows/columns disappear with them.
+function shiftAxis(entries, command) {
+  const result = {};
+  for (const [key, entry] of Object.entries(entries)) {
+    const n = moved(
+      command.axis === "row" ? Number(key) : parseAddress(key + "1").column,
+      command,
+    );
+    // Formatting pushed past the last row/column is dropped, as in Excel.
+    if (n !== null && n <= (command.axis === "row" ? 1048576 : 16384))
+      result[
+        command.axis === "row" ? String(n) : address(1, n).replace(/\d+$/, "")
+      ] = entry;
+  }
+  return result;
+}
+// Internal links into the edited sheet are relocated like named ranges.
+const linksInto = (cell, sheetId) =>
+  cell.link?.sheetId === sheetId && cell.link.ref !== "#REF!";
+function shiftLinks(cells, command) {
+  let changed = null;
+  for (const [ref, cell] of Object.entries(cells))
+    if (linksInto(cell, command.sheetId)) {
+      changed ??= { ...cells };
+      changed[ref] = {
+        ...cell,
+        link: { ...cell.link, ref: shiftRange(cell.link.ref, command) },
+      };
+    }
+  return changed ?? cells;
+}
 export function shiftWorkbook(book, command) {
   validateStructure(command, book);
+  const axisKey = command.axis === "row" ? "rows" : "columns";
   const next = {
     ...book,
     sheets: book.sheets.map((sheet) => {
-      if (sheet.id !== command.sheetId) return sheet;
+      if (sheet.id !== command.sheetId) {
+        // Unaffected sheets keep their identity (no copy of large sheets).
+        const cells = shiftLinks(sheet.cells, command);
+        return cells === sheet.cells ? sheet : { ...sheet, cells };
+      }
       const cells = {};
       for (const [ref, cell] of Object.entries(sheet.cells)) {
         const p = parseAddress(ref),
@@ -83,7 +120,12 @@ export function shiftWorkbook(book, command) {
             )
           ] = cell;
       }
-      return { ...sheet, cells };
+      const shifted = { ...sheet, cells: shiftLinks(cells, command) };
+      if (sheet[axisKey]) {
+        shifted[axisKey] = shiftAxis(sheet[axisKey], command);
+        if (!Object.keys(shifted[axisKey]).length) delete shifted[axisKey];
+      }
+      return shifted;
     }),
     ...(book.validations === undefined
       ? {}
@@ -130,6 +172,7 @@ export function structureBeforeRefs(book, command) {
         n = command.axis === "row" ? p.row : p.column;
       if (
         cell.formula ||
+        linksInto(cell, command.sheetId) ||
         (command.action === "delete" &&
           sheet.id === command.sheetId &&
           n >= command.index &&
