@@ -2,6 +2,8 @@
 
 Status: accepted implementation direction following the user-authorised assessment, 20 October 2026.
 
+Follow-up, 21 October 2026: the current native implementation remains in place, but the user has reopened selection through [R04, a functional toolbar assessment](../HTML-DATA-RIBBON-PLAN.md#r04--functional-ironcalc-toolbar-and-delivery-assessment). Compare lazy CDN delivery, our lightweight implementation and compressed embedding before the user chooses. The earlier size-only probe does not reject CDN delivery. This note preserves the original decision below; no replacement architecture has been selected.
+
 Use a tabbed, grouped ribbon for HTML Data so actions are familiar to Excel users. The current wall of controls is a prototype layout. The interface should improve discoverability and leave more space for the sheet while preserving canonical JSON, deferred calculation-engine loading, typed edits, history and recovery.
 
 The [reproducible assessment](../../tools/ribbon-assessment/README.md) measured an extracted IronCalc toolbar lower bound of 390,411 raw bytes including React/runtime peers and CSS. The existing standard P&L application is 324,414 bytes. A direct adaptation fails the total 500,000-byte budget; a deeply stripped rewrite remains theoretically possible but offers little advantage over wiring our existing commands into a native ribbon. The probe deliberately stubs WASM helpers and is not an integration or full licensing audit. Dependency licence declarations are permissive and are not the reason for rejecting direct reuse.
