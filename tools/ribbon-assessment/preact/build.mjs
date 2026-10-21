@@ -296,26 +296,47 @@ for (const [name, options] of Object.entries({
   };
 }
 
-// Notices for the shipped (Preact) variant: IronCalc plus bundled packages.
-let notices =
-  "IronCalc toolbar and panels, source " +
-  revision +
-  " (MIT)\n\n" +
-  (await readFile(resolve(source, "LICENSE-MIT"), "utf8")) +
-  "\n\n--- lucide (static SVG icons, ISC) ---\n" +
-  (await readFile(resolve(modules, "lucide-react/LICENSE"), "utf8"));
-for (const name of variants.preact.report.packages) {
-  const dir = resolve(modules, name),
-    metadata = JSON.parse(await readFile(resolve(dir, "package.json"), "utf8"));
-  let license;
-  for (const file of ["LICENSE", "LICENSE.txt", "LICENSE.md"])
-    try {
-      license = await readFile(resolve(dir, file), "utf8");
-      break;
-    } catch {}
-  if (!license) throw new Error("Missing licence text: " + name);
-  notices += `\n\n--- ${name} ${metadata.version} (${metadata.license}) ---\n${license}`;
+// Notices per variant: IronCalc, static icons where used, and every bundled
+// package plus its declared runtime dependencies (a prebundled helper may not
+// appear in the metafile).
+async function noticesFor(variant) {
+  const names = [...variants[variant].report.packages];
+  for (const name of [...names]) {
+    const metadata = JSON.parse(
+      await readFile(resolve(modules, name, "package.json"), "utf8"),
+    );
+    for (const dependency of Object.keys(metadata.dependencies ?? {}))
+      if (!names.includes(dependency)) names.push(dependency);
+  }
+  names.sort();
+  let text =
+    "IronCalc toolbar and panels, source " +
+    revision +
+    " (MIT)\n\n" +
+    (await readFile(resolve(source, "LICENSE-MIT"), "utf8"));
+  if (!names.includes("lucide-react"))
+    text +=
+      "\n\n--- lucide (static SVG icons, ISC) ---\n" +
+      (await readFile(resolve(modules, "lucide-react/LICENSE"), "utf8"));
+  for (const name of names) {
+    const dir = resolve(modules, name),
+      metadata = JSON.parse(
+        await readFile(resolve(dir, "package.json"), "utf8"),
+      );
+    let license;
+    for (const file of ["LICENSE", "LICENSE.txt", "LICENSE.md"])
+      try {
+        license = await readFile(resolve(dir, file), "utf8");
+        break;
+      } catch {}
+    if (!license) throw new Error("Missing licence text: " + name);
+    text += `\n\n--- ${name} ${metadata.version} (${metadata.license}) ---\n${license}`;
+  }
+  return { names, text };
 }
+const notices = {};
+for (const variant of Object.keys(variants))
+  notices[variant] = await noticesFor(variant);
 
 // Host application: unchanged runtime plus the assessment-only bridge.
 const bridge = await readFile(resolve(here, "host-bridge.mjs"), "utf8");
@@ -436,7 +457,7 @@ for (const offline of [false, true]) {
     html = html.replace(
       "</body>",
       () =>
-        `<div class="ic-root" id="spike-drawer"></div><details><summary>Toolbar third-party notices</summary><pre>${esc(notices)}</pre></details></body>`,
+        `<div class="ic-root" id="spike-drawer"></div><details><summary>Toolbar third-party notices</summary><pre>${esc(notices[variant].text)}</pre></details></body>`,
     );
     html = html.replace(
       "</head>",
@@ -468,7 +489,12 @@ const report = {
     bytes: Buffer.byteLength(JSON.stringify(used)),
   },
   staticDataBytes: Buffer.byteLength(JSON.stringify(runtimeData)),
-  noticeBytes: Buffer.byteLength(notices),
+  notices: Object.fromEntries(
+    Object.entries(notices).map(([name, n]) => [
+      name,
+      { packages: n.names, bytes: Buffer.byteLength(n.text) },
+    ]),
+  ),
   variants: Object.fromEntries(
     Object.entries(variants).map(([name, v]) => [name, v.report]),
   ),

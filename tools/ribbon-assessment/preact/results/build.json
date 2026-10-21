@@ -45,7 +45,39 @@
     "bytes": 6743
   },
   "staticDataBytes": 17262,
-  "noticeBytes": 6671,
+  "notices": {
+    "react-upstream": {
+      "packages": [
+        "@babel/runtime",
+        "html-parse-stringify",
+        "i18next",
+        "lucide-react",
+        "react",
+        "react-colorful",
+        "react-dom",
+        "react-i18next",
+        "scheduler",
+        "use-sync-external-store"
+      ],
+      "bytes": 14619
+    },
+    "react-shims": {
+      "packages": [
+        "react",
+        "react-colorful",
+        "react-dom",
+        "scheduler"
+      ],
+      "bytes": 8913
+    },
+    "preact": {
+      "packages": [
+        "preact",
+        "react-colorful"
+      ],
+      "bytes": 6671
+    }
+  },
   "variants": {
     "react-upstream": {
       "jsBytes": 431487,
@@ -216,9 +248,9 @@
       "file": "toolbar-react-upstream.html",
       "variant": "react-upstream",
       "offline": false,
-      "applicationCodeBytes": 834251,
+      "applicationCodeBytes": 842205,
       "documentContentBytes": 116033,
-      "totalHTMLBytes": 950284,
+      "totalHTMLBytes": 958238,
       "baseline": {
         "applicationCodeBytes": 349618,
         "documentContentBytes": 116033,
@@ -242,9 +274,9 @@
       "file": "toolbar-react-upstream-offline.html",
       "variant": "react-upstream",
       "offline": true,
-      "applicationCodeBytes": 1790510,
+      "applicationCodeBytes": 1798464,
       "documentContentBytes": 116033,
-      "totalHTMLBytes": 1906543,
+      "totalHTMLBytes": 1914497,
       "baseline": {
         "applicationCodeBytes": 1305866,
         "documentContentBytes": 116033,

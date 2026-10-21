@@ -20,7 +20,7 @@ Raw minified bytes. "Toolbar" means the same component set in every row: toolbar
 
 Breakdown of the Preact JS: IronCalc components 87,088 (the right drawer alone is 30,353), Preact 24,212, built-in themes and cell styles (static data) 14,067, react-colorful 9,266, static icons 7,301, dictionary 6,757 (156 of 403 keys), mount and adapter about 7,300.
 
-**Complete standard P&L sample: 558,873 bytes** of application code. The current editor is 349,618, and the ceiling is 750,000, so **191,127 bytes remain**. That remainder must cover F01–F06 (model and rendering, estimated at 40–60 kB) and T15–T22. The same sample on React would be 834,251 bytes, over the ceiling. The offline sample is 1,515,132 bytes.
+**Complete standard P&L sample: 558,873 bytes** of application code. The current editor is 349,618, and the ceiling is 750,000, so **191,127 bytes remain**. That remainder must cover F01–F06 (model and rendering, estimated at 40–60 kB) and T15–T22. The same sample on React would be 842,205 bytes, over the ceiling. The offline sample is 1,515,132 bytes.
 
 Possible reductions, not done in the spike:
 - the old ribbon markup still present as a fallback (removed in F04);
@@ -44,6 +44,14 @@ Possible reductions, not done in the spike:
   - our conditional-format dialog, grid-line toggle;
   - scenario recalculation, save, and reopen with an empty toolbar shell;
   - no untranslated key in any rendered panel.
+- Engine failures with the toolbar mounted (standard samples, both frameworks): blocked engine, corrupted engine JavaScript (rejected by the integrity check, never executed) and cancellation. In each case:
+  - the toolbar is disabled while busy;
+  - the attempted input is retained;
+  - engine-free formatting still applies to it;
+  - Save a copy writes it as an uncalculated draft with no current snapshot;
+  - retry calculates.
+
+  R04's CDN and decompression toolbar-load failures do not apply, because the toolbar is embedded.
 - No page overflow at 320, 768, 1024 or 1440 px; the overflow arrows work from the keyboard at 320 px.
 - Mount time, 5 fresh contexts each: Preact 3.9–5.9 ms, React 8.5–8.9 ms. First menu open: Preact 14.1–27.5 ms, React 26.5–29.6 ms.
 - P&L (offline, five assumption edits after warm-up): warm maximum 50.2 ms for baseline, 50.8 ms for Preact and 50.7 ms for React. No main-thread long task. The saved total matches the independent expectation.
@@ -72,4 +80,4 @@ Exact-anchor patches against `297553dc3a37ec6b0f4821055220e3d26c4ac6a1`; the bui
 | `LinkDialog/util.ts` | Allow only `http:`, `https:` and `mailto:` |
 | `Menu/Menu.tsx` | Block disabled menu triggers (R04) |
 
-Licences: IronCalc MIT, Preact MIT, react-colorful MIT, and Lucide ISC for the static icons. Full texts are embedded in the samples (6,671 bytes).
+Licences: IronCalc MIT, Preact MIT, react-colorful MIT, and Lucide ISC for the static icons. Each sample embeds the licence texts of its own dependency closure, including declared runtime dependencies: 6,671 bytes for Preact and 14,619 bytes for the upstream React stack. A browser check verifies that every package is listed.
