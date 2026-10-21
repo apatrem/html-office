@@ -105,6 +105,52 @@ export function validateValue(value) {
   if (type === "error" && ERRORS.includes(v)) return;
   fail(`Invalid typed value: ${type}`);
 }
+// Number format presets, shared by cells and cell-style definitions.
+export function validateFormat(format) {
+  fields(
+    format,
+    ["kind", "digits", "currency", "dateStyle", "scale", "negative"],
+    "format",
+  );
+  if (
+    ![
+      "general",
+      "number",
+      "currency",
+      "accounting",
+      "date",
+      "percent",
+    ].includes(format.kind)
+  )
+    fail("Invalid format");
+  if (
+    format.digits !== undefined &&
+    (!Number.isInteger(format.digits) ||
+      format.digits < 0 ||
+      format.digits > 15)
+  )
+    fail("Invalid digits");
+  if (format.currency !== undefined && !/^[A-Z]{3}$/.test(format.currency))
+    fail("Invalid currency");
+  const { kind, dateStyle, scale, negative } = format;
+  if (
+    dateStyle !== undefined &&
+    (kind !== "date" || !["short", "long"].includes(dateStyle))
+  )
+    fail("Invalid date format style");
+  if (
+    scale !== undefined &&
+    (!["number", "currency", "accounting"].includes(kind) ||
+      !["thousands", "millions"].includes(scale))
+  )
+    fail("Invalid format scale");
+  if (
+    negative !== undefined &&
+    (!["number", "currency", "accounting", "percent"].includes(kind) ||
+      !["minus", "parentheses", "red", "redParentheses"].includes(negative))
+  )
+    fail("Invalid negative number format");
+}
 // With a workbook, also checks the cell's catalogue and sheet references.
 export function validateCell(cell, book) {
   fields(
@@ -130,54 +176,7 @@ export function validateCell(cell, book) {
   if (cell.cellStyle !== undefined && !id(cell.cellStyle))
     fail("Invalid cell style");
   if (cell.style !== undefined) validateStyle(cell.style);
-  if (cell.format !== undefined) {
-    fields(
-      cell.format,
-      ["kind", "digits", "currency", "dateStyle", "scale", "negative"],
-      "format",
-    );
-    if (
-      ![
-        "general",
-        "number",
-        "currency",
-        "accounting",
-        "date",
-        "percent",
-      ].includes(cell.format.kind)
-    )
-      fail("Invalid format");
-    if (
-      cell.format.digits !== undefined &&
-      (!Number.isInteger(cell.format.digits) ||
-        cell.format.digits < 0 ||
-        cell.format.digits > 15)
-    )
-      fail("Invalid digits");
-    if (
-      cell.format.currency !== undefined &&
-      !/^[A-Z]{3}$/.test(cell.format.currency)
-    )
-      fail("Invalid currency");
-    const { kind, dateStyle, scale, negative } = cell.format;
-    if (
-      dateStyle !== undefined &&
-      (kind !== "date" || !["short", "long"].includes(dateStyle))
-    )
-      fail("Invalid date format style");
-    if (
-      scale !== undefined &&
-      (!["number", "currency", "accounting"].includes(kind) ||
-        !["thousands", "millions"].includes(scale))
-    )
-      fail("Invalid format scale");
-    if (
-      negative !== undefined &&
-      (!["number", "currency", "accounting", "percent"].includes(kind) ||
-        !["minus", "parentheses", "red", "redParentheses"].includes(negative))
-    )
-      fail("Invalid negative number format");
-  }
+  if (cell.format !== undefined) validateFormat(cell.format);
   if (book) checkReferences(book, cell);
 }
 function jsonData(value) {

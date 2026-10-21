@@ -51,6 +51,29 @@ async function copy(page, name) {
   await (await wait).saveAs(path);
   return { book: readHTML(await readFile(path, "utf8")).book, path };
 }
+async function richCopyPaste(page, from, to) {
+  await jump(page, from);
+  const payload = await page.evaluate(() => {
+    const data = new DataTransfer();
+    document
+      .getElementById("grid")
+      .dispatchEvent(
+        new ClipboardEvent("copy", { clipboardData: data, bubbles: true }),
+      );
+    return data.getData("application/x-html-office-range+json");
+  });
+  await jump(page, to);
+  await page.evaluate((json) => {
+    const data = new DataTransfer();
+    data.setData("application/x-html-office-range+json", json);
+    document
+      .getElementById("grid")
+      .dispatchEvent(
+        new ClipboardEvent("paste", { clipboardData: data, bubbles: true }),
+      );
+  }, payload);
+  return payload;
+}
 const calculated = (page) =>
   page
     .getByText("Calculated locally. Unsaved changes.", { exact: true })
@@ -129,7 +152,33 @@ try {
     .locator("#save-status")
     .filter({ hasText: "Recovery stored" })
     .waitFor();
+  // Rich copy/paste carries the source link; undo/redo restore it atomically.
+  const payload = await richCopyPaste(page, "A6", "C20");
+  assert.match(payload, /example\.org\/a/);
+  await calculated(page);
+  let pasted = (await copy(page, "formatting-link-pasted.html")).book;
+  assert.deepEqual(pasted.sheets[0].links.C20, {
+    url: "https://example.org/a",
+  });
+  assert.deepEqual(pasted.sheets[0].cells.C20.style, { italic: true });
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await page
+    .getByText("Undo restored the previous workbook.", { exact: true })
+    .waitFor();
+  pasted = (await copy(page, "formatting-link-undone.html")).book;
+  assert.equal(pasted.sheets[0].links.C20, undefined);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await page
+    .getByText("Redo restored the previous workbook.", { exact: true })
+    .waitFor();
+  await page
+    .locator("#save-status")
+    .filter({ hasText: "Recovery stored" })
+    .waitFor();
   const final = await copy(page, "formatting-final.html");
+  assert.deepEqual(final.book.sheets[0].links.C20, {
+    url: "https://example.org/a",
+  });
   assert.deepEqual(final.book.sheets[0].rows, {
     4: { height: 36, customHeight: true },
   });
@@ -172,28 +221,8 @@ try {
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor();
-    // Rich copy of A5 (italic text) pasted onto B2 (bold, different style).
-    await jump(page, "A5");
-    const payload = await page.evaluate(() => {
-      const data = new DataTransfer();
-      document
-        .getElementById("grid")
-        .dispatchEvent(
-          new ClipboardEvent("copy", { clipboardData: data, bubbles: true }),
-        );
-      return data.getData("application/x-html-office-range+json");
-    });
-    assert.ok(payload, "rich clipboard payload");
-    await jump(page, "B2");
-    await page.evaluate((json) => {
-      const data = new DataTransfer();
-      data.setData("application/x-html-office-range+json", json);
-      document
-        .getElementById("grid")
-        .dispatchEvent(
-          new ClipboardEvent("paste", { clipboardData: data, bubbles: true }),
-        );
-    }, payload);
+    // Rich copy of A5 (italic text, linked) pasted onto B2 (bold, unlinked).
+    await richCopyPaste(page, "A5", "B2");
     await page
       .locator("#status")
       .filter({ hasText: "The attempted range is retained" })
@@ -211,6 +240,11 @@ try {
       "attempt keeps the pasted style",
     );
     assert.equal(cell.format.digits, 1, "only the requested property changed");
+    assert.deepEqual(
+      draft.sheets[0].links.B2,
+      { url: "https://example.org/a" },
+      "pending paste keeps its link in the draft",
+    );
     assert.equal(draft.snapshot, undefined);
     assert.deepEqual(pageErrors, []);
     await blocked.close();

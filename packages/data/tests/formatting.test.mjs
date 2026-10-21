@@ -393,3 +393,104 @@ test("edit boundary rejects unknown cell styles; paste adaptation drops them", a
     /unknown field link/,
   );
 });
+
+test("cell styles may carry a number format; borders accept an explicit none", () => {
+  const book = fixture();
+  book.namedStyles = [
+    {
+      id: "s-pct",
+      name: "Rate",
+      style: { border: { top: { style: "none" }, bottom: { style: "thin" } } },
+      format: { kind: "percent", digits: 1 },
+    },
+  ];
+  book.sheets[0].cells.B2.cellStyle = "s-pct";
+  book.sheets[0].rows = {
+    2: { style: { border: { left: { style: "none" } } } },
+  };
+  validateWorkbook(book);
+  assert.deepEqual(readModel(writeModel(book)), book);
+  const badFormat = structuredClone(book);
+  badFormat.namedStyles[0].format = { kind: "percent", scale: "millions" };
+  assert.throws(() => validateWorkbook(badFormat), /scale/);
+  const coloured = structuredClone(book);
+  coloured.sheets[0].cells.B2.style = {
+    border: { top: { style: "none", color: "#000000" } },
+  };
+  assert.throws(() => validateWorkbook(coloured), /none border/);
+});
+
+test("rich copy carries links; paste replaces target links atomically and safely", async () => {
+  const { copyRange, rangePatches } = await import("../model/clipboard.mjs");
+  const { pastedLinks, applyLinkEdits } = await import(
+    "../model/formatting.mjs"
+  );
+  const { overlayDraft } = await import("../model/pending.mjs");
+  const book = fixture();
+  const inputs = book.sheets[0];
+  inputs.links = {
+    A2: { url: "https://example.org/source" },
+    B3: { sheetId: "summary", ref: "B2" },
+    D5: { url: "https://example.org/destination-kept" },
+    D6: { url: "https://example.org/destination-replaced" },
+  };
+  const data = copyRange(inputs, "A2:B3");
+  assert.deepEqual(data.links, {
+    "0,0": { url: "https://example.org/source" },
+    "1,1": { sheetId: "summary", ref: "B2" },
+  });
+  const edits = rangePatches("inputs", "C6", data.cells, {
+    origin: data.origin,
+  });
+  const anchor = { row: 6, column: 3 };
+  const { links, dropped } = pastedLinks(
+    book,
+    "inputs",
+    edits,
+    data.links,
+    anchor,
+  );
+  assert.equal(dropped, 0);
+  assert.deepEqual(links.get("C6"), { url: "https://example.org/source" });
+  assert.equal(
+    links.get("D6"),
+    null,
+    "target link without a source link is removed",
+  );
+  const withLinks = edits.map((edit) => ({
+    ...edit,
+    link: links.get(edit.ref),
+  }));
+  const pasted = applyLinkEdits(inputs, withLinks);
+  assert.deepEqual(pasted.links, {
+    A2: { url: "https://example.org/source" },
+    B3: { sheetId: "summary", ref: "B2" },
+    D5: { url: "https://example.org/destination-kept" },
+    C6: { url: "https://example.org/source" },
+    D7: { sheetId: "summary", ref: "B2" },
+  });
+  // A pending (uncalculated) paste saved as a draft includes its links.
+  const draft = overlayDraft(book, withLinks);
+  assert.deepEqual(draft.sheets[0].links, pasted.links);
+  // Foreign payloads: unknown sheets are dropped, unsafe schemes rejected.
+  const foreign = pastedLinks(
+    book,
+    "inputs",
+    edits,
+    { "0,0": { sheetId: "elsewhere", ref: "A1" } },
+    anchor,
+  );
+  assert.equal(foreign.dropped, 1);
+  assert.equal(foreign.links.get("C6"), null);
+  assert.throws(
+    () =>
+      pastedLinks(
+        book,
+        "inputs",
+        edits,
+        { "0,0": { url: "javascript:alert(1)" } },
+        anchor,
+      ),
+    /https, http or mailto/,
+  );
+});

@@ -1,7 +1,7 @@
 // Manual formatting contract (ADR-010): cell styles, direct style objects,
 // row/column formatting and dimensions, links. Presentation only: none of it
 // enters the calculation fingerprint.
-import { parseAddress, parseRange } from "./workbook.mjs";
+import { parseAddress, parseRange, validateFormat } from "./workbook.mjs";
 
 const fail = (message) => {
   throw new Error(message);
@@ -44,7 +44,9 @@ export const THEME_TOKENS = [
   "hlink",
   "folHlink",
 ];
+// "none" explicitly suppresses a side inherited from a cell style, row or column.
 export const BORDER_STYLES = [
+  "none",
   "thin",
   "medium",
   "thick",
@@ -164,6 +166,8 @@ export function validateStyle(style, where = "style") {
     for (const side of Object.values(style.border)) {
       fields(side, ["style", "color"], "border side");
       if (!BORDER_STYLES.includes(side.style)) fail("Invalid border style");
+      if (side.style === "none" && side.color !== undefined)
+        fail("A none border has no colour");
       if (side.color !== undefined) validateColor(side.color, "border colour");
     }
   }
@@ -250,7 +254,7 @@ export function validateNamedStyles(book) {
   const ids = new Set(),
     names = new Set();
   for (const style of styles) {
-    fields(style, ["id", "name", "style"], "cell style");
+    fields(style, ["id", "name", "style", "format"], "cell style");
     if (
       !id(style.id) ||
       ids.has(style.id) ||
@@ -267,6 +271,7 @@ export function validateNamedStyles(book) {
       fail("Duplicate or invalid cell style name");
     names.add(style.name.trim().toLowerCase());
     validateStyle(style.style, "cell style definition");
+    if (style.format !== undefined) validateFormat(style.format);
   }
   return new Set([...BUILTIN_CELL_STYLES, ...ids]);
 }
@@ -307,6 +312,43 @@ export function validateAxes(sheet) {
         fail("customHeight requires an explicit height");
     }
   }
+}
+
+// Rich paste: the pasted rectangle takes the source links exactly (a target
+// without a source link loses its own). Untrusted payload links are
+// validated; internal links to sheets this workbook lacks are dropped.
+export function pastedLinks(book, sheetId, edits, links, origin) {
+  const result = new Map();
+  let dropped = 0;
+  for (const edit of edits) {
+    const p = parseAddress(edit.ref),
+      source = links?.[`${p.row - origin.row},${p.column - origin.column}`];
+    let link = null;
+    if (source !== undefined) {
+      validateLinkShape(source);
+      if (
+        "sheetId" in source &&
+        !book.sheets.some((s) => s.id === source.sheetId)
+      )
+        dropped++;
+      else link = source;
+    }
+    result.set(edit.ref, link);
+  }
+  return { links: result, dropped };
+}
+// Applies link changes carried by edits ({link: object | null}) to a sheet.
+export function applyLinkEdits(sheet, edits) {
+  const changes = edits.filter((edit) => edit.link !== undefined);
+  if (!changes.length) return sheet;
+  const links = { ...sheet.links };
+  for (const edit of changes)
+    if (edit.link === null) delete links[edit.ref];
+    else links[edit.ref] = edit.link;
+  const next = { ...sheet };
+  if (Object.keys(links).length) next.links = links;
+  else delete next.links;
+  return next;
 }
 
 // Presentation fields a value edit or paste must keep on its target cell.

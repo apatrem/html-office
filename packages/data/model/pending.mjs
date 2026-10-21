@@ -1,3 +1,4 @@
+import { applyLinkEdits } from "./formatting.mjs";
 export const pendingList = (value) =>
   value ? (Array.isArray(value) ? value : [value]) : [];
 export function draftPatches(book, value) {
@@ -30,7 +31,10 @@ export function overlayDraft(book, value) {
         if (edit.cell === null) delete cells[edit.ref];
         else cells[edit.ref] = edit.cell;
       }
-      return { ...sheet, cells };
+      return applyLinkEdits(
+        { ...sheet, cells },
+        pendingList(value).filter((a) => a.sheetId === sheet.id),
+      );
     }),
   };
   delete next.snapshot;

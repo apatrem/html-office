@@ -21,6 +21,7 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
+import { applyLinkEdits } from "../model/formatting.mjs";
 const $ = (id) => document.getElementById(id);
 let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
@@ -239,6 +240,8 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     if (!revisions.current(epoch)) return;
     const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
+      linkEdits = edits.some((edit) => edit.link !== undefined),
+      headBefore = linkEdits ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
     for (const edit of edits) {
@@ -247,6 +250,16 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
       else sheet.cells[edit.ref] = edit.cell;
       touchPreview(sheet.cells, edit.ref);
     }
+    // Rich-paste links are published with their cells, in the same history
+    // entry (sheet links are part of the captured head).
+    if (linkEdits)
+      book.sheets = book.sheets.map((sheet) =>
+        applyLinkEdits(
+          sheet,
+          edits.filter((edit) => edit.sheetId === sheet.id),
+        ),
+      );
+    const headAfter = linkEdits ? captureHead(book) : undefined;
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
@@ -264,10 +277,14 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         choose(edits[0].ref);
       }
     }
-    persistence.changed(cellEdits(refs));
+    persistence.changed(
+      cellEdits(refs),
+      linkEdits ? { head: headAfter } : undefined,
+    );
     history.record({
       before,
       after: captureCells(book, refs),
+      ...(linkEdits ? { headBefore, headAfter } : {}),
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,

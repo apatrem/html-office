@@ -76,13 +76,13 @@ Structural input movement is lossless: an insertion that would push populated ce
   - `accent1`–`accent6`, plus `-20`, `-40` and `-60` variants (for example `accent3-40`);
   - `comma`, `comma0`, `currency`, `currency0` and `percent`.
 
-  Custom styles live in workbook `namedStyles: [{id, name, style}]`, with at most 200. A custom ID must not be a built-in one, and display names are unique ignoring case.
+  Custom styles live in workbook `namedStyles: [{id, name, style, format?}]`, with at most 200. A style's optional number `format` applies unless the cell has its own `format`. A custom ID must not be a built-in one, and display names are unique ignoring case.
 - **`style`** holds only overridden properties:
   - `bold`, `italic`, `underline` and `strike` are booleans;
   - `fontSize` is in points, 1–409, in half-point steps;
   - `fontFamily` is a family name only (letters, digits, spaces, `_`, `-`); absent means the charte font;
   - `color` and `background`;
-  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is one of `thin`, `medium`, `thick`, `double`, `dotted`, `mediumdashed`, `mediumdashdot`, `mediumdashdotdot` or `slantdashdot`;
+  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is `none` (explicitly suppresses an inherited side; no colour) or one of `thin`, `medium`, `thick`, `double`, `dotted`, `mediumdashed`, `mediumdashdot`, `mediumdashdotdot` or `slantdashdot`;
   - `align.horizontal`: `general`, `left`, `center`, `right` or `centerContinuous`;
   - `align.vertical`: `top`, `center` or `bottom`;
   - `align.wrap`: boolean.
@@ -101,7 +101,7 @@ Structural input movement is lossless: an insertion that would push populated ce
   - `url` accepts only `https:`, `http:` or `mailto:` and is at most 2,048 characters;
   - `ref` is an A1 cell or range, relocated by structural edits like named ranges, and becomes `"#REF!"` when its target is deleted.
 
-  A link moves with its cell, and disappears when its row or column is deleted. Relocation reads only the link maps, never all cells. Value edits, paste and formatting never touch links.
+  A link moves with its cell, and disappears when its row or column is deleted. Relocation reads only the link maps, never all cells. Value edits, text-table paste and formatting never touch links. A rich copy carries the links of its cells. On paste, the pasted rectangle takes the source links exactly, with cells and links published in one undoable step. Internal links to sheets missing from the destination are dropped with a notice, and unsafe schemes reject the paste.
 - **Number formats** may add:
   - `dateStyle: "short" | "long"` for `date`;
   - `scale: "thousands" | "millions"` for number, currency and accounting;
