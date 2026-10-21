@@ -1,4 +1,4 @@
-import { presentation } from "../model/formatting.mjs";
+import { presentation, adaptReferences } from "../model/formatting.mjs";
 import { address, parseAddress } from "../model/workbook.mjs";
 import {
   copyRange,
@@ -23,6 +23,7 @@ function plain(cells) {
     .join("\n");
 }
 export function setupClipboard({
+  getBook,
   getSheet,
   getSelection,
   busy,
@@ -185,10 +186,20 @@ export function setupClipboard({
           data.cells,
           { origin: data.origin },
         );
-      void commit(
-        edits.map((edit) => ({ ...edit, preserveFormat: false })),
-        destination,
-      );
+      // A range copied from another workbook may name its custom cell styles
+      // or sheets; those references are dropped rather than published.
+      let dropped = 0;
+      const adapted = edits.map((edit) => {
+        const result = adaptReferences(getBook(), edit.cell);
+        dropped += result.dropped;
+        return { ...edit, cell: result.cell, preserveFormat: false };
+      });
+      void commit(adapted, destination).then((done) => {
+        if (done && dropped)
+          status(
+            `Pasted. ${dropped} cell style or internal link reference${dropped === 1 ? "" : "s"} unknown in this workbook ${dropped === 1 ? "was" : "were"} not carried over.`,
+          );
+      });
     } catch (error) {
       status(`Paste failed: ${error.message}. Workbook unchanged.`);
     }

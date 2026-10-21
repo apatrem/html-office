@@ -184,8 +184,10 @@ export function validateStyle(style, where = "style") {
   }
 }
 
-// Links are inert data; only web and mail targets may ever be opened.
-export function validateLink(link, sheetIds) {
+// Links are inert data; only web and mail targets may ever be opened. They
+// live per sheet, keyed by A1 cell (like Excel's worksheet hyperlinks), so
+// structural relocation and history cost is proportional to the link count.
+export function validateLinkShape(link) {
   if (object(link) && "url" in link) {
     fields(link, ["url"], "link");
     if (
@@ -205,8 +207,40 @@ export function validateLink(link, sheetIds) {
     return;
   }
   fields(link, ["sheetId", "ref"], "link");
-  if (!sheetIds.has(link.sheetId)) fail("Unknown link sheet");
+  if (!id(link.sheetId)) fail("Invalid link sheet");
   if (link.ref !== "#REF!") parseRange(link.ref);
+}
+export const MAX_LINKS_PER_SHEET = 10000;
+export function validateSheetLinks(sheet, sheetIds) {
+  if (sheet.links === undefined) return;
+  if (!object(sheet.links)) fail("Expected links object");
+  const entries = Object.entries(sheet.links);
+  if (entries.length > MAX_LINKS_PER_SHEET)
+    fail("Expected at most 10,000 links per sheet");
+  for (const [ref, link] of entries) {
+    parseAddress(ref);
+    validateLinkShape(link);
+    if ("sheetId" in link && !sheetIds.has(link.sheetId))
+      fail("Unknown link sheet");
+  }
+}
+const knownCellStyle = (book, name) =>
+  BUILTIN_CELL_STYLES.includes(name) ||
+  (book.namedStyles ?? []).some((style) => style.id === name);
+// Edit boundary: a cell entering a workbook must reference its catalogue, so
+// publication can never produce a workbook that fails to save.
+export function checkReferences(book, cell) {
+  if (cell.cellStyle !== undefined && !knownCellStyle(book, cell.cellStyle))
+    fail(`Unknown cell style: ${cell.cellStyle}`);
+}
+// Paste from another workbook: drop custom cell styles the destination does
+// not define and report how many.
+export function adaptReferences(book, cell) {
+  if (cell === null || cell.cellStyle === undefined)
+    return { cell, dropped: 0 };
+  if (knownCellStyle(book, cell.cellStyle)) return { cell, dropped: 0 };
+  const { cellStyle, ...rest } = cell;
+  return { cell: rest, dropped: 1 };
 }
 
 export function validateNamedStyles(book) {
@@ -276,7 +310,7 @@ export function validateAxes(sheet) {
 }
 
 // Presentation fields a value edit or paste must keep on its target cell.
-export const PRESENTATION_FIELDS = ["cellStyle", "format", "style", "link"];
+export const PRESENTATION_FIELDS = ["cellStyle", "format", "style"];
 export const presentation = (cell) =>
   Object.fromEntries(
     PRESENTATION_FIELDS.filter((key) => cell[key] !== undefined).map((key) => [

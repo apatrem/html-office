@@ -24,10 +24,12 @@ inputs.cells.B2 = { ...inputs.cells.B2, style, cellStyle: "s-key" };
 inputs.cells.A5 = {
   input: { type: "text", value: "old" },
   style: { italic: true },
-  link: { url: "https://example.org/a" },
 };
 inputs.cells.D3 = { style: { border: { left: { style: "medium" } } } };
-inputs.cells.E9 = { link: { sheetId: "inputs", ref: "B3" } };
+inputs.links = {
+  A5: { url: "https://example.org/a" },
+  E9: { sheetId: "inputs", ref: "B3" },
+};
 inputs.rows = { 3: { height: 36, customHeight: true } };
 inputs.columns = { B: { width: 150, style: { italic: true } } };
 book.namedStyles = [
@@ -91,7 +93,7 @@ try {
   assert.equal(sheet.cells.B2.cellStyle, "assumption");
   assert.equal(sheet.cells.A5.input.value, "new");
   assert.deepEqual(sheet.cells.A5.style, { italic: true });
-  assert.deepEqual(sheet.cells.A5.link, { url: "https://example.org/a" });
+  assert.deepEqual(sheet.links.A5, { url: "https://example.org/a" });
   assert.deepEqual(sheet.cells.D3, inputs.cells.D3);
   assert.deepEqual(saved.namedStyles, book.namedStyles);
 
@@ -107,7 +109,8 @@ try {
   sheet = saved.sheets[0];
   assert.deepEqual(sheet.rows, { 4: { height: 36, customHeight: true } });
   assert.deepEqual(sheet.columns, inputs.columns);
-  assert.deepEqual(sheet.cells.E10.link, { sheetId: "inputs", ref: "B4" });
+  assert.deepEqual(sheet.links.E10, { sheetId: "inputs", ref: "B4" });
+  assert.deepEqual(sheet.links.A6, { url: "https://example.org/a" });
   assert.deepEqual(sheet.cells.D4, inputs.cells.D3);
   assert.deepEqual(sheet.cells.B3.style, style);
 
@@ -117,7 +120,7 @@ try {
     .waitFor();
   const undone = (await copy(page, "formatting-undone.html")).book;
   assert.deepEqual(undone.sheets[0].rows, inputs.rows);
-  assert.deepEqual(undone.sheets[0].cells.E9.link, inputs.cells.E9.link);
+  assert.deepEqual(undone.sheets[0].links, inputs.links);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await page
     .getByText("Redo restored the previous workbook.", { exact: true })
@@ -152,8 +155,68 @@ try {
   );
   assert.deepEqual(errors, []);
   await context.close();
+
+  // A failed calculation leaves a pending attempt; formatting it keeps the
+  // attempt's own direct style and changes only the requested property.
+  {
+    const standard = resolve(out, "formatting-standard.html");
+    await writeFile(standard, await buildWorkbook(book));
+    const blocked = await browser.newContext({ acceptDownloads: true });
+    await blocked.route("https://raw.githubusercontent.com/**", (r) =>
+      r.abort(),
+    );
+    const page = await blocked.newPage(),
+      pageErrors = [];
+    page.on("pageerror", (e) => pageErrors.push(e.message));
+    await page.goto(pathToFileURL(standard).href);
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    // Rich copy of A5 (italic text) pasted onto B2 (bold, different style).
+    await jump(page, "A5");
+    const payload = await page.evaluate(() => {
+      const data = new DataTransfer();
+      document
+        .getElementById("grid")
+        .dispatchEvent(
+          new ClipboardEvent("copy", { clipboardData: data, bubbles: true }),
+        );
+      return data.getData("application/x-html-office-range+json");
+    });
+    assert.ok(payload, "rich clipboard payload");
+    await jump(page, "B2");
+    await page.evaluate((json) => {
+      const data = new DataTransfer();
+      data.setData("application/x-html-office-range+json", json);
+      document
+        .getElementById("grid")
+        .dispatchEvent(
+          new ClipboardEvent("paste", { clipboardData: data, bubbles: true }),
+        );
+    }, payload);
+    await page
+      .locator("#status")
+      .filter({ hasText: "The attempted range is retained" })
+      .waitFor();
+    await page.locator("#decimals").click();
+    await page
+      .getByText("Formatting changed. Unsaved changes.", { exact: true })
+      .waitFor();
+    const draft = (await copy(page, "formatting-pending.html")).book;
+    const cell = draft.sheets[0].cells.B2;
+    assert.equal(cell.input.value, "old", "attempted paste kept");
+    assert.deepEqual(
+      cell.style,
+      { italic: true },
+      "attempt keeps the pasted style",
+    );
+    assert.equal(cell.format.digits, 1, "only the requested property changed");
+    assert.equal(draft.snapshot, undefined);
+    assert.deepEqual(pageErrors, []);
+    await blocked.close();
+  }
   console.log(
-    "PASS formatting fields: typed edit, paste, cell style, row insert, undo/redo, recovery and reopen",
+    "PASS formatting fields: typed edit, paste, cell style, sheet links, row insert, undo/redo, recovery, reopen and pending-attempt formatting",
   );
 } finally {
   await browser.close();

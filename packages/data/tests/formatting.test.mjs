@@ -24,10 +24,13 @@ const styled = () => {
     },
     align: { horizontal: "centerContinuous", vertical: "center", wrap: true },
   };
-  inputs.cells.B2.link = { url: "https://example.org/notes?id=1" };
   // A style-only cell: blank for formulas, still part of the document.
   inputs.cells.D9 = { style: { border: { left: { style: "medium" } } } };
-  inputs.cells.D10 = { link: { sheetId: "inputs", ref: "B2" } };
+  // Links live per sheet, keyed by cell; a link needs no cell record.
+  inputs.links = {
+    B2: { url: "https://example.org/notes?id=1" },
+    D10: { sheetId: "inputs", ref: "B2" },
+  };
   inputs.columns = {
     B: { width: 140, style: { bold: true } },
     AA: { width: 64 },
@@ -111,18 +114,24 @@ test("links accept only web/mail URLs or existing sheets", () => {
     "https://",
   ]) {
     const book = fixture();
-    book.sheets[0].cells.B2.link = { url };
+    book.sheets[0].links = { B2: { url } };
     assert.throws(() => validateWorkbook(book), /link/i, url);
   }
   const mail = fixture();
-  mail.sheets[0].cells.B2.link = { url: "mailto:team@example.org" };
+  mail.sheets[0].links = { B2: { url: "mailto:team@example.org" } };
   validateWorkbook(mail);
   const broken = fixture();
-  broken.sheets[0].cells.B2.link = { sheetId: "inputs", ref: "#REF!" };
+  broken.sheets[0].links = { B2: { sheetId: "inputs", ref: "#REF!" } };
   validateWorkbook(broken);
   const missing = fixture();
-  missing.sheets[0].cells.B2.link = { sheetId: "nope", ref: "A1" };
+  missing.sheets[0].links = { B2: { sheetId: "nope", ref: "A1" } };
   assert.throws(() => validateWorkbook(missing), /link sheet/);
+  const badKey = fixture();
+  badKey.sheets[0].links = { b2: { url: "https://example.org" } };
+  assert.throws(() => validateWorkbook(badKey), /address/i);
+  const onCell = fixture();
+  onCell.sheets[0].cells.B2.link = { url: "https://example.org" };
+  assert.throws(() => validateWorkbook(onCell), /unknown field link/);
 });
 
 test("row and column entries are bounded and explicit", () => {
@@ -179,7 +188,7 @@ test("enriched number-format presets are validated against their kind", () => {
   }
 });
 
-test("row tables keep style, link and cell style metadata beside array values", () => {
+test("row tables keep style and cell style metadata beside array values", () => {
   const book = fixture();
   const raw = {
     id: "raw",
@@ -189,7 +198,6 @@ test("row tables keep style, link and cell style metadata beside array values", 
       A1: {
         input: { type: "text", value: "a" },
         style: { bold: true },
-        link: { url: "https://example.org" },
       },
       A2: { input: { type: "text", value: "b" }, cellStyle: "good" },
       C1: { style: { background: "#FFFF00" } },
@@ -199,10 +207,7 @@ test("row tables keep style, link and cell style metadata beside array values", 
   const text = writeModel(book);
   const stored = JSON.parse(text).sheets.find((s) => s.id === "raw");
   assert.equal(stored.table.encoding, "rows");
-  assert.deepEqual(stored.table.cellMetadata.A1, {
-    style: { bold: true },
-    link: { url: "https://example.org" },
-  });
+  assert.deepEqual(stored.table.cellMetadata.A1, { style: { bold: true } });
   assert.deepEqual(
     stored.cells.C1,
     raw.cells.C1,
@@ -224,9 +229,14 @@ test("structural edits move row/column formatting and internal links; undo resto
     9: { height: 40, customHeight: true },
   };
   inputs.columns = { B: { width: 120 }, D: { style: { italic: true } } };
-  inputs.cells.D20 = { link: { sheetId: "inputs", ref: "B3" } };
-  book.sheets[1].cells.D1 = { link: { sheetId: "inputs", ref: "A2:B3" } };
-  book.sheets[1].cells.D2 = { link: { sheetId: "summary", ref: "A1" } };
+  inputs.links = {
+    D20: { sheetId: "inputs", ref: "B3" },
+    B3: { url: "https://example.org/deleted-with-its-row" },
+  };
+  book.sheets[1].links = {
+    D1: { sheetId: "inputs", ref: "A2:B3" },
+    D2: { sheetId: "summary", ref: "A1" },
+  };
 
   const insert = shiftWorkbook(book, {
     sheetId: "inputs",
@@ -236,11 +246,14 @@ test("structural edits move row/column formatting and internal links; undo resto
     count: 2,
   });
   assert.deepEqual(Object.keys(insert.sheets[0].rows), ["2", "5", "11"]);
-  assert.equal(insert.sheets[0].cells.D22.link.ref, "B5");
-  assert.equal(insert.sheets[1].cells.D1.link.ref, "A2:B5");
+  assert.deepEqual(insert.sheets[0].links, {
+    D22: { sheetId: "inputs", ref: "B5" },
+    B5: { url: "https://example.org/deleted-with-its-row" },
+  });
+  assert.equal(insert.sheets[1].links.D1.ref, "A2:B5");
   assert.equal(
-    insert.sheets[1].cells.D2,
-    book.sheets[1].cells.D2,
+    insert.sheets[1].links.D2,
+    book.sheets[1].links.D2,
     "links elsewhere unchanged",
   );
   assert.deepEqual(
@@ -274,8 +287,10 @@ test("structural edits move row/column formatting and internal links; undo resto
   assert.deepEqual(next.sheets[0].rows, {
     7: { height: 40, customHeight: true },
   });
-  assert.equal(next.sheets[0].cells.D18.link.ref, "#REF!");
-  assert.equal(next.sheets[1].cells.D1.link.ref, "#REF!");
+  assert.deepEqual(next.sheets[0].links, {
+    D18: { sheetId: "inputs", ref: "#REF!" },
+  });
+  assert.equal(next.sheets[1].links.D1.ref, "#REF!");
   validateWorkbook(next);
   assert.deepEqual(readModel(writeModel(next)), next);
 
@@ -329,4 +344,52 @@ test("formatting pushed past the grid edge is dropped instead of blocking an ins
   });
   assert.equal(columns.sheets[0].columns, undefined);
   validateWorkbook(rows);
+});
+
+test("relocating links never copies unrelated large sheets", async () => {
+  const { shiftWorkbook } = await import("../model/structure.mjs");
+  const book = fixture();
+  const big = {};
+  for (let r = 1; r <= 20000; r++)
+    big["A" + r] = { input: { type: "number", value: r } };
+  book.sheets.push({ id: "big", name: "Big", cells: big });
+  const next = shiftWorkbook(book, {
+    sheetId: "inputs",
+    axis: "row",
+    action: "insert",
+    index: 1,
+    count: 1,
+  });
+  assert.equal(
+    next.sheets[2],
+    book.sheets[2],
+    "link-free sheet keeps identity",
+  );
+});
+
+test("edit boundary rejects unknown cell styles; paste adaptation drops them", async () => {
+  const { validateCell } = await import("../model/workbook.mjs");
+  const { adaptReferences } = await import("../model/formatting.mjs");
+  const book = fixture();
+  book.namedStyles = [{ id: "s-known", name: "Known", style: {} }];
+  const foreign = { input: { type: "number", value: 1 }, cellStyle: "s-other" };
+  validateCell(foreign); // shape alone is valid
+  assert.throws(() => validateCell(foreign, book), /Unknown cell style/);
+  validateCell({ ...foreign, cellStyle: "s-known" }, book);
+  validateCell({ ...foreign, cellStyle: "heading1" }, book);
+  assert.deepEqual(adaptReferences(book, foreign), {
+    cell: { input: { type: "number", value: 1 } },
+    dropped: 1,
+  });
+  const known = { ...foreign, cellStyle: "s-known" };
+  assert.equal(adaptReferences(book, known).cell, known);
+  assert.throws(
+    () =>
+      validateCell({
+        ...foreign,
+        cellStyle: undefined,
+        link: { url: "javascript:alert(1)" },
+      }),
+    /unknown field link/,
+  );
 });

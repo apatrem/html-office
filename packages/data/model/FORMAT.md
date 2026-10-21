@@ -96,10 +96,12 @@ Structural input movement is lossless: an insertion that would push populated ce
   - column entries: `{style?, width?}`, with `width` 1–2000 px.
 
   Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
-- **A style-only cell** has no `input` or `formula`. It is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format`, `style` and `link` for array values.
-- **`link`** is either `{url}` or `{sheetId, ref}`:
+- **A style-only cell** has no `input` or `formula`. It is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format` and `style` for array values.
+- **Links** live per sheet in `links`, keyed by A1 cell, like Excel's worksheet hyperlink list. There are at most 10,000 per sheet, and a linked cell does not need a cell record. Each link is either `{url}` or `{sheetId, ref}`:
   - `url` accepts only `https:`, `http:` or `mailto:` and is at most 2,048 characters;
   - `ref` is an A1 cell or range, relocated by structural edits like named ranges, and becomes `"#REF!"` when its target is deleted.
+
+  A link moves with its cell, and disappears when its row or column is deleted. Relocation reads only the link maps, never all cells. Value edits, paste and formatting never touch links.
 - **Number formats** may add:
   - `dateStyle: "short" | "long"` for `date`;
   - `scale: "thousands" | "millions"` for number, currency and accounting;

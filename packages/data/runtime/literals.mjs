@@ -1,6 +1,21 @@
 // Browser-derived state only: canonical readModel callers keep ordinary independent
 // mutable cells. Editor commands replace whole cells, so identical styled inputs can
 // safely reuse frozen literals and reduce GC work on large imported tables.
+// Sharing is limited to cells made only of these fields, so any other or
+// future presentation field (style, link…) keeps the cell independent.
+const CELL_KEYS = ["input", "cellStyle", "format"],
+  FORMAT_KEYS = [
+    "kind",
+    "digits",
+    "currency",
+    "dateStyle",
+    "scale",
+    "negative",
+  ];
+const only = (value, keys) => {
+  for (const key in value) if (!keys.includes(key)) return false;
+  return true;
+};
 export function compactInputs(book, limit = 8192) {
   const types = new Map(),
     negativeZero = Symbol("negative zero");
@@ -9,21 +24,19 @@ export function compactInputs(book, limit = 8192) {
     for (const ref of Object.keys(sheet.cells)) {
       const cell = sheet.cells[ref],
         value = cell.input;
+      const format = cell.format;
       if (
         !value ||
-        cell.formula ||
-        cell.result ||
+        !only(cell, CELL_KEYS) ||
+        (format && !only(format, FORMAT_KEYS)) ||
         (typeof value.value === "string" && value.value.length > 1024)
       )
         continue;
-      const format = cell.format,
-        style = [
-          value.type,
-          cell.cellStyle ?? "",
-          format?.kind ?? "",
-          format?.digits ?? "",
-          format?.currency ?? "",
-        ].join("|");
+      const style = [
+        value.type,
+        cell.cellStyle ?? "",
+        ...FORMAT_KEYS.map((key) => format?.[key] ?? ""),
+      ].join("|");
       let cache = types.get(style);
       if (!cache) {
         if (count >= limit) continue;

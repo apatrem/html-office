@@ -82,20 +82,41 @@ function shiftAxis(entries, command) {
   }
   return result;
 }
-// Internal links into the edited sheet are relocated like named ranges.
-const linksInto = (cell, sheetId) =>
-  cell.link?.sheetId === sheetId && cell.link.ref !== "#REF!";
-function shiftLinks(cells, command) {
-  let changed = null;
-  for (const [ref, cell] of Object.entries(cells))
-    if (linksInto(cell, command.sheetId)) {
-      changed ??= { ...cells };
-      changed[ref] = {
-        ...cell,
-        link: { ...cell.link, ref: shiftRange(cell.link.ref, command) },
-      };
+// Sheet links move with their cell; internal links into the edited sheet are
+// relocated like named ranges. Only link maps are read, never all cells, and
+// sheets whose links do not change keep their identity.
+function shiftLinks(sheet, command, edited) {
+  if (!sheet.links) return sheet;
+  const row = command.axis === "row",
+    result = {};
+  let changed = false;
+  for (const [ref, link] of Object.entries(sheet.links)) {
+    let key = ref;
+    if (edited) {
+      const p = parseAddress(ref),
+        n = moved(row ? p.row : p.column, command);
+      if (n === null || n > (row ? 1048576 : 16384)) {
+        changed = true;
+        continue;
+      }
+      key = address(row ? n : p.row, row ? p.column : n);
+      if (key !== ref) changed = true;
     }
-  return changed ?? cells;
+    let next = link;
+    if (link.sheetId === command.sheetId && link.ref !== "#REF!") {
+      const target = shiftRange(link.ref, command);
+      if (target !== link.ref) {
+        next = { ...link, ref: target };
+        changed = true;
+      }
+    }
+    result[key] = next;
+  }
+  if (!changed) return sheet;
+  const next = { ...sheet };
+  if (Object.keys(result).length) next.links = result;
+  else delete next.links;
+  return next;
 }
 export function shiftWorkbook(book, command) {
   validateStructure(command, book);
@@ -103,11 +124,8 @@ export function shiftWorkbook(book, command) {
   const next = {
     ...book,
     sheets: book.sheets.map((sheet) => {
-      if (sheet.id !== command.sheetId) {
-        // Unaffected sheets keep their identity (no copy of large sheets).
-        const cells = shiftLinks(sheet.cells, command);
-        return cells === sheet.cells ? sheet : { ...sheet, cells };
-      }
+      if (sheet.id !== command.sheetId)
+        return shiftLinks(sheet, command, false);
       const cells = {};
       for (const [ref, cell] of Object.entries(sheet.cells)) {
         const p = parseAddress(ref),
@@ -120,12 +138,12 @@ export function shiftWorkbook(book, command) {
             )
           ] = cell;
       }
-      const shifted = { ...sheet, cells: shiftLinks(cells, command) };
+      const shifted = { ...sheet, cells };
       if (sheet[axisKey]) {
         shifted[axisKey] = shiftAxis(sheet[axisKey], command);
         if (!Object.keys(shifted[axisKey]).length) delete shifted[axisKey];
       }
-      return shifted;
+      return shiftLinks(shifted, command, true);
     }),
     ...(book.validations === undefined
       ? {}
@@ -172,7 +190,6 @@ export function structureBeforeRefs(book, command) {
         n = command.axis === "row" ? p.row : p.column;
       if (
         cell.formula ||
-        linksInto(cell, command.sheetId) ||
         (command.action === "delete" &&
           sheet.id === command.sheetId &&
           n >= command.index &&

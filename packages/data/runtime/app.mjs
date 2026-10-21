@@ -21,7 +21,6 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
-import { presentation, PRESENTATION_FIELDS } from "../model/formatting.mjs";
 const $ = (id) => document.getElementById(id);
 let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
@@ -211,7 +210,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         parseAddress(edit.ref);
         if (!book.sheets.some((s) => s.id === edit.sheetId))
           throw new Error("Unknown sheet ID");
-        if (edit.cell !== null) validateCell(edit.cell);
+        if (edit.cell !== null) validateCell(edit.cell, book);
       }
       assertScenarioInputs(book, edits);
       if (!edits.length) return;
@@ -562,28 +561,28 @@ function formatSelection(transform) {
       for (let col = r.left; col <= r.right; col++) {
         const ref = address(row, col),
           cell = transform(sheet.cells[ref] ?? {});
-        validateCell(cell);
+        validateCell(cell, book);
         edits.push({ sheetId, ref, cell });
       }
+    // A pending (uncalculated) attempt receives the same formatting change
+    // applied to its own fields, so its pasted style or link is never replaced.
+    const targets = new Set(edits.map((e) => e.ref)),
+      pending = pendingEdits
+        .filter(
+          (attempt) =>
+            attempt.sheetId === sheetId &&
+            attempt.cell !== null &&
+            targets.has(attempt.ref),
+        )
+        .map((attempt) => [attempt, transform(attempt.cell)]);
+    for (const [, cell] of pending) validateCell(cell, book);
     const before = captureCells(book, edits),
       selection = { sheetId, ...r };
     for (const edit of edits) {
       sheet.cells[edit.ref] = edit.cell;
       touchPreview(sheet.cells, edit.ref);
     }
-    const formats = new Map(edits.map((e) => [e.ref, e.cell]));
-    for (const attempt of pendingEdits) {
-      const styled = attempt.sheetId === sheetId && formats.get(attempt.ref);
-      if (styled && attempt.cell !== null)
-        attempt.cell = {
-          ...Object.fromEntries(
-            Object.entries(attempt.cell).filter(
-              ([key]) => !PRESENTATION_FIELDS.includes(key),
-            ),
-          ),
-          ...presentation(styled),
-        };
-    }
+    for (const [attempt, cell] of pending) attempt.cell = cell;
     history.record({
       before,
       after: captureCells(book, edits),
@@ -741,6 +740,7 @@ const conditionalSettings = setupConditionalSettings({
   status,
 });
 setupClipboard({
+  getBook: () => book,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getSelection: () => grid.selection,
   busy: () => !!loading,

@@ -1,7 +1,8 @@
 import { jsonStringify } from "./json.mjs";
 import {
   validateStyle,
-  validateLink,
+  validateSheetLinks,
+  checkReferences,
   validateNamedStyles,
   validateAxes,
 } from "./formatting.mjs";
@@ -104,10 +105,11 @@ export function validateValue(value) {
   if (type === "error" && ERRORS.includes(v)) return;
   fail(`Invalid typed value: ${type}`);
 }
-export function validateCell(cell) {
+// With a workbook, also checks the cell's catalogue and sheet references.
+export function validateCell(cell, book) {
   fields(
     cell,
-    ["input", "formula", "result", "format", "cellStyle", "style", "link"],
+    ["input", "formula", "result", "format", "cellStyle", "style"],
     "cell",
   );
   if (cell.formula !== undefined) {
@@ -128,7 +130,6 @@ export function validateCell(cell) {
   if (cell.cellStyle !== undefined && !id(cell.cellStyle))
     fail("Invalid cell style");
   if (cell.style !== undefined) validateStyle(cell.style);
-  if (cell.link !== undefined && !object(cell.link)) fail("Invalid link");
   if (cell.format !== undefined) {
     fields(
       cell.format,
@@ -177,6 +178,7 @@ export function validateCell(cell) {
     )
       fail("Invalid negative number format");
   }
+  if (book) checkReferences(book, cell);
 }
 function jsonData(value) {
   if (value === null || ["string", "boolean"].includes(typeof value)) return;
@@ -391,7 +393,7 @@ export function validateWorkbook(book) {
   for (const sheet of book.sheets) {
     fields(
       sheet,
-      ["id", "name", "cells", "metadata", "rows", "columns"],
+      ["id", "name", "cells", "metadata", "rows", "columns", "links"],
       "sheet",
     );
     if (!id(sheet.id) || ids.has(sheet.id)) fail("Duplicate/invalid sheet ID");
@@ -411,9 +413,9 @@ export function validateWorkbook(book) {
       validateCell(cell);
       if (cell.cellStyle !== undefined && !cellStyles.has(cell.cellStyle))
         fail(`Unknown cell style: ${cell.cellStyle}`);
-      if (cell.link !== undefined) validateLink(cell.link, sheetIds);
     }
     validateAxes(sheet);
+    validateSheetLinks(sheet, sheetIds);
   }
   if (!Array.isArray(book.groups) || !Array.isArray(book.names))
     fail("Expected groups and names");
