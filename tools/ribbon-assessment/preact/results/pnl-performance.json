@@ -1,0 +1,126 @@
+{
+  "browser": "151.0.7922.34",
+  "conditions": "R05 spike. Same fictional 24-month P&L as R04, offline file://, one engine warm-up then five Base growth edits .021 through .025, two-animation-frame edit-to-paint timing; baseline, then the mounted Preact build, then the same components on React, uncontrolled browser GC. No network. Existing P&L warm<250ms and main-task<100ms gates unchanged. Does not replace the full five-workload release suite.",
+  "cases": [
+    {
+      "mode": "baseline",
+      "runs": [
+        {
+          "editToPaintMs": 147.30000001192093,
+          "calculateMs": 15.400000035762787,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 50.19999998807907,
+          "calculateMs": 1.5999999642372131,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.59999996423721,
+          "calculateMs": 4.100000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.60000002384186,
+          "calculateMs": 0.5,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 46.80000001192093,
+          "calculateMs": 3.100000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 46.60000002384186,
+          "calculateMs": 0.7000000476837158,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 50.19999998807907,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    },
+    {
+      "mode": "preact",
+      "runs": [
+        {
+          "editToPaintMs": 150.69999998807907,
+          "calculateMs": 15.100000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.39999997615814,
+          "calculateMs": 0.7999999523162842,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 50.59999996423721,
+          "calculateMs": 0.8999999761581421,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 50.80000001192093,
+          "calculateMs": 0.6000000238418579,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 44.40000003576279,
+          "calculateMs": 0.8999999761581421,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 48.59999996423721,
+          "calculateMs": 0.5999999642372131,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 50.80000001192093,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    },
+    {
+      "mode": "react-upstream",
+      "runs": [
+        {
+          "editToPaintMs": 149,
+          "calculateMs": 15.5,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 47.89999997615814,
+          "calculateMs": 1.600000023841858,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 46.59999996423721,
+          "calculateMs": 1,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 46.799999952316284,
+          "calculateMs": 0.8999999761581421,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 50.69999998807907,
+          "calculateMs": 0.9000000357627869,
+          "wasmMemoryBytes": 1703936
+        },
+        {
+          "editToPaintMs": 50.39999997615814,
+          "calculateMs": 0.5,
+          "wasmMemoryBytes": 1703936
+        }
+      ],
+      "longTasks": [],
+      "warmMaxMs": 50.69999998807907,
+      "mainThreadMaxMs": 0,
+      "correctness": "Saved P&L total matches independent geometric-series expectation after five assumption edits",
+      "passed": true
+    }
+  ]
+}

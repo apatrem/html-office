@@ -108,7 +108,7 @@ Completion means decision-ready evidence, not adoption of a preferred candidate.
 
 ## R05 — Preact fork spike (C-léger 1)
 
-Status: authorised by the user on 21 October 2026. Assessment tooling only; production Data sources and gates stay unchanged.
+Status: spike completed on 21 October 2026; see [the spike report](HTML-DATA-PREACT-SPIKE.md). Recommendation: Preact for F04. Assessment tooling only; production Data sources and gates stay unchanged.
 
 Build the pinned IronCalc toolbar (`297553dc3a37ec6b0f4821055220e3d26c4ac6a1`) against `preact/compat` instead of React, replacing i18next with a static dictionary of the keys actually used and `lucide-react` with build-time SVG icons. Include the toolbar and the right-drawer panels it opens or ADR-010 requires: cell styles (catalogue, custom-style editor), themes (list, preview, editor) and regional settings. Built-in themes/locales/time zones that upstream reads from WASM are copied as static data. Apply ADR-010 patches: add **Centre across selection**, hide merge, remove custom number formats, keep R04's accessibility/capability patches.
 

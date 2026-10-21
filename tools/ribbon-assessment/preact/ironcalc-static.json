@@ -1,0 +1,1569 @@
+{
+ "source": {
+  "revision": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
+  "archiveSha256": "947d1fc6d278a290b866f35bd2a561a1e8ba3ed31ed07c910e9a0fce606bc081"
+ },
+ "builtinStyles": [
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Good",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": "#C6EFCE"
+    },
+    "font": {
+     "color": "#006100",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Bad",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": "#FFC7CE"
+    },
+    "font": {
+     "color": "#9C0006",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Neutral",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": "#FFEB9C"
+    },
+    "font": {
+     "color": "#9C5700",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": true,
+    "border": true,
+    "fill": true,
+    "font": true,
+    "number_format": true,
+    "protection": true
+   },
+   "name": "Normal",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Calculation",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "left": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "right": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "top": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     }
+    },
+    "fill": {
+     "color": "#F2F2F2"
+    },
+    "font": {
+     "b": true,
+     "color": "#FA7D00",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Check Cell",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#3F3F3F",
+      "style": "double"
+     },
+     "left": {
+      "color": "#3F3F3F",
+      "style": "double"
+     },
+     "right": {
+      "color": "#3F3F3F",
+      "style": "double"
+     },
+     "top": {
+      "color": "#3F3F3F",
+      "style": "double"
+     }
+    },
+    "fill": {
+     "color": "#A5A5A5"
+    },
+    "font": {
+     "b": true,
+     "color": "#FFFFFF",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Explanatory Text",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "color": "#7F7F7F",
+     "family": 2,
+     "i": true,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Input",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "left": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "right": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     },
+     "top": {
+      "color": "#7F7F7F",
+      "style": "thin"
+     }
+    },
+    "fill": {
+     "color": "#FFCC99"
+    },
+    "font": {
+     "color": "#3F3F76",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Linked Cell",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#FF8001",
+      "style": "double"
+     }
+    },
+    "fill": {},
+    "font": {
+     "color": "#FA7D00",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": true,
+    "font": false,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Note",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#B2B2B2",
+      "style": "thin"
+     },
+     "left": {
+      "color": "#B2B2B2",
+      "style": "thin"
+     },
+     "right": {
+      "color": "#B2B2B2",
+      "style": "thin"
+     },
+     "top": {
+      "color": "#B2B2B2",
+      "style": "thin"
+     }
+    },
+    "fill": {
+     "color": "#FFFFE1"
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Output",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": "#3F3F3F",
+      "style": "thin"
+     },
+     "left": {
+      "color": "#3F3F3F",
+      "style": "thin"
+     },
+     "right": {
+      "color": "#3F3F3F",
+      "style": "thin"
+     },
+     "top": {
+      "color": "#3F3F3F",
+      "style": "thin"
+     }
+    },
+    "fill": {
+     "color": "#F2F2F2"
+    },
+    "font": {
+     "b": true,
+     "color": "#3F3F3F",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Warning Text",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "color": "#FF0000",
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Title",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "color": [
+      3,
+      0
+     ],
+     "family": 2,
+     "name": "Inter",
+     "scheme": "major",
+     "sz": 18
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Heading 1",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": [
+       4,
+       0
+      ],
+      "style": "thick"
+     }
+    },
+    "fill": {},
+    "font": {
+     "b": true,
+     "color": [
+      3,
+      0
+     ],
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 15
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Heading 2",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": [
+       4,
+       0.5
+      ],
+      "style": "thick"
+     }
+    },
+    "fill": {},
+    "font": {
+     "b": true,
+     "color": [
+      3,
+      0
+     ],
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 13
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Heading 3",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": [
+       4,
+       0
+      ],
+      "style": "thin"
+     }
+    },
+    "fill": {},
+    "font": {
+     "b": true,
+     "color": [
+      3,
+      0
+     ],
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Heading 4",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "b": true,
+     "color": [
+      3,
+      0
+     ],
+     "family": 2,
+     "i": true,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": true,
+    "fill": false,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Total",
+   "style": {
+    "border": {
+     "bottom": {
+      "color": [
+       4,
+       0
+      ],
+      "style": "double"
+     },
+     "top": {
+      "color": [
+       4,
+       0
+      ],
+      "style": "thin"
+     }
+    },
+    "fill": {},
+    "font": {
+     "b": true,
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent1",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      4,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent1",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      4,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent1",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      4,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent1",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      4,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent2",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      5,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent2",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      5,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent2",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      5,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent2",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      5,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent3",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      6,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent3",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      6,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent3",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      6,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent3",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      6,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent4",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      7,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent4",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      7,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent4",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      7,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent4",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      7,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent5",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      8,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent5",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      8,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent5",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      8,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent5",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      8,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "20% - Accent6",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      9,
+      0.8
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "40% - Accent6",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      9,
+      0.6
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "60% - Accent6",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      9,
+      0.4
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": true,
+    "font": true,
+    "number_format": false,
+    "protection": false
+   },
+   "name": "Accent6",
+   "style": {
+    "border": {},
+    "fill": {
+     "color": [
+      9,
+      0
+     ]
+    },
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "general",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": false,
+    "number_format": true,
+    "protection": false
+   },
+   "name": "Comma",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "#,##0.00",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": false,
+    "number_format": true,
+    "protection": false
+   },
+   "name": "Comma [0]",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "#,##0",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": false,
+    "number_format": true,
+    "protection": false
+   },
+   "name": "Currency",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "_(\"$\"* #,##0.00_);_(\"$\"* \\(#,##0.00\\);_(\"$\"* \"-\"??_);_(@_)",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": false,
+    "number_format": true,
+    "protection": false
+   },
+   "name": "Currency [0]",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "_(\"$\"* #,##0_);_(\"$\"* \\(#,##0\\);_(\"$\"* \"-\"_);_(@_)",
+    "quote_prefix": false
+   }
+  },
+  {
+   "includes": {
+    "alignment": false,
+    "border": false,
+    "fill": false,
+    "font": false,
+    "number_format": true,
+    "protection": false
+   },
+   "name": "Percent",
+   "style": {
+    "border": {},
+    "fill": {},
+    "font": {
+     "family": 2,
+     "name": "Inter",
+     "scheme": "minor",
+     "sz": 12
+    },
+    "num_fmt": "0%",
+    "quote_prefix": false
+   }
+  }
+ ],
+ "locales": [
+  "it",
+  "fr",
+  "es",
+  "en-GB",
+  "de",
+  "en"
+ ],
+ "themes": [
+  {
+   "accent1": "#8CB354",
+   "accent2": "#F8CD3D",
+   "accent3": "#F2994A",
+   "accent4": "#EC5753",
+   "accent5": "#523E93",
+   "accent6": "#3458B7",
+   "dk1": "#272525",
+   "dk2": "#333333",
+   "fol_hlink": "#843BBC",
+   "hlink": "#F2994A",
+   "lt1": "#FFFFFF",
+   "lt2": "#F8F4F1",
+   "name": "IronCalc"
+  },
+  {
+   "accent1": "#4472C4",
+   "accent2": "#ED7D31",
+   "accent3": "#A5A5A5",
+   "accent4": "#FFC000",
+   "accent5": "#5B9BD5",
+   "accent6": "#70AD47",
+   "dk1": "#000000",
+   "dk2": "#44546A",
+   "fol_hlink": "#954F72",
+   "hlink": "#0563C1",
+   "lt1": "#FFFFFF",
+   "lt2": "#E7E6E6",
+   "name": "Office"
+  },
+  {
+   "accent1": "#2E8BC0",
+   "accent2": "#5FA8D3",
+   "accent3": "#A6DCEF",
+   "accent4": "#D6EBF2",
+   "accent5": "#90ADC6",
+   "accent6": "#547AA5",
+   "dk1": "#1C1C1E",
+   "dk2": "#283640",
+   "fol_hlink": "#B984E2",
+   "hlink": "#843BBC",
+   "lt1": "#FFFFFF",
+   "lt2": "#F2F7FA",
+   "name": "Cold"
+  },
+  {
+   "accent1": "#C1440E",
+   "accent2": "#F26800",
+   "accent3": "#F89D13",
+   "accent4": "#FFD56F",
+   "accent5": "#DDA15E",
+   "accent6": "#8D4B1F",
+   "dk1": "#272525",
+   "dk2": "#2E1D0B",
+   "fol_hlink": "#9190AD",
+   "hlink": "#4C4B63",
+   "lt1": "#FFFFFF",
+   "lt2": "#FDFAF6",
+   "name": "Warm"
+  },
+  {
+   "accent1": "#007C91",
+   "accent2": "#00A6A6",
+   "accent3": "#58C9B9",
+   "accent4": "#A0E8E0",
+   "accent5": "#44BFC8",
+   "accent6": "#1C7C7D",
+   "dk1": "#001A21",
+   "dk2": "#123637",
+   "fol_hlink": "#994B7B",
+   "hlink": "#7D1C58",
+   "lt1": "#FFFFFF",
+   "lt2": "#F4FBFB",
+   "name": "Ocean"
+  },
+  {
+   "accent1": "#F4C2CE",
+   "accent2": "#AAD6F2",
+   "accent3": "#BBEC7E",
+   "accent4": "#F4EBB9",
+   "accent5": "#CCC0EC",
+   "accent6": "#A2CFEE",
+   "dk1": "#2E2E2E",
+   "dk2": "#434742",
+   "fol_hlink": "#C9A6F6",
+   "hlink": "#F6A6B2",
+   "lt1": "#FFFFFF",
+   "lt2": "#FBF5FB",
+   "name": "Pastel"
+  },
+  {
+   "accent1": "#4ECDC4",
+   "accent2": "#FFDA0B",
+   "accent3": "#FF8009",
+   "accent4": "#FF006E",
+   "accent5": "#AA38EC",
+   "accent6": "#1255FF",
+   "dk1": "#272525",
+   "dk2": "#373F3E",
+   "fol_hlink": "#AA38EC",
+   "hlink": "#FF8009",
+   "lt1": "#FFFFFF",
+   "lt2": "#F0F6F6",
+   "name": "Contrast"
+  },
+  {
+   "accent1": "#3A6B35",
+   "accent2": "#7DAB5F",
+   "accent3": "#C8A84B",
+   "accent4": "#B85C38",
+   "accent5": "#8C6F48",
+   "accent6": "#5A462B",
+   "dk1": "#272525",
+   "dk2": "#28281E",
+   "fol_hlink": "#86AFD2",
+   "hlink": "#3F88C5",
+   "lt1": "#FFFFFF",
+   "lt2": "#F6F6ED",
+   "name": "Forest"
+  },
+  {
+   "accent1": "#333333",
+   "accent2": "#989898",
+   "accent3": "#C7C7C7",
+   "accent4": "#F2F2F2",
+   "accent5": "#828282",
+   "accent6": "#4F4F4F",
+   "dk1": "#000000",
+   "dk2": "#272525",
+   "fol_hlink": "#808080",
+   "hlink": "#4F4F4F",
+   "lt1": "#FFFFFF",
+   "lt2": "#F5F5F5",
+   "name": "Greyscale"
+  },
+  {
+   "accent1": "#FF7C01",
+   "accent2": "#FFAA01",
+   "accent3": "#FFD103",
+   "accent4": "#FFEC18",
+   "accent5": "#FFC400",
+   "accent6": "#FF9502",
+   "dk1": "#1E1400",
+   "dk2": "#493502",
+   "fol_hlink": "#AC2CFB",
+   "hlink": "#2872FD",
+   "lt1": "#FFFFFF",
+   "lt2": "#F7F4EE",
+   "name": "Sunshine"
+  },
+  {
+   "accent1": "#5C8148",
+   "accent2": "#8BB650",
+   "accent3": "#B3E093",
+   "accent4": "#D6ED89",
+   "accent5": "#A2C181",
+   "accent6": "#76A45B",
+   "dk1": "#11160D",
+   "dk2": "#303C22",
+   "fol_hlink": "#98794E",
+   "hlink": "#5A462B",
+   "lt1": "#FFFFFF",
+   "lt2": "#F3F7EF",
+   "name": "Emerald"
+  }
+ ]
+}

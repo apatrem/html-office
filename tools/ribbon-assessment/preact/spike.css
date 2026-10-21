@@ -1,0 +1,60 @@
+.assessment-note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 4px 12px;
+  font:
+    12px Arial,
+    sans-serif;
+  background: #f8f4f1;
+}
+.assessment-note button {
+  font: inherit;
+}
+/* Menus open inside the toolbar: lift it above the isolated grid. */
+#spike-toolbar {
+  position: relative;
+  z-index: 10;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
+}
+#spike-drawer:empty {
+  display: none;
+}
+#spike-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  background: #fff;
+  box-shadow: -2px 0 8px rgb(0 0 0 / 0.12);
+}
+.ic-root button:focus-visible {
+  outline: 2px solid #2f80ed;
+  outline-offset: 1px;
+}
+.ic-root .ic-toolbar-scroll-arrow {
+  padding: 0;
+  z-index: 2;
+}
+.assessment-no-grid td,
+.assessment-no-grid th,
+.assessment-no-grid .grid-cell {
+  border-color: transparent !important;
+}
+@media print {
+  .assessment-note,
+  #spike-toolbar,
+  #spike-drawer,
+  .assessment-advanced {
+    display: none !important;
+  }
+}
+/* IronCalc expects the Inter web font; no font is embedded (ADR-010). */
+.ic-root {
+  --typography-font-family: var(--font, Arial, Helvetica, sans-serif);
+  font-family: var(--typography-font-family);
+}
