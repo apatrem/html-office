@@ -19,7 +19,7 @@ Effective appearance is resolved property by property: **cell style → column s
 - A cell may carry `cellStyle` (a catalogue reference), `style` (direct formatting) and `format` (number format). `cellStyle` replaces the former `role` field. The project is pre-release, so fixtures and tests are rewritten without a compatibility alias.
 - `style` holds only overridden properties, using readable names aligned with ADR-008: `bold`, `italic`, `underline`, `strike`, `fontSize` (points, 1–409), `fontFamily`, `color`, `background`, `border.{top,right,bottom,left}: {style,color}`, `align.{horizontal,vertical,wrap}`.
 - Column and row metadata may carry the same `style` object plus `width`/`height` in pixels (`customHeight` marks a manually set row). Stable row/column IDs carry them through structural edits.
-- A **style-only cell** has no input or formula; it is blank for formulas and conditional rules. Row tables may carry style-only `cellMetadata` at null positions.
+- A **style-only cell** has no input or formula; it is blank for formulas and conditional rules. In row tables, style-only cells stay in sparse `cells` rather than as `cellMetadata` at null positions, so each position keeps a single source (amended after review, 21 October 2026).
 - A command that would write more than **50,000** individual cells is refused with guidance to select whole rows or columns. Full-row/column selections write row/column styles.
 
 ### Colours, theme and fonts
@@ -31,7 +31,7 @@ Effective appearance is resolved property by property: **cell style → column s
 
 ### Cell styles (named styles)
 
-- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `row-label`, `assumption`, `calculation`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style }]`.
+- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `row-label`, `assumption`, `calculation`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style, format? }]`. A cell style may carry a number `format` (the IronCalc style editor offers presets); the cell's own `format` overrides it.
 - Excel "Input" and "Calculation" are our `assumption` and `calculation` (charte appearance, labelled accordingly), not duplicates. Built-in IDs are reserved lowercase names; custom styles get generated stable IDs and editable display names.
 - Editing a style updates every cell using it. Deleting a style in use requires confirmation and leaves those cells without a cell style. IronCalc's custom-style editor is included.
 
@@ -42,7 +42,7 @@ Effective appearance is resolved property by property: **cell style → column s
 
 ### Borders and alignment
 
-- Nine IronCalc border styles. Toolbar presets (all, inner, outer, sides, centre lines, none) write only inside the selection. On a shared edge the heavier line wins; on a tie the lower/right cell wins. Dash-dot variants are approximated in CSS while the stored value stays exact. Borders draw above grid lines, survive hidden grid lines and print. **Diagonal borders are not supported** and are reported by import.
+- Nine IronCalc border styles. Toolbar presets (all, inner, outer, sides, centre lines, none) write only inside the selection. On a shared edge the heavier line wins; on a tie the lower/right cell wins. Dash-dot variants are approximated in CSS while the stored value stays exact. Inheritance is per side: a cell's `border.top` replaces any inherited top side, and `{ "style": "none" }` explicitly suppresses an inherited side. The "none" preset writes `none` where a cell style, row or column border would otherwise show, and removes the override elsewhere. Borders draw above grid lines, survive hidden grid lines and print. **Diagonal borders are not supported** and are reported by import.
 - Horizontal `general | left | center | right | centerContinuous`; vertical `top | center | bottom` (default `bottom`); `wrap` boolean. `general` aligns numbers/dates right, text left, booleans/errors centre. A **Centre across selection** entry is added to the IronCalc alignment menu by patch.
 - Unwrapped text overflows into empty neighbouring cells, scanning at most 20 columns.
 
