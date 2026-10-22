@@ -130,7 +130,8 @@ const report = {
     jsBytes: Buffer.byteLength(shellJs),
     cssBytes: Buffer.byteLength(css),
     totalBytes: Buffer.byteLength(shellJs) + Buffer.byteLength(css),
-    gzipBytes: gzipSync(shellJs + css).length,
+    // Same method as R05: JS and CSS compressed separately at level 9.
+    gzipBytes: gzipSync(shellJs, { level: 9 }).length + gzipSync(css, { level: 9 }).length,
     runtimePackages: [],
     modules,
   },

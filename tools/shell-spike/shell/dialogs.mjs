@@ -25,10 +25,10 @@ function field(label, control, error) {
   return h("div", { class: "sh-fld" }, h("label", { for: id }, label), control, h("p", { class: "sh-err", id: errId, role: "status" }, error ?? ""));
 }
 
-function modal(title, body, actions, { onClose } = {}) {
+function modal(title, body, actions, { onClose, opener: trigger } = {}) {
   const titleId = uid("dlg");
   const dialog = h("dialog", { class: "sh-dialog", "aria-labelledby": titleId }, h("form", { method: "dialog" }, h("h2", { id: titleId }, title), body, h("div", { class: "sh-actions" }, actions)));
-  const opener = document.activeElement;
+  const opener = trigger ?? document.activeElement;
   dialog.addEventListener("close", () => {
     dialog.remove();
     onClose?.(dialog.returnValue);
@@ -40,7 +40,8 @@ function modal(title, body, actions, { onClose } = {}) {
 }
 
 // initial: { url } or { sheet, ref }, plus label. onSave(link, label); onRemove().
-export function linkDialog({ sheets, currentSheet, initial, label, onSave, onRemove }) {
+export const dialogOpen = () => !!document.querySelector("dialog.sh-dialog[open]");
+export function linkDialog({ sheets, currentSheet, initial, label, onSave, onRemove, opener }) {
   const kind = initial?.sheet ? "place" : "url";
   const url = h("input", { type: "url", value: initial?.url ?? "", autocomplete: "off", spellcheck: "false" });
   const sheet = h("select", {}, sheets.map((s) => h("option", { value: s, selected: s === (initial?.sheet ?? currentSheet) }, s)));
@@ -73,10 +74,10 @@ export function linkDialog({ sheets, currentSheet, initial, label, onSave, onRem
   const actions = [
     initial && h("button", { type: "button", class: "sh-b sh-t sh-ghost", onclick: () => (onRemove?.(), dialog.close("remove")) }, "Remove link"),
     h("span", { class: "sh-spacer" }),
-    h("button", { type: "submit", class: "sh-b sh-t sh-ghost", value: "cancel" }, "Cancel"),
+    h("button", { type: "button", class: "sh-b sh-t sh-ghost", onclick: () => dialog.close("cancel") }, "Cancel"),
     save,
   ];
-  const dialog = modal("Link", [radios, urlBox, placeBox, field("Text to display", text)], actions);
+  const dialog = modal("Link", [radios, urlBox, placeBox, field("Text to display", text)], actions, { opener });
   save.addEventListener("click", () => {
     if (!validate()) return;
     const link = currentKind() === "url" ? { url: url.value.trim() } : { sheet: sheet.value, ref: ref.value.trim().toUpperCase() };

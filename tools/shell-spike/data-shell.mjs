@@ -7,7 +7,8 @@ import { menubar, menuButton } from "./shell/menu.mjs";
 import { toolbar, group, spacer } from "./shell/toolbar.mjs";
 import { openSwatches, openBorders } from "./shell/pickers.mjs";
 import { drawer as createDrawer } from "./shell/drawer.mjs";
-import { linkDialog } from "./shell/dialogs.mjs";
+import { linkDialog, dialogOpen } from "./shell/dialogs.mjs";
+import { closePopover } from "./shell/popover.mjs";
 import { cellStylesBody, regionalBody, documentBody, CELL_STYLES, LOCALES } from "./shell/panels.mjs";
 
 const MODEL_STYLES = new Set(["normal", "title", "header", "rowHeader", "assumption", "calculation", "output", "total", "note", "hyperlink"]);
@@ -36,7 +37,17 @@ export function mountDataShell({ root, drawerHost, bridge }) {
   const intents = (globalThis.toolbarSpikeIntents = []);
   const styles = new Map(); // recorded direct formatting per cell, mirrors R05
   const ui = { theme: "document", font: "arial", locale: bridge.state().locale ?? "en-US", gridLines: true, border: { style: "thin", color: "ink" }, color: "ink", fill: "none" };
-  const status = h("p", { class: "vh", role: "status", id: "toolbar-status" });
+  // Visible on purpose: the spike must say which controls only record intents.
+  const status = h("span", { role: "status", id: "toolbar-status" });
+  const notice = h(
+    "div",
+    { class: "sh-notice" },
+    h("strong", {}, "R06 spike."),
+    " Applied: number formats, cell styles normal to calculation, clear formatting, undo/redo, existing Data commands. ",
+    h("strong", {}, "Recorded only, no visible effect yet"),
+    " (no ADR-012 model): bold, italic, alignment, wrap, colours, borders, links, theme, font, regional settings. ",
+    status,
+  );
   const record = (kind, payload) => {
     const { sheetId, address } = bridge.state();
     intents.push({ kind, payload, sheetId, address });
@@ -47,6 +58,12 @@ export function mountDataShell({ root, drawerHost, bridge }) {
     return s.sheetId + "!" + s.address;
   };
   const cellStyle = () => styles.get(key()) ?? {};
+  // Clears canonical formatting and the formatting recorded by the spike for the selection.
+  const clearAll = () => {
+    styles.delete(key());
+    safely(() => bridge.clear())();
+    sync();
+  };
   const setStyle = (kind, patch) => {
     styles.set(key(), { ...cellStyle(), ...patch });
     record(kind, patch);
@@ -73,7 +90,7 @@ export function mountDataShell({ root, drawerHost, bridge }) {
         cellStylesBody({
           current: bridge.state().cellStyle,
           onApply: applyCellStyle,
-          extra: h("div", { class: "sh-prow" }, button({ label: "Clear formatting", ic: "eraser", text: "Clear formatting", cls: "sh-ghost", onClick: () => bridge.clear() })),
+          extra: h("div", { class: "sh-prow" }, button({ label: "Clear formatting", ic: "eraser", text: "Clear formatting", cls: "sh-ghost", onClick: clearAll })),
         }),
     }),
     regional: () => ({
@@ -83,7 +100,7 @@ export function mountDataShell({ root, drawerHost, bridge }) {
     }),
     settings: () => ({
       title: "Document settings",
-      subtitle: "Saved in this file",
+      subtitle: "Recorded only in this spike",
       body: () =>
         documentBody({
           theme: ui.theme,
@@ -97,9 +114,12 @@ export function mountDataShell({ root, drawerHost, bridge }) {
   };
   const openPanel = (id, trigger) => drawer.open(id, { ...panels[id](), trigger });
   const openLink = () => {
+    if (dialogOpen() || !bridge.state().canEdit) return;
+    closePopover({ restore: false });
     const s = bridge.state(),
       existing = cellStyle().link;
     linkDialog({
+      opener: B.link,
       sheets: s.sheetNames,
       currentSheet: s.sheetName,
       initial: existing,
@@ -153,7 +173,7 @@ export function mountDataShell({ root, drawerHost, bridge }) {
       { label: "Fill right", onSelect: click("fill-right") },
       "-",
       { label: "Copy style", planned: true, onSelect: () => record("painter.start", {}) },
-      { label: "Clear formatting", onSelect: () => bridge.clear() },
+      { label: "Clear formatting", onSelect: clearAll },
     ] },
     { name: "Insert", items: () => [
       { label: "Insert rows", onSelect: click("insert-row") },
@@ -227,7 +247,7 @@ export function mountDataShell({ root, drawerHost, bridge }) {
   const tb = toolbar(
     "Formatting",
     group("History", add("undo", { label: "Undo", ic: "undo", title: "Undo (Cmd+Z)", onClick: click("undo") }), add("redo", { label: "Redo", ic: "redo", title: "Redo (Cmd+Shift+Z)", onClick: click("redo") })),
-    group("Clipboard", add("painter", { label: "Copy style", ic: "painter", onClick: () => record("painter.start", {}) }), add("clear", { label: "Clear formatting", ic: "eraser", onClick: () => bridge.clear() })),
+    group("Clipboard", add("painter", { label: "Copy style", ic: "painter", onClick: () => record("painter.start", {}) }), add("clear", { label: "Clear formatting", ic: "eraser", onClick: clearAll })),
     group(
       "Number",
       add("currency", { label: "Format as currency", glyph: "€", onClick: () => applyFormat({ kind: "currency", currency: "EUR", digits: 2 }) }),
@@ -258,7 +278,7 @@ export function mountDataShell({ root, drawerHost, bridge }) {
   );
   const row2 = h("div", { class: "sh-row sh-row2" }, tb);
   root.classList.add("sh-root");
-  root.replaceChildren(row1, row2, status);
+  root.replaceChildren(row1, row2, notice);
 
   // Settings button at the end of the sheet bar (variant A bottom area).
   const settingsBtn = drawer.toggle(button({ label: "Document settings: theme, font, regional", ic: "sliders", cls: "sh-sm" }), "settings", panels.settings);
@@ -283,6 +303,15 @@ export function mountDataShell({ root, drawerHost, bridge }) {
     B.wrap.setAttribute("aria-pressed", String(!!st.wrap));
     for (const v of ["left", "center", "right", "centerContinuous"]) B["align-" + v].setAttribute("aria-pressed", String(st.horizontal === v));
     B.grid.setAttribute("aria-pressed", String(ui.gridLines));
+    // An open cell-style panel follows the selection, undo and clear.
+    if (drawer.current() === "styles") {
+      const sub = drawer.host.querySelector(".sh-ph p");
+      if (sub) sub.textContent = `Selection ${s.address}`;
+      for (const tile of drawer.host.querySelectorAll(".sh-style-tile")) {
+        const id = CELL_STYLES.find(([, name]) => tile.querySelector(".sh-st-name")?.textContent === name)?.[0];
+        tile.setAttribute("aria-checked", String(id === s.cellStyle));
+      }
+    }
     B.color.bar.style.background = `var(--${ui.color === "dark" ? "ink" : ui.color})`;
     B.fill.bar.style.background = ui.fill === "none" ? "transparent" : `var(--${ui.fill === "dark" ? "ink" : ui.fill})`;
     tb.refresh();

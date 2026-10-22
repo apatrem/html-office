@@ -22,6 +22,9 @@ export function drawer(host) {
 
   function open(id, { title, subtitle, body, trigger }) {
     if (state?.id === id) return close();
+    // Switching from inside a panel keeps the first, external trigger for focus return.
+    const outside = trigger && !host.contains(trigger) ? trigger : null;
+    const origin = outside ?? state?.trigger ?? document.activeElement;
     if (state) close({ restore: false });
     const headingId = uid("drawer-h");
     const heading = h("h2", { id: headingId, tabindex: "-1" }, title);
@@ -40,7 +43,7 @@ export function drawer(host) {
     );
     host.hidden = false;
     document.body.classList.add("sh-drawer-open");
-    state = { id, trigger: trigger ?? document.activeElement };
+    state = { id, trigger: origin };
     for (const [key, list] of toggles) for (const b of list) b.setAttribute("aria-pressed", String(key === id));
     heading.focus({ preventScroll: true });
     host.dispatchEvent(new CustomEvent("drawer", { detail: { open: id } }));
@@ -62,5 +65,5 @@ export function drawer(host) {
     return btn;
   }
 
-  return { open, close, toggle, current: () => state?.id ?? null };
+  return { open, close, toggle, current: () => state?.id ?? null, host };
 }

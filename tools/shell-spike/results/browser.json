@@ -49,7 +49,7 @@
       "drawer": {
         "x": 420,
         "width": 340,
-        "height": 786
+        "height": 729
       }
     },
     {
@@ -58,7 +58,7 @@
       "drawer": {
         "x": 676,
         "width": 340,
-        "height": 786
+        "height": 745
       }
     },
     {
@@ -67,30 +67,30 @@
       "drawer": {
         "x": 1092,
         "width": 340,
-        "height": 786
+        "height": 745
       }
     }
   ],
   "timings": [
     {
-      "mountMs": 7.7,
-      "firstMenuMs": 15.9
+      "mountMs": 4.8,
+      "firstMenuMs": 8.7
     },
     {
-      "mountMs": 7.2,
-      "firstMenuMs": 9.8
+      "mountMs": 4.9,
+      "firstMenuMs": 7.5
     },
     {
-      "mountMs": 7.6,
-      "firstMenuMs": 5.5
+      "mountMs": 4.8,
+      "firstMenuMs": 7.1
     },
     {
-      "mountMs": 8,
-      "firstMenuMs": 2
+      "mountMs": 4.8,
+      "firstMenuMs": 8.1
     },
     {
-      "mountMs": 7.3,
-      "firstMenuMs": 10.4
+      "mountMs": 4.8,
+      "firstMenuMs": 9.1
     }
   ]
 }

@@ -95,7 +95,9 @@ try {
     assert.match(await cell.textContent(), /%/);
     await numberFormat.click();
     await menu.getByRole("menuitem", { name: "Long date" }).click();
-    assert.equal(await numberFormat.getAttribute("aria-label"), "Number format: Long date", "date presets are canonical, not intents");
+    assert.equal(await numberFormat.getAttribute("aria-label"), "Number format: Long date");
+    // The model field is written canonically; today's renderer does not distinguish long dates yet (F02).
+    assert.equal(await page.evaluate(() => HTMLDataToolbarBridge.state().format.dateStyle), "long", "dateStyle written to the model");
     await button("Undo").click();
     await button("Increase decimal places").click();
     assert.match(await cell.textContent(), /\.\d\d%/);
@@ -176,6 +178,39 @@ try {
     await save.click();
     assert.deepEqual((await lastIntent(page, "link.set")).payload.link, { sheet: "Summary", ref: "B4" });
 
+    // Review fixes: Cancel after invalid input, Cmd/Ctrl+K over an open menu, clear resets recorded formatting,
+    // focus return after switching panels, and an open styles panel that follows the model.
+    await button("Insert link").click();
+    await dialog.getByRole("radio", { name: "Web or email address" }).check();
+    await dialog.getByRole("textbox", { name: "Address" }).fill("example.org");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    assert.equal(await dialog.count(), 0, "Cancel closes despite invalid input");
+    assert.equal(await button("Insert link").evaluate((el) => el === document.activeElement), true);
+    await shell.getByRole("menuitem", { name: "Format" }).click();
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+    assert.equal(await menu.count(), 0, "Cmd/Ctrl+K closes the open menu");
+    await dialog.waitFor();
+    await page.keyboard.press("Escape");
+    assert.equal(await dialog.count(), 0, "Escape reaches the native dialog");
+    // The dialog's close event, which restores focus, is asynchronous.
+    await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Insert link");
+    if ((await button("Bold").getAttribute("aria-pressed")) !== "true") await button("Bold").click();
+    assert.equal(await button("Bold").getAttribute("aria-pressed"), "true");
+    await button("Clear formatting").click();
+    assert.equal(await button("Bold").getAttribute("aria-pressed"), "false", "clear resets recorded formatting");
+    assert.equal(await page.evaluate(() => HTMLDataToolbarBridge.state().cellStyle), "normal");
+    const settingsButton = page.getByRole("button", { name: "Document settings: theme, font, regional" });
+    await settingsButton.click();
+    await drawer.getByRole("button", { name: "Regional settings…" }).click();
+    await page.keyboard.press("Escape");
+    assert.equal(await settingsButton.evaluate((el) => el === document.activeElement), true, "focus returns to the original trigger");
+    await button("Styles").click();
+    await stylePick.click();
+    await menu.getByRole("menuitemcheckbox", { name: "Total" }).click();
+    assert.equal(await drawer.getByRole("radio", { name: /^Total/ }).getAttribute("aria-checked"), "true", "open panel follows the model");
+    await button("Styles").click();
+    assert.ok(await page.locator(".sh-notice").isVisible(), "intent-only controls are disclosed on screen");
+
     // Our conditional-format dialog and the presentation-only grid toggle.
     await button("Conditional formatting").click();
     await page.locator("#conditional-dialog").waitFor({ state: "visible" });
@@ -200,7 +235,11 @@ try {
     const savePath = resolve(out, `saved-${offline}.html`),
       { html, book } = await savedBook(page, savePath);
     assert.equal(book.sheets.find((s) => s.id === "inputs").cells.B10.input.value, "Upside");
-    assert.equal(book.sheets.find((s) => s.id === "summary").cells.B2.format.kind, "percent");
+    // B2 was cleared, then given the Total style through the menu, all canonically.
+    const b2 = book.sheets.find((s) => s.id === "summary").cells.B2;
+    assert.equal(b2.cellStyle, "total");
+    assert.equal(b2.format.kind, "general");
+    assert.equal(b2.style, undefined);
     assert.match(html, /<div id="shell-root"[^>]*><\/div>/);
     assert.match(html, /<div id="shell-layer"><\/div>/);
     await page.goto(pathToFileURL(savePath).href);

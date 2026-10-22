@@ -30,8 +30,9 @@ globalThis.HTMLDataToolbarBridge = {
   cellStyle(name) {
     formatSelection((cell) => ({ ...cell, cellStyle: name }));
   },
+  // Clears cell style, number format and direct formatting; keeps values.
   clear() {
-    formatSelection((cell) => ({
+    formatSelection(({ style, ...cell }) => ({
       ...cell,
       cellStyle: "normal",
       format: { kind: "general" },

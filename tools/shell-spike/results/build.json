@@ -1,9 +1,9 @@
 {
   "shell": {
-    "jsBytes": 31656,
-    "cssBytes": 13788,
-    "totalBytes": 45444,
-    "gzipBytes": 14357,
+    "jsBytes": 32546,
+    "cssBytes": 14024,
+    "totalBytes": 46570,
+    "gzipBytes": 14922,
     "runtimePackages": [],
     "modules": {
       "shell/icons.mjs": 4127,
@@ -12,25 +12,25 @@
       "shell/menu.mjs": 2400,
       "shell/toolbar.mjs": 882,
       "shell/pickers.mjs": 2114,
-      "shell/drawer.mjs": 1388,
-      "shell/dialogs.mjs": 2662,
+      "shell/drawer.mjs": 1440,
+      "shell/dialogs.mjs": 2771,
       "shell/panels.mjs": 3982,
-      "data-shell.mjs": 10855,
+      "data-shell.mjs": 11584,
       "entry.mjs": 29
     }
   },
   "sources": {
     "shell/dialogs.mjs": {
-      "lines": 90,
-      "bytes": 4399
+      "lines": 91,
+      "bytes": 4553
     },
     "shell/dom.mjs": {
       "lines": 85,
       "bytes": 3487
     },
     "shell/drawer.mjs": {
-      "lines": 67,
-      "bytes": 2478
+      "lines": 70,
+      "bytes": 2691
     },
     "shell/icons.mjs": {
       "lines": 36,
@@ -53,20 +53,20 @@
       "bytes": 2198
     },
     "shell/shell.css": {
-      "lines": 153,
-      "bytes": 14078
+      "lines": 157,
+      "bytes": 14378
     },
     "shell/toolbar.mjs": {
       "lines": 39,
       "bytes": 1591
     },
     "data-shell.mjs": {
-      "lines": 308,
-      "bytes": 16803
+      "lines": 337,
+      "bytes": 18138
     },
     "host-bridge.mjs": {
-      "lines": 44,
-      "bytes": 1304
+      "lines": 45,
+      "bytes": 1393
     },
     "integration.css": {
       "lines": 8,
@@ -77,9 +77,9 @@
     {
       "file": "shell-native.html",
       "offline": false,
-      "applicationCodeBytes": 417611,
+      "applicationCodeBytes": 418752,
       "documentContentBytes": 118785,
-      "totalHTMLBytes": 536396,
+      "totalHTMLBytes": 537537,
       "baseline": {
         "applicationCodeBytes": 370560,
         "documentContentBytes": 118785,
@@ -89,9 +89,9 @@
     {
       "file": "shell-native-offline.html",
       "offline": true,
-      "applicationCodeBytes": 1373859,
+      "applicationCodeBytes": 1375000,
       "documentContentBytes": 118785,
-      "totalHTMLBytes": 1492644,
+      "totalHTMLBytes": 1493785,
       "baseline": {
         "applicationCodeBytes": 1326808,
         "documentContentBytes": 118785,
