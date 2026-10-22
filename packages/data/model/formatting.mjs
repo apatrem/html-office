@@ -59,6 +59,12 @@ export const BUILTIN_CELL_STYLES = [
   "hyperlink",
 ];
 export const MAX_LINK_LENGTH = 2048;
+// Grid classes for a cell. Linked cells take the hyperlink style automatically
+// and are underlined (ADR-012 §3, §8); neither is stored as formatting.
+export function cellClasses(cell, linked) {
+  const style = cell.cellStyle ?? (linked ? "hyperlink" : "normal");
+  return linked ? `${style} linked` : style;
+}
 // CSS for tokens, mirroring html-slides' c-* and bg-* classes.
 export const colorCSS = (token) => `var(--${token})`;
 export const fillCSS = (token) =>

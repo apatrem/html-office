@@ -20,4 +20,4 @@ header{padding:12px 20px}header h1{font-size:20px;line-height:1.3;margin:4px 0}h
 
 .data-bar-fill{position:absolute;top:4px;bottom:4px;opacity:.24;pointer-events:none}.data-bar-axis{position:absolute;top:2px;bottom:2px;border-left:1px solid var(--ink);opacity:.6;pointer-events:none}.data-bar-text{position:relative;z-index:1}
 /* ADR-012 catalogue styles, rendered with charte tokens. */
-#grid .title{color:var(--acc);font-weight:bold}#grid .output{font-weight:bold;border-color:var(--ink)}#grid .total{font-weight:bold;border-top-color:var(--ink);border-bottom:3px double var(--ink)}#grid .note{font-style:italic;color:var(--t2)}#grid .alert{font-weight:bold;color:var(--alert)}#grid .hyperlink{color:var(--acc);text-decoration:underline}
+#grid .title{color:var(--acc);font-weight:bold}#grid .output{font-weight:bold;border-color:var(--ink)}#grid .total{font-weight:bold;border-top-color:var(--ink);border-bottom:3px double var(--ink)}#grid .note{font-style:italic;color:var(--t2)}#grid .alert{font-weight:bold;color:var(--alert)}#grid .hyperlink{color:var(--acc);text-decoration:underline}#grid .linked{text-decoration:underline}

@@ -85,6 +85,23 @@ try {
   page.on("dialog", (d) => d.accept());
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
+  // Linked cells take the hyperlink style automatically: accent colour, underlined.
+  for (const ref of ["A5", "E9"]) {
+    const look = await page
+      .locator(`#grid [data-cell="${ref}"]`)
+      .evaluate((el) => ({
+        classes: el.className,
+        color: getComputedStyle(el).color,
+        line: getComputedStyle(el).textDecorationLine,
+      }));
+    assert.match(look.classes, /\bhyperlink\b/, ref);
+    assert.equal(look.line, "underline", `${ref} is underlined`);
+    assert.equal(
+      look.color,
+      "rgb(20, 81, 122)",
+      `${ref} uses the accent token`,
+    );
+  }
 
   // A typed value edit keeps every presentation field of the cell.
   await jump(page, "B2");

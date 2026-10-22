@@ -9,6 +9,7 @@ import {
   stringifyWorkbook,
   address,
 } from "../model/workbook.mjs";
+import { cellClasses } from "../model/formatting.mjs";
 import { EngineSession } from "../engine/adapter.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
@@ -167,7 +168,7 @@ export async function buildWorkbook(
         row
           .map(
             ({ ref, cell, text }) =>
-              `<td><button class="${cell.cellStyle ?? "normal"}" data-cell="${ref}">${esc(text) || "&#160;"}</button></td>`,
+              `<td><button class="${cellClasses(cell, !!book.sheets[0].links?.[ref])}" data-cell="${ref}">${esc(text) || "&#160;"}</button></td>`,
           )
           .join("") +
         "</tr>",
