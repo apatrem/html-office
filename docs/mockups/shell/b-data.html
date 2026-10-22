@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en" data-theme="blue" data-font="arial">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shell Ribbon · Data — html-office mock-up</title>
+<meta name="description" content="Static mock-up for task U02 (variant B, Data). Fictional content. Not product code.">
+<style id="charte">/* Default branding theme. Copy this file and pass --charte to customise it. */
+:root{
+  --bg:#FFFFFF;
+  --ink:#1F1A33;
+  --acc:#5B3B8C;
+  --mid:#8E6BBF;
+  --lig:#D3C4E8;
+  --alert:#C2521C;
+  --tint:#F3F0F8;
+  --callout:#EEE8F6;
+  --bd:#DCD5E6;
+  --t2:#625A70;
+  --font:Arial, Helvetica, sans-serif;
+  --title-size:34px;
+  --title-track:-.035em;
+  --body-size:16px;
+  /* Optional Office semantic roles, also consumed by HTML Data. */
+  --header-bg:var(--ink);
+  --header-ink:var(--bg);
+  --row-label-bg:color-mix(in srgb,var(--lig) 35%,var(--bg));
+  --row-label-ink:var(--acc);
+  --assumption-bg:#FFF6D8;
+  --assumption-ink:var(--alert);
+  --calculation-bg:var(--tint);
+}
+</style>
+<style>/* Shell chrome: neutral UI greys, independent of the document charte. */
+:root{
+  --ui-bg:#fff;--ui-bg2:#f6f7f9;--ui-line:#dde1e6;--ui-ink:#1d2a35;--ui-mute:#5f6b75;
+  --ui-hover:#eceff3;--ui-press:#dfe6ef;--ui-focus:#2563eb;--ui-sel:#e8eefb;
+  --data-font-size:13px;
+  --row-label-bg:color-mix(in srgb,var(--lig) 35%,var(--bg));--row-label-ink:var(--acc);
+  --assumption-bg:#FFF6D8;--assumption-ink:var(--alert);--calculation-bg:var(--tint);
+  --doc-font:var(--font);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13px/1.3 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--ui-ink);background:var(--ui-bg2);overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ui-focus);outline-offset:1px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ic.car{width:12px;height:12px;margin-left:-2px;opacity:.65}
+.only-narrow{display:none!important}
+
+/* ---------- frame ---------- */
+.app{display:flex;flex-direction:column;height:100dvh}
+.top{flex:none;background:var(--ui-bg);border-bottom:1px solid var(--ui-line);position:relative;z-index:20}
+.row{display:flex;align-items:center;gap:4px;padding:0 8px 0 10px;min-width:0}
+.r1{height:44px}
+.r2{height:40px;background:var(--ui-bg2);border-top:1px solid var(--ui-line);padding:0 4px}
+.work{flex:1 1 auto;display:flex;min-height:0;position:relative}
+.canvas{flex:1 1 auto;min-width:0;overflow:auto;position:relative}
+.spacer{flex:1 1 auto;min-width:8px}
+.acts{display:flex;align-items:center;gap:4px;flex:none}
+
+/* identity */
+.ident{display:flex;align-items:center;gap:10px;min-width:0;flex:0 1 auto;margin-right:6px}
+.mark{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}
+.mk-slides{background:#B4532A}.mk-data{background:#1F7A4D}.mk-text{background:#2F5AA8}
+.tt{display:flex;flex-direction:column;min-width:0}
+.title{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+.state{font-size:11px;color:var(--ui-mute)}
+.p-text .state{color:#9a4a12}
+
+/* buttons */
+.b{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:30px;min-width:30px;padding:0 6px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;white-space:nowrap;flex:none}
+.b:hover{background:var(--ui-hover)}
+.b[aria-pressed=true]{background:var(--ui-press);border-color:#c9d3df}
+.b.t{padding:0 9px}
+.b.sm{height:26px;min-width:26px}
+.b .g{font-size:14px;line-height:1;font-family:Georgia,"Times New Roman",serif;min-width:14px;text-align:center}
+.b .g b,.b .g i,.b .g u{font-family:Arial,sans-serif}
+.b .g sub,.b .g sup{font-size:9px;font-family:system-ui,sans-serif}
+.b.primary{background:var(--ui-ink);color:#fff;border-color:var(--ui-ink)}
+.b.primary:hover{background:#30404d}
+.b.primary.dirty{background:#B4530F;border-color:#B4530F}
+.b.ghost{border-color:var(--ui-line);background:var(--ui-bg)}
+.b.planned{opacity:.55}
+.b.planned:hover{opacity:.8}
+.Aglyph{font-family:Arial,sans-serif;font-weight:700;font-size:14px;border-bottom:3px solid var(--alert);line-height:13px;padding:0 1px}
+.k-fill .ic{border-bottom:3px solid var(--lig);height:21px;padding-bottom:1px}
+.pick{border:1px solid var(--ui-line);background:var(--ui-bg);height:28px;justify-content:space-between;padding:0 6px 0 9px;font-size:12.5px}
+.sep{width:1px;height:20px;background:var(--ui-line);margin:0 4px;flex:none}
+.sep.tall{height:28px;margin:0 6px}
+.grp{display:flex;align-items:center;gap:1px;padding:0 6px;border-left:1px solid var(--ui-line);flex:none}
+.grp:first-child{border-left:0}
+.spacer+.grp{border-left:0}
+.ctx-chip{flex:none;margin:0 2px 0 8px;padding:2px 7px;border-radius:10px;background:#e7eef8;color:#1e4f91;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.tag{font-style:normal;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#7a5b00;background:#fff3c4;border-radius:8px;padding:1px 6px;margin-left:6px}
+
+/* toolbar with overflow arrows */
+.tbar{display:flex;align-items:center;min-width:0;flex:1 1 auto;height:100%}
+.tscroll{display:flex;align-items:center;overflow-x:auto;scrollbar-width:none;flex:1 1 auto;min-width:0;height:100%}
+.tscroll::-webkit-scrollbar{display:none}
+.ovf{display:none;flex:none;width:22px;height:30px;border:0;background:var(--ui-bg2);font-size:18px;color:var(--ui-mute);cursor:pointer;border-radius:4px}
+.tbar.over .ovf{display:block}
+
+/* menu bar */
+.menubar{display:flex;align-items:center;gap:0;flex:none}
+.mb{height:28px;padding:0 9px;border:0;background:none;border-radius:6px;cursor:pointer;font-size:13px}
+.mb:hover,.mb[aria-expanded=true]{background:var(--ui-hover)}
+
+/* popovers and menus */
+.pop{position:fixed;z-index:100;background:#fff;border:1px solid var(--ui-line);border-radius:8px;box-shadow:0 10px 28px rgba(16,24,40,.16);padding:4px;min-width:210px;max-height:72vh;overflow:auto}
+.pop[hidden]{display:none}
+.menu{list-style:none;margin:0}
+.menu button{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border:0;background:none;border-radius:5px;text-align:left;cursor:pointer;white-space:nowrap}
+.menu button:hover,.menu button:focus-visible{background:var(--ui-sel);outline:0}
+.menu button.planned span:first-child{color:var(--ui-mute)}
+.menu kbd{margin-left:auto;font:11px system-ui;color:var(--ui-mute)}
+.menu .sub{margin-left:auto;color:var(--ui-mute)}
+.msep{height:1px;background:var(--ui-line);margin:4px 6px}
+.pop-h{margin:4px 6px 8px;font-size:11px;color:var(--ui-mute)}
+.pop-n{margin:8px 6px 2px;font-size:11px;color:var(--ui-mute)}
+.pop-sw{min-width:0}
+.sw-row{display:flex;gap:6px;padding:0 6px 4px}
+.sw{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.22);cursor:pointer;padding:0}
+.sw[aria-checked=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--ui-focus)}
+.sw-ink,.sw-dark{background:var(--ink)}.sw-acc{background:var(--acc)}.sw-mid{background:var(--mid)}.sw-lig{background:var(--lig)}
+.sw-alert{background:var(--alert)}.sw-t2{background:var(--t2)}.sw-bg{background:var(--bg)}.sw-tint{background:var(--tint)}
+.sw-none{background:linear-gradient(135deg,#fff 44%,#C2521C 44%,#C2521C 56%,#fff 56%)}
+
+/* ---------- side panels ---------- */
+.panels{display:none;flex:none;width:340px;background:var(--ui-bg);border-left:1px solid var(--ui-line);min-height:0}
+body:not([data-panel=none]) .panels{display:block}
+.overlay-panels .panels{position:absolute;top:8px;right:8px;bottom:8px;border:1px solid var(--ui-line);border-radius:10px;box-shadow:0 12px 32px rgba(16,24,40,.18);z-index:30;overflow:hidden}
+.panel{display:flex;flex-direction:column;height:100%}
+.panel[hidden]{display:none}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:12px 10px 10px 16px;border-bottom:1px solid var(--ui-line)}
+.ph h2{font-size:14px;margin:0}
+.ph p{margin:2px 0 0;font-size:11.5px;color:var(--ui-mute)}
+.pb{padding:12px 16px 20px;overflow:auto;flex:1 1 auto}
+.pb h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ui-mute);margin:18px 0 8px}
+.pb h3:first-child{margin-top:2px}
+.hint{font-size:11.5px;color:var(--ui-mute);margin:8px 0 0;line-height:1.4}
+.prow{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ui-mute);margin:8px 0}
+.fld input,.fld select,.fsel select{height:30px;border:1px solid var(--ui-line);border-radius:6px;padding:0 8px;background:#fff;color:var(--ui-ink);font-size:13px}
+.fld.dis{opacity:.6}
+.fld.inline{flex-direction:row;align-items:center;margin:0;white-space:nowrap}
+.fld.inline input{width:220px;height:28px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chk{display:flex;gap:8px;align-items:center;font-size:12.5px;margin-top:8px}
+.kv{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+.kv caption{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ui-mute);padding-bottom:6px}
+.kv th{text-align:left;font-weight:500;color:var(--ui-mute);padding:5px 0;border-bottom:1px solid var(--ui-line)}
+.kv td{text-align:right;padding:5px 0;border-bottom:1px solid var(--ui-line);font-family:var(--doc-font)}
+.keys kbd{font:11.5px ui-monospace,Menlo,monospace;color:var(--ui-ink)}
+.keys td{text-align:left;font-family:inherit}
+
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.theme-card{border:1px solid var(--ui-line);border-radius:8px;background:#fff;padding:8px;text-align:left;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.theme-card[aria-checked=true]{border-color:var(--ui-focus);box-shadow:0 0 0 2px rgba(37,99,235,.22)}
+.tc-dots{display:flex;gap:3px}
+.tc-dots i{width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.08)}
+.tc-dots .d1{background:var(--t-ink)}.tc-dots .d2{background:var(--t-acc)}.tc-dots .d3{background:var(--t-mid)}.tc-dots .d4{background:var(--t-lig)}.tc-dots .d5{background:var(--t-alert)}
+.tc-name{font-size:12px;font-weight:600}
+.tc-note{font-size:10.5px;color:var(--ui-mute)}
+.fonts{display:flex;flex-direction:column;gap:2px}
+.font-row{display:flex;align-items:center;gap:6px;width:100%;padding:7px 10px;border:1px solid transparent;border-radius:6px;background:none;font-size:14px;text-align:left;cursor:pointer}
+.font-row:hover{background:var(--ui-hover)}
+.font-row[aria-checked=true]{background:var(--ui-sel);border-color:#bcd0f7}
+.font-row .aa{margin-left:auto;color:var(--ui-mute)}
+.ff-arial{font-family:Arial,Helvetica,sans-serif}.ff-verdana{font-family:Verdana,Geneva,sans-serif}.ff-tahoma{font-family:Tahoma,Verdana,sans-serif}
+.ff-trebuchet{font-family:"Trebuchet MS",Helvetica,sans-serif}.ff-georgia{font-family:Georgia,"Times New Roman",serif}.ff-times{font-family:"Times New Roman",Times,serif}
+
+.style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.style-tile{border:1px solid var(--ui-line);border-radius:8px;background:#fff;padding:6px;text-align:left;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.style-tile.on{border-color:var(--ui-focus);box-shadow:0 0 0 2px rgba(37,99,235,.22)}
+.st-prev{display:block;height:26px;line-height:24px;padding:0 8px;font-family:var(--doc-font);font-size:var(--data-font-size);color:var(--ink);background:var(--bg);border:1px solid #edf0f3;overflow:hidden;white-space:nowrap}
+.st-name{font-size:12px;font-weight:600;padding:0 2px}
+.st-desc{font-size:10.5px;color:var(--ui-mute);padding:0 2px}
+
+.filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--ui-line);background:#fff;border-radius:14px;padding:3px 10px;font-size:12px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ui-sel);border-color:#bcd0f7;color:#1e4f91}
+.thread{border:1px solid var(--ui-line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fff}
+.thread.on{border-color:#E0B400;box-shadow:0 0 0 2px rgba(224,180,0,.18)}
+.thread.orphan{border-style:dashed}
+.thread .q{font-size:12px;color:var(--ui-mute);font-style:italic;border-left:3px solid #E0B400;padding-left:8px;margin:0 0 8px}
+.thread .c{font-size:12.5px;margin:6px 0;line-height:1.4}
+.thread time{color:var(--ui-mute);font-size:11px}
+.linkish{border:0;background:none;color:var(--ui-focus);padding:0;cursor:pointer;text-decoration:underline}
+.outline{list-style:none;margin:0;padding:0}
+.outline a{display:block;padding:6px 8px;border-radius:5px;color:var(--ui-ink);text-decoration:none;font-size:13px}
+.outline .l2 a{padding-left:28px;font-size:12.5px}
+.outline .on a{background:var(--ui-sel)}
+.outline .hn{color:var(--ui-mute);margin-right:8px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border:1px solid var(--ui-line);border-radius:8px;background:#fff;font-size:12px;cursor:pointer;text-align:center}
+.tile .ic{width:22px;height:22px}
+.tile.planned{opacity:.6}
+.tile .tag{margin:0}
+.layouts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lay{border:1px solid var(--ui-line);border-radius:6px;background:#fff;padding:5px;font-size:11px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.lay i{display:block;aspect-ratio:16/9;background:linear-gradient(var(--ui-line),var(--ui-line)) 10% 22%/60% 10% no-repeat,#f1f3f6;border-radius:3px}
+.lay.on{border-color:var(--ui-focus);box-shadow:0 0 0 2px rgba(37,99,235,.22)}
+
+/* floating settings pill (variant A, Slides and Text) */
+.pill{position:absolute;right:16px;bottom:16px;display:flex;align-items:center;gap:2px;padding:4px;background:#fff;border:1px solid var(--ui-line);border-radius:12px;box-shadow:0 4px 16px rgba(16,24,40,.14);z-index:25}
+.pill-sep{width:1px;height:20px;background:var(--ui-line);margin:0 4px}
+.pill-info{font-size:12px;color:var(--ui-mute);padding:0 6px;white-space:nowrap}
+body:not([data-panel=none]) .overlay-panels .pill{right:364px}
+
+/* side rail (variant C) */
+.rail{flex:none;width:64px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;background:var(--ui-bg);border-left:1px solid var(--ui-line)}
+.rb{display:flex;flex-direction:column;align-items:center;gap:3px;width:56px;padding:8px 0 6px;border:0;background:none;border-radius:8px;font-size:10.5px;color:var(--ui-mute);cursor:pointer}
+.rb .ic{width:20px;height:20px}
+.rb:hover{background:var(--ui-hover)}
+.rb[aria-pressed=true]{background:var(--ui-sel);color:#1e4f91}
+.rb.end{margin-top:auto}
+.r1.single{height:48px}
+
+/* tabbed ribbon (variant B) */
+.tabs{display:flex;gap:2px;margin-left:10px;align-self:stretch;align-items:flex-end;flex:none}
+.tabs [role=tab]{height:34px;padding:0 12px;border:0;background:none;border-bottom:2px solid transparent;font-size:13px;color:var(--ui-mute);cursor:pointer}
+.tabs [role=tab][aria-selected=true]{color:var(--ui-ink);border-bottom-color:var(--ui-focus);font-weight:600}
+.tabsel{display:none}
+.r2.ribbon{height:70px;background:var(--ui-bg);padding:0 4px}
+.rpanel{height:100%;display:flex;flex:1 1 auto;min-width:0}
+.rpanel[hidden]{display:none}
+.rgrp{display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6px 8px 3px;border-left:1px solid var(--ui-line);height:100%;flex:none}
+.rgrp:first-child{border-left:0}
+.gbody{display:flex;align-items:center;gap:2px;flex:1 1 auto}
+.cap{font-size:10px;color:var(--ui-mute);line-height:12px}
+.gsum{display:none}
+.minigal{display:flex;gap:4px}
+.mg{height:34px;min-width:76px;padding:0 8px;border:1px solid var(--ui-line);border-radius:4px;font-family:var(--doc-font);font-size:12px;cursor:pointer;color:var(--ink);background:var(--bg)}
+.mg.on{outline:2px solid var(--ui-focus);outline-offset:1px}
+.minigal.tx .mg{font-family:var(--doc-font)}
+.tg-h1{font-family:var(--font)!important;font-weight:700;color:var(--acc)!important;font-size:14px!important}
+.tg-h2{font-family:var(--font)!important;font-weight:700;color:var(--ink)!important}
+.tg-l{font-size:13.5px!important}
+.tg-q{font-style:italic;color:var(--t2)!important}
+.tg-c{background:var(--callout)!important;border-left:3px solid var(--acc)!important}
+.rtheme .themes{display:flex;gap:6px}
+.rtheme .theme-card{padding:5px 8px;gap:3px;min-width:84px}
+.rtheme .tc-note{display:none}
+.status{display:flex;align-items:center;gap:14px;height:30px;padding:0 6px 0 12px;background:var(--ui-bg2);border-top:1px solid var(--ui-line);font-size:12px;color:var(--ui-mute);flex:none}
+.status.data{padding:0;height:auto;display:block}
+.status.data .sheets{border-top:0}
+.si.mute{opacity:.85}
+.seg{display:inline-flex;border:1px solid var(--ui-line);border-radius:6px;overflow:hidden;background:#fff}
+.seg button{border:0;background:none;padding:3px 10px;font-size:12px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--ui-line)}
+.seg [aria-pressed=true]{background:var(--ui-sel);color:#1e4f91}
+
+/* ---------- Slides canvas ---------- */
+.thumbs{width:184px;flex:none;background:var(--ui-bg2);border-right:1px solid var(--ui-line);overflow:auto;padding:12px 8px;display:flex;flex-direction:column;gap:10px}
+.thumbs ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.thumb{display:flex;gap:6px;align-items:flex-start;border:0;background:none;padding:0;cursor:pointer;text-align:left}
+.thumb .num{width:14px;text-align:right;color:var(--ui-mute);font-size:11px;padding-top:2px}
+.mini{display:block;width:144px;aspect-ratio:16/9;background:var(--bg);border:1px solid #cfd6dc;border-radius:3px;padding:7px 8px;overflow:hidden;position:relative}
+.thumb.on .mini{border:2px solid var(--ui-focus)}
+.mn-t{display:block;font:700 6.5px/1.25 var(--font);color:var(--ink);max-width:90%}
+.mn-bars{position:absolute;left:8px;right:40px;bottom:8px;height:32px;display:flex;align-items:flex-end;gap:4px}
+.mn-bars b{flex:1;background:var(--mid)}.mn-bars b:nth-child(1){height:40%}.mn-bars b:nth-child(2){height:55%}.mn-bars b:nth-child(3){height:62%}.mn-bars b:nth-child(4){height:75%}.mn-bars b:nth-child(5){height:92%;background:var(--acc)}
+.mn-cover{position:absolute;inset:0;background:var(--acc);opacity:.92}
+
+.mini:has(.mn-cover) .mn-t{position:relative;z-index:1;color:var(--bg);margin-top:28px;font-size:8px}
+.mn-kpi{position:absolute;right:10px;bottom:10px;width:40px;height:24px;background:var(--tint);border-top:3px solid var(--acc)}
+.mn-lines{position:absolute;left:8px;right:30px;bottom:10px;height:22px;background:repeating-linear-gradient(var(--t2) 0 1px,transparent 1px 6px);opacity:.5}
+.thumbs .add{align-self:flex-start;margin-left:20px;border:1px dashed #c3ccd5;background:#fff}
+
+.c-slides{background:#e6e9ed;display:flex;align-items:center;justify-content:center;container-type:size;overflow:hidden}
+.stage-wrap{width:min(100cqw - 56px,(100cqh - 56px) * 16 / 9);container-type:inline-size}
+.slide{aspect-ratio:16/9;background:var(--bg);box-shadow:0 2px 10px rgba(0,0,0,.12);position:relative;padding:4cqw 5cqw;font-family:var(--doc-font);color:var(--ink);overflow:hidden}
+.sl-tracker{font:700 1.15cqw/1 var(--font);color:var(--acc);letter-spacing:.1em;text-transform:uppercase;margin:0}
+.sl-title{font-family:var(--font);font-size:2.75cqw;line-height:1.15;letter-spacing:-.035em;font-weight:700;margin:1cqw 0 2.4cqw;max-width:86%;color:var(--ink)}
+.sl-cols{display:grid;grid-template-columns:2fr 1fr;gap:3cqw;align-items:start}
+.sl-chart{margin:0;position:relative}
+.sl-chart figcaption{font-size:1.25cqw;font-weight:700;margin-bottom:.8cqw}
+.chart-svg{width:100%;height:auto;display:block}
+.ch-bar{fill:var(--mid)}.ch-hi{fill:var(--acc)}.ch-grid{stroke:var(--bd);stroke-width:1}.ch-axis{stroke:var(--t2);stroke-width:1}
+.ch-tick{font-size:11px;fill:var(--t2);font-family:var(--doc-font)}
+.sl-panel{background:var(--tint);padding:2.4cqw 2.2cqw;min-height:100%}
+.sl-kpi{font-family:var(--font);font-size:4.6cqw;font-weight:700;color:var(--acc);margin:0 0 1.6cqw;line-height:1}
+.sl-kpi small{display:block;font-family:var(--doc-font);font-size:1.25cqw;color:var(--t2);font-weight:400;margin-top:.7cqw}
+.sl-body{font-size:1.4cqw;line-height:1.45;margin:0}
+.sl-foot{position:absolute;left:5cqw;right:5cqw;bottom:2cqw;display:flex;justify-content:space-between;font-size:.95cqw;color:var(--t2);margin:0}
+.selected{outline:1.5px solid var(--ui-focus);outline-offset:.7cqw}
+.h{position:absolute;width:8px;height:8px;background:#fff;border:1.5px solid var(--ui-focus);border-radius:2px}
+.h1{left:calc(-.7cqw - 4px);top:calc(-.7cqw - 4px)}.h2{right:calc(-.7cqw - 4px);top:calc(-.7cqw - 4px)}.h3{left:calc(-.7cqw - 4px);bottom:calc(-.7cqw - 4px)}.h4{right:calc(-.7cqw - 4px);bottom:calc(-.7cqw - 4px)}
+
+/* ---------- Data canvas ---------- */
+.formula{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border-top:1px solid var(--ui-line);background:var(--ui-bg)}
+.namebox{display:inline-flex;align-items:center;justify-content:space-between;width:78px;height:26px;border:1px solid var(--ui-line);border-radius:5px;background:#fff;padding:0 4px 0 8px;font:600 12.5px ui-monospace,Menlo,monospace;cursor:pointer}
+.fx{font:italic 600 14px Georgia,serif;color:var(--ui-mute)}
+.fin{flex:1 1 auto;min-width:0}
+.fin input{width:100%;height:26px;border:1px solid var(--ui-line);border-radius:5px;padding:0 8px;font:12.5px ui-monospace,Menlo,monospace}
+.scen{display:flex;align-items:center;gap:6px;flex:none;font-size:12px;color:var(--ui-mute)}
+.scen select{height:26px;border:1px solid var(--ui-line);border-radius:5px;background:#fff;padding:0 6px;color:var(--ui-ink)}
+.calc{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#1F7A4D;flex:none;padding:0 4px}
+.calc .ic{width:15px;height:15px}
+.c-data{background:#fff;overflow:hidden}
+.grid-wrap{overflow:auto;height:100%}
+.grid{border-collapse:separate;border-spacing:0;font-family:var(--doc-font);font-size:var(--data-font-size);color:var(--ink)}
+.grid th{position:sticky;top:0;z-index:2;background:#f3f5f7;color:#5f6b75;font:500 11px system-ui,sans-serif;border-right:1px solid #dde2e7;border-bottom:1px solid #dde2e7;height:22px;min-width:92px}
+.grid th[scope=row]{left:0;z-index:1;min-width:40px;width:40px}
+.grid th.corner{left:0;z-index:3;min-width:40px}
+.grid th.hsel{background:#dfe8f8;color:#1d4ed8}
+.grid td{height:23px;padding:0 6px;border-right:1px solid #e8ebef;border-bottom:1px solid #e8ebef;white-space:nowrap;min-width:92px;max-width:140px;overflow:hidden}
+.grid td:nth-child(2){min-width:170px;max-width:none}
+.grid .num{text-align:right;font-variant-numeric:tabular-nums}
+.grid td.active{outline:2px solid #1a73e8;outline-offset:-2px}
+.cs-header{background:var(--ink);color:var(--bg);font-weight:700}
+.cs-title{color:var(--acc);font-weight:700}
+.cs-rowHeader{color:var(--row-label-ink);background:var(--row-label-bg)}
+.cs-assumption{background:var(--assumption-bg);color:var(--assumption-ink)}
+.cs-calculation{background:var(--calculation-bg)}
+.cs-output{font-weight:700;box-shadow:inset 0 0 0 1px var(--ink)}
+.cs-total{font-weight:700;border-top:1px solid var(--ink)!important;border-bottom:3px double var(--ink)!important}
+.cs-note{font-style:italic;color:var(--t2)}
+.cs-alert{font-weight:700;color:var(--alert)}
+.cs-hyperlink{color:var(--acc);text-decoration:underline}
+.grid td.cs-note{overflow:visible}
+
+.sheets{display:flex;align-items:center;gap:4px;height:36px;padding:0 8px;background:var(--ui-bg2);border-top:1px solid var(--ui-line);flex:none;min-width:0}
+.sg-list{display:flex;gap:12px;overflow-x:auto;flex:1 1 auto;min-width:0;scrollbar-width:none;height:100%;align-items:stretch}
+.sg{display:flex;align-items:stretch;gap:1px;flex:none}
+.sg-name{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ui-mute);background:none;border:0;padding:0 4px;cursor:pointer;align-self:center}
+.stab{padding:0 14px;border:1px solid transparent;border-top:0;border-radius:0 0 6px 6px;background:none;cursor:pointer;font-size:12.5px;margin-top:-1px}
+.stab[aria-pressed=true]{background:#fff;border-color:var(--ui-line);font-weight:600;box-shadow:inset 0 -2px 0 #1F7A4D}
+.sheet-select{display:none;height:28px;border:1px solid var(--ui-line);border-radius:6px;background:#fff;padding:0 6px}
+.stats{color:var(--ui-mute);font-size:12px;white-space:nowrap;padding:0 8px}
+.sheet-end{display:flex;align-items:center;border-left:1px solid var(--ui-line);padding-left:6px}
+
+/* ---------- Text canvas ---------- */
+.c-text{background:#e9ecef}
+.desk{padding:28px 24px 96px;display:flex;justify-content:center}
+.page{width:794px;max-width:100%;min-height:1123px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.14);padding:52px 76px;font-family:var(--doc-font);color:var(--ink);font-size:14.5px;line-height:1.55}
+.pg-run{display:flex;justify-content:space-between;font-size:10.5px;color:var(--t2);border-bottom:1px solid var(--bd);padding-bottom:6px;margin:0 0 26px}
+.tx-h1{font-family:var(--font);color:var(--acc);font-size:23px;letter-spacing:-.02em;margin:26px 0 10px;line-height:1.2}
+.tx-h2{font-family:var(--font);color:var(--ink);font-size:17px;margin:22px 0 8px}
+.hn{color:var(--t2);margin-right:12px;font-weight:600}
+.tx-lead{font-size:16.5px;line-height:1.5;margin:0 0 12px}
+.tx-body{margin:0 0 12px}
+mark.cm{background:rgba(245,213,71,.42);border-bottom:2px solid #E0B400;color:inherit}
+sup.fn{color:var(--acc);font-weight:700;font-size:.7em}
+a.xref{color:var(--acc)}
+.tx-callout{background:var(--callout);border-left:4px solid var(--acc);padding:12px 16px;margin:16px 0}
+.tx-cap{font-size:12.5px;font-weight:700;margin:20px 0 6px}
+.tx-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.tx-table th{background:var(--ink);color:var(--bg);text-align:left;padding:6px 10px;font-weight:700}
+.tx-table td{padding:5px 10px;border-bottom:1px solid var(--bd)}
+.tx-table .n{text-align:right;font-variant-numeric:tabular-nums}
+.tx-table tr.tot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:3px double var(--ink)}
+.tx-fig{margin:16px 0}
+.tx-fig figcaption{font-size:12.5px;color:var(--t2);margin-top:6px}
+
+/* ---------- narrow widths ---------- */
+@media (max-width:720px){
+  .only-narrow{display:inline-flex!important}
+  .menubar,.thumbs{display:none}
+  .title{max-width:44vw}
+  .acts .lbl{display:none}
+  .acts .b.t{padding:0 6px}
+  .r2{padding:0 2px}
+  .grp{padding:0 3px}
+  .ctx-chip{display:none}
+  .c-slides .stage-wrap{width:min(100cqw - 20px,(100cqh - 20px) * 16 / 9)}
+  .fx,.scen label,.calc .lbl{display:none}
+  .formula{gap:6px;padding:0 6px}
+  .namebox{width:62px}
+  .sg-list{display:none}
+  .sheet-select{display:block}
+  .sheets .stats{margin-left:auto}
+  .sheet-end{margin-left:auto}
+  .desk{padding:12px 10px 90px}
+  .page{padding:24px 20px;min-height:0;font-size:14px}
+  .tx-h1{font-size:20px}
+  /* panels become bottom sheets */
+  .panels{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:62dvh;border:1px solid var(--ui-line);border-radius:14px 14px 0 0;box-shadow:0 -10px 30px rgba(16,24,40,.2);z-index:60;overflow:hidden}
+  .overlay-panels .panels{top:auto;left:0;right:0;bottom:0;border-radius:14px 14px 0 0}
+  .ph{position:relative;padding-top:18px}
+  .ph::before{content:"";position:absolute;left:50%;top:7px;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:#cdd3da}
+  .pill{left:10px;right:10px;bottom:10px;justify-content:space-between}
+  body:not([data-panel=none]) .overlay-panels .pill{right:10px}
+  /* B: tab select and group summaries */
+  .tabs{display:none}
+  .tabsel{display:block;margin-left:4px}
+  .tabsel select{height:30px;border:1px solid var(--ui-line);border-radius:6px;background:#fff;padding:0 6px;font-weight:600}
+  .r2.ribbon{height:42px}
+  .rgrp{flex-direction:row;padding:0 2px;border-left:0}
+  .gbody,.cap{display:none}
+  .gsum{display:inline-flex}
+  .status{gap:8px}
+  .status .mute,.status .seg{display:none}
+  /* C: rail becomes a bottom bar */
+  .v-c .app{padding-bottom:58px}
+  .rail{position:fixed;left:0;right:0;bottom:0;width:auto;height:58px;flex-direction:row;justify-content:space-around;padding:0 4px;border-left:0;border-top:1px solid var(--ui-line);z-index:70}
+  .rb.end{margin-top:0}
+  .v-c .panels{bottom:58px;height:auto;top:96px;border-radius:14px 14px 0 0}
+  .v-c.p-data .panels{top:132px}
+  .v-c .ident .tt,.v-c .sep.tall{display:none}
+  .v-c .r1 .pick,.v-c .ovf{display:none!important}
+  .grid td:nth-child(2){min-width:124px}
+  /* Slides: thumbnails become a strip under the slide */
+  .p-slides .work{flex-direction:column}
+  .p-slides .thumbs{display:flex;order:2;flex-direction:row;align-items:center;width:auto;height:88px;padding:8px;border-right:0;border-top:1px solid var(--ui-line);overflow-x:auto;overflow-y:hidden;flex:none}
+  .p-slides .thumbs ol{flex-direction:row;gap:8px}
+  .p-slides .mini{width:104px;padding:5px 6px}
+  .p-slides .thumb .num{display:none}
+  .p-slides .thumbs .add{margin-left:0}
+  .p-slides .thumbs .add .lbl{display:none}
+  .v-a.p-slides .thumbs{margin-bottom:64px}
+  .c-slides{align-items:flex-start;padding-top:14px}
+  .p-slides .mn-bars{height:18px;bottom:5px}
+  .p-slides .mn-t{font-size:6px}
+}
+@media (max-width:420px){
+  .title{max-width:38vw}
+  .state{display:none}
+}
+@media print{
+  .top,.sheets,.status,.pill,.panels,.rail,.thumbs,.pop{display:none!important}
+  body,.app{height:auto;overflow:visible;background:#fff}
+  .canvas{overflow:visible}
+}
+/* Overflow of unwrapped text into empty neighbours (no merged cells). */
+.grid td.overflow{overflow:visible;position:relative}
+.grid td.overflow span{position:absolute;left:6px;top:0;line-height:23px;white-space:nowrap;z-index:1}
+.formula .itype{min-width:0;height:26px;font-size:12px}
+@media (max-width:720px){.formula .itype{display:none}}
+
+html[data-theme=blue]{--ink:#0B1C2C;--acc:#14517A;--mid:#4F7FA3;--lig:#AFC5D4;--alert:#C2521C;--tint:#ECEFF2;--callout:#E9EEF2;--bd:#D7DDE3;--t2:#5A6670}
+html[data-theme=red]{--ink:#2A1215;--acc:#A3192E;--mid:#CF5F6F;--lig:#EBB9C0;--alert:#B45309;--tint:#F8EEEF;--callout:#F5E7E9;--bd:#E6D3D6;--t2:#6E5A5D}
+html[data-theme=green]{--ink:#10241A;--acc:#1E6B47;--mid:#4F9A72;--lig:#B9D9C6;--alert:#C2521C;--tint:#EEF4F0;--callout:#E6F0EA;--bd:#D2E0D7;--t2:#56665C}
+html[data-theme=black]{--ink:#111111;--acc:#2B2B2B;--mid:#6E6E6E;--lig:#C4C4C4;--alert:#C62828;--tint:#F1F1F1;--callout:#ECECEC;--bd:#D9D9D9;--t2:#616161}
+.th-document{--t-bg:#FFFFFF;--t-ink:#1F1A33;--t-acc:#5B3B8C;--t-mid:#8E6BBF;--t-lig:#D3C4E8;--t-alert:#C2521C;--t-tint:#F3F0F8;--t-callout:#EEE8F6;--t-bd:#DCD5E6;--t-t2:#625A70}
+.th-blue{--t-ink:#0B1C2C;--t-acc:#14517A;--t-mid:#4F7FA3;--t-lig:#AFC5D4;--t-alert:#C2521C;--t-tint:#ECEFF2;--t-callout:#E9EEF2;--t-bd:#D7DDE3;--t-t2:#5A6670}
+.th-red{--t-ink:#2A1215;--t-acc:#A3192E;--t-mid:#CF5F6F;--t-lig:#EBB9C0;--t-alert:#B45309;--t-tint:#F8EEEF;--t-callout:#F5E7E9;--t-bd:#E6D3D6;--t-t2:#6E5A5D}
+.th-green{--t-ink:#10241A;--t-acc:#1E6B47;--t-mid:#4F9A72;--t-lig:#B9D9C6;--t-alert:#C2521C;--t-tint:#EEF4F0;--t-callout:#E6F0EA;--t-bd:#D2E0D7;--t-t2:#56665C}
+.th-black{--t-ink:#111111;--t-acc:#2B2B2B;--t-mid:#6E6E6E;--t-lig:#C4C4C4;--t-alert:#C62828;--t-tint:#F1F1F1;--t-callout:#ECECEC;--t-bd:#D9D9D9;--t-t2:#616161}
+html[data-font=arial]{--doc-font:Arial, Helvetica, sans-serif}
+html[data-font=verdana]{--doc-font:Verdana, Geneva, sans-serif}
+html[data-font=tahoma]{--doc-font:Tahoma, Verdana, sans-serif}
+html[data-font=trebuchet]{--doc-font:"Trebuchet MS", Helvetica, sans-serif}
+html[data-font=georgia]{--doc-font:Georgia, "Times New Roman", serif}
+html[data-font=times]{--doc-font:"Times New Roman", Times, serif}</style></head>
+<body class="v-b p-data" data-variant="b" data-default="styles" data-tab="home" data-panel="none">
+<div class="app ">
+<header class="top"><div class="row r1"><div class="ident"><span class="mark mk-data" aria-hidden="true">D</span><div class="tt"><span class="title" title="Community Learning — fictional 24-month P&amp;L">Community Learning — fictional 24-month P&amp;L</span><span class="state" role="status">Saved</span></div></div><div class="tabs" role="tablist" aria-label="Ribbon"><button type="button" role="tab" id="tab-home" data-tab="home" aria-controls="rp-home" aria-selected="true" tabindex="0">Home</button><button type="button" role="tab" id="tab-insert" data-tab="insert" aria-controls="rp-insert" aria-selected="false" tabindex="-1">Insert</button><button type="button" role="tab" id="tab-data" data-tab="data" aria-controls="rp-data" aria-selected="false" tabindex="-1">Data</button><button type="button" role="tab" id="tab-document" data-tab="document" aria-controls="rp-document" aria-selected="false" tabindex="-1">Document</button><button type="button" role="tab" id="tab-view" data-tab="view" aria-controls="rp-view" aria-selected="false" tabindex="-1">View</button></div><label class="tabsel"><span class="vh">Ribbon tab</span><select data-tab-select><option value="home" selected>Home</option><option value="insert">Insert</option><option value="data">Data</option><option value="document">Document</option><option value="view">View</option></select></label><span class="spacer"></span><div class="acts"><button type="button" class="b " title="Undo (Cmd+Z)" aria-label="Undo" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7 5 3 9l4 4"/><path d="M3 9h9a4 4 0 0 1 0 8H9"/></svg></button><button type="button" class="b " title="Redo (Cmd+Shift+Z)" aria-label="Redo" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m13 5 4 4-4 4"/><path d="M17 9H8a4 4 0 0 0 0 8h3"/></svg></button><button type="button" class="b primary t" title="Save (Cmd+S)" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4 3.5h9.5l2.5 2.5v10.5H4z"/><path d="M7 3.5v3.5h5.5V3.5"/><rect x="6.5" y="11" width="7" height="5.5"/></svg><span class="lbl">Save</span></button></div></div><div class="row r2 ribbon"><div class="rpanel" role="tabpanel" id="rp-home" aria-labelledby="tab-home"><div class="tbar" role="toolbar" aria-label="Home commands"><button type="button" class="ovf ovl" aria-label="Scroll toolbar left" tabindex="-1">‹</button><div class="tscroll"><div class="rgrp" role="group" aria-label="Clipboard"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Clipboard</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Paste table" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="4" width="14" height="12" rx="1"/><path d="M3 8h14M3 12h14M8 4v12"/></svg><span class="lbl">Paste table</span></button><button type="button" class="b " title="Fill down" aria-label="Fill down" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3.5v9.5M6 9.5l4 4 4-4M4 16.5h12"/></svg></button><button type="button" class="b " title="Fill right" aria-label="Fill right" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8 5h9M8 10h9M8 15h9"/><path d="m3.5 7.5 2.5 2.5-2.5 2.5"/></svg></button><button type="button" class="b " title="Copy style" aria-label="Copy style" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="4" y="3" width="10" height="5" rx="1"/><path d="M14 5.5h2v4h-6v3"/><rect x="9" y="12.5" width="2" height="5" rx=".5"/></svg></button><button type="button" class="b " title="Clear formatting" aria-label="Clear formatting" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 13 7-7 5 5-5 5H7z"/><path d="M9 16.5h8"/><path d="m7.5 9.5 5 5"/></svg></button></div><span class="cap">Clipboard</span></div><div class="rgrp" role="group" aria-label="Font"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Font</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b " title="Bold" aria-label="Bold" ><span class="g"><b>B</b></span></button><button type="button" class="b " title="Italic" aria-label="Italic" ><span class="g"><i>I</i></span></button><span class="mw"><button type="button" class="b colour k-color dd" title="Text colour" aria-label="Text colour" data-menu="pop-color" aria-haspopup="true" aria-expanded="false" ><span class="g"><span class="Aglyph">A</span></span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span><span class="mw"><button type="button" class="b colour k-fill dd" title="Fill colour" aria-label="Fill colour" data-menu="pop-fill" aria-haspopup="true" aria-expanded="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 9 5-5 6 6-5 5z"/><path d="M16.5 12.5c.8 1.2 1.2 2 1.2 2.5a1.2 1.2 0 0 1-2.4 0c0-.5.4-1.3 1.2-2.5z"/></svg><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span><button type="button" class="b  dd" title="Borders" aria-label="Borders" data-menu="m-borders" aria-haspopup="true" aria-expanded="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="13" height="13" rx="1"/><path d="M10 3.5v13M3.5 10h13" stroke-dasharray="1.5 1.8"/></svg><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></div><span class="cap">Font</span></div><div class="rgrp" role="group" aria-label="Alignment"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Alignment</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b " title="Align left" aria-label="Align left" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5h14M3 9h9M3 13h14M3 17h9"/></svg></button><button type="button" class="b " title="Centre" aria-label="Centre" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5h14M5.5 9h9M3 13h14M5.5 17h9"/></svg></button><button type="button" class="b " title="Align right" aria-label="Align right" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5h14M8 9h9M3 13h14M8 17h9"/></svg></button><button type="button" class="b " title="Centre across selection" aria-label="Centre across selection" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M2.5 4v12M17.5 4v12"/><path d="M5 10h10"/><path d="m7 7.5-2.5 2.5L7 12.5M13 7.5l2.5 2.5-2.5 2.5"/></svg></button><button type="button" class="b " title="Wrap text" aria-label="Wrap text" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5h14"/><path d="M3 10h11a2.8 2.8 0 0 1 0 5.6H10"/><path d="m11.5 13.8-1.8 1.8 1.8 1.8"/><path d="M3 15.5h4"/></svg></button></div><span class="cap">Alignment</span></div><div class="rgrp" role="group" aria-label="Number"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Number</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><span class="mw"><button type="button" class="b pick " style="min-width:92px" aria-label="Number format: Currency" title="Number format" data-menu="m-numfmt" aria-haspopup="true" aria-expanded="false"><span class="lbl">Currency</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span><button type="button" class="b " title="Currency" aria-label="Currency" ><span class="g">€</span></button><button type="button" class="b " title="Percent" aria-label="Percent" ><span class="g">%</span></button><button type="button" class="b " title="Fewer decimals" aria-label="Fewer decimals" ><span class="g">.0<sub>←</sub></span></button><button type="button" class="b " title="More decimals" aria-label="More decimals" ><span class="g">.00<sub>→</sub></span></button></div><span class="cap">Number</span></div><div class="rgrp" role="group" aria-label="Styles"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Styles</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><div class="minigal"><button type="button" class="mg cs-header" aria-pressed="false" title="header">Header</button><button type="button" class="mg cs-rowHeader" aria-pressed="false" title="rowHeader">Row label</button><button type="button" class="mg cs-assumption" aria-pressed="false" title="assumption">Assumption</button><button type="button" class="mg cs-calculation on" aria-pressed="true" title="calculation">Calculation</button><button type="button" class="mg cs-total" aria-pressed="false" title="total">Total</button></div><button type="button" class="b " title="All cell styles" aria-label="All cell styles" data-panel="styles" aria-pressed="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1" fill="currentColor"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1" fill="currentColor" opacity=".45"/><rect x="11" y="11" width="5.5" height="5.5" rx="1"/></svg></button></div><span class="cap">Styles</span></div><div class="rgrp" role="group" aria-label="Cells"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Cells</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t dd" title="Insert" data-menu="m-insert" aria-haspopup="true" aria-expanded="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M10 12.5v5M7.5 15h5"/></svg><span class="lbl">Insert</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><button type="button" class="b  t dd" title="Delete" data-menu="m-delete" aria-haspopup="true" aria-expanded="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M7.5 15h5"/></svg><span class="lbl">Delete</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></div><span class="cap">Cells</span></div></div><button type="button" class="ovf ovr" aria-label="Scroll toolbar right" tabindex="-1">›</button></div></div><div class="rpanel" role="tabpanel" id="rp-insert" aria-labelledby="tab-insert" hidden><div class="tbar" role="toolbar" aria-label="Insert commands"><button type="button" class="ovf ovl" aria-label="Scroll toolbar left" tabindex="-1">‹</button><div class="tscroll"><div class="rgrp" role="group" aria-label="Insert"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Insert</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Rows" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M10 12.5v5M7.5 15h5"/></svg><span class="lbl">Rows</span></button><button type="button" class="b  t" title="Columns" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.5" y="3" width="6" height="14" rx="1"/><path d="M12.5 10h5M15 7.5v5"/></svg><span class="lbl">Columns</span></button><button type="button" class="b  t" title="Sheet" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5.5h14v11H3z"/><path d="M3 9h14M8 5.5v11"/></svg><span class="lbl">Sheet</span></button><button type="button" class="b  t planned" title="Link · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m8.2 11.8 3.6-3.6"/><path d="m9 6.3 1.3-1.3a3.2 3.2 0 0 1 4.6 4.6l-1.3 1.3"/><path d="m11 13.7-1.3 1.3a3.2 3.2 0 0 1-4.6-4.6l1.3-1.3"/></svg><span class="lbl">Link</span></button><button type="button" class="b  t planned" title="Chart · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 16.5h14"/><path d="M5 15V10M8.5 15V6M12 15v-4M15.5 15V7.5" stroke-width="2.2"/></svg><span class="lbl">Chart</span></button><button type="button" class="b  t planned" title="Pivot · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="3" width="14" height="14" rx="1"/><path d="M3 7.5h14M7.5 3v14"/><path d="m11 10.5 2 2 2-2"/></svg><span class="lbl">Pivot</span></button></div><span class="cap">Insert</span></div></div><button type="button" class="ovf ovr" aria-label="Scroll toolbar right" tabindex="-1">›</button></div></div><div class="rpanel" role="tabpanel" id="rp-data" aria-labelledby="tab-data" hidden><div class="tbar" role="toolbar" aria-label="Data commands"><button type="button" class="ovf ovl" aria-label="Scroll toolbar left" tabindex="-1">‹</button><div class="tscroll"><div class="rgrp" role="group" aria-label="Calculate"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Calculate</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Recalculate" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M15.8 9.5A6 6 0 1 1 13.5 5"/><path d="M15.8 3.5v3.3h-3.3"/></svg><span class="lbl">Recalculate</span></button><button type="button" class="b " title="Cancel calculation" aria-label="Cancel calculation" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15"/></svg></button><button type="button" class="b " title="Retry pending range" aria-label="Retry pending range" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M4.5 9.5A5.5 5.5 0 1 0 6.2 5.6"/><path d="M4.2 3.5v3.3h3.3"/></svg></button><span class="mw"><button type="button" class="b pick "  aria-label="Scenario: Scenario: Base" title="Scenario" data-menu="m-scenario" aria-haspopup="true" aria-expanded="false"><span class="lbl">Scenario: Base</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span></div><span class="cap">Calculate</span></div><div class="rgrp" role="group" aria-label="Rules"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Rules</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Dropdowns…" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="6" width="14" height="8" rx="1.5"/><path d="m11.5 9 1.5 1.5L14.5 9"/></svg><span class="lbl">Dropdowns…</span></button><button type="button" class="b  t" title="Conditional…" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="3.5" width="14" height="13" rx="1"/><path d="M6 13V9.5M9 13V7M12 13v-2M15 13V8" stroke-width="2"/></svg><span class="lbl">Conditional…</span></button></div><span class="cap">Rules</span></div><div class="rgrp" role="group" aria-label="Sheets"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Sheets</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Manage sheets…" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3 5.5h14v11H3z"/><path d="M3 9h14M8 5.5v11"/></svg><span class="lbl">Manage sheets…</span></button></div><span class="cap">Sheets</span></div><div class="rgrp" role="group" aria-label="Sources"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Sources</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t planned" title="Import · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 13.5V4M6 8l4-4 4 4M4 16.5h12"/></svg><span class="lbl">Import</span></button><button type="button" class="b  t planned" title="Refresh · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M15.8 9.5A6 6 0 1 1 13.5 5"/><path d="M15.8 3.5v3.3h-3.3"/></svg><span class="lbl">Refresh</span></button></div><span class="cap">Sources</span></div></div><button type="button" class="ovf ovr" aria-label="Scroll toolbar right" tabindex="-1">›</button></div></div><div class="rpanel" role="tabpanel" id="rp-document" aria-labelledby="tab-document" hidden><div class="tbar" role="toolbar" aria-label="Document commands"><button type="button" class="ovf ovl" aria-label="Scroll toolbar left" tabindex="-1">‹</button><div class="tscroll"><div class="rgrp" role="group" aria-label="Theme"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Theme</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><div class="rtheme"><div class="themes" role="radiogroup" aria-label="Theme"><button type="button" role="radio" class="theme-card" data-set-theme="document" aria-checked="true" title="Document charte"><span class="tc-dots th-document"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Document charte</span><span class="tc-note">Community Learning</span></button><button type="button" role="radio" class="theme-card" data-set-theme="blue" aria-checked="false" title="Blue"><span class="tc-dots th-blue"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Blue</span><span class="tc-note">Default</span></button><button type="button" role="radio" class="theme-card" data-set-theme="red" aria-checked="false" title="Red"><span class="tc-dots th-red"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Red</span></button><button type="button" role="radio" class="theme-card" data-set-theme="green" aria-checked="false" title="Green"><span class="tc-dots th-green"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Green</span></button><button type="button" role="radio" class="theme-card" data-set-theme="black" aria-checked="false" title="Black"><span class="tc-dots th-black"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Black</span><span class="tc-note">Greyscale + alert</span></button></div></div></div><span class="cap">Theme</span></div><div class="rgrp" role="group" aria-label="Font"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Font</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><label class="fsel"><span class="vh">Document font</span><select data-font-select aria-label="Document font"><option value="arial">Arial (default)</option><option value="verdana">Verdana</option><option value="tahoma">Tahoma</option><option value="trebuchet">Trebuchet MS</option><option value="georgia">Georgia</option><option value="times">Times New Roman</option></select></label></div><span class="cap">Font</span></div><div class="rgrp" role="group" aria-label="Regional"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Regional</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><span class="mw"><button type="button" class="b pick "  aria-label="Locale: English (US)" title="Locale" data-menu="m-locale" aria-haspopup="true" aria-expanded="false"><span class="lbl">English (US)</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span><button type="button" class="b  t" title="More…" data-panel="regional" aria-pressed="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="7"/><path d="M3 10h14"/><path d="M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3z"/></svg><span class="lbl">More…</span></button></div><span class="cap">Regional</span></div></div><button type="button" class="ovf ovr" aria-label="Scroll toolbar right" tabindex="-1">›</button></div></div><div class="rpanel" role="tabpanel" id="rp-view" aria-labelledby="tab-view" hidden><div class="tbar" role="toolbar" aria-label="View commands"><button type="button" class="ovf ovl" aria-label="Scroll toolbar left" tabindex="-1">‹</button><div class="tscroll"><div class="rgrp" role="group" aria-label="Show"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Show</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t planned" title="Grid lines · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="13" height="13"/><path d="M3.5 8h13M3.5 12.3h13M8 3.5v13M12.3 3.5v13"/></svg><span class="lbl">Grid lines</span></button><button type="button" class="b  t" title="Formula bar" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M9.5 4.3c-1.6-.5-2.8.3-3.1 1.9L4.6 16"/><path d="M3.8 9h5"/><path d="m11 9 5.5 6.5M16.5 9 11 15.5"/></svg><span class="lbl">Formula bar</span></button></div><span class="cap">Show</span></div><div class="rgrp" role="group" aria-label="Output"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Output</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t planned" title="PNG · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3.5v9.5M6 9.5l4 4 4-4M4 16.5h12"/></svg><span class="lbl">PNG</span></button><button type="button" class="b  t planned" title="CSV · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 3.5v9.5M6 9.5l4 4 4-4M4 16.5h12"/></svg><span class="lbl">CSV</span></button><button type="button" class="b  t planned" title="Print / PDF · planned" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M6 7.5V3.5h8v4"/><rect x="3" y="7.5" width="14" height="6.5" rx="1"/><path d="M6 11.5h8v5H6z"/></svg><span class="lbl">Print / PDF</span></button></div><span class="cap">Output</span></div><div class="rgrp" role="group" aria-label="Help"><button type="button" class="b t gsum" data-menu="m-more" aria-haspopup="true" aria-expanded="false"><span class="lbl">Help</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button><div class="gbody"><button type="button" class="b  t" title="Shortcuts" data-panel="help" aria-pressed="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="7"/><path d="M8 8a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3v.4"/><path d="M10 14.2v.1"/></svg><span class="lbl">Shortcuts</span></button></div><span class="cap">Help</span></div></div><button type="button" class="ovf ovr" aria-label="Scroll toolbar right" tabindex="-1">›</button></div></div></div><div class="formula" role="group" aria-label="Formula bar">
+<span class="mw"><button type="button" class="namebox" aria-label="Cell address C4" data-menu="m-goto" aria-haspopup="true" aria-expanded="false">C4<svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span>
+<span class="fx" aria-hidden="true">fx</span>
+<span class="mw"><button type="button" class="b pick itype" aria-label="Input type: Formula" title="Input type" data-menu="m-itype" aria-haspopup="true" aria-expanded="false"><span class="lbl">Formula</span><svg class="ic car" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m6 8 4 4 4-4"/></svg></button></span>
+<label class="fin"><span class="vh">Cell value</span><input value="=C3*Inputs!$B$3" spellcheck="false"></label>
+<span class="scen"><label for="scen">Scenario</label><select id="scen"><option>Base</option><option>Upside</option><option>Downside</option></select></span>
+<span class="calc ok" role="status" title="Results are current"><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4.5 10.5 3.5 3.5 7.5-8"/></svg><span class="lbl">Calculated</span></span>
+</div></header>
+<div class="work"><main class="canvas c-data" aria-label="Workbook"><div class="grid-wrap" tabindex="0" role="region" aria-label="Calculations sheet grid"><table class="grid"><thead><tr><th class="corner" aria-label="Select all"></th><th scope="col" class="">A</th><th scope="col" class="">B</th><th scope="col" class="hsel">C</th><th scope="col" class="">D</th><th scope="col" class="">E</th><th scope="col" class="">F</th><th scope="col" class="">G</th><th scope="col" class="">H</th><th scope="col" class="">I</th><th scope="col" class="">J</th><th scope="col" class="">K</th><th scope="col" class="">L</th><th scope="col" class="">M</th><th scope="col" class="">N</th><th scope="col" class="">O</th><th scope="col" class="">P</th><th scope="col" class="">Q</th><th scope="col" class="">R</th><th scope="col" class="">S</th><th scope="col" class="">T</th><th scope="col" class="">U</th><th scope="col" class="">V</th><th scope="col" class="">W</th><th scope="col" class="">X</th><th scope="col" class="">Y</th></tr></thead><tbody><tr><th scope="row">1</th><td class="cs-header">Monthly P&amp;L</td><td class="cs-header num">Actual 1</td><td class="cs-header num">Actual 2</td><td class="cs-header num">Actual 3</td><td class="cs-header num">Actual 4</td><td class="cs-header num">Actual 5</td><td class="cs-header num">Actual 6</td><td class="cs-header num">Actual 7</td><td class="cs-header num">Actual 8</td><td class="cs-header num">Actual 9</td><td class="cs-header num">Actual 10</td><td class="cs-header num">Actual 11</td><td class="cs-header num">Actual 12</td><td class="cs-header num">Forecast 1</td><td class="cs-header num">Forecast 2</td><td class="cs-header num">Forecast 3</td><td class="cs-header num">Forecast 4</td><td class="cs-header num">Forecast 5</td><td class="cs-header num">Forecast 6</td><td class="cs-header num">Forecast 7</td><td class="cs-header num">Forecast 8</td><td class="cs-header num">Forecast 9</td><td class="cs-header num">Forecast 10</td><td class="cs-header num">Forecast 11</td><td class="cs-header num">Forecast 12</td></tr><tr><th scope="row" class="">2</th><td class="cs-rowHeader">Period</td><td class="num cs-normal">1</td><td class="num cs-normal">2</td><td class="num cs-normal">3</td><td class="num cs-normal">4</td><td class="num cs-normal">5</td><td class="num cs-normal">6</td><td class="num cs-normal">7</td><td class="num cs-normal">8</td><td class="num cs-normal">9</td><td class="num cs-normal">10</td><td class="num cs-normal">11</td><td class="num cs-normal">12</td><td class="num cs-normal">13</td><td class="num cs-normal">14</td><td class="num cs-normal">15</td><td class="num cs-normal">16</td><td class="num cs-normal">17</td><td class="num cs-normal">18</td><td class="num cs-normal">19</td><td class="num cs-normal">20</td><td class="num cs-normal">21</td><td class="num cs-normal">22</td><td class="num cs-normal">23</td><td class="num cs-normal">24</td></tr><tr><th scope="row" class="">3</th><td class="cs-rowHeader">Participants</td><td class="num cs-calculation">100</td><td class="num cs-calculation">105</td><td class="num cs-calculation">110</td><td class="num cs-calculation">115</td><td class="num cs-calculation">120</td><td class="num cs-calculation">125</td><td class="num cs-calculation">130</td><td class="num cs-calculation">135</td><td class="num cs-calculation">140</td><td class="num cs-calculation">145</td><td class="num cs-calculation">150</td><td class="num cs-calculation">155</td><td class="num cs-calculation">158</td><td class="num cs-calculation">161</td><td class="num cs-calculation">164</td><td class="num cs-calculation">168</td><td class="num cs-calculation">171</td><td class="num cs-calculation">175</td><td class="num cs-calculation">178</td><td class="num cs-calculation">182</td><td class="num cs-calculation">185</td><td class="num cs-calculation">189</td><td class="num cs-calculation">193</td><td class="num cs-calculation">197</td></tr><tr><th scope="row" class="hsel">4</th><td class="cs-rowHeader">Revenue</td><td class="num cs-calculation">€2,500</td><td class="num cs-calculation active">€2,625</td><td class="num cs-calculation">€2,750</td><td class="num cs-calculation">€2,875</td><td class="num cs-calculation">€3,000</td><td class="num cs-calculation">€3,125</td><td class="num cs-calculation">€3,250</td><td class="num cs-calculation">€3,375</td><td class="num cs-calculation">€3,500</td><td class="num cs-calculation">€3,625</td><td class="num cs-calculation">€3,750</td><td class="num cs-calculation">€3,875</td><td class="num cs-calculation">€3,953</td><td class="num cs-calculation">€4,032</td><td class="num cs-calculation">€4,112</td><td class="num cs-calculation">€4,194</td><td class="num cs-calculation">€4,278</td><td class="num cs-calculation">€4,364</td><td class="num cs-calculation">€4,451</td><td class="num cs-calculation">€4,540</td><td class="num cs-calculation">€4,631</td><td class="num cs-calculation">€4,724</td><td class="num cs-calculation">€4,818</td><td class="num cs-calculation">€4,914</td></tr><tr><th scope="row" class="">5</th><td class="cs-rowHeader">Variable costs</td><td class="num cs-calculation">€800</td><td class="num cs-calculation">€840</td><td class="num cs-calculation">€880</td><td class="num cs-calculation">€920</td><td class="num cs-calculation">€960</td><td class="num cs-calculation">€1,000</td><td class="num cs-calculation">€1,040</td><td class="num cs-calculation">€1,080</td><td class="num cs-calculation">€1,120</td><td class="num cs-calculation">€1,160</td><td class="num cs-calculation">€1,200</td><td class="num cs-calculation">€1,240</td><td class="num cs-calculation">€1,265</td><td class="num cs-calculation">€1,290</td><td class="num cs-calculation">€1,316</td><td class="num cs-calculation">€1,342</td><td class="num cs-calculation">€1,369</td><td class="num cs-calculation">€1,396</td><td class="num cs-calculation">€1,424</td><td class="num cs-calculation">€1,453</td><td class="num cs-calculation">€1,482</td><td class="num cs-calculation">€1,512</td><td class="num cs-calculation">€1,542</td><td class="num cs-calculation">€1,573</td></tr><tr><th scope="row" class="">6</th><td class="cs-rowHeader">Contribution</td><td class="num cs-calculation">€1,700</td><td class="num cs-calculation">€1,785</td><td class="num cs-calculation">€1,870</td><td class="num cs-calculation">€1,955</td><td class="num cs-calculation">€2,040</td><td class="num cs-calculation">€2,125</td><td class="num cs-calculation">€2,210</td><td class="num cs-calculation">€2,295</td><td class="num cs-calculation">€2,380</td><td class="num cs-calculation">€2,465</td><td class="num cs-calculation">€2,550</td><td class="num cs-calculation">€2,635</td><td class="num cs-calculation">€2,688</td><td class="num cs-calculation">€2,741</td><td class="num cs-calculation">€2,796</td><td class="num cs-calculation">€2,852</td><td class="num cs-calculation">€2,909</td><td class="num cs-calculation">€2,967</td><td class="num cs-calculation">€3,027</td><td class="num cs-calculation">€3,087</td><td class="num cs-calculation">€3,149</td><td class="num cs-calculation">€3,212</td><td class="num cs-calculation">€3,276</td><td class="num cs-calculation">€3,342</td></tr><tr><th scope="row" class="">7</th><td class="cs-rowHeader">Fixed costs</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td><td class="num cs-calculation">€1,500</td></tr><tr><th scope="row" class="">8</th><td class="cs-rowHeader">Operating profit</td><td class="num cs-output">€200</td><td class="num cs-output">€285</td><td class="num cs-output">€370</td><td class="num cs-output">€455</td><td class="num cs-output">€540</td><td class="num cs-output">€625</td><td class="num cs-output">€710</td><td class="num cs-output">€795</td><td class="num cs-output">€880</td><td class="num cs-output">€965</td><td class="num cs-output">€1,050</td><td class="num cs-output">€1,135</td><td class="num cs-output">€1,188</td><td class="num cs-output">€1,241</td><td class="num cs-output">€1,296</td><td class="num cs-output">€1,352</td><td class="num cs-output">€1,409</td><td class="num cs-output">€1,467</td><td class="num cs-output">€1,527</td><td class="num cs-output">€1,587</td><td class="num cs-output">€1,649</td><td class="num cs-output">€1,712</td><td class="num cs-output">€1,776</td><td class="num cs-output">€1,842</td></tr><tr><th scope="row" class="">9</th><td class="cs-rowHeader">Tax</td><td class="num cs-calculation">€40</td><td class="num cs-calculation">€57</td><td class="num cs-calculation">€74</td><td class="num cs-calculation">€91</td><td class="num cs-calculation">€108</td><td class="num cs-calculation">€125</td><td class="num cs-calculation">€142</td><td class="num cs-calculation">€159</td><td class="num cs-calculation">€176</td><td class="num cs-calculation">€193</td><td class="num cs-calculation">€210</td><td class="num cs-calculation">€227</td><td class="num cs-calculation">€238</td><td class="num cs-calculation">€248</td><td class="num cs-calculation">€259</td><td class="num cs-calculation">€270</td><td class="num cs-calculation">€282</td><td class="num cs-calculation">€293</td><td class="num cs-calculation">€305</td><td class="num cs-calculation">€317</td><td class="num cs-calculation">€330</td><td class="num cs-calculation">€342</td><td class="num cs-calculation">€355</td><td class="num cs-calculation">€368</td></tr><tr><th scope="row" class="">10</th><td class="cs-rowHeader">Net income</td><td class="num cs-total">€160</td><td class="num cs-total">€228</td><td class="num cs-total">€296</td><td class="num cs-total">€364</td><td class="num cs-total">€432</td><td class="num cs-total">€500</td><td class="num cs-total">€568</td><td class="num cs-total">€636</td><td class="num cs-total">€704</td><td class="num cs-total">€772</td><td class="num cs-total">€840</td><td class="num cs-total">€908</td><td class="num cs-total">€950</td><td class="num cs-total">€993</td><td class="num cs-total">€1,037</td><td class="num cs-total">€1,082</td><td class="num cs-total">€1,127</td><td class="num cs-total">€1,174</td><td class="num cs-total">€1,221</td><td class="num cs-total">€1,270</td><td class="num cs-total">€1,319</td><td class="num cs-total">€1,370</td><td class="num cs-total">€1,421</td><td class="num cs-total">€1,473</td></tr><tr><th scope="row" class="">11</th><td class="cs-rowHeader">Operating margin</td><td class="num cs-calculation">8.0%</td><td class="num cs-calculation">10.9%</td><td class="num cs-calculation">13.5%</td><td class="num cs-calculation">15.8%</td><td class="num cs-calculation">18.0%</td><td class="num cs-calculation">20.0%</td><td class="num cs-calculation">21.8%</td><td class="num cs-calculation">23.6%</td><td class="num cs-calculation">25.1%</td><td class="num cs-calculation">26.6%</td><td class="num cs-calculation">28.0%</td><td class="num cs-calculation">29.3%</td><td class="num cs-calculation">30.0%</td><td class="num cs-calculation">30.8%</td><td class="num cs-calculation">31.5%</td><td class="num cs-calculation">32.2%</td><td class="num cs-calculation">32.9%</td><td class="num cs-calculation">33.6%</td><td class="num cs-calculation">34.3%</td><td class="num cs-calculation">35.0%</td><td class="num cs-calculation">35.6%</td><td class="num cs-calculation">36.2%</td><td class="num cs-calculation">36.9%</td><td class="num cs-calculation">37.5%</td></tr><tr><th scope="row" class="">12</th><td class="cs-rowHeader">Operating cash flow</td><td class="num cs-calculation">€160</td><td class="num cs-calculation">€228</td><td class="num cs-calculation">€296</td><td class="num cs-calculation">€364</td><td class="num cs-calculation">€432</td><td class="num cs-calculation">€500</td><td class="num cs-calculation">€568</td><td class="num cs-calculation">€636</td><td class="num cs-calculation">€704</td><td class="num cs-calculation">€772</td><td class="num cs-calculation">€840</td><td class="num cs-calculation">€908</td><td class="num cs-calculation">€950</td><td class="num cs-calculation">€993</td><td class="num cs-calculation">€1,037</td><td class="num cs-calculation">€1,082</td><td class="num cs-calculation">€1,127</td><td class="num cs-calculation">€1,174</td><td class="num cs-calculation">€1,221</td><td class="num cs-calculation">€1,270</td><td class="num cs-calculation">€1,319</td><td class="num cs-calculation">€1,370</td><td class="num cs-calculation">€1,421</td><td class="num cs-calculation">€1,473</td></tr><tr><th scope="row">13</th><td class="cs-note overflow"><span>Forecast months grow participants by the Inputs!B2 rate.</span></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">14</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">15</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">16</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">17</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">18</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">19</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">20</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">21</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">22</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">23</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">24</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">25</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">26</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">27</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">28</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">29</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">30</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">31</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">32</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">33</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">34</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">35</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">36</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">37</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">38</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">39</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">40</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">41</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">42</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">43</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><th scope="row">44</th><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></div></main><aside class="panels" aria-label="Side panel"><section class="panel" id="panel-settings" data-for="settings" role="region" aria-labelledby="ph-settings">
+<header class="ph"><div><h2 id="ph-settings">Document settings</h2><p>Saved in this file</p></div><button type="button" class="b sm" title="Close Document settings" aria-label="Close Document settings" data-close><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><div class="pb"><h3>Theme</h3><div class="themes" role="radiogroup" aria-label="Theme"><button type="button" role="radio" class="theme-card" data-set-theme="document" aria-checked="true" title="Document charte"><span class="tc-dots th-document"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Document charte</span><span class="tc-note">Community Learning</span></button><button type="button" role="radio" class="theme-card" data-set-theme="blue" aria-checked="false" title="Blue"><span class="tc-dots th-blue"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Blue</span><span class="tc-note">Default</span></button><button type="button" role="radio" class="theme-card" data-set-theme="red" aria-checked="false" title="Red"><span class="tc-dots th-red"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Red</span></button><button type="button" role="radio" class="theme-card" data-set-theme="green" aria-checked="false" title="Green"><span class="tc-dots th-green"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Green</span></button><button type="button" role="radio" class="theme-card" data-set-theme="black" aria-checked="false" title="Black"><span class="tc-dots th-black"><i class="d1"></i><i class="d2"></i><i class="d3"></i><i class="d4"></i><i class="d5"></i></span><span class="tc-name">Black</span><span class="tc-note">Greyscale + alert</span></button></div><p class="hint">Built-in chartes are placeholders until T01. The document charte is never overwritten; switching is undoable.</p>
+<h3>Font</h3><div class="fonts" role="radiogroup" aria-label="Document font"><button type="button" role="radio" class="font-row ff-arial" data-set-font="arial" aria-checked="true"><span>Arial</span><em class="tag">default</em><span class="aa">Aa 1,234</span></button><button type="button" role="radio" class="font-row ff-verdana" data-set-font="verdana" aria-checked="false"><span>Verdana</span><span class="aa">Aa 1,234</span></button><button type="button" role="radio" class="font-row ff-tahoma" data-set-font="tahoma" aria-checked="false"><span>Tahoma</span><span class="aa">Aa 1,234</span></button><button type="button" role="radio" class="font-row ff-trebuchet" data-set-font="trebuchet" aria-checked="false"><span>Trebuchet MS</span><span class="aa">Aa 1,234</span></button><button type="button" role="radio" class="font-row ff-georgia" data-set-font="georgia" aria-checked="false"><span>Georgia</span><span class="aa">Aa 1,234</span></button><button type="button" role="radio" class="font-row ff-times" data-set-font="times" aria-checked="false"><span>Times New Roman</span><span class="aa">Aa 1,234</span></button></div><p class="hint">Applies to the whole grid; one size for every cell.</p><h3>Regional settings</h3><p class="hint">Locale: English (United States) · formulas stay in English.</p><button type="button" class="b t ghost" data-panel="regional"><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="7"/><path d="M3 10h14"/><path d="M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3z"/></svg><span class="lbl">Regional settings…</span></button></div></section><section class="panel" id="panel-help" data-for="help" role="region" aria-labelledby="ph-help">
+<header class="ph"><div><h2 id="ph-help">Help</h2></div><button type="button" class="b sm" title="Close Help" aria-label="Close Help" data-close><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><div class="pb"><table class="kv keys"><tr><th><kbd>Enter · Tab · arrows</kbd></th><td>Edit and move</td></tr><tr><th><kbd>Cmd+Z · Cmd+Shift+Z</kbd></th><td>Undo · redo</td></tr><tr><th><kbd>Cmd+B · Cmd+I</kbd></th><td>Bold · italic</td></tr><tr><th><kbd>Cmd+S</kbd></th><td>Save</td></tr><tr><th><kbd>F9</kbd></th><td>Recalculate</td></tr><tr><th><kbd>Alt+Down</kbd></th><td>Open dropdown cell</td></tr></table>
+<div class="prow"><button type="button" class="b t ghost"><span class="lbl">File format guide</span></button><button type="button" class="b t ghost"><span class="lbl">Third-party notices</span></button></div><p class="hint">Shortcuts other than the Slides ones are illustrative.</p></div></section><section class="panel" id="panel-styles" data-for="styles" role="region" aria-labelledby="ph-styles">
+<header class="ph"><div><h2 id="ph-styles">Cell styles</h2><p>Selection C4 · Calculation</p></div><button type="button" class="b sm" title="Close Cell styles" aria-label="Close Cell styles" data-close><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><div class="pb"><div class="style-grid"><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-normal">Normal</span><span class="st-name">Normal</span><span class="st-desc">Default</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-title">Title</span><span class="st-name">Title</span><span class="st-desc">Sheet or block title</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-header">Header</span><span class="st-name">Header</span><span class="st-desc">Column header</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-rowHeader">Row label</span><span class="st-name">Row label</span><span class="st-desc">Row label</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-assumption">€3,875</span><span class="st-name">Assumption</span><span class="st-desc">Input (Excel “Input”)</span></button><button type="button" class="style-tile on" aria-pressed="true"><span class="st-prev cs-calculation">€3,875</span><span class="st-name">Calculation</span><span class="st-desc">Calculated value</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-output">€3,875</span><span class="st-name">Output</span><span class="st-desc">Key result</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-total">€3,875</span><span class="st-name">Total</span><span class="st-desc">Total row</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-note">Note</span><span class="st-name">Note</span><span class="st-desc">Comment or source</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-alert">Alert</span><span class="st-name">Alert</span><span class="st-desc">Value to watch</span></button><button type="button" class="style-tile" aria-pressed="false"><span class="st-prev cs-hyperlink">example.org</span><span class="st-name">Hyperlink</span><span class="st-desc">Applied to linked cells</span></button></div>
+<p class="hint">Fixed catalogue of 11 styles in charte colours (ADR-012). No custom styles. Direct formatting stays available in the toolbar.</p>
+<div class="prow"><button type="button" class="b ghost t" title="Clear formatting" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m4 13 7-7 5 5-5 5H7z"/><path d="M9 16.5h8"/><path d="m7.5 9.5 5 5"/></svg><span class="lbl">Clear formatting</span></button><button type="button" class="b ghost t" title="Copy style" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="4" y="3" width="10" height="5" rx="1"/><path d="M14 5.5h2v4h-6v3"/><rect x="9" y="12.5" width="2" height="5" rx=".5"/></svg><span class="lbl">Copy style</span></button></div></div></section><section class="panel" id="panel-regional" data-for="regional" role="region" aria-labelledby="ph-regional">
+<header class="ph"><div><h2 id="ph-regional">Regional settings</h2><p>Display only; values never change</p></div><button type="button" class="b sm" title="Close Regional settings" aria-label="Close Regional settings" data-close><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><div class="pb"><label class="fld">Locale<select><option>English (United States) — en-US</option><option>English (United Kingdom) — en-GB</option><option>Français (France) — fr-FR</option><option>Deutsch (Deutschland) — de-DE</option><option>Español (España) — es-ES</option><option>Italiano (Italia) — it-IT</option></select></label>
+<table class="kv"><caption>Preview</caption><tr><th>Number</th><td>1,234.50</td></tr><tr><th>Currency</th><td>€1,234</td></tr><tr><th>Percent</th><td>8.0%</td></tr><tr><th>Short date</th><td>10/22/2026</td></tr><tr><th>Long date</th><td>Thursday, October 22, 2026</td></tr></table>
+<label class="fld dis">Time zone<select disabled><option>UTC</option></select></label>
+<p class="hint">Time zone affects volatile date functions; it is not a document field until checked against the engine (R05 finding 5). Formulas keep English names and separators (ADR-003).</p></div></section></aside></div>
+<footer class="status data"><nav class="sheets" aria-label="Sheets"><button type="button" class="b sm" title="Add sheet" aria-label="Add sheet" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 4.5v11M4.5 10h11"/></svg></button><button type="button" class="b sm" title="All sheets and groups" aria-label="All sheets and groups" data-menu="m-sheets" aria-haspopup="true" aria-expanded="false" ><svg class="ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 6h13M3.5 10h13M3.5 14h13"/></svg></button><div class="sg-list"><div class="sg" role="group" aria-label="Summary sheet group"><button type="button" class="sg-name" aria-expanded="true" title="Collapse Summary">Summary</button><button type="button" class="stab" aria-pressed="false">Summary</button></div><div class="sg" role="group" aria-label="Inputs / Hypotheses sheet group"><button type="button" class="sg-name" aria-expanded="true" title="Collapse Inputs / Hypotheses">Inputs / Hypotheses</button><button type="button" class="stab" aria-pressed="false">Inputs</button></div><div class="sg" role="group" aria-label="Raw Data sheet group"><button type="button" class="sg-name" aria-expanded="true" title="Collapse Raw Data">Raw Data</button><button type="button" class="stab" aria-pressed="false">Actuals</button></div><div class="sg" role="group" aria-label="Calculations sheet group"><button type="button" class="sg-name" aria-expanded="true" title="Collapse Calculations">Calculations</button><button type="button" class="stab" aria-pressed="true">Calculations</button></div></div>
+<select class="sheet-select" aria-label="Sheet"><option>Summary</option><option>Inputs</option><option>Actuals</option><option selected>Calculations</option></select>
+<span class="stats" role="status">Sum €2,625 · Count 1</span>
+</nav></footer>
+</div>
+<ul class="pop menu" id="m-data-file" role="menu" aria-label="File" hidden><li role="none"><button type="button" role="menuitem"><span>Save</span><kbd>Cmd+S</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Save a copy</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Import CSV / XLSX…</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Refresh source</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Export CSV</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Download PNG of selection</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Print / PDF…</span><em class="tag">planned</em></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" data-panel="settings"><span>Document settings…</span></button></li><li role="none"><button type="button" role="menuitem" data-panel="regional"><span>Regional settings…</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>File format guide</span></button></li><li role="none"><button type="button" role="menuitem"><span>Third-party notices</span></button></li></ul><ul class="pop menu" id="m-data-edit" role="menu" aria-label="Edit" hidden><li role="none"><button type="button" role="menuitem"><span>Undo</span><kbd>Cmd+Z</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Redo</span><kbd>Cmd+Shift+Z</kbd></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Edit cell</span><kbd>F2</kbd></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-itype" aria-haspopup="true" aria-expanded="false"><span>Input type</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem"><span>Copy</span><kbd>Cmd+C</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Paste</span><kbd>Cmd+V</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Paste table…</span></button></li><li role="none"><button type="button" role="menuitem"><span>Fill down</span></button></li><li role="none"><button type="button" role="menuitem"><span>Fill right</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Copy style</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Clear formatting</span><em class="tag">planned</em></button></li></ul><ul class="pop menu" id="m-data-insert" role="menu" aria-label="Insert" hidden><li role="none"><button type="button" role="menuitem"><span>Rows above / below</span></button></li><li role="none"><button type="button" role="menuitem"><span>Columns left / right</span></button></li><li role="none"><button type="button" role="menuitem"><span>Sheet</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Link…</span><em class="tag">planned</em><kbd>Cmd+K</kbd></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Chart</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Pivot</span><em class="tag">planned</em></button></li></ul><ul class="pop menu" id="m-data-format" role="menu" aria-label="Format" hidden><li role="none"><button type="button" role="menuitem" data-panel="styles"><span>Cell styles…</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-numfmt" aria-haspopup="true" aria-expanded="false"><span>Number</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-borders" aria-haspopup="true" aria-expanded="false" class="planned"><span>Borders</span><em class="tag">planned</em><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-align" aria-haspopup="true" aria-expanded="false" class="planned"><span>Alignment</span><em class="tag">planned</em><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem"><span>Conditional formatting…</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Column width…</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Auto-fit columns</span><em class="tag">planned</em></button></li></ul><ul class="pop menu" id="m-data-data" role="menu" aria-label="Data" hidden><li role="none"><button type="button" role="menuitem"><span>Recalculate</span><kbd>F9</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Cancel calculation</span></button></li><li role="none"><button type="button" role="menuitem"><span>Retry pending range</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" data-menu="m-scenario" aria-haspopup="true" aria-expanded="false"><span>Scenario</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem"><span>Choose dropdown value</span><kbd>Alt+Down</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Dropdown settings…</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Manage sheets…</span></button></li><li role="none"><button type="button" role="menuitem"><span>Delete rows</span></button></li><li role="none"><button type="button" role="menuitem"><span>Delete columns</span></button></li></ul><ul class="pop menu" id="m-data-view" role="menu" aria-label="View" hidden><li role="none"><button type="button" role="menuitem" class="planned"><span>Grid lines</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem"><span>Formula bar</span></button></li></ul><ul class="pop menu" id="m-data-help" role="menu" aria-label="Help" hidden><li role="none"><button type="button" role="menuitem" data-panel="help"><span>Shortcuts</span></button></li><li role="none"><button type="button" role="menuitem"><span>File format guide</span></button></li></ul><ul class="pop menu" id="m-main" role="menu" aria-label="Menu" hidden><li role="none"><button type="button" role="menuitem" data-menu="m-data-file" aria-haspopup="true" aria-expanded="false"><span>File</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-edit" aria-haspopup="true" aria-expanded="false"><span>Edit</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-insert" aria-haspopup="true" aria-expanded="false"><span>Insert</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-format" aria-haspopup="true" aria-expanded="false"><span>Format</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-data" aria-haspopup="true" aria-expanded="false"><span>Data</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-view" aria-haspopup="true" aria-expanded="false"><span>View</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem" data-menu="m-data-help" aria-haspopup="true" aria-expanded="false"><span>Help</span><span class="sub">›</span></button></li></ul><ul class="pop menu" id="m-numfmt" role="menu" aria-label="Number format" hidden><li role="none"><button type="button" role="menuitem"><span>General</span></button></li><li role="none"><button type="button" role="menuitem"><span>Number</span></button></li><li role="none"><button type="button" role="menuitem"><span>Currency</span></button></li><li role="none"><button type="button" role="menuitem"><span>Accounting</span></button></li><li role="none"><button type="button" role="menuitem"><span>Percent</span></button></li><li role="none"><button type="button" role="menuitem"><span>Short date</span></button></li><li role="none"><button type="button" role="menuitem"><span>Long date</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Thousands (k)</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Millions (M)</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Negative in parentheses</span><em class="tag">planned</em></button></li><li role="none"><button type="button" role="menuitem" class="planned"><span>Negative in red</span><em class="tag">planned</em></button></li></ul><ul class="pop menu" id="m-cellstyle" role="menu" aria-label="Cell style" hidden><li role="none"><button type="button" role="menuitem"><span>Normal</span></button></li><li role="none"><button type="button" role="menuitem"><span>Title</span></button></li><li role="none"><button type="button" role="menuitem"><span>Header</span></button></li><li role="none"><button type="button" role="menuitem"><span>Row label</span></button></li><li role="none"><button type="button" role="menuitem"><span>Assumption</span></button></li><li role="none"><button type="button" role="menuitem"><span>Calculation</span></button></li><li role="none"><button type="button" role="menuitem"><span>Output</span></button></li><li role="none"><button type="button" role="menuitem"><span>Total</span></button></li><li role="none"><button type="button" role="menuitem"><span>Note</span></button></li><li role="none"><button type="button" role="menuitem"><span>Alert</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" data-panel="styles"><span>All cell styles…</span></button></li></ul><ul class="pop menu" id="m-borders" role="menu" aria-label="Borders" hidden><li role="none"><button type="button" role="menuitem"><span>All borders</span></button></li><li role="none"><button type="button" role="menuitem"><span>Inner borders</span></button></li><li role="none"><button type="button" role="menuitem"><span>Outer borders</span></button></li><li role="none"><button type="button" role="menuitem"><span>Top</span></button></li><li role="none"><button type="button" role="menuitem"><span>Bottom</span></button></li><li role="none"><button type="button" role="menuitem"><span>Left</span></button></li><li role="none"><button type="button" role="menuitem"><span>Right</span></button></li><li role="none"><button type="button" role="menuitem"><span>No borders</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Thin</span></button></li><li role="none"><button type="button" role="menuitem"><span>Medium</span></button></li><li role="none"><button type="button" role="menuitem"><span>Double</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" data-menu="pop-color" aria-haspopup="true" aria-expanded="false"><span>Border colour</span><span class="sub">›</span></button></li></ul><ul class="pop menu" id="m-align" role="menu" aria-label="Alignment" hidden><li role="none"><button type="button" role="menuitem"><span>General</span></button></li><li role="none"><button type="button" role="menuitem"><span>Left</span></button></li><li role="none"><button type="button" role="menuitem"><span>Centre</span></button></li><li role="none"><button type="button" role="menuitem"><span>Right</span></button></li><li role="none"><button type="button" role="menuitem"><span>Centre across selection</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Wrap text</span></button></li></ul><ul class="pop menu" id="m-insert" role="menu" aria-label="Insert" hidden><li role="none"><button type="button" role="menuitem"><span>Rows above</span></button></li><li role="none"><button type="button" role="menuitem"><span>Rows below</span></button></li><li role="none"><button type="button" role="menuitem"><span>Columns left</span></button></li><li role="none"><button type="button" role="menuitem"><span>Columns right</span></button></li></ul><ul class="pop menu" id="m-delete" role="menu" aria-label="Delete" hidden><li role="none"><button type="button" role="menuitem"><span>Delete rows</span></button></li><li role="none"><button type="button" role="menuitem"><span>Delete columns</span></button></li></ul><ul class="pop menu" id="m-scenario" role="menu" aria-label="Scenario" hidden><li role="none"><button type="button" role="menuitem"><span>Base</span></button></li><li role="none"><button type="button" role="menuitem"><span>Upside</span></button></li><li role="none"><button type="button" role="menuitem"><span>Downside</span></button></li></ul><ul class="pop menu" id="m-locale" role="menu" aria-label="Locale" hidden><li role="none"><button type="button" role="menuitem"><span>English (United States)</span></button></li><li role="none"><button type="button" role="menuitem"><span>English (United Kingdom)</span></button></li><li role="none"><button type="button" role="menuitem"><span>Français (France)</span></button></li><li role="none"><button type="button" role="menuitem"><span>Deutsch</span></button></li><li role="none"><button type="button" role="menuitem"><span>Español</span></button></li><li role="none"><button type="button" role="menuitem"><span>Italiano</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem" data-panel="regional"><span>Regional settings…</span></button></li></ul><ul class="pop menu" id="m-goto" role="menu" aria-label="Go to" hidden><li role="none"><button type="button" role="menuitem"><span>C4</span></button></li><li role="none"><button type="button" role="menuitem"><span>Inputs!B2</span></button></li><li role="none"><button type="button" role="menuitem"><span>Summary!B2</span></button></li></ul><ul class="pop menu" id="m-itype" role="menu" aria-label="Input type" hidden><li role="none"><button type="button" role="menuitem"><span>Number</span></button></li><li role="none"><button type="button" role="menuitem"><span>Text</span></button></li><li role="none"><button type="button" role="menuitem"><span>Boolean</span></button></li><li role="none"><button type="button" role="menuitem"><span>Blank</span></button></li><li role="none"><button type="button" role="menuitem"><span>Date</span></button></li><li role="none"><button type="button" role="menuitem"><span>Error</span></button></li><li role="none"><button type="button" role="menuitem"><span>Formula</span></button></li></ul><ul class="pop menu" id="m-sheets" role="menu" aria-label="Sheets" hidden><li role="none"><button type="button" role="menuitem"><span>Summary</span></button></li><li role="none"><button type="button" role="menuitem"><span>Inputs</span></button></li><li role="none"><button type="button" role="menuitem"><span>Actuals</span></button></li><li role="none"><button type="button" role="menuitem"><span>Calculations</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Manage sheets…</span></button></li></ul><ul class="pop menu" id="m-more" role="menu" aria-label="More" hidden><li role="none"><button type="button" role="menuitem" data-menu="m-borders" aria-haspopup="true" aria-expanded="false"><span>Borders</span><span class="sub">›</span></button></li><li role="none"><button type="button" role="menuitem"><span>Wrap text</span></button></li><li role="none"><button type="button" role="menuitem"><span>Centre across selection</span></button></li><li role="none"><button type="button" role="menuitem"><span>Link…</span><kbd>Cmd+K</kbd></button></li><li role="none"><button type="button" role="menuitem"><span>Conditional formatting…</span></button></li><li role="none"><button type="button" role="menuitem"><span>Grid lines</span></button></li><li role="none"><button type="button" role="menuitem"><span>Copy style</span></button></li><li role="none"><button type="button" role="menuitem"><span>Clear formatting</span></button></li><li role="separator" class="msep"></li><li role="none"><button type="button" role="menuitem"><span>Paste table…</span></button></li><li role="none"><button type="button" role="menuitem"><span>Fill down</span></button></li><li role="none"><button type="button" role="menuitem"><span>Fill right</span></button></li><li role="none"><button type="button" role="menuitem"><span>Recalculate</span><kbd>F9</kbd></button></li></ul><div class="pop pop-sw" id="pop-color" role="menu" aria-label="Text colour" hidden><p class="pop-h">Text colour · charte tokens</p><div class="sw-row"><button type="button" class="sw sw-ink" role="menuitemradio" aria-checked="true" title="Ink (default)" aria-label="Ink (default)"></button><button type="button" class="sw sw-acc" role="menuitemradio" aria-checked="false" title="Accent" aria-label="Accent"></button><button type="button" class="sw sw-mid" role="menuitemradio" aria-checked="false" title="Mid" aria-label="Mid"></button><button type="button" class="sw sw-alert" role="menuitemradio" aria-checked="false" title="Alert" aria-label="Alert"></button><button type="button" class="sw sw-t2" role="menuitemradio" aria-checked="false" title="Secondary grey" aria-label="Secondary grey"></button><button type="button" class="sw sw-bg" role="menuitemradio" aria-checked="false" title="White" aria-label="White"></button></div></div>
+<div class="pop pop-sw" id="pop-fill" role="menu" aria-label="Fill colour" hidden><p class="pop-h">Fill · charte tokens</p><div class="sw-row"><button type="button" class="sw sw-none" role="menuitemradio" aria-checked="true" title="No fill" aria-label="No fill"></button><button type="button" class="sw sw-tint" role="menuitemradio" aria-checked="false" title="Tint" aria-label="Tint"></button><button type="button" class="sw sw-lig" role="menuitemradio" aria-checked="false" title="Light" aria-label="Light"></button><button type="button" class="sw sw-mid" role="menuitemradio" aria-checked="false" title="Mid" aria-label="Mid"></button><button type="button" class="sw sw-acc" role="menuitemradio" aria-checked="false" title="Accent" aria-label="Accent"></button><button type="button" class="sw sw-alert" role="menuitemradio" aria-checked="false" title="Alert" aria-label="Alert"></button><button type="button" class="sw sw-dark" role="menuitemradio" aria-checked="false" title="Dark" aria-label="Dark"></button></div><p class="pop-n">Dark fills switch text to white.</p></div>
+<script>// Mock-up behaviour only: menus, panels, ribbon tabs, theme and font switching.
+(() => {
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const body = document.body,
+    root = document.documentElement;
+
+  function layout() {
+    for (const tb of $$(".tbar")) {
+      const s = tb.querySelector(".tscroll");
+      tb.classList.toggle("over", s.scrollWidth > s.clientWidth + 2);
+    }
+  }
+  let panelOpener = null;
+  function setPanel(id, { restore = true } = {}) {
+    const wasOpen = body.dataset.panel !== "none";
+    let any = false;
+    for (const p of $$(".panel")) {
+      const on = p.dataset.for === id;
+      p.hidden = !on;
+      any ||= on;
+    }
+    body.dataset.panel = any ? id : "none";
+    // Panel triggers are buttons; <body data-panel> only records the state.
+    for (const b of $$("button[data-panel]"))
+      if (!b.closest(".menu")) b.setAttribute("aria-pressed", String(any && b.dataset.panel === id));
+    if (any) {
+      // Remember where focus came from; when switching panels keep a still-valid outside opener.
+      const active = document.activeElement,
+        outside = active && active !== document.body && !active.closest(".panels, .pop");
+      if (outside && (!wasOpen || !panelOpener?.isConnected || panelOpener === document.body)) panelOpener = active;
+      document.querySelector(`.panel[data-for="${id}"] h2`)?.setAttribute("tabindex", "-1");
+      if (restore) document.querySelector(`.panel[data-for="${id}"] h2`)?.focus({ preventScroll: true });
+    } else if (wasOpen && restore && panelOpener?.isConnected && panelOpener !== document.body) {
+      panelOpener.focus({ preventScroll: true });
+      panelOpener = null;
+    }
+    layout();
+  }
+  function selectTab(name, focus) {
+    for (const t of $$("[role=tab]")) {
+      const on = t.dataset.tab === name;
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    }
+    for (const p of $$("[role=tabpanel]")) p.hidden = p.id !== "rp-" + name;
+    for (const s of $$("[data-tab-select]")) s.value = name;
+    layout();
+    if (typeof rove === "function") rove();
+  }
+  let open = null;
+  function closeMenu() {
+    if (!open) return;
+    open.pop.hidden = true;
+    open.btn.setAttribute("aria-expanded", "false");
+    open = null;
+  }
+  function showMenu(btn) {
+    const pop = document.getElementById(btn.dataset.menu);
+    if (!pop) return;
+    if (open && open.btn === btn) return closeMenu();
+    // A submenu replaces its parent menu and returns focus to the root trigger.
+    const parent = btn.closest(".pop"),
+      root = parent && open ? open.btn : btn;
+    const r = btn.getBoundingClientRect();
+    closeMenu();
+    pop.hidden = false;
+    const w = pop.offsetWidth,
+      h = pop.offsetHeight;
+    let y = r.bottom + 4;
+    if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 4);
+    const x = parent ? r.right + 2 : r.left;
+    pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + "px";
+    pop.style.top = (parent ? Math.min(r.top, innerHeight - h - 8) : y) + "px";
+    root.setAttribute("aria-expanded", "true");
+    open = { btn: root, pop };
+    pop.querySelector("button")?.focus({ preventScroll: true });
+  }
+  function sync() {
+    for (const b of $$("[data-set-theme]")) b.setAttribute("aria-checked", String(b.dataset.setTheme === root.dataset.theme));
+    for (const b of $$("[data-set-font]")) b.setAttribute("aria-checked", String(b.dataset.setFont === root.dataset.font));
+    for (const s of $$("[data-font-select]")) s.value = root.dataset.font;
+    const theme = document.querySelector(`[data-set-theme="${root.dataset.theme}"] .tc-name`)?.textContent,
+      font = document.querySelector(`[data-font-select] option[value="${root.dataset.font}"]`)?.textContent.replace(" (default)", "");
+    for (const l of $$("[data-theme-label]")) l.textContent = `Theme: ${theme} · ${font}`;
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target;
+    const m = t.closest("[data-menu]");
+    if (m) return showMenu(m);
+    if (open && !t.closest(".pop")) closeMenu();
+    const p = t.closest("button[data-panel]");
+    if (p) {
+      const id = p.dataset.panel,
+        fromMenu = !!p.closest(".menu"),
+        root = open?.btn;
+      closeMenu();
+      // From a menu, focus returns to the menu's trigger when the panel closes.
+      if (fromMenu && root) root.focus({ preventScroll: true });
+      return setPanel(!fromMenu && body.dataset.panel === id ? "none" : id);
+    }
+    if (t.closest("button[data-close]")) return setPanel("none");
+    const th = t.closest("[data-set-theme]");
+    if (th) (root.dataset.theme = th.dataset.setTheme), sync();
+    const f = t.closest("[data-set-font]");
+    if (f) (root.dataset.font = f.dataset.setFont), sync();
+    const tab = t.closest("[role=tab]");
+    if (tab) selectTab(tab.dataset.tab);
+    if (t.closest(".menu [role=menuitem]")) closeMenu();
+    const o = t.closest(".ovf");
+    if (o) {
+      const s = o.parentElement.querySelector(".tscroll");
+      s.scrollBy({ left: (o.classList.contains("ovl") ? -0.7 : 0.7) * s.clientWidth, behavior: "smooth" });
+    }
+  });
+  document.addEventListener("change", (e) => {
+    if (e.target.matches("[data-font-select]")) (root.dataset.font = e.target.value), sync();
+    if (e.target.matches("[data-tab-select]")) selectTab(e.target.value);
+  });
+  const step = (list, i, key) =>
+    key === "Home" ? 0 : key === "End" ? list.length - 1 : (i + (key === "ArrowRight" || key === "ArrowDown" ? 1 : -1) + list.length) % list.length;
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (open) {
+        const b = open.btn;
+        closeMenu();
+        b.focus();
+      } else if (body.dataset.panel !== "none") setPanel("none");
+      return;
+    }
+    if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      const items = $$("button", open.pop);
+      items[step(items, items.indexOf(document.activeElement), e.key)].focus();
+      return e.preventDefault();
+    }
+    const nav = ["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key);
+    // Menubar: Left/Right move between menus, Down opens.
+    const mb = e.target.closest("[role=menubar]");
+    if (mb && (nav || e.key === "ArrowDown")) {
+      const items = $$(".mb", mb);
+      if (e.key === "ArrowDown") showMenu(e.target);
+      else {
+        const n = items[step(items, items.indexOf(e.target), e.key)];
+        for (const b of items) b.tabIndex = -1;
+        n.tabIndex = 0;
+        n.focus();
+      }
+      return e.preventDefault();
+    }
+    const tab = e.target.closest("[role=tab]");
+    if (tab && nav) {
+      const tabs = $$("[role=tab]");
+      selectTab(tabs[step(tabs, tabs.indexOf(tab), e.key)].dataset.tab, true);
+      return e.preventDefault();
+    }
+    const tb = e.target.closest("[role=toolbar]");
+    if (tb && nav && !e.target.matches("input, select")) {
+      const items = $$("button:not(.ovf), select", tb).filter((b) => b.offsetParent);
+      const n = items[step(items, items.indexOf(e.target), e.key)];
+      for (const b of items) b.tabIndex = -1;
+      n.tabIndex = 0;
+      n.focus();
+      n.scrollIntoView({ block: "nearest", inline: "nearest" });
+      e.preventDefault();
+    }
+  });
+  // One tab stop per toolbar and menubar, on the first visible control; recomputed on resize.
+  function rove() {
+    for (const tb of $$("[role=toolbar], [role=menubar]")) {
+      const all = $$("button:not(.ovf), select", tb),
+        first = all.find((b) => b.offsetParent);
+      for (const b of all) b.tabIndex = b === first ? 0 : -1;
+    }
+  }
+  addEventListener("resize", () => {
+    layout();
+    rove();
+  });
+
+  // Initial state: #styles, #regional, #settings, #comments, #outline, #insert, #help or #none.
+  const state = location.hash.slice(1) || body.dataset.default || "none";
+  if (body.dataset.tab) selectTab(body.dataset.tab);
+  rove();
+  if (state === "settings" && body.dataset.variant === "b") {
+    selectTab("document");
+    setPanel("none", { restore: false });
+  } else setPanel(state, { restore: false });
+  sync();
+  window.mock = { setPanel, selectTab };
+})();
+</script>
+</body></html>

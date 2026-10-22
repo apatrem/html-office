@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Editor shell mock-ups</title>
+<meta name="description" content="U02: three layout variants of the shared html-office editor shell, each shown for Slides, Data and Text, for the user’s choice in U03.">
+<style>
+:root{--ink:#1d2a35;--mute:#5f6b75;--line:#dde1e6;--bg:#f6f7f9;--card:#fff;--acc:#2563eb;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header,main{max-width:1500px;margin:0 auto;padding:0 24px}header{padding-top:28px}
+h1{font-size:26px;margin:0 0 6px;letter-spacing:-.01em}h2{font-size:20px;margin:40px 0 12px}h3{font-size:16px;margin:0 0 8px}
+p{max-width:78ch}.mute{color:var(--mute)}a{color:var(--acc)}
+.note{background:#fff8e1;border:1px solid #f0d77a;border-radius:8px;padding:10px 14px;max-width:none}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+.col{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.col>p{font-size:14px}
+.shot{margin:14px 0 0;display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:start}
+.shot img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:6px;background:#fff}
+.shot figcaption{grid-column:1/-1;font-size:12.5px;color:var(--mute)}.shot figcaption a{font-weight:600}
+dl{font-size:13.5px;margin:14px 0 0}dt{font-weight:600;margin-top:8px}dd{margin:2px 0 0;color:#36434e}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;font-size:13.5px}.pc ul{margin:4px 0 0;padding-left:18px}.pc h4{margin:0;font-size:13px}
+.extras{display:grid;grid-template-columns:1fr 1fr 1fr 90px;gap:10px;margin-top:14px}
+.extras figure{margin:0}.extras img{width:100%;height:auto;border:1px solid var(--line);border-radius:6px;display:block}
+.extras figcaption{font-size:12px;color:var(--mute)}
+table.cmp{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+.cmp th,.cmp td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cmp thead th{background:#eef1f4}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:18px}
+footer{max-width:1500px;margin:40px auto;padding:0 24px;color:var(--mute);font-size:13px}
+@media (max-width:1000px){.cols{grid-template-columns:1fr}.extras{grid-template-columns:1fr 1fr}.pc{grid-template-columns:1fr}}
+@media (max-width:520px){header,main{padding:0 16px}.shot{grid-template-columns:1fr 56px}.cmp{font-size:12.5px}.cmp th,.cmp td{padding:6px}}
+</style></head><body>
+<header><p class="mute">html-office · task U02 · 22 October 2026</p>
+<h1>Editor shell mock-ups</h1>
+<p>Three layout variants of the shared editor shell, each shown for Slides, Data and Text with their real command sets and fictional content (the Community Learning P&amp;L from <code>packages/data/fixtures/pnl.json</code>). The audit, command inventory and constraints are in the <a href="../../HTML-OFFICE-SHELL-BRIEF.md">design brief (U01)</a>.</p>
+<p class="note"><b>Decision (U03, 22 October 2026): the user chose variant A — menu bar + icon toolbar.</b> B and C stay here for reference. Click any screenshot to open the live mock-up: menus, panels, theme and font switching work; nothing else does. Built-in theme colours are placeholders until T01.</p>
+</header>
+<main>
+<h2>Side by side</h2>
+<p class="mute">Each card shows 1440 × 900 with the default panel open, and 375 × 812 with no panel.</p>
+<div class="cols"><section class="col" aria-labelledby="h-a"><h3 id="h-a">A — Menu bar + icon toolbar</h3><p>The working hypothesis of ADR-011 §7: a <b>menu bar</b> (identity, File/Edit/Insert/Format… menus, Save) above an <b>IronCalc-style icon toolbar</b>; Data adds its formula bar. Slides and Text get <b>floating settings</b> at the bottom right; Data has its <b>sheet tabs</b> with a settings button at the end.</p><figure class="shot">
+<a href="a-slides.html" title="Open the live mock-up"><img src="screenshots/a-slides-1440.jpg" alt="Variant A, Slides, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="a-slides.html" class="narrow" title="Open the live mock-up"><img src="screenshots/a-slides-375.jpg" alt="Variant A, Slides, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="a-slides.html">Slides</a> · canvas 815px at 1440×900</figcaption></figure><figure class="shot">
+<a href="a-data.html" title="Open the live mock-up"><img src="screenshots/a-data-1440.jpg" alt="Variant A, Data, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="a-data.html" class="narrow" title="Open the live mock-up"><img src="screenshots/a-data-375.jpg" alt="Variant A, Data, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="a-data.html">Data</a> · canvas 743px at 1440×900, 32 grid rows</figcaption></figure><figure class="shot">
+<a href="a-text.html" title="Open the live mock-up"><img src="screenshots/a-text-1440.jpg" alt="Variant A, Text, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="a-text.html" class="narrow" title="Open the live mock-up"><img src="screenshots/a-text-375.jpg" alt="Variant A, Text, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="a-text.html">Text</a> · canvas 815px at 1440×900</figcaption></figure></section><section class="col" aria-labelledby="h-b"><h3 id="h-b">B — Tabbed ribbon</h3><p>A <b>classic tabbed ribbon</b>: row 1 holds identity, tabs (Home, Insert, product tab, Document, View) and quick access; row 2 shows the active tab as <b>labelled groups</b>. Document settings get their own <b>Document tab</b>. Every product has a <b>status bar</b> at the bottom, which in Data carries the sheet tabs.</p><figure class="shot">
+<a href="b-slides.html" title="Open the live mock-up"><img src="screenshots/b-slides-1440.jpg" alt="Variant B, Slides, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="b-slides.html" class="narrow" title="Open the live mock-up"><img src="screenshots/b-slides-375.jpg" alt="Variant B, Slides, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="b-slides.html">Slides</a> · canvas 755px at 1440×900</figcaption></figure><figure class="shot">
+<a href="b-data.html" title="Open the live mock-up"><img src="screenshots/b-data-1440.jpg" alt="Variant B, Data, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="b-data.html" class="narrow" title="Open the live mock-up"><img src="screenshots/b-data-375.jpg" alt="Variant B, Data, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="b-data.html">Data</a> · canvas 712px at 1440×900, 31 grid rows</figcaption></figure><figure class="shot">
+<a href="b-text.html" title="Open the live mock-up"><img src="screenshots/b-text-1440.jpg" alt="Variant B, Text, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="b-text.html" class="narrow" title="Open the live mock-up"><img src="screenshots/b-text-375.jpg" alt="Variant B, Text, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="b-text.html">Text</a> · canvas 755px at 1440×900</figcaption></figure></section><section class="col" aria-labelledby="h-c"><h3 id="h-c">C — One toolbar + side rail</h3><p>A <b>single toolbar row</b> with the most-used formatting and a “⋯” overflow, plus a <b>vertical side rail</b> on the right that opens docked panels (Insert, Styles, Regional, Comments, Outline, Document, Help). Data keeps its formula bar and sheet tabs; Slides and Text have <b>nothing at the bottom</b>.</p><figure class="shot">
+<a href="c-slides.html" title="Open the live mock-up"><img src="screenshots/c-slides-1440.jpg" alt="Variant C, Slides, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="c-slides.html" class="narrow" title="Open the live mock-up"><img src="screenshots/c-slides-375.jpg" alt="Variant C, Slides, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="c-slides.html">Slides</a> · canvas 851px at 1440×900</figcaption></figure><figure class="shot">
+<a href="c-data.html" title="Open the live mock-up"><img src="screenshots/c-data-1440.jpg" alt="Variant C, Data, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="c-data.html" class="narrow" title="Open the live mock-up"><img src="screenshots/c-data-375.jpg" alt="Variant C, Data, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="c-data.html">Data</a> · canvas 779px at 1440×900, 33 grid rows</figcaption></figure><figure class="shot">
+<a href="c-text.html" title="Open the live mock-up"><img src="screenshots/c-text-1440.jpg" alt="Variant C, Text, 1440 px wide" loading="lazy" width="1440" height="900"></a>
+<a href="c-text.html" class="narrow" title="Open the live mock-up"><img src="screenshots/c-text-375.jpg" alt="Variant C, Text, 375 px wide" loading="lazy" width="375" height="812"></a>
+<figcaption><a href="c-text.html">Text</a> · canvas 851px at 1440×900</figcaption></figure></section></div>
+
+<h2>Comparison</h2>
+<table class="cmp"><thead><tr><th scope="col">Criterion</th><th scope="col">A — Menu bar + icon toolbar</th><th scope="col">B — Tabbed ribbon</th><th scope="col">C — One toolbar + side rail</th></tr></thead><tbody>
+<tr><th scope="row">Rows of chrome above the canvas</th><td>2 (Data 3)</td><td>2, ribbon 70 px (Data 3)</td><td>1 (Data 2)</td></tr>
+<tr><th scope="row">Bottom area</th><td>Floating pill / Data sheet tabs</td><td>Status bar in all three</td><td>Data sheet tabs only</td></tr>
+<tr><th scope="row">Document settings</th><td>Pill or sheet-bar button → drawer</td><td>Document ribbon tab</td><td>Rail → Document panel</td></tr>
+<tr><th scope="row">Side panels</th><td>Overlay drawer</td><td>Docked, pushes canvas</td><td>Docked from rail</td></tr>
+<tr><th scope="row">Commands visible without a click</th><td>Most formatting (icons)</td><td>Active tab only (labelled)</td><td>Frequent formatting; rest in ⋯</td></tr>
+<tr><th scope="row">Keyboard model</th><td>Menubar + one toolbar</td><td>Tablist + toolbar per tab</td><td>Toolbar + rail</td></tr>
+<tr><th scope="row">Reuse of R05 IronCalc components</th><td>High (toolbar, drawer)</td><td>Low (native ribbon)</td><td>Medium (drawer panels)</td></tr>
+<tr><th scope="row">Change from today</th><td>Slides small; Data replaces tabbed ribbon</td><td>Slides large; Data close to today’s ribbon</td><td>Slides medium; Data large</td></tr>
+</tbody></table>
+<h3 style="margin-top:22px">Measured canvas height</h3>
+<p class="mute">Height left for the slide, grid or page, with no panel open, measured in Chromium at 1440 × 900 and 375 × 812 (share of the viewport). Data counts fully visible grid rows, including the header row.</p>
+<table class="cmp"><thead><tr><th scope="col">Product</th><th scope="col">Two rows</th><th scope="col">Ribbon</th><th scope="col">Rail</th></tr></thead><tbody><tr><th scope="row">Slides</th><td>815px (91%) · slide 1200px wide<br><span class="mute">375: 575px (71%) · slide 355px wide</span></td><td>755px (84%) · slide 1200px wide<br><span class="mute">375: 607px (75%) · slide 355px wide</span></td><td>851px (95%) · slide 1136px wide<br><span class="mute">375: 617px (76%) · slide 355px wide</span></td></tr><tr><th scope="row">Data</th><td>743px (83%) · 32 rows<br><span class="mute">375: 655px (81%) · 28 rows</span></td><td>712px (79%) · 31 rows<br><span class="mute">375: 652px (80%) · 28 rows</span></td><td>779px (87%) · 33 rows<br><span class="mute">375: 633px (78%) · 27 rows</span></td></tr><tr><th scope="row">Text</th><td>815px (91%)<br><span class="mute">375: 727px (90%)</span></td><td>755px (84%)<br><span class="mute">375: 695px (86%)</span></td><td>851px (95%)<br><span class="mute">375: 705px (87%)</span></td></tr></tbody></table>
+
+<h2>Variant details</h2>
+<section class="detail" aria-labelledby="d-a"><h3 id="d-a">A — Menu bar + icon toolbar</h3><p>The working hypothesis of ADR-011 §7: a <b>menu bar</b> (identity, File/Edit/Insert/Format… menus, Save) above an <b>IronCalc-style icon toolbar</b>; Data adds its formula bar. Slides and Text get <b>floating settings</b> at the bottom right; Data has its <b>sheet tabs</b> with a settings button at the end.</p>
+<dl><dt>Top rows</dt><dd>Row 1: product mark, title and save state, menus, Save (and Present). Row 2: one flat icon toolbar, grouped by separators; in Slides it follows the selection as today’s context bar does.</dd><dt>Formula bar (Data)</dt><dd>Third row: name box, fx, value, scenario selector and calculation state.</dd><dt>Bottom</dt><dd>Slides and Text: floating pill (Theme & font, slide/page count, zoom). Data: sheet tabs with groups, settings button at the right end.</dd><dt>Document settings</dt><dd>Drawer opened from the pill or the sheet bar, and from File › Document settings.</dd><dt>Side panels</dt><dd>Overlay drawer on the right (IronCalc’s right-drawer pattern): cell styles, regional settings, comments, document settings.</dd><dt>Narrow width</dt><dd>Menus collapse into ☰; the toolbar scrolls with overflow arrows; panels become bottom sheets; the pill spans the width.</dd></dl>
+<div class="pc"><div><h4>For</h4><ul><li>Closest to IronCalc’s toolbar and R05: Data reuses most of the paid-for components.</li><li>Every command is findable twice: menus are complete, the toolbar holds the frequent ones.</li><li>Smallest change for Slides, which already has a top bar and a context bar.</li></ul></div><div><h4>Against</h4><ul><li>Two command surfaces to keep consistent (menus and toolbar).</li><li>Icon-only toolbar relies on tooltips; harder for first-time users.</li><li>The floating pill can cover content at the bottom right.</li></ul></div></div>
+<div class="extras">
+<figure><a href="a-data.html#regional"><img src="screenshots/a-data-regional-1440.jpg" alt="Variant A, Data, regional settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · regional settings</figcaption></figure>
+<figure><a href="a-data.html#settings"><img src="screenshots/a-data-settings-1440.jpg" alt="Variant A, Data, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · document settings</figcaption></figure>
+<figure><a href="a-text.html#settings"><img src="screenshots/a-text-settings-1440.jpg" alt="Variant A, Text, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Text · document settings</figcaption></figure>
+<figure><a href="a-data.html#styles"><img src="screenshots/a-data-styles-375.jpg" alt="Variant A, Data, cell styles at 375 px" loading="lazy" width="375" height="812" class="tall"></a><figcaption>Data · cell styles at 375 px</figcaption></figure>
+</div>
+<p class="mute">Live: <a href="a-slides.html">Slides</a> · <a href="a-data.html">Data</a> · <a href="a-text.html">Text</a></p></section>
+<section class="detail" aria-labelledby="d-b"><h3 id="d-b">B — Tabbed ribbon</h3><p>A <b>classic tabbed ribbon</b>: row 1 holds identity, tabs (Home, Insert, product tab, Document, View) and quick access; row 2 shows the active tab as <b>labelled groups</b>. Document settings get their own <b>Document tab</b>. Every product has a <b>status bar</b> at the bottom, which in Data carries the sheet tabs.</p>
+<dl><dt>Top rows</dt><dd>Row 1: product mark, title and save state, tabs, Undo/Redo, Save (and Present). Row 2: the active tab’s groups with captions (70 px).</dd><dt>Formula bar (Data)</dt><dd>Third row, as in A.</dd><dt>Bottom</dt><dd>Status bar everywhere: Data sheet tabs plus selection sum and count; Slides slide number and zoom; Text page, words, format and view switch.</dd><dt>Document settings</dt><dd>Document tab inside the ribbon: theme cards, font, plus Data locale or Text page format.</dd><dt>Side panels</dt><dd>Docked on the right, pushing the canvas: cell styles, regional settings, comments, outline.</dd><dt>Narrow width</dt><dd>Tabs become a select; each group collapses to one button with a menu; panels become bottom sheets; the status bar shortens.</dd></dl>
+<div class="pc"><div><h4>For</h4><ul><li>Most familiar to Office users; labels make commands discoverable without tooltips.</li><li>Document settings visible in one place for all products.</li><li>Status bar gives a consistent home for counts, sums and view modes.</li></ul></div><div><h4>Against</h4><ul><li>Tallest chrome: least grid and slide area at 1440 × 900.</li><li>Commands hidden behind tabs; one more click for many actions.</li><li>Furthest from IronCalc: Data reuses fewer R05 components; Slides changes most.</li></ul></div></div>
+<div class="extras">
+<figure><a href="b-data.html#regional"><img src="screenshots/b-data-regional-1440.jpg" alt="Variant B, Data, regional settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · regional settings</figcaption></figure>
+<figure><a href="b-data.html#settings"><img src="screenshots/b-data-settings-1440.jpg" alt="Variant B, Data, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · document settings</figcaption></figure>
+<figure><a href="b-text.html#settings"><img src="screenshots/b-text-settings-1440.jpg" alt="Variant B, Text, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Text · document settings</figcaption></figure>
+<figure><a href="b-data.html#styles"><img src="screenshots/b-data-styles-375.jpg" alt="Variant B, Data, cell styles at 375 px" loading="lazy" width="375" height="812" class="tall"></a><figcaption>Data · cell styles at 375 px</figcaption></figure>
+</div>
+<p class="mute">Live: <a href="b-slides.html">Slides</a> · <a href="b-data.html">Data</a> · <a href="b-text.html">Text</a></p></section>
+<section class="detail" aria-labelledby="d-c"><h3 id="d-c">C — One toolbar + side rail</h3><p>A <b>single toolbar row</b> with the most-used formatting and a “⋯” overflow, plus a <b>vertical side rail</b> on the right that opens docked panels (Insert, Styles, Regional, Comments, Outline, Document, Help). Data keeps its formula bar and sheet tabs; Slides and Text have <b>nothing at the bottom</b>.</p>
+<dl><dt>Top rows</dt><dd>One row: identity, frequent formatting, ⋯ for the rest, Save, ☰ for File and Help.</dd><dt>Formula bar (Data)</dt><dd>Second row.</dd><dt>Bottom</dt><dd>Data: sheet tabs. Slides and Text: none.</dd><dt>Document settings</dt><dd>Rail › Document: theme and font, with product extras.</dd><dt>Side panels</dt><dd>Rail-driven docked panels; Insert becomes a panel of tiles.</dd><dt>Narrow width</dt><dd>The rail becomes a bottom navigation bar; panels open as sheets above it; the toolbar keeps a few essentials and ⋯.</dd></dl>
+<div class="pc"><div><h4>For</h4><ul><li>Most canvas height; one row of chrome in Slides and Text.</li><li>One predictable place for every panel, which scales to future panels (charts, pivots).</li><li>Works well on narrow screens (bottom navigation).</li></ul></div><div><h4>Against</h4><ul><li>Rarely used formatting sits behind ⋯ menus.</li><li>Rail costs 64 px of width on every screen.</li><li>Less like IronCalc and Excel; Insert as a panel is unusual for Data.</li></ul></div></div>
+<div class="extras">
+<figure><a href="c-data.html#regional"><img src="screenshots/c-data-regional-1440.jpg" alt="Variant C, Data, regional settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · regional settings</figcaption></figure>
+<figure><a href="c-data.html#settings"><img src="screenshots/c-data-settings-1440.jpg" alt="Variant C, Data, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Data · document settings</figcaption></figure>
+<figure><a href="c-text.html#settings"><img src="screenshots/c-text-settings-1440.jpg" alt="Variant C, Text, document settings" loading="lazy" width="1440" height="900"></a><figcaption>Text · document settings</figcaption></figure>
+<figure><a href="c-data.html#styles"><img src="screenshots/c-data-styles-375.jpg" alt="Variant C, Data, cell styles at 375 px" loading="lazy" width="375" height="812" class="tall"></a><figcaption>Data · cell styles at 375 px</figcaption></figure>
+</div>
+<p class="mute">Live: <a href="c-slides.html">Slides</a> · <a href="c-data.html">Data</a> · <a href="c-text.html">Text</a></p></section>
+
+<h2>Common to every variant</h2>
+<ul>
+<li>Shell chrome uses neutral greys; only the canvas and the colour swatches follow the document charte, so switching theme never recolours buttons.</li>
+<li>Colour pickers offer only the closed token vocabulary of ADR-012 (6 text colours, 7 fills); Data has no font size; Slides keeps size steps.</li>
+<li>Document settings are the same panel content in all products: theme (4 built-ins plus the document charte) and font (6 system fonts), plus Slides footer, Data regional settings or Text page format.</li>
+<li>Planned commands appear dimmed with a “planned” tag in menus, so the mock-ups show where they will live without pretending they exist.</li>
+<li>Toolbars use one tab stop with arrow keys; menus and panels close with Escape and return focus; print hides all chrome.</li>
+</ul>
+<h2>Questions for U03</h2>
+<ol>
+<li>Which variant, or which combination (for example A’s toolbar with C’s rail)?</li>
+<li>Bottom of Slides and Text: floating settings, a status bar, or nothing?</li>
+<li>Side panels: overlay (A) or docked (B, C)? Can two be open at once?</li>
+<li>For Data, keep IronCalc’s components restyled to the shell, or replace them with shared native code?</li>
+<li>Keep the Slides reading-mode pill as the shared “floating settings” pattern?</li>
+</ol>
+</main>
+<footer>Generated by <code>docs/mockups/shell/build.mjs</code>; screenshots and measurements by <code>screenshots.mjs</code>. Static mock-ups only: no product code. Icons drawn for these mock-ups.</footer>
+</body></html>
