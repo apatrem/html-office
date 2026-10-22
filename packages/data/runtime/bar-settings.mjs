@@ -2,8 +2,8 @@ export function populateBarFields($, rule) {
   $("conditional-scale").value = rule?.scale?.kind ?? "auto";
   $("conditional-min").value = String(rule?.scale?.min ?? -100);
   $("conditional-max").value = String(rule?.scale?.max ?? 100);
-  $("conditional-positive").value = rule?.positiveColor ?? "#4472C4";
-  $("conditional-negative").value = rule?.negativeColor ?? "#C00000";
+  $("conditional-positive").value = rule?.positive ?? "acc";
+  $("conditional-negative").value = rule?.negative ?? "alert";
 }
 export function readBarFields($) {
   const kind = $("conditional-scale").value;
@@ -23,7 +23,7 @@ export function readBarFields($) {
             min: finite("conditional-min"),
             max: finite("conditional-max"),
           },
-    positiveColor: $("conditional-positive").value.trim(),
-    negativeColor: $("conditional-negative").value.trim(),
+    positive: $("conditional-positive").value,
+    negative: $("conditional-negative").value,
   };
 }

@@ -1,4 +1,5 @@
 import { address, parseAddress } from "../model/workbook.mjs";
+import { cellClasses } from "../model/formatting.mjs";
 import {
   rectangle,
   navigate,
@@ -77,7 +78,7 @@ export function createGrid(
           L + (col - 1) * W,
           0,
           W,
-          `grid-cell ${cell.cellStyle ?? "normal"}`,
+          `grid-cell ${cellClasses(cell, !!sheet.links?.[ref])}`,
         );
         line.append(b);
         b.dataset.cell = ref;

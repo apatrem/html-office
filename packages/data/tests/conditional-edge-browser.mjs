@@ -64,6 +64,18 @@ async function jump(page, ref) {
   await page.getByLabel("Cell address", { exact: true }).fill(ref);
   await page.keyboard.press("Tab");
 }
+// Selects offer only tokens; a tampered DOM must still be rejected by the model.
+async function tamper(page, id, value) {
+  await page.evaluate(
+    ([id, value]) => {
+      const select = document.getElementById(id);
+      select.add(new Option(value, value));
+      select.value = value;
+    },
+    [id, value],
+  );
+}
+
 try {
   {
     const { context, page, errors, requests } = await ready("invalid"),
@@ -88,15 +100,13 @@ try {
       .filter({ hasText: /bounds/ })
       .waitFor();
     await page.getByLabel("Upper condition value", { exact: true }).fill("200");
-    await page
-      .getByLabel("Background color", { exact: true })
-      .fill("url(https://example.invalid)");
+    await tamper(page, "conditional-fill", "url(https://example.invalid)");
     await button(page, "Save rule").click();
     await page
       .locator("#conditional-context")
       .filter({ hasText: /style/ })
       .waitFor();
-    await page.getByLabel("Background color", { exact: true }).fill("#DDEBF7");
+    await page.getByLabel("Fill", { exact: true }).selectOption("dark");
     await page
       .getByLabel("Rule target range", { exact: true })
       .fill("not-a-range");
@@ -108,11 +118,11 @@ try {
     await button(page, "Close conditional formatting").click();
     assert.deepEqual(await copy(page, "invalid-kept"), before);
     await open(page, "3. Summary!B1:B2 · gte");
-    await page.getByLabel("Background color", { exact: true }).fill("#DDEBF7");
+    await page.getByLabel("Fill", { exact: true }).selectOption("dark");
     assert.equal(await button(page, "Move rule earlier").isDisabled(), true);
     await button(page, "Save rule").click();
     await updated(page);
-    await color(page, "B2", "rgb(221, 235, 247)");
+    await color(page, "B2", "rgb(11, 28, 44)");
     assert.deepEqual(requests, []);
     await page
       .locator("#save-status")
@@ -123,7 +133,7 @@ try {
     assert.deepEqual(saved.snapshot, before.snapshot);
     await page.reload();
     await button(page, "Restore draft").click();
-    await color(page, "B2", "rgb(221, 235, 247)");
+    await color(page, "B2", "rgb(11, 28, 44)");
     assert.deepEqual(await copy(page, "restored"), saved);
     await open(page, "3. Summary!B1:B2 · gte");
     await button(page, "Remove rule").click();
@@ -133,7 +143,7 @@ try {
     await page
       .getByText("Undo restored the previous workbook.", { exact: true })
       .waitFor();
-    await color(page, "B2", "rgb(221, 235, 247)");
+    await color(page, "B2", "rgb(11, 28, 44)");
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
@@ -170,7 +180,7 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
-    await color(page, "B2", "rgb(198, 239, 206)");
+    await color(page, "B2", "rgb(175, 197, 212)");
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
@@ -209,7 +219,7 @@ try {
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor();
-    await color(page, "B2", "rgb(255, 235, 156)");
+    await color(page, "B2", "rgb(233, 238, 242)");
     await context.close();
     console.log(
       "PASS conditional highlights: formula presentation waits for startup verification and redraws after it succeeds",
@@ -225,13 +235,21 @@ try {
       ref: "H2",
       kind: "highlight",
       condition: { operator: "eq", values: [{ type: "text", value: text }] },
-      style: { background: "#DDEBF7", bold: false },
+      style: { fill: "dark", bold: false, italic: true },
     });
     const { context, page, errors } = await ready(
       "typed",
       await buildWorkbook(book, { offline: true }),
     );
-    await color(page, "H2", "rgb(221, 235, 247)");
+    await color(page, "H2", "rgb(11, 28, 44)");
+    // Dark fills turn text white unless a colour is given; italic applies.
+    assert.deepEqual(
+      await page.locator('#grid [data-cell="H2"]').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return [s.color, s.fontStyle, s.fontWeight];
+      }),
+      ["rgb(255, 255, 255)", "italic", "400"],
+    );
     await open(page, "4. Summary!H2 · eq");
     assert.equal(
       await page.getByLabel("Condition value", { exact: true }).inputValue(),
@@ -240,6 +258,10 @@ try {
     assert.equal(
       await page.getByLabel("Font weight", { exact: true }).inputValue(),
       "normal",
+    );
+    assert.equal(
+      await page.getByLabel("Font style", { exact: true }).inputValue(),
+      "italic",
     );
     await button(page, "Save rule").click();
     await updated(page);
@@ -262,7 +284,7 @@ try {
         exact: true,
       })
       .waitFor();
-    await color(page, "B3", "rgb(255, 235, 156)");
+    await color(page, "B3", "rgb(233, 238, 242)");
     assert.deepEqual(
       (await copy(page, "shifted")).conditionalFormats.map((r) => r.ref),
       ["B3", "B3", "B1:B3"],
@@ -282,7 +304,7 @@ try {
     await page
       .getByText("Undo restored the previous workbook.", { exact: true })
       .waitFor();
-    await color(page, "B3", "rgb(255, 235, 156)");
+    await color(page, "B3", "rgb(233, 238, 242)");
     assert.deepEqual(
       (await copy(page, "shift-undone")).conditionalFormats.map((r) => r.ref),
       ["B3", "B3", "B1:B3"],
@@ -319,7 +341,7 @@ try {
       .locator("#status")
       .filter({ hasText: "Injected scenario calculation failure" })
       .waitFor();
-    await color(page, "B2", "rgb(255, 235, 156)");
+    await color(page, "B2", "rgb(233, 238, 242)");
     assert.equal(
       await page.locator('#grid [data-cell="B2"]').textContent(),
       "€220.00",
@@ -332,7 +354,7 @@ try {
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
     await button(page, "Summary").click();
-    await color(page, "B2", "rgb(198, 239, 206)");
+    await color(page, "B2", "rgb(175, 197, 212)");
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
@@ -348,7 +370,7 @@ try {
         ref: "A1:XFD1048576",
         kind: "highlight",
         condition: { operator: "isBlank", values: [] },
-        style: { background: "#DDEBF7" },
+        style: { fill: "dark" },
       },
     ];
     const { context, page, errors, requests } = await ready(
@@ -356,7 +378,7 @@ try {
       await buildWorkbook(book, { offline: true }),
     );
     await jump(page, "CV100000");
-    await color(page, "CV100000", "rgb(221, 235, 247)");
+    await color(page, "CV100000", "rgb(11, 28, 44)");
     assert.ok((await page.locator("#grid [data-cell]").count()) < 600);
     assert.deepEqual(requests, []);
     assert.deepEqual(errors, []);

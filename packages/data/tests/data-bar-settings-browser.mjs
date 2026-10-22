@@ -6,6 +6,17 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { conditionalWorkbook } from "../fixtures/conditional.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+// Selects offer only tokens; a tampered DOM must still be rejected by the model.
+async function tamper(page, id, value) {
+  await page.evaluate(
+    ([id, value]) => {
+      const select = document.getElementById(id);
+      select.add(new Option(value, value));
+      select.value = value;
+    },
+    [id, value],
+  );
+}
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = conditionalWorkbook();
@@ -84,11 +95,11 @@ for (const offline of [false, true]) {
       .filter({ hasText: /include zero/ })
       .waitFor();
     await field("Bar minimum").fill("-100");
-    await field("Positive bar color").fill("url(x)");
+    await tamper(page, "conditional-positive", "url(x)");
     await button("Save rule").click();
     await page
       .locator("#conditional-context")
-      .filter({ hasText: /color/ })
+      .filter({ hasText: /colour/ })
       .waitFor();
     await button("Close conditional formatting").click();
     assert.equal(
@@ -99,7 +110,7 @@ for (const offline of [false, true]) {
     await field("Bar scale").selectOption("fixed");
     await field("Bar minimum").fill("-100");
     await field("Bar maximum").fill("100");
-    await field("Positive bar color").fill("#112233");
+    await field("Positive bar colour").selectOption("mid");
     await button("Save rule").click();
     await updated();
     await width("F5", 50);
@@ -119,7 +130,7 @@ for (const offline of [false, true]) {
     await field("Bar scale").selectOption("fixed");
     await field("Bar minimum").fill("-200");
     await field("Bar maximum").fill("200");
-    await field("Negative bar color").fill("#00AA00");
+    await field("Negative bar colour").selectOption("t2");
     await button("Save rule").click();
     await updated();
     await width("F3", 50);
@@ -131,8 +142,8 @@ for (const offline of [false, true]) {
     assert.equal(
       await page
         .locator('#grid [data-cell="F3"] .data-bar-fill')
-        .evaluate((el) => el.style.backgroundColor),
-      "rgb(0, 170, 0)",
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+      "rgb(90, 102, 112)",
     );
     await open("4. Summary!F3:F5 · data bar");
     await field("Rule kind").selectOption("highlight");
@@ -145,7 +156,7 @@ for (const offline of [false, true]) {
       await page
         .locator('#grid [data-cell="F5"]')
         .evaluate((el) => getComputedStyle(el).backgroundColor),
-      "rgb(255, 235, 156)",
+      "rgb(233, 238, 242)",
     );
     await page
       .locator("#save-status")

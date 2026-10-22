@@ -158,7 +158,7 @@ export function conditionalPresentation(
         const bar = dataBarGeometry(value.value, scales[rule.id]);
         result.bar = {
           ...bar,
-          color: bar.negative ? rule.negativeColor : rule.positiveColor,
+          color: bar.negative ? rule.negative : rule.positive,
         };
       } else result.pendingBar = true;
     }

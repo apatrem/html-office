@@ -18,7 +18,7 @@ const high = (id = "high") => ({
   ref: "A1:A8",
   kind: "highlight",
   condition: { operator: "gte", values: [n(10)] },
-  style: { background: "#FFFF00" },
+  style: { fill: "lig" },
 });
 const bar = (id = "bar") => ({
   id,
@@ -26,8 +26,8 @@ const bar = (id = "bar") => ({
   ref: "A1:A8",
   kind: "dataBar",
   scale: { kind: "auto" },
-  positiveColor: "#0000FF",
-  negativeColor: "#FF0000",
+  positive: "acc",
+  negative: "alert",
 });
 const fixture = () => ({
   sheets: [
@@ -164,7 +164,7 @@ test("conditions preserve types, blank/empty/missing distinctions, error rules a
 test("ordered highlights and bars compose independently, and only the first matching rule of each kind wins", () => {
   const book = fixture(),
     first = high("first"),
-    second = { ...high("second"), style: { color: "#111111" } };
+    second = { ...high("second"), style: { color: "ink" } };
   book.conditionalFormats = [first, second, bar()];
   const compiled = compileConditionalFormats(book),
     scales = conditionalScales(book);
@@ -176,7 +176,7 @@ test("ordered highlights and bars compose independently, and only the first matc
     scales,
   );
   assert.deepEqual(result.highlight, first.style);
-  assert.equal(result.bar.color, "#0000FF");
+  assert.equal(result.bar.color, "acc");
   assert.equal(
     conditionalPresentation(
       compiled,
@@ -224,9 +224,9 @@ test("metadata commands are atomic, keep cells shared and explicitly reorder/rem
   );
   assert.throws(() => moveConditionalFormat(next, "extra", 4));
   assert.throws(() =>
-    setConditionalFormat(book, { ...bar(), positiveColor: "url(x)" }),
+    setConditionalFormat(book, { ...bar(), positive: "url(x)" }),
   );
-  assert.equal(book.conditionalFormats[1].positiveColor, "#0000FF");
+  assert.equal(book.conditionalFormats[1].positive, "acc");
 });
 
 test("sparse Excel-sized targets scan only populated cells and earlier missing scales never fall through to a later bar", () => {
@@ -250,7 +250,7 @@ test("sparse Excel-sized targets scan only populated cells and earlier missing s
 });
 test("metadata commands reject explicit undefined styles", () => {
   const book = fixture();
-  for (const key of ["background", "color", "bold"])
+  for (const key of ["fill", "color", "bold"])
     assert.throws(() =>
       setConditionalFormat(book, { ...high(), style: { [key]: undefined } }),
     );
@@ -273,7 +273,7 @@ test("summary lookups require an own entry for prototype-shaped rule IDs", () =>
         book.sheets[0].cells.A2,
         conditionalScales(book),
       ).bar.color,
-      "#0000FF",
+      "acc",
     );
   }
 });

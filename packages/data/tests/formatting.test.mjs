@@ -14,15 +14,14 @@ const styled = () => {
   inputs.cells.B2.style = {
     bold: true,
     italic: false,
-    fontSize: 12.5,
-    fontFamily: "Georgia",
-    color: "#C00000",
-    background: { theme: "accent1", tint: 0.6 },
+    color: "alert",
+    fill: "tint",
     border: {
-      bottom: { style: "double", color: { theme: "ink" } },
+      bottom: { style: "double", color: "ink" },
       top: { style: "thin" },
+      left: { style: "none" },
     },
-    align: { horizontal: "centerContinuous", vertical: "center", wrap: true },
+    align: { horizontal: "centerContinuous", wrap: true },
   };
   // A style-only cell: blank for formulas, still part of the document.
   inputs.cells.D9 = { style: { border: { left: { style: "medium" } } } };
@@ -36,13 +35,12 @@ const styled = () => {
     AA: { width: 64 },
   };
   inputs.rows = {
-    1: { height: 32, customHeight: true },
-    4: { style: { italic: true } },
+    1: { height: 32 },
+    4: { style: { italic: true, fill: "dark" } },
   };
-  book.namedStyles = [
-    { id: "s-margin", name: "Margin", style: { background: "#E2EFDA" } },
-  ];
-  inputs.cells.B3 = { ...inputs.cells.B3, cellStyle: "s-margin" };
+  inputs.cells.B3 = { ...inputs.cells.B3, cellStyle: "total" };
+  book.font = "georgia";
+  book.theme = "green";
   return book;
 };
 
@@ -55,47 +53,79 @@ test("manual formatting, cell styles, links and axes round-trip through the docu
   assert.equal(await fingerprint(book), await fingerprint(fixture()));
 });
 
-test("built-in and custom cell styles are the only accepted references", () => {
+test("only the fixed cell-style catalogue is accepted; no custom styles", () => {
   for (const name of [
     "normal",
+    "title",
     "header",
     "rowHeader",
-    "good",
-    "heading2",
-    "accent3-40",
+    "assumption",
+    "calculation",
+    "output",
+    "total",
+    "note",
+    "alert",
     "hyperlink",
   ]) {
     const book = fixture();
     book.sheets[0].cells.B2.cellStyle = name;
     validateWorkbook(book);
   }
-  const unknown = fixture();
-  unknown.sheets[0].cells.B2.cellStyle = "input";
-  assert.throws(() => validateWorkbook(unknown), /cell style/);
-  const reserved = fixture();
-  reserved.namedStyles = [{ id: "good", name: "Mine", style: {} }];
-  assert.throws(() => validateWorkbook(reserved), /reserved/);
-  const duplicate = fixture();
-  duplicate.namedStyles = [
-    { id: "a", name: "Same", style: {} },
-    { id: "b", name: " same ", style: {} },
-  ];
-  assert.throws(() => validateWorkbook(duplicate), /name/);
+  for (const name of ["input", "good", "heading2", "accent3-40", "s-mine"]) {
+    const book = fixture();
+    book.sheets[0].cells.B2.cellStyle = name;
+    assert.throws(() => validateWorkbook(book), /cell style/, name);
+  }
+  const custom = fixture();
+  custom.namedStyles = [{ id: "s-mine", name: "Mine", style: {} }];
+  assert.throws(() => validateWorkbook(custom), /unknown field namedStyles/);
 });
 
-test("invalid style values are rejected with explicit reasons", () => {
+test("document font and theme come from closed lists", () => {
+  for (const [field, value] of [
+    ["font", "verdana"],
+    ["font", "times"],
+    ["theme", "red"],
+    ["theme", "black"],
+  ]) {
+    const book = fixture();
+    book[field] = value;
+    validateWorkbook(book);
+  }
+  for (const [field, value, reason] of [
+    ["font", "Comic Sans MS", /document font/],
+    ["font", "calibri", /document font/],
+    ["font", ["arial"], /document font/],
+    ["font", [["arial"]], /document font/],
+    ["font", { arial: true }, /document font/],
+    ["theme", ["blue"], /theme/],
+    ["theme", "purple", /theme/],
+  ]) {
+    const book = fixture();
+    book[field] = value;
+    assert.throws(() => validateWorkbook(book), reason);
+  }
+});
+
+test("only charte tokens and the closed vocabulary are accepted", () => {
   const cases = [
-    [{ fontSize: 0 }, /Font size/],
-    [{ fontSize: 12.3 }, /Font size/],
-    [{ fontFamily: "Arial; color:red" }, /font family/],
-    [{ color: "red" }, /font colour/],
-    [{ background: { theme: "brand" } }, /theme colour/],
-    [{ background: { theme: "acc", tint: 2 } }, /tint/],
+    [{ fontSize: 12 }, /unknown field fontSize/],
+    [{ fontFamily: "Arial" }, /unknown field fontFamily/],
+    [{ underline: true }, /unknown field underline/],
+    [{ strike: true }, /unknown field strike/],
+    [{ background: "tint" }, /unknown field background/],
+    [{ color: "#C00000" }, /text colour/],
+    [{ color: { theme: "acc", tint: 0.4 } }, /text colour/],
+    [{ color: "lig" }, /text colour/],
+    [{ fill: "red" }, /fill/],
+    [{ fill: "bg" }, /fill/],
+    [{ border: { top: { style: "dotted" } } }, /border style/],
+    [{ border: { top: { style: "thick" } } }, /border style/],
+    [{ border: { top: { style: "thin", color: "#000000" } } }, /border colour/],
+    [{ border: { top: { style: "none", color: "ink" } } }, /none border/],
     [{ border: { diagonal: { style: "thin" } } }, /unknown field diagonal/],
-    [{ border: { top: { style: "hair" } } }, /border style/],
     [{ align: { horizontal: "justify" } }, /horizontal/],
-    [{ align: { vertical: "distributed" } }, /vertical/],
-    [{ underline: "double" }, /underline/],
+    [{ align: { vertical: "center" } }, /unknown field vertical/],
     [{ indent: 2 }, /unknown field indent/],
   ];
   for (const [style, reason] of cases) {
@@ -143,7 +173,10 @@ test("row and column entries are bounded and explicit", () => {
     [{ columns: { B: {} } }, /Empty/],
     [{ columns: { B: { width: 0 } } }, /width/],
     [{ rows: { 2: { height: 601 } } }, /height/],
-    [{ rows: { 2: { customHeight: true } } }, /customHeight/],
+    [
+      { rows: { 2: { height: 20, customHeight: true } } },
+      /unknown field customHeight/,
+    ],
     [{ columns: { B: { height: 20 } } }, /unknown field height/],
   ];
   for (const [axes, reason] of cases) {
@@ -199,8 +232,8 @@ test("row tables keep style and cell style metadata beside array values", () => 
         input: { type: "text", value: "a" },
         style: { bold: true },
       },
-      A2: { input: { type: "text", value: "b" }, cellStyle: "good" },
-      C1: { style: { background: "#FFFF00" } },
+      A2: { input: { type: "text", value: "b" }, cellStyle: "note" },
+      C1: { style: { fill: "lig" } },
     },
   };
   book.sheets.push(raw);
@@ -226,7 +259,7 @@ test("structural edits move row/column formatting and internal links; undo resto
   inputs.rows = {
     2: { height: 30 },
     3: { style: { bold: true } },
-    9: { height: 40, customHeight: true },
+    9: { height: 40 },
   };
   inputs.columns = { B: { width: 120 }, D: { style: { italic: true } } };
   inputs.links = {
@@ -285,7 +318,7 @@ test("structural edits move row/column formatting and internal links; undo resto
     headBefore = captureHead(book),
     next = shiftWorkbook(book, command);
   assert.deepEqual(next.sheets[0].rows, {
-    7: { height: 40, customHeight: true },
+    7: { height: 40 },
   });
   assert.deepEqual(next.sheets[0].links, {
     D18: { sheetId: "inputs", ref: "#REF!" },
@@ -367,21 +400,19 @@ test("relocating links never copies unrelated large sheets", async () => {
   );
 });
 
-test("edit boundary rejects unknown cell styles; paste adaptation drops them", async () => {
+test("edit boundary rejects cell styles outside the catalogue; paste adaptation drops them", async () => {
   const { validateCell } = await import("../model/workbook.mjs");
   const { adaptReferences } = await import("../model/formatting.mjs");
   const book = fixture();
-  book.namedStyles = [{ id: "s-known", name: "Known", style: {} }];
   const foreign = { input: { type: "number", value: 1 }, cellStyle: "s-other" };
   validateCell(foreign); // shape alone is valid
   assert.throws(() => validateCell(foreign, book), /Unknown cell style/);
-  validateCell({ ...foreign, cellStyle: "s-known" }, book);
-  validateCell({ ...foreign, cellStyle: "heading1" }, book);
+  validateCell({ ...foreign, cellStyle: "total" }, book);
   assert.deepEqual(adaptReferences(book, foreign), {
     cell: { input: { type: "number", value: 1 } },
     dropped: 1,
   });
-  const known = { ...foreign, cellStyle: "s-known" };
+  const known = { ...foreign, cellStyle: "output" };
   assert.equal(adaptReferences(book, known).cell, known);
   assert.throws(
     () =>
@@ -394,28 +425,25 @@ test("edit boundary rejects unknown cell styles; paste adaptation drops them", a
   );
 });
 
-test("cell styles may carry a number format; borders accept an explicit none", () => {
+test("borders accept an explicit none on cells, rows and columns", () => {
   const book = fixture();
-  book.namedStyles = [
-    {
-      id: "s-pct",
-      name: "Rate",
-      style: { border: { top: { style: "none" }, bottom: { style: "thin" } } },
-      format: { kind: "percent", digits: 1 },
+  book.sheets[0].cells.B2.style = {
+    border: {
+      top: { style: "none" },
+      bottom: { style: "double", color: "acc" },
     },
-  ];
-  book.sheets[0].cells.B2.cellStyle = "s-pct";
+  };
   book.sheets[0].rows = {
     2: { style: { border: { left: { style: "none" } } } },
   };
+  book.sheets[0].columns = {
+    B: { style: { border: { right: { style: "medium" } } } },
+  };
   validateWorkbook(book);
   assert.deepEqual(readModel(writeModel(book)), book);
-  const badFormat = structuredClone(book);
-  badFormat.namedStyles[0].format = { kind: "percent", scale: "millions" };
-  assert.throws(() => validateWorkbook(badFormat), /scale/);
   const coloured = structuredClone(book);
   coloured.sheets[0].cells.B2.style = {
-    border: { top: { style: "none", color: "#000000" } },
+    border: { top: { style: "none", color: "ink" } },
   };
   assert.throws(() => validateWorkbook(coloured), /none border/);
 });
