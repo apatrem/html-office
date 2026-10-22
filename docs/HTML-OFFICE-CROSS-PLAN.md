@@ -81,13 +81,13 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 - Outcome: an amended ADR-010 and FORMAT.md. F01's model is adjusted before F02 renders anything.
 - Blocks F02.
 
-## T — Shared themes and document font
+## TH — Shared themes and document font
 
-**T01 — Built-in chartes.** Scope S.
+**TH01 — Built-in chartes.** Scope S.
 - Design the blue (current default), red, green and black (greyscale, single alert colour) chartes.
 - Each defines every charte token, including chart palette and Data role tokens, with checked contrast (text on fills, white on dark fills).
 
-**T02 — Theme and font settings per product.** Scope M each.
+**TH02 — Theme and font settings per product.** Scope M each.
 - Data: workbook `theme` and `font` with overlay rendering, undo, guide and tests.
 - Slides: `data-theme` and `data-font`, body font only.
 - Text: the same as Slides, when its editor exists.

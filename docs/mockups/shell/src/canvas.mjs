@@ -173,7 +173,7 @@ export function settingsPanel(product) {
   return panel(
     "settings",
     "Document settings",
-    `<h3>Theme</h3>${themePicker()}<p class="hint">Built-in chartes are placeholders until T01. The document charte is never overwritten; switching is undoable.</p>
+    `<h3>Theme</h3>${themePicker()}<p class="hint">Built-in chartes are placeholders until TH01. The document charte is never overwritten; switching is undoable.</p>
 <h3>Font</h3>${fontPicker()}<p class="hint">${fontNote}</p>${extra}`,
     { sub: "Saved in this file" },
   );

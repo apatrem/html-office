@@ -11,7 +11,7 @@ const css = readFileSync(here("src/shell.css"), "utf8");
 const js = readFileSync(here("src/shell.js"), "utf8");
 const defaultCharte = readFileSync(here("../../../src/theme/default.css"), "utf8");
 
-// Built-in chartes: placeholders until T01 designs and checks them.
+// Built-in chartes: placeholders until TH01 designs and checks them.
 export const THEMES = {
   document: { bg: "#FFFFFF", ink: "#1F1A33", acc: "#5B3B8C", mid: "#8E6BBF", lig: "#D3C4E8", alert: "#C2521C", tint: "#F3F0F8", callout: "#EEE8F6", bd: "#DCD5E6", t2: "#625A70" },
   blue: { ink: "#0B1C2C", acc: "#14517A", mid: "#4F7FA3", lig: "#AFC5D4", alert: "#C2521C", tint: "#ECEFF2", callout: "#E9EEF2", bd: "#D7DDE3", t2: "#5A6670" },
@@ -190,7 +190,7 @@ footer{max-width:1500px;margin:40px auto;padding:0 24px;color:var(--mute);font-s
 <header><p class="mute">html-office · task U02 · 22 October 2026</p>
 <h1>Editor shell mock-ups</h1>
 <p>Three layout variants of the shared editor shell, each shown for Slides, Data and Text with their real command sets and fictional content (the Community Learning P&amp;L from <code>packages/data/fixtures/pnl.json</code>). The audit, command inventory and constraints are in the <a href="../../HTML-OFFICE-SHELL-BRIEF.md">design brief (U01)</a>.</p>
-<p class="note"><b>Decision (U03, 22 October 2026): the user chose variant A — menu bar + icon toolbar.</b> B and C stay here for reference. Click any screenshot to open the live mock-up: menus, panels, theme and font switching work; nothing else does. Built-in theme colours are placeholders until T01.</p>
+<p class="note"><b>Decision (U03, 22 October 2026): the user chose variant A — menu bar + icon toolbar.</b> B and C stay here for reference. Click any screenshot to open the live mock-up: menus, panels, theme and font switching work; nothing else does. Built-in theme colours are placeholders until TH01.</p>
 </header>
 <main>
 <h2>Side by side</h2>
