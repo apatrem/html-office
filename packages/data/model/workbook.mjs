@@ -402,9 +402,15 @@ export function validateWorkbook(book) {
   const ids = new Set(),
     names = new Set();
   // Single pass over cells: the style catalogue and sheet IDs are known first.
-  if (book.font !== undefined && !Object.hasOwn(FONTS, book.font))
+  if (
+    book.font !== undefined &&
+    (typeof book.font !== "string" || !Object.hasOwn(FONTS, book.font))
+  )
     fail(`Invalid document font: use one of ${Object.keys(FONTS).join(", ")}`);
-  if (book.theme !== undefined && !THEMES.includes(book.theme))
+  if (
+    book.theme !== undefined &&
+    (typeof book.theme !== "string" || !THEMES.includes(book.theme))
+  )
     fail(`Invalid theme: use one of ${THEMES.join(", ")}`);
   const cellStyles = new Set(BUILTIN_CELL_STYLES),
     sheetIds = new Set(book.sheets.map((s) => s?.id));

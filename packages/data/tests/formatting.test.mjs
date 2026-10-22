@@ -95,6 +95,10 @@ test("document font and theme come from closed lists", () => {
   for (const [field, value, reason] of [
     ["font", "Comic Sans MS", /document font/],
     ["font", "calibri", /document font/],
+    ["font", ["arial"], /document font/],
+    ["font", [["arial"]], /document font/],
+    ["font", { arial: true }, /document font/],
+    ["theme", ["blue"], /theme/],
     ["theme", "purple", /theme/],
   ]) {
     const book = fixture();

@@ -235,13 +235,21 @@ try {
       ref: "H2",
       kind: "highlight",
       condition: { operator: "eq", values: [{ type: "text", value: text }] },
-      style: { fill: "dark", bold: false },
+      style: { fill: "dark", bold: false, italic: true },
     });
     const { context, page, errors } = await ready(
       "typed",
       await buildWorkbook(book, { offline: true }),
     );
     await color(page, "H2", "rgb(11, 28, 44)");
+    // Dark fills turn text white unless a colour is given; italic applies.
+    assert.deepEqual(
+      await page.locator('#grid [data-cell="H2"]').evaluate((el) => {
+        const s = getComputedStyle(el);
+        return [s.color, s.fontStyle, s.fontWeight];
+      }),
+      ["rgb(255, 255, 255)", "italic", "400"],
+    );
     await open(page, "4. Summary!H2 · eq");
     assert.equal(
       await page.getByLabel("Condition value", { exact: true }).inputValue(),
@@ -250,6 +258,10 @@ try {
     assert.equal(
       await page.getByLabel("Font weight", { exact: true }).inputValue(),
       "normal",
+    );
+    assert.equal(
+      await page.getByLabel("Font style", { exact: true }).inputValue(),
+      "italic",
     );
     await button(page, "Save rule").click();
     await updated(page);
