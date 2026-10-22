@@ -43,6 +43,13 @@ p = await page("c-text.html#none");
 await p.getByRole("button", { name: "More commands" }).click();
 await p.locator("#m-more").getByRole("menuitem", { name: /^Table/ }).click();
 assert.ok(await p.locator("#m-table").isVisible(), "Text table submenu");
+// Default panel open, then another panel from a menu: Escape returns to that menu's trigger.
+p = await page("a-data.html");
+await p.locator("[role=menubar] .mb", { hasText: "File" }).click();
+await p.locator("#m-data-file").getByRole("menuitem", { name: "Document settings…" }).click();
+assert.equal(await p.evaluate(() => document.body.dataset.panel), "settings");
+await p.keyboard.press("Escape");
+assert.equal(await active(p), "File", "focus returns after switching panels from a menu");
 assert.deepEqual(errs, []);
 console.log("all mock-up checks pass");
 await b.close();

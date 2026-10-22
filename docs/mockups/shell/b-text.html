@@ -507,7 +507,10 @@ html[data-font=times]{--doc-font:"Times New Roman", Times, serif}</style></head>
     for (const b of $$("button[data-panel]"))
       if (!b.closest(".menu")) b.setAttribute("aria-pressed", String(any && b.dataset.panel === id));
     if (any) {
-      if (!wasOpen) panelOpener = document.activeElement;
+      // Remember where focus came from; when switching panels keep a still-valid outside opener.
+      const active = document.activeElement,
+        outside = active && active !== document.body && !active.closest(".panels, .pop");
+      if (outside && (!wasOpen || !panelOpener?.isConnected || panelOpener === document.body)) panelOpener = active;
       document.querySelector(`.panel[data-for="${id}"] h2`)?.setAttribute("tabindex", "-1");
       if (restore) document.querySelector(`.panel[data-for="${id}"] h2`)?.focus({ preventScroll: true });
     } else if (wasOpen && restore && panelOpener?.isConnected && panelOpener !== document.body) {
@@ -577,7 +580,7 @@ html[data-font=times]{--doc-font:"Times New Roman", Times, serif}</style></head>
         root = open?.btn;
       closeMenu();
       // From a menu, focus returns to the menu's trigger when the panel closes.
-      if (fromMenu && root && body.dataset.panel === "none") root.focus({ preventScroll: true });
+      if (fromMenu && root) root.focus({ preventScroll: true });
       return setPanel(!fromMenu && body.dataset.panel === id ? "none" : id);
     }
     if (t.closest("button[data-close]")) return setPanel("none");
