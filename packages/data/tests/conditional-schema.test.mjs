@@ -49,7 +49,6 @@ test("conditional definitions reject unsafe styles, ambiguous identity and inval
     (b) => (b.conditionalFormats[0].style.fill = "url(https://example.com/x)"),
     // Literal colours and the F01 field name are outside the ADR-012 vocabulary.
     (b) => (b.conditionalFormats[0].style.fill = "#FFF2CC"),
-    (b) => (b.conditionalFormats[0].style.fill = "none"),
     (b) => (b.conditionalFormats[0].style.color = "#9C5700"),
     (b) => (b.conditionalFormats[0].style.background = "tint"),
     (b) => (b.conditionalFormats[0].style.position = "fixed"),
@@ -72,6 +71,7 @@ test("conditional definitions reject unsafe styles, ambiguous identity and inval
     (b) => (b.conditionalFormats[1].positiveColor = "red;position:fixed"),
     (b) => (b.conditionalFormats[1].negativeColor = "#C00000"),
     (b) => (b.conditionalFormats[1].positiveColor = "bg"),
+    (b) => (b.conditionalFormats[1].negativeColor = "none"),
     (b) =>
       (b.conditionalFormats = Array.from({ length: 101 }, (_, i) => ({
         ...bar(),

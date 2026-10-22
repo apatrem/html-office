@@ -101,10 +101,17 @@ test("document font and theme come from closed lists", () => {
     ["font", "Arial"],
     ["theme", "document"],
     ["theme", "purple"],
+    ["font", ["arial"]],
+    ["font", [["arial"]]],
+    ["theme", ["blue"]],
   ]) {
     const book = fixture();
     book[field] = value;
-    assert.throws(() => validateWorkbook(book), new RegExp(field), value);
+    assert.throws(
+      () => validateWorkbook(book),
+      new RegExp(field),
+      JSON.stringify(value),
+    );
   }
 });
 

@@ -135,9 +135,9 @@ for (const offline of [false, true]) {
     assert.equal(
       await page
         .locator('#grid [data-cell="F3"] .data-bar-fill')
-        .evaluate((el) => el.style.backgroundColor),
-      // Charte token, resolved by the browser from the document charte.
-      "var(--ink)",
+        .evaluate((el) => getComputedStyle(el).backgroundColor),
+      // The dark token resolved from the document charte (--ink).
+      "rgb(11, 28, 44)",
     );
     await open("4. Summary!F3:F5 · data bar");
     await field("Rule kind").selectOption("highlight");

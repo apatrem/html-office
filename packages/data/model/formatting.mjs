@@ -25,7 +25,8 @@ export const TEXT_COLORS = ["ink", "acc", "mid", "alert", "t2", "bg"];
 export const FILLS = ["none", "tint", "lig", "mid", "acc", "alert", "dark"];
 // Dark fills switch text to white unless a text colour is given.
 export const DARK_FILLS = ["mid", "acc", "alert", "dark"];
-export const BAR_COLORS = ["acc", "mid", "lig", "alert", "dark"];
+// Data bars reuse the fill vocabulary; a bar needs a visible colour.
+export const BAR_COLORS = FILLS.filter((token) => token !== "none");
 // "none" explicitly suppresses a side inherited from a cell style, row or column.
 export const BORDER_STYLES = ["none", "thin", "medium", "double"];
 export const HORIZONTAL = [
@@ -69,7 +70,7 @@ export const tokenCss = (token) =>
     : `var(--${token === "dark" ? "ink" : token})`;
 
 function token(value, list, where) {
-  if (!list.includes(value))
+  if (typeof value !== "string" || !list.includes(value))
     fail(`Invalid ${where}: use one of ${list.join(", ")}`);
 }
 
@@ -101,7 +102,10 @@ export function validateStyle(style, where = "style") {
 }
 
 export function validateDocumentSettings(book) {
-  if (book.font !== undefined && !Object.hasOwn(FONTS, book.font))
+  if (
+    book.font !== undefined &&
+    (typeof book.font !== "string" || !Object.hasOwn(FONTS, book.font))
+  )
     fail(`Invalid font: use one of ${Object.keys(FONTS).join(", ")}`);
   if (book.theme !== undefined) token(book.theme, THEMES, "theme");
 }

@@ -20,7 +20,8 @@ async function geometry(page, ref) {
       left: parseFloat(fill.style.left),
       width: parseFloat(fill.style.width),
       axis: parseFloat(axis.style.left),
-      color: fill.style.backgroundColor,
+      // The colour the browser actually draws, resolved from the charte.
+      color: getComputedStyle(fill).backgroundColor,
       text: el.textContent,
     };
   });
@@ -60,7 +61,7 @@ try {
     near(negative.left, 0);
     near(negative.width, 100 / 3);
     near(negative.axis, 100 / 3);
-    assert.equal(negative.color, "var(--alert)");
+    assert.equal(negative.color, "rgb(194, 82, 28)");
     near(positive.left, 100 / 3);
     near(positive.width, 100 / 6);
     near(zero.width, 0);

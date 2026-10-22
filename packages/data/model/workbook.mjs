@@ -332,7 +332,7 @@ export function validateConditionalFormats(book) {
       if (
         !Object.keys(rule.style).length ||
         (Object.hasOwn(rule.style, "fill") &&
-          (!FILLS.includes(rule.style.fill) || rule.style.fill === "none")) ||
+          !FILLS.includes(rule.style.fill)) ||
         (Object.hasOwn(rule.style, "color") &&
           !TEXT_COLORS.includes(rule.style.color)) ||
         ["bold", "italic"].some(
