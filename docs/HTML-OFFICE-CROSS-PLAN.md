@@ -47,10 +47,23 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 ## S — Styling scope in Data
 
-**S01 — Design session (`/grill-me`) on Data styling.**
+**S01 — Design session on Data styling — done 22 October 2026, see [ADR-012](decisions/012-data-formatting-vocabulary.md).**
 - Revisit ADR-010's free direct styles in light of Slides' constrained vocabulary (theme colours, a few utility classes, no literal colours) and the request for a **fixed font size** in Data.
 - Outcome: an amended ADR-010 and FORMAT.md. F01's model is adjusted before F02 renders anything.
 - Blocks F02.
+
+## T — Shared themes and document font
+
+**T01 — Built-in chartes.** Scope S.
+- Design the blue (current default), red, green and black (greyscale, single alert colour) chartes.
+- Each defines every charte token, including chart palette and Data role tokens, with checked contrast (text on fills, white on dark fills).
+
+**T02 — Theme and font settings per product.** Scope M each.
+- Data: workbook `theme` and `font` with overlay rendering, undo, guide and tests.
+- Slides: `data-theme` and `data-font`, body font only.
+- Text: the same as Slides, when its editor exists.
+
+The setting's placement follows the shell design (U03).
 
 ## D — Data-set model research
 

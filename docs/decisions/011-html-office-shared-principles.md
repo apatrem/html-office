@@ -1,6 +1,6 @@
 # ADR-011 — Shared principles across html-office products
 
-Status: proposed on 22 October 2026. Sections marked **accepted** consolidate decisions already recorded elsewhere; sections marked **proposed** or **open** need the tasks in the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md) before acceptance. Applies to html-slides, html-data and html-text.
+Status: proposed on 22 October 2026; §10 accepted in session S01 the same day. Sections marked **accepted** consolidate decisions already recorded elsewhere; sections marked **proposed** or **open** need the tasks in the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md) before acceptance. Applies to html-slides, html-data and html-text.
 
 ## Accepted (consolidated)
 
@@ -17,8 +17,13 @@ Status: proposed on 22 October 2026. Sections marked **accepted** consolidate de
 8. **Cross-product copy and paste.** Tables and charts copy between Slides, Data and Text through one shared clipboard contract: a semantic HTML table and chart snapshot for any target, plus an html-office JSON payload for rich html-office targets. The canonical structures need not share the same DOM, but must map losslessly onto the shared payload (task X01). Text already specifies that values from Data arrive as a snapshot with no link to the source.
 9. **Third-party notices stay inside the file, deduplicated.** MIT, ISC and similar licences require the copyright and permission notice to be included with copies of the software. A link to an external page would not reliably satisfy that requirement and would break offline and self-contained use. Notices therefore stay embedded, collapsed and outside the visible interface. Identical licence texts are stored once, with the list of copyright holders (task L01).
 
-## Open
+10. **Shared appearance settings** (decided in session S01, 22 October 2026; detailed in [ADR-012](012-data-formatting-vocabulary.md)):
+    - Formatting uses the closed html-slides token vocabulary in every product; no literal colours, fonts or sizes in content.
+    - A per-document **font** comes from one shared list: Arial (default), Verdana, Tahoma, Trebuchet MS, Georgia, Times New Roman. In Slides and Text it changes the **body** only; titles keep the charte's `--title-font` (default `--font`). In Data it applies to the whole grid.
+    - A shared **theme picker** offers four built-in chartes (blue, red, green, black/greyscale) plus the document's own charte, which is never overwritten.
+    - The active theme is a document field (`theme` in Data JSON; `data-theme` and `data-font` attributes in Slides and Text). Switching needs no network and creates no colour editor.
+    - Organisation chartes are created by the skill (Slides V1-02, extended to all products).
 
-- **Styling freedom in Data.** Whether Data keeps ADR-010's free direct styles (hex colours, font size) or adopts Slides' constrained vocabulary (theme colours, a few classes, fixed font size) is under review in a dedicated design session (task S01). It blocks F02.
+## Open
 - **A Slides code ceiling** has not been recorded; set one when Slides is next revised.
 - **Data-set storage.** The best model for manipulating large tables is under research (task D01). [ADR-005](005-data-storage.md) remains in force until then.

@@ -3,7 +3,7 @@
 Status: accepted by the user after a design review on 21 October 2026. Supersedes the tabbed native ribbon of [ADR-009](009-familiar-ribbon-without-react-runtime.md) and raises the Data code ceiling set in [ADR-003](003-html-office-and-data-runtime.md). The delivery implementation starts with the R05 spike; nothing here is implemented yet.
 
 Update, 22 October 2026: F01 (model) is merged. Two parts are **under review** under [ADR-011](011-html-office-shared-principles.md):
-- the free direct styles (hex colours, font size), which may be constrained to the Slides vocabulary (task S01, which blocks F02);
+- the free direct styles, cell-style catalogue, themes and toolbar content: **superseded by [ADR-012](012-data-formatting-vocabulary.md)**, which adopts the closed Slides vocabulary;
 - the single-band interface layout, which waits for the cross-product editor-shell design (tasks U01–U03, which replace F04).
 
 ## Context
