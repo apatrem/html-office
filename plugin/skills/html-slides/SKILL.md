@@ -1,6 +1,6 @@
 ---
 name: html-slides
-description: Create, edit, validate, and export presentations in the html-slides format: one HTML file containing semantic slides, theme, data-driven charts, and a browser editor. Use when the user requests HTML slides, a standalone deck, an html-slides presentation, or provides an existing html-slides file to edit, review, or export as PDF.
+description: "Create, edit, validate, and export presentations in the html-slides format: one HTML file containing semantic slides, theme, data-driven charts, and a browser editor. Use when the user requests HTML slides, a standalone deck, an html-slides presentation, or provides an existing html-slides file to edit, review, or export as PDF."
 ---
 
 # html-slides — standalone HTML presentations
@@ -9,7 +9,7 @@ Deliver one `.html` file with semantic content, a theme, JSON chart data, cached
 
 ## Before starting
 
-1. Check prerequisites once per session: Node.js ≥18, then `node <skill>/tools/check.mjs <skill>/examples/community-garden.html`. If missing, install Playwright 1.62.1 and Chromium: `npm install -g playwright@1.62.1 && npx playwright install chromium`.
+1. Check capabilities once per session in the assistant's execution environment: Node.js ≥18, then `node <skill>/tools/check.mjs <skill>/examples/community-garden.html`. Reuse installed dependencies. Rendering, PDF and the checker currently require exactly Playwright 1.62.1 with Chromium; the desktop app's built-in browser does not automatically replace them. If unavailable, explain the missing capability without claiming successful checks or asking a nontechnical user to run npm commands. Do not install packages globally by default. Recipients of a finished HTML need only a browser.
 2. Read `references/FORMAT.md` and `references/CATALOGUE.md`. Read `references/CHARTS.md` when charts are needed.
 3. Render the example with `check.mjs … --shots <scratch>/example` and inspect two or three screenshots to learn the visual style.
 
