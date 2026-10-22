@@ -2,6 +2,10 @@
 
 Status: accepted by the user after a design review on 21 October 2026. Supersedes the tabbed native ribbon of [ADR-009](009-familiar-ribbon-without-react-runtime.md) and raises the Data code ceiling set in [ADR-003](003-html-office-and-data-runtime.md). The delivery implementation starts with the R05 spike; nothing here is implemented yet.
 
+Update, 22 October 2026: F01 (model) is merged. Two parts are **under review** under [ADR-011](011-html-office-shared-principles.md):
+- the free direct styles (hex colours, font size), which may be constrained to the Slides vocabulary (task S01, which blocks F02);
+- the single-band interface layout, which waits for the cross-product editor-shell design (tasks U01–U03, which replace F04).
+
 ## Context
 
 The [R04 assessment](../HTML-DATA-TOOLBAR-ASSESSMENT.md) showed that the actual IronCalc toolbar works against our canonical commands. About 61% of its bundle is React/React DOM and 17% is i18next; the IronCalc components themselves are about 55 kB. The user prefers IronCalc's appearance and wants its formatting features, not only the commands our current model supports. Loading the toolbar does not add workbook features: the canonical model, renderer, history and import must support them.

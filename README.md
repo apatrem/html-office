@@ -1,95 +1,44 @@
 # html-office
 
-Portable documents that an LLM can read and edit, delivered as a single HTML file with a browser editor and an embedded format guide.
+Create presentations, analytical workbooks and written documents with an AI assistant, then edit and share them as a single HTML file. Each file includes its content, browser editor and a format guide for future AI edits.
 
-**Available today: html-slides.** Create presentations with an LLM, edit them in your browser, and share one HTML file. Slides contain readable HTML, chart data, a theme, an editor, and a built-in format guide. Export to PDF when needed.
+## Development status
 
-**Planned: html-data.** Editable analytical workbooks with formulas, scenarios, grouped sheets, saved results, and charts. See the [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), and [architecture decision](docs/decisions/003-html-office-and-data-runtime.md). Data is not implemented or included in the plugin yet.
+Status as of 22 October 2026. Only Slides is included in the downloadable plugin.
 
-**Planned: html-text.** An alternative to Word for reports, memos, and proposals, written and revised with an LLM and edited in the browser. V1 decisions are in the [Text V1 specification](docs/HTML-TEXT-V1.md), [Text implementation plan](docs/HTML-TEXT-PLAN.md), and [ADR-004](docs/decisions/004-html-text-format-and-editor.md); implementation starts after the Data editing milestone.
+| App | Status | Available / next steps |
+| --- | --- | --- |
+| **html-slides** — presentations | Available · [v0.7.1](https://github.com/apatrem/html-office/releases/tag/v0.7.1) | Browser editor, seven chart types, themes, presentation mode and PDF export. Cross-device and full desktop-assistant workflows still need validation. [Validation log](docs/VALIDATION-V1.md). |
+| **html-data** — analytical workbooks | In development · not in the plugin | Readable JSON workbook with IronCalc formulas in a worker, grid editing, copy/fill, row/column structure, sheet groups, scenarios and dropdowns, conditional formatting, undo/redo, drafts and saving. Next: the IronCalc-style toolbar (Preact) and drawing manual formatting, then import, charts and exports. [Prototype](packages/data/README.md) · [Plan](docs/HTML-DATA-PLAN.md) · [Progress](docs/HTML-DATA-PROGRESS.md). |
+| **html-text** — reports, memos and proposals | Specified · implementation not started | Format and editor decisions documented. Implementation follows the Data editing milestone (Checkpoint B). [Specification](docs/HTML-TEXT-V1.md) · [Plan](docs/HTML-TEXT-PLAN.md). |
 
-The repository was renamed from `html-slides` to `html-office`. The existing skill/plugin identifier, slide format, commands, and released `html-slides.plugin` filename are retained. The existing folders remain in place; moving them and changing the plugin identifier require compatibility work. For a checkout using the previous remote, run `git remote set-url origin https://github.com/apatrem/html-office.git`.
+## Try Slides
 
-**[Download the plugin](https://github.com/apatrem/html-office/releases/download/v0.7.1/html-slides.plugin)** · **[Skill instructions](plugin/skills/html-slides/SKILL.md)** · **[Format reference](plugin/skills/html-slides/references/FORMAT.md)**
+Download the [community garden presentation](https://github.com/apatrem/html-office/releases/download/v0.7.1/community-garden.html) or the [visual catalogue](https://github.com/apatrem/html-office/releases/download/v0.7.1/catalogue.html), then open the HTML in Chrome or Edge.
 
-Open [the community garden example](https://github.com/apatrem/html-office/releases/download/v0.7.1/community-garden.html) or [the visual catalogue](https://github.com/apatrem/html-office/releases/download/v0.7.1/catalogue.html) by downloading the HTML file and opening it in Chrome or Edge. Click **Edit**, double-click text to change it, drag elements to move them, and press **Cmd/Ctrl+S** to save. No plugin is needed to open or edit a generated deck.
+- Click **Edit**; double-click text to change it, or drag elements to move them.
+- Add slides, text, images, shapes, tables and charts from the toolbar.
+- Press **Cmd/Ctrl+S** to save, present full screen, or export a PDF.
 
-All examples use fictional, clearly labelled data. They contain no client material. The project is licensed under MIT; bundled dependencies retain their own licences in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+**No skill, Node.js, npm or Playwright installation is needed to open and edit a finished HTML file.** Chrome/Edge support saving to a chosen file; Safari/Firefox download a copy.
 
-## What it does
+## Create with an AI assistant
 
-- Insert, duplicate, delete, and reorder slides; add text, shapes, images, tables, and charts.
-- Use named layouts and theme colours; align, distribute, resize, and format elements.
-- Edit seven chart types: columns, horizontal bars, stacked bars, lines, waterfall, bubbles, and Gantt.
-- Save one HTML file, present it full screen, and export a PDF.
-- Preserve content, assets, identifiers, order, and manual placement when an LLM makes targeted edits.
-- Read the editing contract directly from the HTML or from **Help → File format**. Compatible repository, documentation, and skill download links are included.
+Download the [html-slides plugin](https://github.com/apatrem/html-office/releases/download/v0.7.1/html-slides.plugin) and follow the [skill setup guide](plugin/README.md). Then ask, for example:
 
-New decks use English UI, templates, and documentation. The HTML format remains version 1. Existing content is preserved by the explicit `upgrade` command.
+> Create a 6-slide presentation about organising a community garden, with a timeline and an illustrative budget.
 
-## Use the skill or the tools
+The intended experience is to use Claude Desktop or ChatGPT Desktop without developer setup. **The complete workflow in these apps is not yet validated.** The current generation and checking tools need Node.js and, for rendering, Playwright in the assistant's execution environment. An app's built-in browser does not automatically replace those tools. npm is used for dependency installation and global package lookup; it is not needed to read or edit the finished document.
 
-The release archive contains the `html-slides` skill, references, rendering tools, built assets, and examples. It can be used as a Claude plugin or as a skill folder by an agent that supports `SKILL.md`. See [plugin/README.md](plugin/README.md). Rendering tools require Node.js 18+ and Playwright **1.62.1** with Chromium; the HTML parser is bundled.
+## Sharing and offline use
 
-```bash
-npm ci
-npx playwright install chromium
-T=plugin/skills/html-slides/tools
-node $T/deck.mjs new deck.html --title "My presentation" --footer "Discussion draft" --content content.html
-node $T/deck.mjs pack deck.html --pdf deck.pdf
-node $T/check.mjs deck.html --shots work/shots
-node $T/deck.mjs extract deck.html --out work/extracted
-node $T/deck.mjs inject deck.html work/extracted/content.html
-node $T/check.mjs deck.html --since before.html --allow e12
-```
+Send the HTML file; recipients need only a browser. Saved charts remain visible offline. Recalculating charts needs an internet connection unless the assistant has embedded the chart library for offline use.
 
-`pack` preserves the engine, theme, and guide. `upgrade deck.html` updates the engine and its guide explicitly, creates a `.bak` backup, and keeps the theme unless `--theme` is requested. Review before/after screenshots when changing a theme. Failed validation or rendering leaves existing pack outputs intact.
+Examples use clearly labelled fictional data. The project is [MIT licensed](LICENSE); bundled libraries retain their [own licences](THIRD_PARTY_NOTICES.md).
 
-The checker parses inert HTML before running it and accepts only recognised engine scripts. CSS resource checks decode escapes and inspect every image candidate; dynamic URL substitution is rejected. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
+## Further reading
 
-## Network and offline use
-
-Cached chart SVGs remain readable offline. Without an embedded library, a deck with charts requests **ECharts 6.1.0 from jsDelivr** when opened. The browser checks the pinned SHA-384 SRI digest using anonymous CORS before executing it. A rejected or unavailable response leaves cached SVGs visible; chart recalculation then requires the library.
-
-Use `deck.mjs pack deck.html --offline` to embed ECharts and edit charts offline (about 1.1 MB extra). Opening the HTML never installs or updates the skill automatically. Embedded links are optional to follow.
-
-## Develop
-
-```bash
-npm ci
-npx playwright install chromium
-npm run build
-npm test
-npm run release
-```
-
-`npm run release` rebuilds assets, regenerates both HTML/PDF examples, checks their geometry, runs the regression suite and browser editor tests, and creates `dist/html-slides.plugin`.
-
-The checker trusts the engines listed in `src/released-engines.json` plus the engine of the current build. After publishing a version, run `npm run record-release` and commit `src/released-engines.json` so that later versions keep accepting decks made with it. Recording refuses a version that was already published with a different engine.
-
-| Folder | Purpose |
-| --- | --- |
-| `src/engine/` | DOM operations, history, serialisation, editor, thumbnails, and chart rendering |
-| `src/charts/` | One module per chart type |
-| `src/theme/` | Layouts and CSS theme variables |
-| `src/guide.md`, `src/format.js` | Embedded guide and shared format contract |
-| `src/echarts.js` | Approved ECharts version, URL, and SRI digest |
-| `src/distribution.json` | HTTPS links to a compatible release |
-| `src/released-engines.json` | Digests of published engines accepted by the checker |
-| `tools/` | Build, documentation generation, validation, and packaging |
-| `tests/` | Chart, preservation, persistence, thumbnails, guide, SRI, and editor checks |
-| `plugin/` | Distributable skill/plugin with built assets and the generated examples |
-| `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
-| `docs/` | [Office V1 specification](docs/HTML-OFFICE-V1.md), [Data implementation plan](docs/HTML-DATA-PLAN.md), [Text V1 specification](docs/HTML-TEXT-V1.md), [Text implementation plan](docs/HTML-TEXT-PLAN.md), [engine stress test](docs/ENGINE-STRESS-TEST.md), [Slides V1 plan](docs/PLAN.md), decisions, and [Slides validation status](docs/VALIDATION-V1.md) |
-
-Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
-
-Distribution links are versioned in `src/distribution.json`; documentation and downloads must point to a compatible release. Format versioning is independent of engine versioning. Generated assets are committed so the downloaded skill can run without a build step.
-
-## V1 limits
-
-- Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file.
-- Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft recognises the opened file and the content actually written by a successful save, including Save As and edits made during writing. After an unrelated version replaces the file at the same path, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
-- The V1 model uses DOM operations and HTML snapshots. Collaboration requires a new mutation model in V2.
-- No attached connectors, rotation, merged table cells, arbitrary fonts/colours, or PPTX export. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.
-- Cross-device manual tests, five real-use comparisons, and the context-free LLM test are still pending. See the validation log; automated checks do not establish these outcomes.
+- [Skill setup and requirements](plugin/README.md)
+- [Developer guide: installation, commands, checks and limitations](docs/DEVELOPMENT.md)
+- [Slides format reference](plugin/skills/html-slides/references/FORMAT.md)
+- [Office specification and roadmap](docs/HTML-OFFICE-V1.md)
