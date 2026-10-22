@@ -28,9 +28,19 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 **U04 — Shared native shell implementation.** One task per product. Scope M each.
 - One framework-free module and stylesheet (proposed `packages/shared/shell/`), built into each product behind its code ceiling. Start from R06's components and replace its assessment bridge with a deliberate command/state API.
 - **U04-Data** (replaces F04) can start after F01r.
-  - It ships the file bar and menus, the toolbar with the commands the model already supports (history, number formats, catalogue cell styles, clear formatting, clipboard, rows and columns, sheets, dropdowns, conditional formatting), the variant A formula bar and sheet bar, and the document-settings button.
+  - It ships the file bar and menus and the variant A formula bar and sheet bar.
+  - Its toolbar holds only the commands today's runtime already applies and renders end to end:
+    - history;
+    - number formats;
+    - the five rendered cell styles (normal, header, row label, assumption, calculation);
+    - clear formatting;
+    - clipboard, rows and columns, sheets;
+    - dropdowns, conditional formatting and the scenario selector.
   - It removes the tabbed ribbon and its page-wide CSS, which leaks into the shell (R06 finding 1).
-  - It shows no inert button. Emphasis, alignment, wrap, colours and borders join the toolbar with F02/F03. The cell-style, theme, font and regional panels arrive with F05. Links arrive with F03.
+  - It shows no inert button. Each later control joins the shell in the task that makes it work:
+    - the other catalogue styles with F02 (rendering);
+    - emphasis, alignment, wrap, colours, borders and links with F02/F03;
+    - the cell-style panel, the document-settings button with its theme and font panel, and regional settings with F05.
   - **Visual parity with variant A is an acceptance gate.** The R06 sample is still far from the mock-up; its [side-by-side comparison](HTML-DATA-NATIVE-SHELL-SPIKE.md#gap-to-variant-a) lists the gaps:
     - the page frame and status lines;
     - the four-field formula bar;
