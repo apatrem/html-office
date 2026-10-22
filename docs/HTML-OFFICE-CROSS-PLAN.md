@@ -21,7 +21,7 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 - Amend ADR-010's layout section and re-sequence Data F04.
 
 **R06 — Native shell spike for Data — done 22 October 2026, see the [report](HTML-DATA-NATIVE-SHELL-SPIKE.md).** It built variant A from framework-free components on R05's P&L sample.
-- Sizes: the shell is 45,444 bytes (14,357 gzip), against 199,681 for the Preact toolbar. The standard P&L comes to 417,611 bytes (baseline 370,560) and the offline sample to 1,373,859.
+- Sizes: the shell is 46,570 bytes (14,922 gzip), against 199,681 for the Preact toolbar. The standard P&L comes to 418,752 bytes (baseline 370,560) and the offline sample to 1,375,000.
 - R05's functional, engine-failure and 320–1440 px checks pass.
 - Formatting without an ADR-012 model is only recorded, so in the spike sample bold, italic, alignment, wrap, borders, colours, theme, font, regional settings and links do nothing visible yet.
 

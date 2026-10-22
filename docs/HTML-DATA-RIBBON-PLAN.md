@@ -123,8 +123,8 @@ Build the pinned IronCalc toolbar (`297553dc3a37ec6b0f4821055220e3d26c4ac6a1`) a
 Status: spike completed on 22 October 2026; see [the spike report](HTML-DATA-NATIVE-SHELL-SPIKE.md) and [`tools/shell-spike/`](../tools/shell-spike/README.md). Assessment tooling only.
 
 - Variant A built from framework-free shared components on the same P&L sample and host seam as R05.
-- Shell: 45,444 raw bytes (14,357 gzip), no runtime package. R05's Preact toolbar was 199,681.
-- Standard P&L sample: 417,611 bytes of application code against a baseline of 370,560 (about 332,000 bytes under the ceiling); offline sample 1,373,859.
+- Shell: 46,570 raw bytes (14,922 gzip), no runtime package. R05's Preact toolbar was 199,681.
+- Standard P&L sample: 418,752 bytes of application code against a baseline of 370,560 (about 331,000 bytes under the ceiling); offline sample 1,375,000.
 - R05's functional checks, adapted to ADR-012, pass standard and offline, along with the three engine-failure modes and layout from 320 to 1440 px.
 - Bold, italic, alignment, wrap, borders, colours, theme, font, regional settings and links only record intents until F01r–F05.
 
