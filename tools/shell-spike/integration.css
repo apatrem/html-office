@@ -1,0 +1,7 @@
+/* Data integration only: the host header and old ribbon give way to the shell. */
+main > section.panel > header, body > header { display: none; }
+.assessment-advanced { display: none; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sheet-bar { display: flex; align-items: stretch; min-width: 0; }
+.sheet-bar > #sheet-tabs { flex: 1 1 auto; min-width: 0; }
+.assessment-no-grid td, .assessment-no-grid th, .assessment-no-grid .grid-cell { border-color: transparent !important; }

@@ -1,0 +1,130 @@
+{
+  "shell": {
+    "jsBytes": 31656,
+    "cssBytes": 13788,
+    "totalBytes": 45444,
+    "gzipBytes": 14357,
+    "runtimePackages": [],
+    "modules": {
+      "shell/icons.mjs": 4127,
+      "shell/dom.mjs": 1936,
+      "shell/popover.mjs": 1269,
+      "shell/menu.mjs": 2400,
+      "shell/toolbar.mjs": 882,
+      "shell/pickers.mjs": 2114,
+      "shell/drawer.mjs": 1388,
+      "shell/dialogs.mjs": 2662,
+      "shell/panels.mjs": 3982,
+      "data-shell.mjs": 10855,
+      "entry.mjs": 29
+    }
+  },
+  "sources": {
+    "shell/dialogs.mjs": {
+      "lines": 90,
+      "bytes": 4399
+    },
+    "shell/dom.mjs": {
+      "lines": 85,
+      "bytes": 3487
+    },
+    "shell/drawer.mjs": {
+      "lines": 67,
+      "bytes": 2478
+    },
+    "shell/icons.mjs": {
+      "lines": 36,
+      "bytes": 4762
+    },
+    "shell/menu.mjs": {
+      "lines": 122,
+      "bytes": 4790
+    },
+    "shell/panels.mjs": {
+      "lines": 124,
+      "bytes": 5555
+    },
+    "shell/pickers.mjs": {
+      "lines": 132,
+      "bytes": 3967
+    },
+    "shell/popover.mjs": {
+      "lines": 70,
+      "bytes": 2198
+    },
+    "shell/shell.css": {
+      "lines": 153,
+      "bytes": 14078
+    },
+    "shell/toolbar.mjs": {
+      "lines": 39,
+      "bytes": 1591
+    },
+    "data-shell.mjs": {
+      "lines": 308,
+      "bytes": 16803
+    },
+    "host-bridge.mjs": {
+      "lines": 44,
+      "bytes": 1304
+    },
+    "integration.css": {
+      "lines": 8,
+      "bytes": 548
+    }
+  },
+  "sizes": [
+    {
+      "file": "shell-native.html",
+      "offline": false,
+      "applicationCodeBytes": 417611,
+      "documentContentBytes": 118785,
+      "totalHTMLBytes": 536396,
+      "baseline": {
+        "applicationCodeBytes": 370560,
+        "documentContentBytes": 118785,
+        "totalHTMLBytes": 489345
+      }
+    },
+    {
+      "file": "shell-native-offline.html",
+      "offline": true,
+      "applicationCodeBytes": 1373859,
+      "documentContentBytes": 118785,
+      "totalHTMLBytes": 1492644,
+      "baseline": {
+        "applicationCodeBytes": 1326808,
+        "documentContentBytes": 118785,
+        "totalHTMLBytes": 1445593
+      }
+    }
+  ],
+  "r05": {
+    "preact": {
+      "totalBytes": 199681,
+      "gzipBytes": 50670
+    },
+    "samples": [
+      {
+        "file": "toolbar-preact.html",
+        "applicationCodeBytes": 558873,
+        "baseline": 349618
+      },
+      {
+        "file": "toolbar-react-upstream.html",
+        "applicationCodeBytes": 842205,
+        "baseline": 349618
+      },
+      {
+        "file": "toolbar-preact-offline.html",
+        "applicationCodeBytes": 1515132,
+        "baseline": 1305866
+      },
+      {
+        "file": "toolbar-react-upstream-offline.html",
+        "applicationCodeBytes": 1798464,
+        "baseline": 1305866
+      }
+    ]
+  }
+}
