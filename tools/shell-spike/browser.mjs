@@ -211,6 +211,27 @@ try {
     await button("Styles").click();
     assert.ok(await page.locator(".sh-notice").isVisible(), "intent-only controls are disclosed on screen");
 
+    // Clear covers the whole selected range, including formatting recorded for other cells.
+    const gridCell = (ref) => page.locator(`#grid [data-cell="${ref}"]`);
+    for (const ref of ["B2", "C2"]) {
+      await gridCell(ref).click();
+      if ((await button("Bold").getAttribute("aria-pressed")) !== "true") await button("Bold").click();
+    }
+    await gridCell("B2").click();
+    await gridCell("C2").click({ modifiers: ["Shift"] });
+    await button("Clear formatting").click();
+    for (const ref of ["B2", "C2"]) {
+      await gridCell(ref).click();
+      assert.equal(await button("Bold").getAttribute("aria-pressed"), "false", `range clear reaches ${ref}`);
+    }
+    // Number-format presets are written to the model and saved (rendering arrives with F02).
+    for (const [ref, label] of [["B3", "Thousands (k)"], ["B4", "Negative in parentheses"], ["C3", "Long date"]]) {
+      await gridCell(ref).click();
+      await numberFormat.click();
+      await menu.getByRole("menuitem", { name: label }).click();
+    }
+    await gridCell("B2").click();
+
     // Our conditional-format dialog and the presentation-only grid toggle.
     await button("Conditional formatting").click();
     await page.locator("#conditional-dialog").waitFor({ state: "visible" });
@@ -235,11 +256,15 @@ try {
     const savePath = resolve(out, `saved-${offline}.html`),
       { html, book } = await savedBook(page, savePath);
     assert.equal(book.sheets.find((s) => s.id === "inputs").cells.B10.input.value, "Upside");
-    // B2 was cleared, then given the Total style through the menu, all canonically.
+    // B2 was given the Total style, then cleared with the B2:C2 range, all canonically.
     const b2 = book.sheets.find((s) => s.id === "summary").cells.B2;
-    assert.equal(b2.cellStyle, "total");
+    assert.equal(b2.cellStyle, "normal");
     assert.equal(b2.format.kind, "general");
     assert.equal(b2.style, undefined);
+    const summary = book.sheets.find((s) => s.id === "summary").cells;
+    assert.equal(summary.B3.format.scale, "thousands", "scale saved");
+    assert.equal(summary.B4.format.negative, "parentheses", "negative style saved");
+    assert.equal(summary.C3.format.dateStyle, "long", "date style saved");
     assert.match(html, /<div id="shell-root"[^>]*><\/div>/);
     assert.match(html, /<div id="shell-layer"><\/div>/);
     await page.goto(pathToFileURL(savePath).href);

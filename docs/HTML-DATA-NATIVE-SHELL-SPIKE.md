@@ -42,7 +42,7 @@ Raw minified bytes. Gzip uses R05's method: JS and CSS compressed separately at 
 | Build | JS | CSS | Total | gzip | Runtime packages |
 | --- | ---: | ---: | ---: | ---: | --- |
 | R05: IronCalc toolbar, drawer and link dialog on Preact (untrimmed) | 156,117 | 43,564 | 199,681 | 50,670 | preact, react-colorful |
-| **R06: native shell (variant A) for Data** | **32,546** | **14,024** | **46,570** | **14,922** | **none** |
+| **R06: native shell (variant A) for Data** | **32,792** | **14,024** | **46,816** | **15,072** | **none** |
 
 The two builds do not cover the same ground. R05 was measured **before** ADR-012 trimmed the toolbar: it still includes the font-size, underline and strike controls, IronCalc's theme menu and editor, the custom-style editor and react-colorful. Trimming would shrink it, but it would still carry Preact (24,212) and IronCalc's components.
 
@@ -57,14 +57,14 @@ What the native JS contains:
   - drawer 1,440
   - popover 1,269
   - toolbar 882
-- **Data adapter: 11,584.**
+- **Data adapter: 11,830.**
 - **CSS: 14,024.**
 
-**Complete standard P&L sample: 418,752 bytes** of application code, against a baseline of 370,560 for today's main with the native ribbon (+48,192). The baseline has grown since R05 (349,618) because F01 merged. On today's baseline the R05 toolbar would come to about 580,000. **Headroom under the 750,000 ceiling: about 331,000 bytes native, against about 170,000 with Preact.** The offline sample is 1,375,000.
+**Complete standard P&L sample: 419,021 bytes** of application code, against a baseline of 370,560 for today's main with the native ribbon (+48,461). The baseline has grown since R05 (349,618) because F01 merged. On today's baseline the R05 toolbar would come to about 580,000. **Headroom under the 750,000 ceiling: about 331,000 bytes native, against about 170,000 with Preact.** The offline sample is 1,375,269.
 
 Size of the source, as a measure of effort:
 - shared components: 926 lines, of which 157 are CSS;
-- Data adapter: 337 lines.
+- Data adapter: 345 lines.
 
 ## Behaviour and performance
 
@@ -76,7 +76,7 @@ Size of the source, as a measure of effort:
   - number-format menu button by keyboard, with focus returned to the trigger;
   - exactly one tab stop in the toolbar;
   - percent format with undo and redo through the canonical history;
-  - the long-date preset writes `dateStyle: "long"` to the model;
+  - the long-date, thousands and negative-in-parentheses presets are written to the model and found in the saved file;
   - more decimal places;
   - recorded intents for bold, centre across selection, colours (6 text and 7 fill tokens, chosen by keyboard) and borders (style, colour, side);
   - cell styles from the menu and from the drawer: 11 styles, catalogue styles applied canonically, `alert` recorded;
@@ -90,7 +90,7 @@ Size of the source, as a measure of effort:
     - Cmd/Ctrl+K opens it and closes an open menu first;
     - Escape reaches the dialog;
     - focus returns to the link button;
-  - clear formatting resets both canonical and recorded formatting;
+  - clear formatting resets both canonical and recorded formatting across the whole selected range;
   - the on-screen notice is present;
   - our conditional-format dialog;
   - grid lines from both the toolbar and the View menu;
@@ -103,7 +103,7 @@ Size of the source, as a measure of effort:
   - Save a copy writes an uncalculated draft;
   - retry calculates.
 - No page overflow at 320, 768, 1024 or 1440 px. End reaches the last toolbar item and scrolls it into view at every width. At 320 px the menus collapse into ☰ and the drawer becomes a full-width bottom sheet.
-- Over 5 fresh contexts: mount 4.8–4.9 ms, first menu open 7.1–9.1 ms. R05 measured 3.9–5.9 ms to mount and 14.1–27.5 ms for the first menu. The runs were on different days, so treat this as indicative.
+- Over 5 fresh contexts: mount 4.8–5.0 ms, first menu open 7.0–8.6 ms. R05 measured 3.9–5.9 ms to mount and 14.1–27.5 ms for the first menu. The runs were on different days, so treat this as indicative.
 
 Screenshots are in [`tools/shell-spike/results/screenshots/`](../tools/shell-spike/results/screenshots/).
 

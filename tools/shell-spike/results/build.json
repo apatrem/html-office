@@ -1,9 +1,9 @@
 {
   "shell": {
-    "jsBytes": 32546,
+    "jsBytes": 32792,
     "cssBytes": 14024,
-    "totalBytes": 46570,
-    "gzipBytes": 14922,
+    "totalBytes": 46816,
+    "gzipBytes": 15072,
     "runtimePackages": [],
     "modules": {
       "shell/icons.mjs": 4127,
@@ -15,7 +15,7 @@
       "shell/drawer.mjs": 1440,
       "shell/dialogs.mjs": 2771,
       "shell/panels.mjs": 3982,
-      "data-shell.mjs": 11584,
+      "data-shell.mjs": 11830,
       "entry.mjs": 29
     }
   },
@@ -60,13 +60,17 @@
       "lines": 39,
       "bytes": 1591
     },
+    "compare.mjs": {
+      "lines": 79,
+      "bytes": 5859
+    },
     "data-shell.mjs": {
-      "lines": 337,
-      "bytes": 18138
+      "lines": 345,
+      "bytes": 18612
     },
     "host-bridge.mjs": {
-      "lines": 45,
-      "bytes": 1393
+      "lines": 46,
+      "bytes": 1429
     },
     "integration.css": {
       "lines": 8,
@@ -77,9 +81,9 @@
     {
       "file": "shell-native.html",
       "offline": false,
-      "applicationCodeBytes": 418752,
+      "applicationCodeBytes": 419021,
       "documentContentBytes": 118785,
-      "totalHTMLBytes": 537537,
+      "totalHTMLBytes": 537806,
       "baseline": {
         "applicationCodeBytes": 370560,
         "documentContentBytes": 118785,
@@ -89,9 +93,9 @@
     {
       "file": "shell-native-offline.html",
       "offline": true,
-      "applicationCodeBytes": 1375000,
+      "applicationCodeBytes": 1375269,
       "documentContentBytes": 118785,
-      "totalHTMLBytes": 1493785,
+      "totalHTMLBytes": 1494054,
       "baseline": {
         "applicationCodeBytes": 1326808,
         "documentContentBytes": 118785,

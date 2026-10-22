@@ -19,6 +19,7 @@ globalThis.HTMLDataToolbarBridge = {
           ?.textContent ?? "",
       format: cell.format ?? { kind: "general" },
       cellStyle: cell.cellStyle ?? "normal",
+      range: { ...grid.selection },
       canEdit: !loading,
       canUndo: history.canUndo && !loading,
       canRedo: history.canRedo && !loading,

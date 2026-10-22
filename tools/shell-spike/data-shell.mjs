@@ -58,9 +58,17 @@ export function mountDataShell({ root, drawerHost, bridge }) {
     return s.sheetId + "!" + s.address;
   };
   const cellStyle = () => styles.get(key()) ?? {};
-  // Clears canonical formatting and the formatting recorded by the spike for the selection.
+  // Clears canonical formatting and the formatting recorded by the spike for the whole selection.
+  const colNumber = (letters) => [...letters].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
   const clearAll = () => {
-    styles.delete(key());
+    const { sheetId, range } = bridge.state();
+    for (const k of [...styles.keys()]) {
+      const [sheet, ref] = k.split("!"),
+        [, letters, digits] = /^([A-Z]+)(\d+)$/.exec(ref);
+      const row = Number(digits),
+        col = colNumber(letters);
+      if (sheet === sheetId && row >= range.top && row <= range.bottom && col >= range.left && col <= range.right) styles.delete(k);
+    }
     safely(() => bridge.clear())();
     sync();
   };

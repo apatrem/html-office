@@ -73,24 +73,24 @@
   ],
   "timings": [
     {
-      "mountMs": 4.8,
-      "firstMenuMs": 8.7
+      "mountMs": 4.9,
+      "firstMenuMs": 7
+    },
+    {
+      "mountMs": 5,
+      "firstMenuMs": 8
     },
     {
       "mountMs": 4.9,
-      "firstMenuMs": 7.5
+      "firstMenuMs": 7.3
+    },
+    {
+      "mountMs": 5,
+      "firstMenuMs": 8.6
     },
     {
       "mountMs": 4.8,
-      "firstMenuMs": 7.1
-    },
-    {
-      "mountMs": 4.8,
-      "firstMenuMs": 8.1
-    },
-    {
-      "mountMs": 4.8,
-      "firstMenuMs": 9.1
+      "firstMenuMs": 8.5
     }
   ]
 }
