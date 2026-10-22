@@ -339,8 +339,8 @@ book.conditionalFormats = [
     ref: "B3",
     kind: "dataBar",
     scale: { kind: "fixed", min: 0, max: 30000 },
-    positiveColor: "#4472C4",
-    negativeColor: "#C00000",
+    positive: "acc",
+    negative: "alert",
   },
 ];
 const sizes = [];

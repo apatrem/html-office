@@ -1,3 +1,4 @@
+import { colorCSS, fillCSS, DARK_FILLS } from "../model/formatting.mjs";
 import {
   compileConditionalFormats,
   conditionalPresentation,
@@ -36,11 +37,17 @@ export function createConditionalDecorator(
     );
     const descriptions = [];
     if (highlight) {
-      if (highlight.background)
-        element.style.backgroundColor = highlight.background;
-      if (highlight.color) element.style.color = highlight.color;
+      // Tokens render like html-slides c-* / bg-* (white text on dark fills).
+      if (highlight.fill) {
+        element.style.backgroundColor = fillCSS(highlight.fill);
+        if (!highlight.color && DARK_FILLS.includes(highlight.fill))
+          element.style.color = colorCSS("bg");
+      }
+      if (highlight.color) element.style.color = colorCSS(highlight.color);
       if (highlight.bold !== undefined)
         element.style.fontWeight = highlight.bold ? "bold" : "normal";
+      if (highlight.italic !== undefined)
+        element.style.fontStyle = highlight.italic ? "italic" : "normal";
       descriptions.push("Conditional highlight");
     }
     if (bar) {
@@ -55,7 +62,7 @@ export function createConditionalDecorator(
       Object.assign(fill.style, {
         left: `${bar.left}%`,
         width: `${bar.width}%`,
-        backgroundColor: bar.color,
+        backgroundColor: colorCSS(bar.color),
       });
       axis.style.left = `${bar.axis}%`;
       text.textContent = element.textContent;

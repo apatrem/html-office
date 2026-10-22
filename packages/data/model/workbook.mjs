@@ -3,7 +3,11 @@ import {
   validateStyle,
   validateSheetLinks,
   checkReferences,
-  validateNamedStyles,
+  BUILTIN_CELL_STYLES,
+  FONTS,
+  THEMES,
+  TEXT_COLORS,
+  FILLS,
   validateAxes,
 } from "./formatting.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
@@ -265,9 +269,7 @@ export function validateConditionalFormats(book) {
     book.conditionalFormats === undefined ? [] : book.conditionalFormats;
   if (!Array.isArray(rules) || rules.length > MAX_CONDITIONAL_FORMATS)
     fail("Invalid conditional format count");
-  const seen = new Set(),
-    color = (value) =>
-      typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
+  const seen = new Set();
   for (const rule of rules) {
     fields(
       rule,
@@ -278,7 +280,7 @@ export function validateConditionalFormats(book) {
         "kind",
         ...(rule?.kind === "highlight"
           ? ["condition", "style"]
-          : ["scale", "positiveColor", "negativeColor"]),
+          : ["scale", "positive", "negative"]),
       ],
       "conditional format",
     );
@@ -321,14 +323,23 @@ export function validateConditionalFormats(book) {
       }
       if (operator === "contains" && values[0].type !== "text")
         fail("Contains requires text");
-      fields(rule.style, ["background", "color", "bold"], "highlight style");
+      // Charte tokens only (ADR-012), so highlights follow the theme.
+      fields(
+        rule.style,
+        ["fill", "color", "bold", "italic"],
+        "highlight style",
+      );
       if (
         !Object.keys(rule.style).length ||
-        (Object.hasOwn(rule.style, "background") &&
-          !color(rule.style.background)) ||
-        (Object.hasOwn(rule.style, "color") && !color(rule.style.color)) ||
-        (Object.hasOwn(rule.style, "bold") &&
-          typeof rule.style.bold !== "boolean")
+        (Object.hasOwn(rule.style, "fill") &&
+          !FILLS.includes(rule.style.fill)) ||
+        (Object.hasOwn(rule.style, "color") &&
+          !TEXT_COLORS.includes(rule.style.color)) ||
+        ["bold", "italic"].some(
+          (key) =>
+            Object.hasOwn(rule.style, key) &&
+            typeof rule.style[key] !== "boolean",
+        )
       )
         fail("Invalid highlight style");
     } else if (rule.kind === "dataBar") {
@@ -347,8 +358,11 @@ export function validateConditionalFormats(book) {
           rule.scale.min >= rule.scale.max)
       )
         fail("Invalid data bar scale; fixed bounds must include zero");
-      if (!color(rule.positiveColor) || !color(rule.negativeColor))
-        fail("Invalid data bar color");
+      if (
+        !TEXT_COLORS.includes(rule.positive) ||
+        !TEXT_COLORS.includes(rule.negative)
+      )
+        fail("Invalid data bar colour token");
     } else fail("Invalid conditional format kind");
   }
 }
@@ -370,7 +384,8 @@ export function validateWorkbook(book) {
       "validations",
       "scenario",
       "conditionalFormats",
-      "namedStyles",
+      "font",
+      "theme",
     ],
     "workbook",
   );
@@ -387,7 +402,11 @@ export function validateWorkbook(book) {
   const ids = new Set(),
     names = new Set();
   // Single pass over cells: the style catalogue and sheet IDs are known first.
-  const cellStyles = validateNamedStyles(book),
+  if (book.font !== undefined && !Object.hasOwn(FONTS, book.font))
+    fail(`Invalid document font: use one of ${Object.keys(FONTS).join(", ")}`);
+  if (book.theme !== undefined && !THEMES.includes(book.theme))
+    fail(`Invalid theme: use one of ${THEMES.join(", ")}`);
+  const cellStyles = new Set(BUILTIN_CELL_STYLES),
     sheetIds = new Set(book.sheets.map((s) => s?.id));
   for (const sheet of book.sheets) {
     fields(

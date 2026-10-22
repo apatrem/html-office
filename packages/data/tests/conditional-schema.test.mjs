@@ -14,7 +14,7 @@ export const highlight = () => ({
   ref: "B2:B4",
   kind: "highlight",
   condition: { operator: "gte", values: [{ type: "number", value: 100 }] },
-  style: { background: "#FFF2CC", color: "#9C5700", bold: true },
+  style: { fill: "tint", color: "alert", bold: true },
 });
 export const bar = () => ({
   id: "bar",
@@ -22,8 +22,8 @@ export const bar = () => ({
   ref: "B2:B4",
   kind: "dataBar",
   scale: { kind: "auto" },
-  positiveColor: "#4472C4",
-  negativeColor: "#C00000",
+  positive: "acc",
+  negative: "alert",
 });
 const fixture = () => ({
   ...structuredClone(source),
@@ -46,8 +46,7 @@ test("conditional definitions reject unsafe styles, ambiguous identity and inval
     (b) => b.conditionalFormats.push(highlight()),
     (b) => (b.conditionalFormats[0].sheetId = "missing"),
     (b) => (b.conditionalFormats[0].ref = "A0"),
-    (b) =>
-      (b.conditionalFormats[0].style.background = "url(https://example.com/x)"),
+    (b) => (b.conditionalFormats[0].style.fill = "url(https://example.com/x)"),
     (b) => (b.conditionalFormats[0].style.position = "fixed"),
     (b) => (b.conditionalFormats[0].condition.operator = "formula"),
     (b) => (b.conditionalFormats[0].condition.values = []),
@@ -65,7 +64,7 @@ test("conditional definitions reject unsafe styles, ambiguous identity and inval
       }),
     (b) => (b.conditionalFormats[1].scale = { kind: "fixed", min: 1, max: 10 }),
     (b) => (b.conditionalFormats[1].scale = { kind: "fixed", min: 0, max: 0 }),
-    (b) => (b.conditionalFormats[1].positiveColor = "red;position:fixed"),
+    (b) => (b.conditionalFormats[1].positive = "red;position:fixed"),
     (b) =>
       (b.conditionalFormats = Array.from({ length: 101 }, (_, i) => ({
         ...bar(),

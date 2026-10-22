@@ -65,43 +65,34 @@ Structural input movement is lossless: an insertion that would push populated ce
 
 `style#charte` embeds the same CSS brand tokens as Slides; Data builds accept `--charte FILE`. Optional semantic role tokens in the default shared brand are `--header-bg/--header-ink`, `--row-label-bg/--row-label-ink`, `--assumption-bg/--assumption-ink`, and `--calculation-bg`. Existing custom Slides themes without these tokens fall back to their `--ink`, `--bg`, `--acc`, `--lig`, `--alert`, `--callout`, `--tint`, and `--font` values. Formatting a selected rectangle is undoable and does not download the calculation engine or invalidate its fingerprint.
 
-## Manual formatting, cell styles and links
+## Formatting, cell styles and links
 
-[ADR-010](../../../docs/decisions/010-manual-formatting-and-ironcalc-toolbar.md) defines presentation-only fields. None of them changes values or the calculation fingerprint. The effective appearance resolves property by property: cell style, then column `style`, then row `style`, then the cell's own `style`, then conditional formatting.
+[ADR-012](../../../docs/decisions/012-data-formatting-vocabulary.md) defines a **closed vocabulary aligned with html-slides**: charte tokens only, never literal colours, fonts or sizes. [ADR-010](../../../docs/decisions/010-manual-formatting-and-ironcalc-toolbar.md) keeps the layering and sheet-level links. None of these fields changes values or the calculation fingerprint. Appearance resolves property by property: cell style, then column `style`, then row `style`, then the cell's own `style`, then conditional formatting.
 
-- **`cellStyle`** names a cell style. Built-in IDs are reserved:
-  - `normal`, `header`, `rowHeader`, `assumption` (Excel "Input") and `calculation`;
-  - `good`, `bad`, `neutral`, `checkCell`, `explanatoryText`, `linkedCell`, `note`, `output`, `warningText`;
-  - `title`, `heading1`–`heading4`, `total` and `hyperlink`;
-  - `accent1`–`accent6`, plus `-20`, `-40` and `-60` variants (for example `accent3-40`);
-  - `comma`, `comma0`, `currency`, `currency0` and `percent`.
-
-  Custom styles live in workbook `namedStyles: [{id, name, style, format?}]`, with at most 200. A style's optional number `format` applies unless the cell has its own `format`. A custom ID must not be a built-in one, and display names are unique ignoring case.
+- **`cellStyle`** is one of a fixed catalogue: `normal` (default), `title`, `header`, `rowHeader`, `assumption`, `calculation`, `output`, `total`, `note`, `alert` and `hyperlink`. Their rendering comes from the charte. There are no custom styles.
 - **`style`** holds only overridden properties:
-  - `bold`, `italic`, `underline` and `strike` are booleans;
-  - `fontSize` is in points, 1–409, in half-point steps;
-  - `fontFamily` is a family name only (letters, digits, spaces, `_`, `-`); absent means the charte font;
-  - `color` and `background`;
-  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is `none` (explicitly suppresses an inherited side; no colour) or one of `thin`, `medium`, `thick`, `double`, `dotted`, `mediumdashed`, `mediumdashdot`, `mediumdashdotdot` or `slantdashdot`;
+  - `bold`, `italic`: booleans;
+  - `color`: `ink`, `acc`, `mid`, `alert`, `t2` or `bg`;
+  - `fill`: `none`, `tint`, `lig`, `mid`, `acc`, `alert` or `dark`. Text turns white on `mid`, `acc`, `alert` and `dark` unless `color` is given;
+  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is `none` (suppresses an inherited side, no colour), `thin`, `medium` or `double`, and `color` is a text-colour token (`ink` by default);
   - `align.horizontal`: `general`, `left`, `center`, `right` or `centerContinuous`;
-  - `align.vertical`: `top`, `center` or `bottom`;
   - `align.wrap`: boolean.
 
-  Diagonal borders, merges, rotation, indentation and other alignments are not part of V1.
-- **Colours** are `#RRGGBB` or `{theme, tint?}`:
-  - `theme` is a charte token: `ink`, `acc`, `mid`, `lig`, `alert`, `tint`, `callout`, `bd`, `t2`, `bg`, or an Excel slot `dk1`, `lt1`, `dk2`, `lt2`, `accent1`–`accent6`, `hlink`, `folHlink`;
-  - `tint` is between -1 (darker) and 1 (lighter).
+  There is one font size and no vertical alignment, underline, strike, font family, merges or diagonal borders.
 - **Rows and columns.** A sheet may have `rows` keyed `"1"`–`"1048576"` and `columns` keyed `"A"`–`"XFD"`:
-  - row entries: `{style?, height?, customHeight?}`, with `height` 1–600 px; `customHeight: true` marks a manually set height that auto-fit must keep;
-  - column entries: `{style?, width?}`, with `width` 1–2000 px.
+  - row entries are `{style?, height?}`, where `height` (1–600 px) is the **automatic** height written by the editor when wrapped text grows a row; rows are never sized by hand;
+  - column entries are `{style?, width?}`, with `width` 1–2000 px, set by the user.
 
   Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
-- **A style-only cell** has no `input` or `formula`. It is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format` and `style` for array values.
-- **Links** live per sheet in `links`, keyed by A1 cell, like Excel's worksheet hyperlink list. There are at most 10,000 per sheet, and a linked cell does not need a cell record. Each link is either `{url}` or `{sheetId, ref}`:
+- **Document settings.**
+  - `font`: one of `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia` or `times`; absent means the charte font.
+  - `theme`: one of `blue`, `red`, `green` or `black`, a built-in charte overlaid on the document's own `style#charte`, which is never rewritten; absent means the document charte.
+- **A style-only cell** has no `input` or `formula` and is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format` and `style` for array values.
+- **Links** live per sheet in `links`, keyed by A1 cell, like Excel's worksheet hyperlink list. There are at most 10,000 per sheet, and a linked cell needs no cell record. Each link is `{url}` or `{sheetId, ref}`:
   - `url` accepts only `https:`, `http:` or `mailto:` and is at most 2,048 characters;
   - `ref` is an A1 cell or range, relocated by structural edits like named ranges, and becomes `"#REF!"` when its target is deleted.
 
-  A link moves with its cell, and disappears when its row or column is deleted. Relocation reads only the link maps, never all cells. Value edits, text-table paste and formatting never touch links. A rich copy carries the links of its cells. On paste, the pasted rectangle takes the source links exactly, with cells and links published in one undoable step. Internal links to sheets missing from the destination are dropped with a notice, and unsafe schemes reject the paste.
+  A link moves with its cell and disappears with its deleted row or column. Value edits, text-table paste and formatting never touch links. A rich copy carries the links of its cells. On paste, the pasted rectangle takes the source links exactly, published with its cells in one undoable step. Internal links to sheets missing from the destination are dropped with a notice, and unsafe schemes reject the paste.
 - **Number formats** may add:
   - `dateStyle: "short" | "long"` for `date`;
   - `scale: "thousands" | "millions"` for number, currency and accounting;
@@ -109,7 +100,7 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   Custom Excel format codes are not accepted.
 
-Rendering, commands and the IronCalc toolbar that use these fields are delivered separately (F02–F06). Until then the browser preserves them through edits, paste, history, recovery and saving, but does not draw them.
+Rendering, commands, theme switching and the toolbar that use these fields are delivered separately (F02–F06, T01–T02). Until then the browser preserves them through edits, paste, history, recovery and saving; catalogue cell styles and conditional tokens already render.
 
 ## Sheet navigation
 
@@ -135,6 +126,6 @@ The browser Dropdown settings dialog creates/edits/removes definitions, assigns 
 
 Optional `conditionalFormats` is an ordered array of at most 100 rules. Shared fields are `{id,sheetId,ref,kind}` with a stable sheet ID and A1 rectangle or inactive `#REF!`. The first matching highlight and first applicable data bar independently win; a highlight uses one whole style without merging later matches. Reorder the array to change precedence. Metadata commands preserve inputs/results; structural edits relocate these ranges and header history restores them.
 
-A highlight adds `condition:{operator,values:[typedValue,...]}` and `style:{background?,color?,bold?}` (at least one style field). Colours are six-digit hex. Operators `eq/ne` take one typed value; ordered `gt/gte/lt/lte` take one number/date; inclusive `between/notBetween` take two ordered same-type numbers/dates; `contains` takes one case-sensitive text value; `isBlank/isError` take an empty values array. Typed comparisons do not coerce. Empty text differs from blank; missing formula results do not satisfy blank tests. Error cells match explicit error predicates/comparisons rather than ordinary numeric/text conditions. Browser formula highlights require a verified current snapshot; raw input highlights are available before engine loading. Cached stale/unverified formulas retain their displayed value but receive no highlight. Home > Styles > Conditional formatting manages highlights without recalculation; priority changes require saving any rule edits first. Data bar rendering uses derived worker summaries. The same Conditional formatting manager creates, edits, removes and reorders both kinds, with automatic or fixed bounds and separate positive/negative colours. Changing kind explicitly preserves rule identity/order while replacing its kind-specific fields. Automatic bounds exclude stale/unverified formula results. Summary replies apply only to the current document revision; pending edits use the committed cells for scale analysis. Storage failure preserves analysis; an actual worker failure removes automatic bars until reopening, while fixed bars and editing remain available. No derived scale or geometry is persisted.
+A highlight adds `condition:{operator,values:[typedValue,...]}` and `style:{fill?,color?,bold?,italic?}` (at least one style field), using the same tokens as cell `style`. Operators `eq/ne` take one typed value; ordered `gt/gte/lt/lte` take one number/date; inclusive `between/notBetween` take two ordered same-type numbers/dates; `contains` takes one case-sensitive text value; `isBlank/isError` take an empty values array. Typed comparisons do not coerce. Empty text differs from blank; missing formula results do not satisfy blank tests. Error cells match explicit error predicates/comparisons rather than ordinary numeric/text conditions. Browser formula highlights require a verified current snapshot; raw input highlights are available before engine loading. Cached stale/unverified formulas retain their displayed value but receive no highlight. Home > Styles > Conditional formatting manages highlights without recalculation; priority changes require saving any rule edits first. Data bar rendering uses derived worker summaries. The same Conditional formatting manager creates, edits, removes and reorders both kinds, with automatic or fixed bounds and separate positive/negative colours. Changing kind explicitly preserves rule identity/order while replacing its kind-specific fields. Automatic bounds exclude stale/unverified formula results. Summary replies apply only to the current document revision; pending edits use the committed cells for scale analysis. Storage failure preserves analysis; an actual worker failure removes automatic bars until reopening, while fixed bars and editing remain available. No derived scale or geometry is persisted.
 
-A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus `positiveColor` and `negativeColor` (six-digit hex). Fixed finite bounds must satisfy `min <= 0 <= max` and `min < max`. Automatic bounds include zero and ignore text/booleans/blanks/errors/missing results. Numbers and dates, including saved formula results, supply full-precision values. Positive/negative bars share a zero axis; fixed-range overflow clips visually; constant nonzero data fills its side, and all-zero data produces zero width. Scale summaries are derived, not another saved source of cell values. Core definitions currently precede browser rendering/authoring under T14.
+A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus `positive` and `negative` text-colour tokens (`acc` and `alert` by default). Fixed finite bounds must satisfy `min <= 0 <= max` and `min < max`. Automatic bounds include zero and ignore text/booleans/blanks/errors/missing results. Numbers and dates, including saved formula results, supply full-precision values. Positive/negative bars share a zero axis; fixed-range overflow clips visually; constant nonzero data fills its side, and all-zero data produces zero width. Scale summaries are derived, not another saved source of cell values. Core definitions currently precede browser rendering/authoring under T14.

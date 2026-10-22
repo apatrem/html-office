@@ -2,6 +2,8 @@
 
 Status: core and highlight viewport rendering/authoring merged, 20 October 2026. Data bar rendering/worker summaries are in PR #36; bar authoring is under verification.
 
+Update, 22 October 2026: colours are charte tokens rather than hex values ([ADR-012](012-data-formatting-vocabulary.md) §10). Highlights use `style: {fill?, color?, bold?, italic?}`; data bars use `positive` and `negative` tokens.
+
 Store optional `conditionalFormats` as an ordered array of explicit stable-ID sheet/range rules. At most 100 rules are accepted. Overlapping ranges are allowed: the first matching highlight wins as a whole style, and the first applicable data bar wins independently. These layers can coexist without changing a cell's value or semantic role. Rule creation, replacement, removal and reordering are metadata commands; header history preserves the order and structural edits shift/shrink ranges or retain an inactive `#REF!` tombstone.
 
 Highlights use typed predicates (`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, inclusive `between`/`notBetween`, case-sensitive `contains`, `isBlank`, `isError`). Comparisons do not coerce text/numbers/dates. Ordered predicates require one numeric/date type. An absent/style-only cell is blank; empty text is distinct. A formula without a saved result is unresolved, not blank. Errors match `isError` or an explicit typed error comparison, and do not satisfy ordinary numeric/text predicates. Highlight style accepts only six-digit hex background/text colours and an optional bold boolean; arbitrary CSS and formula expressions are not part of the contract.

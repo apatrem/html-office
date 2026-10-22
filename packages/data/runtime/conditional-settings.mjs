@@ -36,8 +36,8 @@ export function setupConditionalSettings({
     $("conditional-values").hidden = unary;
     $("conditional-type").disabled = busy() || unary;
     $("conditional-upper-label").hidden = !between;
-    $("conditional-background").disabled =
-      busy() || !$("conditional-use-background").checked;
+    $("conditional-fill").disabled =
+      busy() || !$("conditional-use-fill").checked;
     $("conditional-color").disabled =
       busy() || !$("conditional-use-color").checked;
     const rules = definitions(),
@@ -78,16 +78,19 @@ export function setupConditionalSettings({
       original?.kind === "highlight"
         ? text(original.condition.values[1])
         : "100";
-    const style = original?.style ?? { background: "#FFEB9C" };
-    $("conditional-use-background").checked = Object.hasOwn(
-      style,
-      "background",
-    );
-    $("conditional-background").value = style.background ?? "#FFEB9C";
+    const style = original?.style ?? { fill: "tint" };
+    $("conditional-use-fill").checked = Object.hasOwn(style, "fill");
+    $("conditional-fill").value = style.fill ?? "tint";
     $("conditional-use-color").checked = Object.hasOwn(style, "color");
-    $("conditional-color").value = style.color ?? "#000000";
+    $("conditional-color").value = style.color ?? "alert";
     $("conditional-bold").value =
       style.bold === undefined ? "inherit" : style.bold ? "bold" : "normal";
+    $("conditional-italic").value =
+      style.italic === undefined
+        ? "inherit"
+        : style.italic
+          ? "italic"
+          : "normal";
     $("conditional-context").textContent =
       "Rules change appearance while preserving cell values and number formats. Automatic bars update from committed values.";
     draw();
@@ -165,14 +168,16 @@ export function setupConditionalSettings({
         if (["between", "notBetween"].includes(operator))
           values.push(value("conditional-upper"));
         const style = {};
-        if ($("conditional-use-background").checked)
-          style.background = $("conditional-background").value.trim();
+        if ($("conditional-use-fill").checked)
+          style.fill = $("conditional-fill").value;
         if ($("conditional-use-color").checked)
-          style.color = $("conditional-color").value.trim();
+          style.color = $("conditional-color").value;
         if ($("conditional-bold").value !== "inherit")
           style.bold = $("conditional-bold").value === "bold";
+        if ($("conditional-italic").value !== "inherit")
+          style.italic = $("conditional-italic").value === "italic";
         if (!Object.keys(style).length)
-          throw new Error("Choose a background, text color or font weight.");
+          throw new Error("Choose a fill, text colour, weight or style.");
         next = setConditionalFormat(book, {
           id,
           sheetId: $("conditional-sheet").value,

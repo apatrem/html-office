@@ -1,9 +1,32 @@
+// Token choices shared with html-slides' c-* and bg-* vocabulary (ADR-012).
+const option = ([value, label]) => `<option value="${value}">${label}</option>`;
+const colorOptions = [
+    ["ink", "Ink"],
+    ["acc", "Accent"],
+    ["mid", "Mid"],
+    ["alert", "Alert"],
+    ["t2", "Secondary"],
+    ["bg", "White"],
+  ]
+    .map(option)
+    .join(""),
+  fillOptions = [
+    ["tint", "Tint"],
+    ["lig", "Light"],
+    ["mid", "Mid"],
+    ["acc", "Accent"],
+    ["alert", "Alert"],
+    ["dark", "Dark"],
+    ["none", "None"],
+  ]
+    .map(option)
+    .join("");
 export const conditionalDialogHTML = `<dialog id="conditional-dialog" aria-labelledby="conditional-title"><h2 id="conditional-title">Conditional formatting</h2><p id="conditional-context" role="status"></p>
 <label for="conditional-rule">Conditional rule</label><select id="conditional-rule"></select>
 <div class="conditional-fields"><label>Rule kind<select id="conditional-kind" aria-label="Rule kind"><option value="highlight">Highlight</option><option value="dataBar">Data bar</option></select></label><label>Rule target sheet<select id="conditional-sheet" aria-label="Rule target sheet"></select></label><label>Rule target range<input id="conditional-ref" value="B2"></label></div>
 <div id="conditional-highlight-fields"><div class="conditional-fields"><label>Condition operator<select id="conditional-operator" aria-label="Condition operator"><option value="eq">Equal to</option><option value="ne">Not equal to</option><option value="gt">Greater than</option><option value="gte">Greater than or equal to</option><option value="lt">Less than</option><option value="lte">Less than or equal to</option><option value="between">Between, inclusive</option><option value="notBetween">Outside inclusive bounds</option><option value="contains">Contains text</option><option value="isBlank">Is blank</option><option value="isError">Is an error</option></select></label><label>Condition value type<select id="conditional-type" aria-label="Condition value type"><option value="number">Number</option><option value="text">Text</option><option value="date">Date serial</option><option value="boolean">TRUE / FALSE</option><option value="error">Error</option><option value="blank">Blank</option></select></label></div>
 <div id="conditional-values" class="conditional-fields"><label>Condition value<textarea id="conditional-value" aria-label="Condition value" rows="1">0</textarea></label><label id="conditional-upper-label">Upper condition value<textarea id="conditional-upper" aria-label="Upper condition value" rows="1">100</textarea></label></div>
-<div class="conditional-fields"><div><label class="checkbox-label"><input id="conditional-use-background" type="checkbox" checked>Use background color</label><label>Background color<input id="conditional-background" value="#FFEB9C" placeholder="#RRGGBB"></label></div><div><label class="checkbox-label"><input id="conditional-use-color" type="checkbox">Use text color</label><label>Text color<input id="conditional-color" value="#000000" placeholder="#RRGGBB"></label></div><label>Font weight<select id="conditional-bold" aria-label="Font weight"><option value="inherit">Keep cell weight</option><option value="bold">Bold</option><option value="normal">Regular</option></select></label></div>
-</div><div id="conditional-bar-fields" hidden><div class="conditional-fields"><label>Bar scale<select id="conditional-scale" aria-label="Bar scale"><option value="auto">Automatic, including zero</option><option value="fixed">Fixed bounds</option></select></label><label>Positive bar color<input id="conditional-positive" value="#4472C4"></label><label>Negative bar color<input id="conditional-negative" value="#C00000"></label></div><div id="conditional-fixed-fields" class="conditional-fields" hidden><label>Bar minimum<input id="conditional-min" value="-100"></label><label>Bar maximum<input id="conditional-max" value="100"></label></div><p>Fixed bounds must include zero. Bars preserve values outside those bounds and clip only their visual length.</p></div>
+<div class="conditional-fields"><div><label class="checkbox-label"><input id="conditional-use-fill" type="checkbox" checked>Use fill</label><label>Fill<select id="conditional-fill" aria-label="Fill">${fillOptions}</select></label></div><div><label class="checkbox-label"><input id="conditional-use-color" type="checkbox">Use text colour</label><label>Text colour<select id="conditional-color" aria-label="Text colour">${colorOptions}</select></label></div><label>Font weight<select id="conditional-bold" aria-label="Font weight"><option value="inherit">Keep cell weight</option><option value="bold">Bold</option><option value="normal">Regular</option></select></label><label>Font style<select id="conditional-italic" aria-label="Font style"><option value="inherit">Keep cell style</option><option value="italic">Italic</option><option value="normal">Upright</option></select></label></div>
+</div><div id="conditional-bar-fields" hidden><div class="conditional-fields"><label>Bar scale<select id="conditional-scale" aria-label="Bar scale"><option value="auto">Automatic, including zero</option><option value="fixed">Fixed bounds</option></select></label><label>Positive bar colour<select id="conditional-positive" aria-label="Positive bar colour">${colorOptions}</select></label><label>Negative bar colour<select id="conditional-negative" aria-label="Negative bar colour">${colorOptions}</select></label></div><div id="conditional-fixed-fields" class="conditional-fields" hidden><label>Bar minimum<input id="conditional-min" value="-100"></label><label>Bar maximum<input id="conditional-max" value="100"></label></div><p>Fixed bounds must include zero. Bars preserve values outside those bounds and clip only their visual length.</p></div>
 <p>Earlier matching highlights and the first applicable data bar take priority independently. Save edits before moving a rule. Missing formula results stay unresolved; formatting does not calculate them.</p>
 <div class="sheet-actions"><button id="conditional-save">Save rule</button><button id="conditional-remove">Remove rule</button><button id="conditional-earlier">Move rule earlier</button><button id="conditional-later">Move rule later</button><button id="conditional-close">Close conditional formatting</button></div></dialog>`;
