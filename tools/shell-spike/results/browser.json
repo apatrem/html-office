@@ -1,0 +1,96 @@
+{
+  "browser": "Chromium 151.0.7922.34",
+  "functional": [
+    {
+      "name": "shell-native.html",
+      "offline": false,
+      "checks": "exclusions/menubar keyboard/menu focus return/toolbar tab stop/format+history/date preset/decimals/emphasis/centre across/colour swatches keyboard/fill/borders/cell styles menu+drawer/focus into and out of drawer/document settings/regional preview+save/link schemes+place+Cmd+K/conditional/grid lines/manage sheets/scenario/save/reopen",
+      "requests": [
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.mjs",
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.wasm.gz"
+      ],
+      "passed": true
+    },
+    {
+      "name": "shell-native-offline.html",
+      "offline": true,
+      "checks": "exclusions/menubar keyboard/menu focus return/toolbar tab stop/format+history/date preset/decimals/emphasis/centre across/colour swatches keyboard/fill/borders/cell styles menu+drawer/focus into and out of drawer/document settings/regional preview+save/link schemes+place+Cmd+K/conditional/grid lines/manage sheets/scenario/save/reopen",
+      "requests": [],
+      "passed": true
+    }
+  ],
+  "failures": [
+    {
+      "mode": "blocked",
+      "passed": true
+    },
+    {
+      "mode": "bad-js",
+      "passed": true
+    },
+    {
+      "mode": "cancel",
+      "passed": true
+    }
+  ],
+  "layout": [
+    {
+      "width": 320,
+      "overflow": 0,
+      "drawer": {
+        "x": 0,
+        "width": 320,
+        "height": 558
+      }
+    },
+    {
+      "width": 768,
+      "overflow": 0,
+      "drawer": {
+        "x": 420,
+        "width": 340,
+        "height": 729
+      }
+    },
+    {
+      "width": 1024,
+      "overflow": 0,
+      "drawer": {
+        "x": 676,
+        "width": 340,
+        "height": 745
+      }
+    },
+    {
+      "width": 1440,
+      "overflow": 0,
+      "drawer": {
+        "x": 1092,
+        "width": 340,
+        "height": 745
+      }
+    }
+  ],
+  "timings": [
+    {
+      "mountMs": 4.9,
+      "firstMenuMs": 7
+    },
+    {
+      "mountMs": 5,
+      "firstMenuMs": 8
+    },
+    {
+      "mountMs": 4.9,
+      "firstMenuMs": 7.3
+    },
+    {
+      "mountMs": 5,
+      "firstMenuMs": 8.6
+    },
+    {
+      "mountMs": 4.8,
+      "firstMenuMs": 8.5
+    }
+  ]
+}
