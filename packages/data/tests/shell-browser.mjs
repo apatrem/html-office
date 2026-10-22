@@ -229,6 +229,25 @@ try {
       .waitFor();
     assert.equal(await page.getByRole("menubar").count(), 1);
     assert.equal(await page.getByRole("toolbar").count(), 1);
+    // Undoing the last change disables Undo; focus stays in the toolbar.
+    await toolbar
+      .getByRole("button", { name: "Increase decimal places", exact: true })
+      .click();
+    await toolbar.getByRole("button", { name: "Undo", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page
+      .getByText("Undo restored the previous workbook.", { exact: true })
+      .waitFor();
+    assert.equal(
+      await toolbar
+        .getByRole("button", { name: "Undo", exact: true })
+        .isDisabled(),
+      true,
+    );
+    assert.equal(
+      await toolbar.evaluate((el) => el.contains(document.activeElement)),
+      true,
+    );
     // Layout: no page scroll, and the variant A grid density.
     for (const [width, height, rows] of [
       [320, 640, 0],

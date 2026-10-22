@@ -253,7 +253,8 @@ export function mountShell({ commands, state }) {
   $("sheet-actions").replaceChildren(newSheet, B.sheets);
 
   function sync() {
-    const s = state();
+    const s = state(),
+      focused = document.activeElement;
     for (const [id, b] of Object.entries(B))
       if (commands.has(id)) b.disabled = !commands.enabled(id);
     for (const b of [B.currency, B.percent, B.numberFormat])
@@ -269,7 +270,7 @@ export function mountShell({ commands, state }) {
     B.numberFormat.setAttribute("aria-label", `Number format: ${format}`);
     B.cellStyle.querySelector(".sh-lbl").textContent = style;
     B.cellStyle.setAttribute("aria-label", `Cell style: ${style}`);
-    bar.refresh();
+    bar.refresh(focused);
   }
   commands.subscribe(sync);
   // Status lines are truncated in the file bar; the full text stays on hover

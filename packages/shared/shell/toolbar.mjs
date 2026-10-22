@@ -51,8 +51,15 @@ export function toolbar(label, ...children) {
   const nav = roving(bar, ".sh-tscroll button, .sh-tscroll select", {
     onMove: (el) => el.scrollIntoView({ block: "nearest", inline: "nearest" }),
   });
-  bar.refresh = () => {
+  // Call after changing items' disabled state, passing the element that had
+  // focus before (disabling it blurs it). A focused item that became disabled
+  // hands focus to the toolbar's tab stop instead of losing it.
+  bar.refresh = (focused = document.activeElement) => {
     nav.reset();
+    if (bar.contains(focused) && focused.disabled)
+      bar
+        .querySelector('.sh-tscroll [tabindex="0"]:not(:disabled)')
+        ?.focus({ preventScroll: true });
     update();
   };
   return bar;
