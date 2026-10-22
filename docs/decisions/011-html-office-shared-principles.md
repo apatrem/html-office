@@ -50,9 +50,9 @@ Status: proposed on 22 October 2026; §10 accepted in session S01 and §7 accept
       
       The IronCalc toolbar fork on Preact (R05) is **not adopted**; IronCalc remains the calculation engine only.
     - **Measured in R06** (standard mode, fictional P&L):
-      - native shell: 46,570 bytes (14,922 gzip), no runtime dependency, against 199,681 for the R05 Preact toolbar;
-      - complete P&L application code: 418,752 bytes (baseline 370,560 with today's ribbon; about 580,000 projected with the Preact toolbar), leaving about 331,000 bytes under the 750,000 ceiling;
-      - offline sample: 1,375,000 bytes.
+      - native shell: 46,816 bytes (15,072 gzip), no runtime dependency, against 199,681 for the R05 Preact toolbar;
+      - complete P&L application code: 419,021 bytes (baseline 370,560 with today's ribbon; about 580,000 projected with the Preact toolbar), leaving about 331,000 bytes under the 750,000 ceiling;
+      - offline sample: 1,375,269 bytes.
 
 ## Proposed
 
