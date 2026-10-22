@@ -1,4 +1,4 @@
-// F01: ADR-010 presentation fields survive browser edits, paste, structural
+// F01/F01r: ADR-012 presentation fields survive browser edits, paste, structural
 // edits, undo/redo, recovery and save/reopen before rendering exists (F02).
 import assert from "node:assert/strict";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -14,13 +14,13 @@ const book = JSON.parse(
 );
 const style = {
   bold: true,
-  fontSize: 14,
-  background: { theme: "accent1", tint: 0.6 },
-  border: { bottom: { style: "double", color: "#000000" } },
+  color: "alert",
+  fill: "tint",
+  border: { bottom: { style: "double", color: "ink" } },
   align: { horizontal: "centerContinuous", wrap: true },
 };
 const inputs = book.sheets[0];
-inputs.cells.B2 = { ...inputs.cells.B2, style, cellStyle: "s-key" };
+inputs.cells.B2 = { ...inputs.cells.B2, style, cellStyle: "output" };
 inputs.cells.A5 = {
   input: { type: "text", value: "old" },
   style: { italic: true },
@@ -30,11 +30,10 @@ inputs.links = {
   A5: { url: "https://example.org/a" },
   E9: { sheetId: "inputs", ref: "B3" },
 };
-inputs.rows = { 3: { height: 36, customHeight: true } };
+inputs.rows = { 3: { height: 36 } };
 inputs.columns = { B: { width: 150, style: { italic: true } } };
-book.namedStyles = [
-  { id: "s-key", name: "Key input", style: { color: "#C00000" } },
-];
+book.font = "verdana";
+book.theme = "red";
 const html = await buildWorkbook(book, { offline: true }),
   browser = await chromium.launch();
 const file = resolve(out, "formatting.html");
@@ -118,7 +117,8 @@ try {
   assert.deepEqual(sheet.cells.A5.style, { italic: true });
   assert.deepEqual(sheet.links.A5, { url: "https://example.org/a" });
   assert.deepEqual(sheet.cells.D3, inputs.cells.D3);
-  assert.deepEqual(saved.namedStyles, book.namedStyles);
+  assert.equal(saved.font, book.font);
+  assert.equal(saved.theme, book.theme);
 
   // Inserting a row above moves row formatting and internal links.
   await jump(page, "A2");
@@ -130,7 +130,7 @@ try {
     .waitFor();
   saved = (await copy(page, "formatting-inserted.html")).book;
   sheet = saved.sheets[0];
-  assert.deepEqual(sheet.rows, { 4: { height: 36, customHeight: true } });
+  assert.deepEqual(sheet.rows, { 4: { height: 36 } });
   assert.deepEqual(sheet.columns, inputs.columns);
   assert.deepEqual(sheet.links.E10, { sheetId: "inputs", ref: "B4" });
   assert.deepEqual(sheet.links.A6, { url: "https://example.org/a" });
@@ -180,7 +180,7 @@ try {
     url: "https://example.org/a",
   });
   assert.deepEqual(final.book.sheets[0].rows, {
-    4: { height: 36, customHeight: true },
+    4: { height: 36 },
   });
 
   // Recovery draft and reopened file keep the same canonical formatting.

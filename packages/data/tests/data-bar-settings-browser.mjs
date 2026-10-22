@@ -84,7 +84,11 @@ for (const offline of [false, true]) {
       .filter({ hasText: /include zero/ })
       .waitFor();
     await field("Bar minimum").fill("-100");
-    await field("Positive bar color").fill("url(x)");
+    // A tampered control: only charte tokens pass validation (ADR-012).
+    await field("Positive bar colour").evaluate((el) => {
+      el.append(new Option("bad", "url(x)"));
+      el.value = "url(x)";
+    });
     await button("Save rule").click();
     await page
       .locator("#conditional-context")
@@ -99,7 +103,7 @@ for (const offline of [false, true]) {
     await field("Bar scale").selectOption("fixed");
     await field("Bar minimum").fill("-100");
     await field("Bar maximum").fill("100");
-    await field("Positive bar color").fill("#112233");
+    await field("Positive bar colour").selectOption("mid");
     await button("Save rule").click();
     await updated();
     await width("F5", 50);
@@ -119,7 +123,7 @@ for (const offline of [false, true]) {
     await field("Bar scale").selectOption("fixed");
     await field("Bar minimum").fill("-200");
     await field("Bar maximum").fill("200");
-    await field("Negative bar color").fill("#00AA00");
+    await field("Negative bar colour").selectOption("dark");
     await button("Save rule").click();
     await updated();
     await width("F3", 50);
@@ -132,7 +136,8 @@ for (const offline of [false, true]) {
       await page
         .locator('#grid [data-cell="F3"] .data-bar-fill')
         .evaluate((el) => el.style.backgroundColor),
-      "rgb(0, 170, 0)",
+      // Charte token, resolved by the browser from the document charte.
+      "var(--ink)",
     );
     await open("4. Summary!F3:F5 · data bar");
     await field("Rule kind").selectOption("highlight");
@@ -145,7 +150,7 @@ for (const offline of [false, true]) {
       await page
         .locator('#grid [data-cell="F5"]')
         .evaluate((el) => getComputedStyle(el).backgroundColor),
-      "rgb(255, 235, 156)",
+      "rgb(236, 239, 242)",
     );
     await page
       .locator("#save-status")

@@ -25,8 +25,8 @@ export function dataBarWorkbook() {
     ref,
     kind: "dataBar",
     scale,
-    positiveColor: "#4472C4",
-    negativeColor: "#C00000",
+    positiveColor: "acc",
+    negativeColor: "alert",
   });
   book.conditionalFormats.push(
     bar("mixed", "F3:F10", { kind: "auto" }),

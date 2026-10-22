@@ -13,15 +13,14 @@ export function conditionalWorkbook() {
   });
   book.conditionalFormats = [
     rule("positive", "B2", "gte", 300, {
-      background: "#C6EFCE",
-      color: "#006100",
+      fill: "lig",
+      color: "acc",
       bold: true,
     }),
     rule("negative", "B2", "lt", 100, {
-      background: "#FFC7CE",
-      color: "#9C0006",
+      fill: "alert",
     }),
-    rule("baseline", "B1:B2", "gte", 0, { background: "#FFEB9C" }),
+    rule("baseline", "B1:B2", "gte", 0, { fill: "tint" }),
   ];
   return book;
 }

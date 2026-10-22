@@ -60,7 +60,7 @@ try {
     near(negative.left, 0);
     near(negative.width, 100 / 3);
     near(negative.axis, 100 / 3);
-    assert.equal(negative.color, "rgb(192, 0, 0)");
+    assert.equal(negative.color, "var(--alert)");
     near(positive.left, 100 / 3);
     near(positive.width, 100 / 6);
     near(zero.width, 0);

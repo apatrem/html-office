@@ -308,8 +308,8 @@ try {
         ref: "F1:F100000",
         kind: "dataBar",
         scale: { kind: "auto" },
-        positiveColor: "#4472C4",
-        negativeColor: "#C00000",
+        positiveColor: "acc",
+        negativeColor: "alert",
       },
     ];
     const { context, page, errors } = await ready("large", {

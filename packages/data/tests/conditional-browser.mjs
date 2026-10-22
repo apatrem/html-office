@@ -49,7 +49,7 @@ try {
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor();
-    await assertColor(page, "rgb(255, 235, 156)");
+    await assertColor(page, "rgb(236, 239, 242)");
     assert.deepEqual(requests, []);
     await page
       .getByLabel("Scenario", { exact: true })
@@ -57,7 +57,7 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
-    await assertColor(page, "rgb(198, 239, 206)");
+    await assertColor(page, "rgb(175, 197, 212)");
     assert.equal(requests.length, offline ? 0 : 2);
     await context.setOffline(true);
     await page
@@ -66,7 +66,7 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
-    await assertColor(page, "rgb(255, 199, 206)");
+    await assertColor(page, "rgb(194, 82, 28)");
     await page
       .getByRole("button", { name: "Conditional formatting", exact: true })
       .click();
@@ -76,14 +76,14 @@ try {
       .getByLabel("Condition operator", { exact: true })
       .selectOption("eq");
     await page.getByLabel("Condition value", { exact: true }).fill("95");
-    await page.getByLabel("Background color", { exact: true }).fill("#DDEBF7");
+    await page.getByLabel("Fill colour", { exact: true }).selectOption("mid");
     await page.getByRole("button", { name: "Save rule", exact: true }).click();
     await page
       .getByText("Conditional formatting updated. Unsaved changes.", {
         exact: true,
       })
       .waitFor();
-    await assertColor(page, "rgb(255, 199, 206)");
+    await assertColor(page, "rgb(194, 82, 28)");
     await page
       .getByRole("button", { name: "Conditional formatting", exact: true })
       .click();
@@ -106,13 +106,13 @@ try {
         exact: true,
       })
       .click();
-    await assertColor(page, "rgb(221, 235, 247)");
+    await assertColor(page, "rgb(79, 127, 163)");
     assert.equal(
       await page.locator('#grid [data-cell="B2"]').textContent(),
       "€95.00",
     );
     assert.equal(requests.length, offline ? 0 : 2);
-    for (const expected of ["rgb(221, 235, 247)", "rgb(255, 199, 206)"]) {
+    for (const expected of ["rgb(79, 127, 163)", "rgb(194, 82, 28)"]) {
       await page.getByRole("button", { name: "Undo", exact: true }).click();
       await page
         .getByText("Undo restored the previous workbook.", { exact: true })
@@ -124,10 +124,10 @@ try {
       await page
         .getByText("Redo restored the previous workbook.", { exact: true })
         .waitFor();
-      await assertColor(page, "rgb(221, 235, 247)");
+      await assertColor(page, "rgb(79, 127, 163)");
     }
     await page.emulateMedia({ media: "print" });
-    await assertColor(page, "rgb(221, 235, 247)");
+    await assertColor(page, "rgb(79, 127, 163)");
     await page.emulateMedia({ media: "screen" });
     await page
       .locator("#save-status")
@@ -145,12 +145,12 @@ try {
     const book = readHTML(await readFile(saved, "utf8")).book;
     assert.equal(book.conditionalFormats.length, 4);
     assert.equal(book.sheets[0].cells.B2.result.value, 95);
-    assert.equal(book.conditionalFormats[0].style.background, "#DDEBF7");
+    assert.equal(book.conditionalFormats[0].style.fill, "mid");
     await page.goto(pathToFileURL(saved).href);
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor();
-    await assertColor(page, "rgb(221, 235, 247)");
+    await assertColor(page, "rgb(79, 127, 163)");
     assert.deepEqual(errors, []);
     await context.close();
     console.log(

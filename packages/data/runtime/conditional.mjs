@@ -2,6 +2,7 @@ import {
   compileConditionalFormats,
   conditionalPresentation,
 } from "../model/conditional.mjs";
+import { tokenCss, DARK_FILLS } from "../model/formatting.mjs";
 export function createConditionalDecorator(
   getBook,
   isSnapshotCurrent,
@@ -36,11 +37,16 @@ export function createConditionalDecorator(
     );
     const descriptions = [];
     if (highlight) {
-      if (highlight.background)
-        element.style.backgroundColor = highlight.background;
-      if (highlight.color) element.style.color = highlight.color;
+      // Charte tokens (ADR-012): a dark fill turns text white unless a colour is given.
+      if (highlight.fill)
+        element.style.backgroundColor = tokenCss(highlight.fill);
+      if (highlight.color) element.style.color = tokenCss(highlight.color);
+      else if (DARK_FILLS.includes(highlight.fill))
+        element.style.color = tokenCss("bg");
       if (highlight.bold !== undefined)
         element.style.fontWeight = highlight.bold ? "bold" : "normal";
+      if (highlight.italic !== undefined)
+        element.style.fontStyle = highlight.italic ? "italic" : "normal";
       descriptions.push("Conditional highlight");
     }
     if (bar) {
@@ -55,7 +61,7 @@ export function createConditionalDecorator(
       Object.assign(fill.style, {
         left: `${bar.left}%`,
         width: `${bar.width}%`,
-        backgroundColor: bar.color,
+        backgroundColor: tokenCss(bar.color),
       });
       axis.style.left = `${bar.axis}%`;
       text.textContent = element.textContent;

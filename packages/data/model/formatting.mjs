@@ -1,5 +1,5 @@
-// Manual formatting contract (ADR-010): cell styles, direct style objects,
-// row/column formatting and dimensions, links. Presentation only: none of it
+// Manual formatting contract (ADR-010, closed vocabulary of ADR-012): cell
+// styles, direct style objects, row/column formatting and dimensions, links. Presentation only: none of it
 // enters the calculation fingerprint.
 import { parseAddress, parseRange, validateFormat } from "./workbook.mjs";
 
@@ -18,45 +18,16 @@ function fields(value, allowed, where) {
 }
 const id = (v) => typeof v === "string" && /^[a-zA-Z][\w-]{0,79}$/.test(v);
 
-// Charte tokens usable as theme colour references, including the Excel theme
-// slots that the charte defines or derives from its base colours.
-export const THEME_TOKENS = [
-  "ink",
-  "acc",
-  "mid",
-  "lig",
-  "alert",
-  "tint",
-  "callout",
-  "bd",
-  "t2",
-  "bg",
-  "dk1",
-  "lt1",
-  "dk2",
-  "lt2",
-  "accent1",
-  "accent2",
-  "accent3",
-  "accent4",
-  "accent5",
-  "accent6",
-  "hlink",
-  "folHlink",
-];
+// Closed formatting vocabulary (ADR-012): charte tokens only, never literal
+// colours, fonts or sizes, so one vocabulary serves the editor, LLM edits,
+// theme changes and cross-product copy and paste.
+export const TEXT_COLORS = ["ink", "acc", "mid", "alert", "t2", "bg"];
+export const FILLS = ["none", "tint", "lig", "mid", "acc", "alert", "dark"];
+// Dark fills switch text to white unless a text colour is given.
+export const DARK_FILLS = ["mid", "acc", "alert", "dark"];
+export const BAR_COLORS = ["acc", "mid", "lig", "alert", "dark"];
 // "none" explicitly suppresses a side inherited from a cell style, row or column.
-export const BORDER_STYLES = [
-  "none",
-  "thin",
-  "medium",
-  "thick",
-  "double",
-  "dotted",
-  "mediumdashed",
-  "mediumdashdot",
-  "mediumdashdotdot",
-  "slantdashdot",
-];
+export const BORDER_STYLES = ["none", "thin", "medium", "double"];
 export const HORIZONTAL = [
   "general",
   "left",
@@ -64,128 +35,75 @@ export const HORIZONTAL = [
   "right",
   "centerContinuous",
 ];
-export const VERTICAL = ["top", "center", "bottom"];
-
-// Built-in cell styles. Our semantic styles keep their names; Excel's "Input"
-// and "Calculation" are `assumption` and `calculation`, not duplicates.
-const accents = [1, 2, 3, 4, 5, 6].flatMap((n) => [
-  `accent${n}`,
-  `accent${n}-20`,
-  `accent${n}-40`,
-  `accent${n}-60`,
-]);
-export const BUILTIN_CELL_STYLES = [
+// The fixed catalogue: no custom cell styles. Excel's "Input" and
+// "Calculation" are `assumption` and `calculation`.
+export const CELL_STYLES = [
   "normal",
+  "title",
   "header",
   "rowHeader",
   "assumption",
   "calculation",
-  "good",
-  "bad",
-  "neutral",
-  "checkCell",
-  "explanatoryText",
-  "linkedCell",
-  "note",
   "output",
-  "warningText",
-  "title",
-  "heading1",
-  "heading2",
-  "heading3",
-  "heading4",
   "total",
+  "note",
+  "alert",
   "hyperlink",
-  ...accents,
-  "comma",
-  "comma0",
-  "currency",
-  "currency0",
-  "percent",
 ];
-export const MAX_NAMED_STYLES = 200;
+// Per-workbook document font, from fonts present on Windows and macOS.
+export const FONTS = {
+  arial: "Arial, Helvetica, sans-serif",
+  verdana: "Verdana, Geneva, sans-serif",
+  tahoma: "Tahoma, Verdana, sans-serif",
+  trebuchet: '"Trebuchet MS", Helvetica, sans-serif',
+  georgia: 'Georgia, "Times New Roman", serif',
+  times: '"Times New Roman", Times, serif',
+};
+// Built-in charte overlays; absent means the document's own charte.
+export const THEMES = ["blue", "red", "green", "black"];
 export const MAX_LINK_LENGTH = 2048;
+// CSS for a colour token: the charte custom property, never a literal value.
+export const tokenCss = (token) =>
+  token === "none"
+    ? "transparent"
+    : `var(--${token === "dark" ? "ink" : token})`;
 
-export function validateColor(value, where = "colour") {
-  if (typeof value === "string") {
-    if (!/^#[0-9a-f]{6}$/i.test(value)) fail(`Invalid ${where}`);
-    return;
-  }
-  fields(value, ["theme", "tint"], where);
-  if (!THEME_TOKENS.includes(value.theme)) fail(`Unknown theme colour`);
-  if (
-    value.tint !== undefined &&
-    (typeof value.tint !== "number" ||
-      !Number.isFinite(value.tint) ||
-      value.tint < -1 ||
-      value.tint > 1)
-  )
-    fail("Theme tint must be between -1 and 1");
+function token(value, list, where) {
+  if (!list.includes(value))
+    fail(`Invalid ${where}: use one of ${list.join(", ")}`);
 }
 
 export function validateStyle(style, where = "style") {
-  fields(
-    style,
-    [
-      "bold",
-      "italic",
-      "underline",
-      "strike",
-      "fontSize",
-      "fontFamily",
-      "color",
-      "background",
-      "border",
-      "align",
-    ],
-    where,
-  );
-  for (const key of ["bold", "italic", "underline", "strike"])
+  fields(style, ["bold", "italic", "color", "fill", "border", "align"], where);
+  for (const key of ["bold", "italic"])
     if (style[key] !== undefined && typeof style[key] !== "boolean")
       fail(`Invalid ${key}`);
-  if (
-    style.fontSize !== undefined &&
-    (typeof style.fontSize !== "number" ||
-      !Number.isInteger(style.fontSize * 2) ||
-      style.fontSize < 1 ||
-      style.fontSize > 409)
-  )
-    fail("Font size must be 1–409 points in half-point steps");
-  // A family name only: it is placed in CSS, so no quotes or punctuation.
-  if (
-    style.fontFamily !== undefined &&
-    (typeof style.fontFamily !== "string" ||
-      !/^[\p{L}\p{N}][\p{L}\p{N} _-]{0,63}$/u.test(style.fontFamily))
-  )
-    fail("Invalid font family");
-  if (style.color !== undefined) validateColor(style.color, "font colour");
-  if (style.background !== undefined)
-    validateColor(style.background, "background colour");
+  if (style.color !== undefined) token(style.color, TEXT_COLORS, "text colour");
+  if (style.fill !== undefined) token(style.fill, FILLS, "fill");
   if (style.border !== undefined) {
     fields(style.border, ["top", "right", "bottom", "left"], "border");
     for (const side of Object.values(style.border)) {
       fields(side, ["style", "color"], "border side");
-      if (!BORDER_STYLES.includes(side.style)) fail("Invalid border style");
+      token(side.style, BORDER_STYLES, "border style");
       if (side.style === "none" && side.color !== undefined)
         fail("A none border has no colour");
-      if (side.color !== undefined) validateColor(side.color, "border colour");
+      if (side.color !== undefined)
+        token(side.color, TEXT_COLORS, "border colour");
     }
   }
   if (style.align !== undefined) {
-    fields(style.align, ["horizontal", "vertical", "wrap"], "alignment");
-    if (
-      style.align.horizontal !== undefined &&
-      !HORIZONTAL.includes(style.align.horizontal)
-    )
-      fail("Invalid horizontal alignment");
-    if (
-      style.align.vertical !== undefined &&
-      !VERTICAL.includes(style.align.vertical)
-    )
-      fail("Invalid vertical alignment");
+    fields(style.align, ["horizontal", "wrap"], "alignment");
+    if (style.align.horizontal !== undefined)
+      token(style.align.horizontal, HORIZONTAL, "horizontal alignment");
     if (style.align.wrap !== undefined && typeof style.align.wrap !== "boolean")
       fail("Invalid wrap");
   }
+}
+
+export function validateDocumentSettings(book) {
+  if (book.font !== undefined && !Object.hasOwn(FONTS, book.font))
+    fail(`Invalid font: use one of ${Object.keys(FONTS).join(", ")}`);
+  if (book.theme !== undefined) token(book.theme, THEMES, "theme");
 }
 
 // Links are inert data; only web and mail targets may ever be opened. They
@@ -228,52 +146,21 @@ export function validateSheetLinks(sheet, sheetIds) {
       fail("Unknown link sheet");
   }
 }
-const knownCellStyle = (book, name) =>
-  BUILTIN_CELL_STYLES.includes(name) ||
-  (book.namedStyles ?? []).some((style) => style.id === name);
+const knownCellStyle = (name) => CELL_STYLES.includes(name);
 // Edit boundary: a cell entering a workbook must reference its catalogue, so
 // publication can never produce a workbook that fails to save.
 export function checkReferences(book, cell) {
-  if (cell.cellStyle !== undefined && !knownCellStyle(book, cell.cellStyle))
+  if (cell.cellStyle !== undefined && !knownCellStyle(cell.cellStyle))
     fail(`Unknown cell style: ${cell.cellStyle}`);
 }
-// Paste from another workbook: drop custom cell styles the destination does
-// not define and report how many.
+// Paste from another workbook or an older file: drop cell styles outside the
+// catalogue and report how many.
 export function adaptReferences(book, cell) {
   if (cell === null || cell.cellStyle === undefined)
     return { cell, dropped: 0 };
-  if (knownCellStyle(book, cell.cellStyle)) return { cell, dropped: 0 };
+  if (knownCellStyle(cell.cellStyle)) return { cell, dropped: 0 };
   const { cellStyle, ...rest } = cell;
   return { cell: rest, dropped: 1 };
-}
-
-export function validateNamedStyles(book) {
-  const styles = book.namedStyles === undefined ? [] : book.namedStyles;
-  if (!Array.isArray(styles) || styles.length > MAX_NAMED_STYLES)
-    fail("Expected at most 200 custom cell styles");
-  const ids = new Set(),
-    names = new Set();
-  for (const style of styles) {
-    fields(style, ["id", "name", "style", "format"], "cell style");
-    if (
-      !id(style.id) ||
-      ids.has(style.id) ||
-      BUILTIN_CELL_STYLES.includes(style.id)
-    )
-      fail("Duplicate, invalid or reserved cell style ID");
-    ids.add(style.id);
-    if (
-      typeof style.name !== "string" ||
-      !style.name.trim() ||
-      style.name.length > 64 ||
-      names.has(style.name.trim().toLowerCase())
-    )
-      fail("Duplicate or invalid cell style name");
-    names.add(style.name.trim().toLowerCase());
-    validateStyle(style.style, "cell style definition");
-    if (style.format !== undefined) validateFormat(style.format);
-  }
-  return new Set([...BUILTIN_CELL_STYLES, ...ids]);
 }
 
 // Row and column formatting/dimensions, keyed "1".."1048576" and "A".."XFD".
@@ -292,11 +179,8 @@ export function validateAxes(sheet) {
         if (!/^[A-Z]{1,3}$/.test(name)) fail("Invalid column key");
         parseAddress(name + "1");
       }
-      fields(
-        entry,
-        axis === "rows" ? ["style", key, "customHeight"] : ["style", key],
-        axis.slice(0, -1),
-      );
+      // Row heights are automatic (computed and stored); there is no manual height flag.
+      fields(entry, ["style", key], axis.slice(0, -1));
       if (!Object.keys(entry).length) fail(`Empty ${axis.slice(0, -1)} entry`);
       if (entry.style !== undefined) validateStyle(entry.style);
       const max = axis === "rows" ? 600 : 2000;
@@ -305,11 +189,6 @@ export function validateAxes(sheet) {
         (!Number.isInteger(entry[key]) || entry[key] < 1 || entry[key] > max)
       )
         fail(`Invalid ${key}`);
-      if (
-        entry.customHeight !== undefined &&
-        (entry.customHeight !== true || entry.height === undefined)
-      )
-        fail("customHeight requires an explicit height");
     }
   }
 }
