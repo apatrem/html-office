@@ -52,7 +52,8 @@ export function grid() {
         .join("")}</tr>`,
     );
   });
-  rows.push(`<tr><th scope="row">13</th><td class="cs-note" colspan="3">Forecast months grow participants by the Inputs!B2 rate.</td>${"<td></td>".repeat(22)}</tr>`);
+  // Unwrapped text overflows into empty neighbours (ADR-012 §6); no merged cells.
+  rows.push(`<tr><th scope="row">13</th><td class="cs-note overflow"><span>Forecast months grow participants by the Inputs!B2 rate.</span></td>${"<td></td>".repeat(24)}</tr>`);
   for (let r = 14; r <= 44; r++) rows.push(`<tr><th scope="row">${r}</th>${"<td></td>".repeat(25)}</tr>`);
   return `<div class="grid-wrap" tabindex="0" role="region" aria-label="Calculations sheet grid"><table class="grid"><thead>${head}</thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
@@ -60,6 +61,7 @@ export function formulaBar({ scenario = true } = {}) {
   return `<div class="formula" role="group" aria-label="Formula bar">
 <span class="mw"><button type="button" class="namebox" aria-label="Cell address ${selected.ref}" data-menu="m-goto" aria-haspopup="true" aria-expanded="false">${selected.ref}${icon("caret").replace('class="ic"', 'class="ic car"')}</button></span>
 <span class="fx" aria-hidden="true">fx</span>
+<span class="mw"><button type="button" class="b pick itype" aria-label="Input type: Formula" title="Input type" data-menu="m-itype" aria-haspopup="true" aria-expanded="false"><span class="lbl">Formula</span>${icon("caret").replace('class="ic"', 'class="ic car"')}</button></span>
 <label class="fin"><span class="vh">Cell value</span><input value="${esc(selected.formula)}" spellcheck="false"></label>
 ${scenario ? `<span class="scen"><label for="scen">Scenario</label><select id="scen"><option>Base</option><option>Upside</option><option>Downside</option></select></span>` : ""}
 <span class="calc ok" role="status" title="Results are current">${icon("check")}<span class="lbl">Calculated</span></span>

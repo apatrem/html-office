@@ -14,7 +14,7 @@ This brief records what exists today, every command each product exposes or has 
 | --- | --- | --- |
 | Slides | `src/engine/view.js` (`toolbar`, `sidebar`, `helpPanel`, `UI_CSS`), `src/engine/editor.js` (panels, keyboard), `src/engine/templates.js` (layouts, elements, shapes, chart types), `src/engine/main.js` (handler map) | Shipped (plugin 0.7.1) |
 | Data, native ribbon | `packages/data/tools/ribbon.mjs` (markup), `packages/data/runtime/ribbon.mjs` (tabs, layout), `packages/data/tools/build.mjs` (dialogs, grid, notices), `packages/data/tools/conditional-controls.mjs`, `packages/data/runtime/sheets.mjs` (sheet groups) | Working default until U04 |
-| Data, IronCalc on Preact (R05) | `tools/ribbon-assessment/preact/` ([report](HTML-DATA-PREACT-SPIKE.md)), [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md) "Interface layout", [ADR-012](decisions/012-data-formatting-vocabulary.md) §11 | Spike; toolbar content trimmed by ADR-012 |
+| Data, IronCalc on Preact (R05) | `tools/ribbon-assessment/preact/` ([report](HTML-DATA-PREACT-SPIKE.md)), [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md) "Interface layout", [ADR-012](decisions/012-data-formatting-vocabulary.md) §11 | Spike, measured before ADR-012; its trimming is still to do |
 | Text | [HTML-TEXT-V1](HTML-TEXT-V1.md), [HTML-TEXT-PLAN](HTML-TEXT-PLAN.md) T06–T14, [ADR-004](decisions/004-html-text-format-and-editor.md) | Specified, not started |
 | All | [ADR-011](decisions/011-html-office-shared-principles.md) §4, §6, §7, §10; [ADR-012](decisions/012-data-formatting-vocabulary.md); `src/theme/default.css` (charte tokens) | Accepted / proposed |
 
@@ -49,7 +49,7 @@ Dialogs (`<dialog>`): conditional formatting, dropdown settings, manage sheets, 
 
 ### Data, IronCalc toolbar on Preact (R05, ADR-010)
 
-ADR-010 planned a **single toolbar band**: a thin file bar (name, save status, File / Insert / Data menus, scenario selector), the full IronCalc icon toolbar, the formula bar, the grid, and sheet tabs with groups at the bottom. A **right drawer** (360 px) hosts cell styles, themes and regional settings; links use a modal dialog. ADR-012 removed font size, underline, strike, vertical alignment, the theme drawer and the custom-style editor from that toolbar, and replaced the colour picker with charte swatches. ADR-011 §7 puts the layout itself on hold until U03.
+ADR-010 planned a **single toolbar band**: a thin file bar (name, save status, File / Insert / Data menus, scenario selector), the full IronCalc icon toolbar, the formula bar, the grid, and sheet tabs with groups at the bottom. A **right drawer** (360 px) hosts cell styles, themes and regional settings; links use a modal dialog. ADR-012 requires removing font size, underline, strike, vertical alignment, the theme drawer and the custom-style editor from that toolbar, and replacing the colour picker with charte swatches. The R05 spike predates ADR-012 and still contains them, so its sizes are the untrimmed baseline. ADR-011 §7 puts the layout itself on hold until U03.
 
 R05 findings that constrain any shell: the toolbar needs its own stacking level above the grid; IronCalc's `Inter` must map to the charte font; several IronCalc fields rely on placeholders and need labels; the toolbar scrolls horizontally with keyboard-operable overflow arrows at 320 px.
 
@@ -109,7 +109,8 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | | Download PNG of selection | — | F06 |
 | | Import CSV / XLSX, refresh source | — | T15, T16 |
 | History | Undo, Redo | Quick access | — |
-| Clipboard | Paste table (Excel / Markdown / CSV, value typing) | Home → modal | X01 |
+| Clipboard | Copy and paste ranges with formats (`application/x-html-office-range+json`, plus TSV) | Grid, Cmd/Ctrl+C and V | X01 extends it across products |
+| | Paste table (Excel / Markdown / CSV, value typing) | Home → modal | — |
 | | Fill down, fill right | Home | — |
 | | Copy style (painter), clear formatting | — | F03 |
 | Styles | Cell style: normal, header, row label, assumption, calculation | Home select + Format selection | ADR-012: 11-style catalogue panel (adds title, output, total, note, alert, hyperlink) |
@@ -128,7 +129,7 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | Data | Dropdown settings (list or range, scenario selector) | Data tab → modal | — |
 | | Scenario selector; dropdown value | Editor context strip | Always visible (ADR-010) |
 | | Pivot, charts | — | T17, T18 |
-| Edit | Cell address, input type, value, apply edit | Formula bar | — |
+| Edit | Cell address, input type, value, apply edit; F2 edits the active cell | Formula bar, grid | — |
 | View | Grid lines on/off | — | ADR-010 |
 | Document settings | Theme (blue, red, green, black, document charte) | — | ADR-012 §9, T02 |
 | | Document font (6 fonts) | — | ADR-012 §4, T02 |
@@ -139,7 +140,8 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | Group | Command | Source |
 | --- | --- | --- |
 | File | Save (Chrome/Edge direct), Save a copy, draft recovery | Spec "Browsers and saving", T05 |
-| | Print preview, PDF, export Markdown | T14, spec "Outputs" |
+| | Print preview, PDF | T14, spec "Outputs" |
+| | Export Markdown, read-only Markdown view | T15 |
 | | Read-only Markdown view | Spec "Canonical document" |
 | | Import Markdown (paste mapping) | T07 |
 | History | Undo, Redo | ProseMirror history |
@@ -184,7 +186,7 @@ The shell's job is to put these in the same place and with the same control in a
 - Toggle buttons expose `aria-pressed`; swatches have accessible names ("Accent fill"), not colour alone.
 - Side panels are labelled regions (non-modal) or `dialog` (modal), with Escape to close and focus return.
 - Labels, not placeholders, on every field (R05 finding 3).
-- Existing shortcuts stay: Cmd/Ctrl+S, Z, Shift+Z, Y, B, I, D, ], [; Slides E, P, ?; Data Enter/Tab/arrows in the grid.
+- Existing shortcuts stay: Cmd/Ctrl+S, Z, Shift+Z, Y, B, I, D, ], [; Slides E, P, ?; Data arrows, Shift+arrows, Enter, F2 and Escape in the grid, plus Cmd/Ctrl+C and V for rich range copy and paste. Tab leaves the grid today.
 - Status messages use `role="status"`; save state is announced, not only coloured.
 - Colour contrast of shell chrome ≥ 4.5:1 for text, 3:1 for icons and focus rings; chartes are checked in T01.
 
@@ -207,7 +209,7 @@ The shell's job is to put these in the same place and with the same control in a
 
 ### Code ceilings (standard mode)
 
-- Data 750,000 bytes of embedded application code. The R05 P&L sample uses 558,873 with the Preact toolbar and drawer, leaving about 191 kB for F01–F06 and T15–T22. Shell code competes with features.
+- Data 750,000 bytes of embedded application code. The R05 P&L sample uses 558,873 with the untrimmed Preact toolbar and drawer, leaving about 191 kB for F01–F06 and T15–T22. Shell code competes with features.
 - Text 500,000 bytes, which must also hold ProseMirror and its packages.
 - Slides has no recorded ceiling (ADR-011, open).
 - A shared shell must therefore be small native code (or the IronCalc/Preact components Data already pays for) and should not add a framework to Slides or Text.

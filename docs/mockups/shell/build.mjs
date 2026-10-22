@@ -2,6 +2,7 @@
 // product, plus index.html. Usage: node docs/mockups/shell/build.mjs
 // Screenshots and measurements: node docs/mockups/shell/screenshots.mjs
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { VARIANTS, PRODUCTS, panelsFor, canvasFor, menus } from "./src/variants.mjs";
 import { esc } from "./src/parts.mjs";
 
@@ -246,4 +247,4 @@ export function buildAll() {
   writeFileSync(here("index.html"), index(measure));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) buildAll();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) buildAll();

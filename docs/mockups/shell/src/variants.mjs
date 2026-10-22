@@ -17,14 +17,15 @@ const MENUS = {
     Insert: [["Text box"], ["Shape", "", { sub: 1 }], ["Block", "", { sub: 1 }], ["Image"], ["Table"], ["Chart", "", { sub: 1 }], "-", ["New slide", "", { sub: 1 }]],
     Slide: [["Layout", "", { sub: 1 }], ["Reset layout"], ["Footer…"], "-", ["Duplicate slide"], ["Delete slide"]],
     Arrange: [["Align left"], ["Centre horizontally"], ["Align right"], "-", ["Align top"], ["Centre vertically"], ["Align bottom"], "-", ["Distribute horizontally"], ["Distribute vertically"], "-", ["Bring forward", "Cmd+]"], ["Send backward", "Cmd+["]],
+    Table: [["Insert row below"], ["Delete row"], ["Insert column right"], ["Delete column"]],
     Help: [["Shortcuts", "?", { panel: "help" }], ["File format guide"]],
   },
   data: {
     File: [["Save", "Cmd+S"], ["Save a copy"], "-", ["Import CSV / XLSX…", "", pl], ["Refresh source", "", pl], ["Export CSV", "", pl], ["Download PNG of selection", "", pl], ["Print / PDF…", "", pl], "-", ["Document settings…", "", { panel: "settings" }], ["Regional settings…", "", { panel: "regional" }], "-", ["File format guide"], ["Third-party notices"]],
-    Edit: [["Undo", "Cmd+Z"], ["Redo", "Cmd+Shift+Z"], "-", ["Paste table…"], ["Fill down"], ["Fill right"], "-", ["Copy style", "", pl], ["Clear formatting", "", pl]],
+    Edit: [["Undo", "Cmd+Z"], ["Redo", "Cmd+Shift+Z"], "-", ["Edit cell", "F2"], ["Input type", "", { sub: 1 }], ["Copy", "Cmd+C"], ["Paste", "Cmd+V"], ["Paste table…"], ["Fill down"], ["Fill right"], "-", ["Copy style", "", pl], ["Clear formatting", "", pl]],
     Insert: [["Rows above / below"], ["Columns left / right"], ["Sheet"], "-", ["Link…", "Cmd+K", pl], ["Chart", "", pl], ["Pivot", "", pl]],
     Format: [["Cell styles…", "", { panel: "styles" }], ["Number", "", { sub: 1 }], ["Borders", "", { sub: 1, planned: 1 }], ["Alignment", "", { sub: 1, planned: 1 }], ["Conditional formatting…"], "-", ["Column width…", "", pl], ["Auto-fit columns", "", pl]],
-    Data: [["Recalculate", "F9"], ["Scenario", "", { sub: 1 }], ["Dropdown settings…"], "-", ["Manage sheets…"], ["Delete rows"], ["Delete columns"]],
+    Data: [["Recalculate", "F9"], ["Cancel calculation"], ["Retry pending range"], "-", ["Scenario", "", { sub: 1 }], ["Choose dropdown value", "Alt+Down"], ["Dropdown settings…"], "-", ["Manage sheets…"], ["Delete rows"], ["Delete columns"]],
     View: [["Grid lines", "", pl], ["Formula bar"]],
     Help: [["Shortcuts", "", { panel: "help" }], ["File format guide"]],
   },
@@ -32,7 +33,7 @@ const MENUS = {
     File: [["Save", "Cmd+S"], ["Save a copy"], "-", ["Import Markdown…"], ["Export Markdown"], ["Print preview"], ["Print / PDF"], "-", ["Document settings…", "", { panel: "settings" }], "-", ["File format guide"], ["Third-party notices"]],
     Edit: [["Undo", "Cmd+Z"], ["Redo", "Cmd+Shift+Z"], "-", ["Paste as plain text"], ["Clear formatting"]],
     Insert: [["Table"], ["Chart", "", { sub: 1 }], ["Image"], ["Footnote"], ["Cross-reference…"], ["Table of contents"], ["Page break"], "-", ["Link…", "Cmd+K"], ["Comment", "Cmd+Alt+M"]],
-    Format: [["Block style", "", { sub: 1 }], ["Lists", "", { sub: 1 }], ["Alignment", "", { sub: 1 }], "-", ["Start on a new page"], ["Heading numbers…"]],
+    Format: [["Block style", "", { sub: 1 }], ["Lists", "", { sub: 1 }], ["Alignment", "", { sub: 1 }], "-", ["Table", "", { sub: 1 }], ["Figure", "", { sub: 1 }], "-", ["Start on a new page"], ["Heading numbers…"]],
     Review: [["New comment", "Cmd+Alt+M"], ["Comments panel", "", { panel: "comments" }], ["Next comment"], ["Resolve"], ["Orphaned comments…"]],
     View: [["Edit"], ["Markdown (read-only)"], ["Print preview"], "-", ["Outline", "", { panel: "outline" }]],
     Help: [["Shortcuts", "", { panel: "help" }], ["File format guide"]],
@@ -46,9 +47,10 @@ const SUBMENUS = {
     "m-chart": ["Chart", [["Columns"], ["Horizontal bars"], ["Stacked bars"], ["Lines"], ["Waterfall"], ["Bubbles"], ["Gantt"]]],
     "m-arrange": ["Arrange", MENUS.slides.Arrange],
     "m-layout": ["Layout", ["Title only", "Impact title", "Left title", "Section divider", "Quote", "Panel 1/4", "Panel 1/3", "Panel 1/2", "Panel 2/3", "Three lines", "Cover", "End"].map((l) => [l])],
-    "m-newslide": ["New slide", ["Title only", "Impact title", "Left title", "Section divider", "Quote", "Panel 1/3", "Panel 1/2", "Three lines", "Cover", "End"].map((l) => [l])],
+    "m-newslide": ["New slide", ["Title only", "Impact title", "Left title", "Section divider", "Quote", "Panel 1/4", "Panel 1/3", "Panel 1/2", "Panel 2/3", "Three lines", "Cover", "End"].map((l) => [l])],
+    "m-table": ["Table", [["Insert row below"], ["Delete row"], ["Insert column right"], ["Delete column"]]],
     "m-align": ["Alignment", [["Align left"], ["Centre"], ["Align right"]]],
-    "m-more": ["More", [["Smaller text"], ["Larger text"], ["Align left"], ["Centre"], ["Align right"], "-", ["Arrange", "", { sub: 1 }], ["Duplicate", "Cmd+D"], ["Delete", "Del"], ["Clear formatting"]]],
+    "m-more": ["More", [["Smaller text"], ["Larger text"], ["Align left"], ["Centre"], ["Align right"], "-", ["Arrange", "", { sub: 1 }], ["Table", "", { sub: 1 }], ["Duplicate", "Cmd+D"], ["Delete", "Del"], ["Clear formatting"]]],
   },
   data: {
     "m-numfmt": ["Number format", [["General"], ["Number"], ["Currency"], ["Accounting"], ["Percent"], ["Short date"], ["Long date"], "-", ["Thousands (k)", "", pl], ["Millions (M)", "", pl], ["Negative in parentheses", "", pl], ["Negative in red", "", pl]]],
@@ -60,6 +62,7 @@ const SUBMENUS = {
     "m-scenario": ["Scenario", [["Base"], ["Upside"], ["Downside"]]],
     "m-locale": ["Locale", [["English (United States)"], ["English (United Kingdom)"], ["Français (France)"], ["Deutsch"], ["Español"], ["Italiano"], "-", ["Regional settings…", "", { panel: "regional" }]]],
     "m-goto": ["Go to", [["C4"], ["Inputs!B2"], ["Summary!B2"]]],
+    "m-itype": ["Input type", [["Number"], ["Text"], ["Boolean"], ["Blank"], ["Date"], ["Error"], ["Formula"]]],
     "m-sheets": ["Sheets", [["Summary"], ["Inputs"], ["Actuals"], ["Calculations"], "-", ["Manage sheets…"]]],
     "m-more": ["More", [["Borders", "", { sub: 1 }], ["Wrap text"], ["Centre across selection"], ["Link…", "Cmd+K"], ["Conditional formatting…"], ["Grid lines"], ["Copy style"], ["Clear formatting"], "-", ["Paste table…"], ["Fill down"], ["Fill right"], ["Recalculate", "F9"]]],
   },
@@ -69,15 +72,31 @@ const SUBMENUS = {
     "m-align": ["Alignment", [["Align left"], ["Centre"], ["Align right"], ["Justify"]]],
     "m-page": ["Page format", [["A4"], ["Letter"]]],
     "m-margins": ["Margins", [["Normal"], ["Narrow"], ["Wide"]]],
-    "m-more": ["More", [["Underline", "Cmd+U"], ["Superscript"], ["Subscript"], ["Inline code"], ["Highlight"], "-", ["Bulleted list"], ["Numbered list"], ["Indent"], ["Outdent"], "-", ["Page break"], ["Start on a new page"], ["Clear formatting"]]],
+    "m-lists": ["Lists", [["Bulleted list"], ["Numbered list"], ["Indent"], ["Outdent"]]],
+    "m-table": ["Table", [["Insert row above"], ["Insert row below"], ["Delete row"], ["Insert column left"], ["Insert column right"], ["Delete column"], "-", ["Merge cells"], ["Split cell"], "-", ["Header row"], ["Total row"], ["Emphasis column"], ["Compact density"], ["Column widths…"]]],
+    "m-figure": ["Figure", [["Chart data…"], ["Width: text"], ["Width: full"], ["Caption"], "-", ["Image alt text…"], ["Wrap left"], ["Wrap right"], ["No wrap"], ["Image width…"]]],
+    "m-more": ["More", [["Table", "", { sub: 1 }], ["Figure", "", { sub: 1 }], "-", ["Underline", "Cmd+U"], ["Superscript"], ["Subscript"], ["Inline code"], ["Highlight"], "-", ["Bulleted list"], ["Numbered list"], ["Indent"], ["Outdent"], "-", ["Page break"], ["Start on a new page"], ["Clear formatting"]]],
   },
 };
+// Every submenu entry opens a real menu: no dead ends.
+const SUBTARGET = {
+  slides: { Shape: "m-shape", Block: "m-block", Chart: "m-chart", "New slide": "m-newslide", Layout: "m-layout", Arrange: "m-arrange", Table: "m-table" },
+  data: { Number: "m-numfmt", Borders: "m-borders", Alignment: "m-align", Scenario: "m-scenario", "Border colour": "pop-color", "Input type": "m-itype" },
+  text: { Chart: "m-chart", "Block style": "m-block", Lists: "m-lists", Alignment: "m-align", Table: "m-table", Figure: "m-figure" },
+};
+const resolve = (product, items) =>
+  items.map((it) => {
+    if (it === "-" || !it[2]?.sub || typeof it[2].sub === "string") return it;
+    const target = SUBTARGET[product][it[0]];
+    if (!target) throw new Error(`No submenu for ${product} › ${it[0]}`);
+    return [it[0], it[1], { ...it[2], sub: target }];
+  });
 function menus(product, { includeMain = true } = {}) {
   let out = "";
   if (includeMain)
-    for (const [name, items] of Object.entries(MENUS[product])) out += menuPop(`m-${product}-${name.toLowerCase()}`, name, items);
-  out += menuPop("m-main", "Menu", Object.keys(MENUS[product]).map((k) => [k, "", { sub: 1 }]));
-  for (const [id, [title, items]] of Object.entries(SUBMENUS[product])) out += menuPop(id, title, items);
+    for (const [name, items] of Object.entries(MENUS[product])) out += menuPop(`m-${product}-${name.toLowerCase()}`, name, resolve(product, items));
+  out += menuPop("m-main", "Menu", Object.keys(MENUS[product]).map((k) => [k, "", { sub: `m-${product}-${k.toLowerCase()}` }]));
+  for (const [id, [title, items]] of Object.entries(SUBMENUS[product])) out += menuPop(id, title, resolve(product, items));
   return out + swatchPopovers();
 }
 const menubar = (product) =>
@@ -157,6 +176,7 @@ function ribbonTabs(p) {
         rg("Colour", colourButton("color"), colourButton("fill"), btn({ ic: "eraser", label: "Clear formatting" })),
         rg("Arrange", L("arrange", "Arrange", { dd: true, menu: "m-arrange" })),
         rg("Chart", L("chart", "Edit data")),
+        rg("Table", btn({ ic: "rowAdd", label: "Insert row below" }), btn({ ic: "rowDel", label: "Delete row" }), btn({ ic: "colAdd", label: "Insert column right" }), btn({ ic: "trash", label: "Delete column" })),
         rg("Element", btn({ ic: "copy", label: "Duplicate" }), btn({ ic: "trash", label: "Delete" })),
       ],
       Insert: [rg("Insert", L("textbox", "Text box"), L("shape", "Shape", { dd: true, menu: "m-shape" }), L("block", "Block", { dd: true, menu: "m-block" }), L("image", "Image"), L("table", "Table"), L("chart", "Chart", { dd: true, menu: "m-chart" }))],
@@ -174,7 +194,7 @@ function ribbonTabs(p) {
         rg("Cells", L("rowAdd", "Insert", { dd: true, menu: "m-insert" }), L("rowDel", "Delete", { dd: true, menu: "m-delete" })),
       ],
       Insert: [rg("Insert", L("rowAdd", "Rows"), L("colAdd", "Columns"), L("sheet", "Sheet"), L("link", "Link", { planned: 1 }), L("chart", "Chart", { planned: 1 }), L("pivot", "Pivot", { planned: 1 }))],
-      Data: [rg("Calculate", L("calc", "Recalculate"), picker({ label: "Scenario", value: "Scenario: Base", menu: "m-scenario" })), rg("Rules", L("dropdown", "Dropdowns…"), L("condfmt", "Conditional…")), rg("Sheets", L("sheet", "Manage sheets…")), rg("Sources", L("upload", "Import", { planned: 1 }), L("calc", "Refresh", { planned: 1 }))],
+      Data: [rg("Calculate", L("calc", "Recalculate"), btn({ ic: "close", label: "Cancel calculation" }), btn({ ic: "reset", label: "Retry pending range" }), picker({ label: "Scenario", value: "Scenario: Base", menu: "m-scenario" })), rg("Rules", L("dropdown", "Dropdowns…"), L("condfmt", "Conditional…")), rg("Sheets", L("sheet", "Manage sheets…")), rg("Sources", L("upload", "Import", { planned: 1 }), L("calc", "Refresh", { planned: 1 }))],
       Document: [rg("Theme", themeInline), rg("Font", C.fontPicker({ compact: true })), rg("Regional", picker({ label: "Locale", value: "English (US)", menu: "m-locale" }), L("globe", "More…", { panel: "regional" }))],
       View: [rg("Show", L("gridlines", "Grid lines", { planned: 1 }), L("fx", "Formula bar")), rg("Output", L("download", "PNG", { planned: 1 }), L("download", "CSV", { planned: 1 }), L("print", "Print / PDF", { planned: 1 })), rg("Help", L("help", "Shortcuts", { panel: "help" }))],
     },
@@ -184,6 +204,7 @@ function ribbonTabs(p) {
         rg("Font", btn({ glyph: "<b>B</b>", label: "Bold" }), btn({ glyph: "<i>I</i>", label: "Italic" }), btn({ glyph: "<u>U</u>", label: "Underline" }), btn({ glyph: "x<sup>2</sup>", label: "Superscript" }), btn({ glyph: "x<sub>2</sub>", label: "Subscript" }), btn({ ic: "code", label: "Inline code" }), btn({ ic: "highlight", label: "Highlight" })),
         rg("Paragraph", btn({ ic: "bullets", label: "Bulleted list" }), btn({ ic: "numbers", label: "Numbered list" }), btn({ ic: "outdent", label: "Outdent" }), btn({ ic: "indent", label: "Indent" }), btn({ ic: "alignL", label: "Align left" }), btn({ ic: "alignC", label: "Centre" }), btn({ ic: "alignR", label: "Align right" }), btn({ ic: "alignJ", label: "Justify" })),
         rg("Edit", btn({ ic: "link", label: "Link" }), btn({ ic: "eraser", label: "Clear formatting" })),
+        rg("Table", btn({ ic: "rowAdd", label: "Insert row" }), btn({ ic: "colAdd", label: "Insert column" }), btn({ ic: "table", label: "Merge or split cells", dd: true, menu: "m-table" })),
       ],
       Insert: [rg("Insert", L("table", "Table"), L("chart", "Chart", { dd: true, menu: "m-chart" }), L("image", "Image"), L("footnote", "Footnote"), L("xref", "Cross-ref"), L("toc", "Contents"), L("pagebreak", "Page break"), L("link", "Link"))],
       Review: [rg("Comments", L("comment", "New comment"), L("comment", "Comments", { panel: "comments" }), btn({ ic: "outdent", label: "Previous comment" }), btn({ ic: "indent", label: "Next comment" }), L("check", "Resolve"))],

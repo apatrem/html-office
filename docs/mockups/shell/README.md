@@ -11,6 +11,7 @@ Regenerate from the repository root:
 ```sh
 node docs/mockups/shell/build.mjs          # pages and index only
 node docs/mockups/shell/screenshots.mjs    # pages, screenshots, measurements and index (Playwright Chromium)
+node docs/mockups/shell/check.mjs          # interaction checks: menus, submenus, panels, focus return
 ```
 
 Built-in theme colours are placeholders until T01.

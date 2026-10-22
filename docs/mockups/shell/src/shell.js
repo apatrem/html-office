@@ -10,7 +10,9 @@
       tb.classList.toggle("over", s.scrollWidth > s.clientWidth + 2);
     }
   }
-  function setPanel(id) {
+  let panelOpener = null;
+  function setPanel(id, { restore = true } = {}) {
+    const wasOpen = body.dataset.panel !== "none";
     let any = false;
     for (const p of $$(".panel")) {
       const on = p.dataset.for === id;
@@ -18,8 +20,17 @@
       any ||= on;
     }
     body.dataset.panel = any ? id : "none";
-    for (const b of $$("[data-panel]"))
+    // Panel triggers are buttons; <body data-panel> only records the state.
+    for (const b of $$("button[data-panel]"))
       if (!b.closest(".menu")) b.setAttribute("aria-pressed", String(any && b.dataset.panel === id));
+    if (any) {
+      if (!wasOpen) panelOpener = document.activeElement;
+      document.querySelector(`.panel[data-for="${id}"] h2`)?.setAttribute("tabindex", "-1");
+      if (restore) document.querySelector(`.panel[data-for="${id}"] h2`)?.focus({ preventScroll: true });
+    } else if (wasOpen && restore && panelOpener?.isConnected && panelOpener !== document.body) {
+      panelOpener.focus({ preventScroll: true });
+      panelOpener = null;
+    }
     layout();
   }
   function selectTab(name, focus) {
@@ -32,6 +43,7 @@
     for (const p of $$("[role=tabpanel]")) p.hidden = p.id !== "rp-" + name;
     for (const s of $$("[data-tab-select]")) s.value = name;
     layout();
+    if (typeof rove === "function") rove();
   }
   let open = null;
   function closeMenu() {
@@ -44,17 +56,21 @@
     const pop = document.getElementById(btn.dataset.menu);
     if (!pop) return;
     if (open && open.btn === btn) return closeMenu();
+    // A submenu replaces its parent menu and returns focus to the root trigger.
+    const parent = btn.closest(".pop"),
+      root = parent && open ? open.btn : btn;
+    const r = btn.getBoundingClientRect();
     closeMenu();
     pop.hidden = false;
-    const r = btn.getBoundingClientRect(),
-      w = pop.offsetWidth,
+    const w = pop.offsetWidth,
       h = pop.offsetHeight;
     let y = r.bottom + 4;
     if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 4);
-    pop.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
-    pop.style.top = y + "px";
-    btn.setAttribute("aria-expanded", "true");
-    open = { btn, pop };
+    const x = parent ? r.right + 2 : r.left;
+    pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + "px";
+    pop.style.top = (parent ? Math.min(r.top, innerHeight - h - 8) : y) + "px";
+    root.setAttribute("aria-expanded", "true");
+    open = { btn: root, pop };
     pop.querySelector("button")?.focus({ preventScroll: true });
   }
   function sync() {
@@ -71,14 +87,17 @@
     const m = t.closest("[data-menu]");
     if (m) return showMenu(m);
     if (open && !t.closest(".pop")) closeMenu();
-    const p = t.closest("[data-panel]");
+    const p = t.closest("button[data-panel]");
     if (p) {
       const id = p.dataset.panel,
-        fromMenu = !!p.closest(".menu");
+        fromMenu = !!p.closest(".menu"),
+        root = open?.btn;
       closeMenu();
+      // From a menu, focus returns to the menu's trigger when the panel closes.
+      if (fromMenu && root && body.dataset.panel === "none") root.focus({ preventScroll: true });
       return setPanel(!fromMenu && body.dataset.panel === id ? "none" : id);
     }
-    if (t.closest("[data-close]")) return setPanel("none");
+    if (t.closest("button[data-close]")) return setPanel("none");
     const th = t.closest("[data-set-theme]");
     if (th) (root.dataset.theme = th.dataset.setTheme), sync();
     const f = t.closest("[data-set-font]");
@@ -113,6 +132,19 @@
       return e.preventDefault();
     }
     const nav = ["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key);
+    // Menubar: Left/Right move between menus, Down opens.
+    const mb = e.target.closest("[role=menubar]");
+    if (mb && (nav || e.key === "ArrowDown")) {
+      const items = $$(".mb", mb);
+      if (e.key === "ArrowDown") showMenu(e.target);
+      else {
+        const n = items[step(items, items.indexOf(e.target), e.key)];
+        for (const b of items) b.tabIndex = -1;
+        n.tabIndex = 0;
+        n.focus();
+      }
+      return e.preventDefault();
+    }
     const tab = e.target.closest("[role=tab]");
     if (tab && nav) {
       const tabs = $$("[role=tab]");
@@ -130,16 +162,27 @@
       e.preventDefault();
     }
   });
-  for (const tb of $$("[role=toolbar]")) $$("button:not(.ovf), select", tb).forEach((b, i) => (b.tabIndex = i ? -1 : 0));
-  addEventListener("resize", layout);
+  // One tab stop per toolbar and menubar, on the first visible control; recomputed on resize.
+  function rove() {
+    for (const tb of $$("[role=toolbar], [role=menubar]")) {
+      const all = $$("button:not(.ovf), select", tb),
+        first = all.find((b) => b.offsetParent);
+      for (const b of all) b.tabIndex = b === first ? 0 : -1;
+    }
+  }
+  addEventListener("resize", () => {
+    layout();
+    rove();
+  });
 
   // Initial state: #styles, #regional, #settings, #comments, #outline, #insert, #help or #none.
   const state = location.hash.slice(1) || body.dataset.default || "none";
   if (body.dataset.tab) selectTab(body.dataset.tab);
+  rove();
   if (state === "settings" && body.dataset.variant === "b") {
     selectTab("document");
-    setPanel("none");
-  } else setPanel(state);
+    setPanel("none", { restore: false });
+  } else setPanel(state, { restore: false });
   sync();
   window.mock = { setPanel, selectTab };
 })();

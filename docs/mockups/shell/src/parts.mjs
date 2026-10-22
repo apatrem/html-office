@@ -127,7 +127,7 @@ export function menuPop(id, title, items) {
     .map((it) => {
       if (it === "-") return '<li role="separator" class="msep"></li>';
       const [label, key = "", flag = {}] = it;
-      const extra = flag.panel ? ` data-panel="${flag.panel}"` : "";
+      const extra = (flag.panel ? ` data-panel="${flag.panel}"` : "") + (typeof flag.sub === "string" ? ` data-menu="${flag.sub}" aria-haspopup="true" aria-expanded="false"` : "");
       return `<li role="none"><button type="button" role="menuitem"${extra}${flag.planned ? ' class="planned"' : ""}><span>${esc(label)}</span>${flag.planned ? '<em class="tag">planned</em>' : ""}${key ? `<kbd>${esc(key)}</kbd>` : ""}${flag.sub ? '<span class="sub">›</span>' : ""}</button></li>`;
     })
     .join("");
