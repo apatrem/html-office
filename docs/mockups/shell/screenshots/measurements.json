@@ -1,0 +1,86 @@
+{
+  "a-slides-1440": {
+    "vh": 900,
+    "canvas": 815,
+    "stage": 1200
+  },
+  "a-slides-375": {
+    "vh": 812,
+    "canvas": 575,
+    "stage": 355
+  },
+  "a-data-1440": {
+    "vh": 900,
+    "canvas": 743,
+    "rows": 32
+  },
+  "a-data-375": {
+    "vh": 812,
+    "canvas": 655,
+    "rows": 28
+  },
+  "a-text-1440": {
+    "vh": 900,
+    "canvas": 815
+  },
+  "a-text-375": {
+    "vh": 812,
+    "canvas": 727
+  },
+  "b-slides-1440": {
+    "vh": 900,
+    "canvas": 755,
+    "stage": 1200
+  },
+  "b-slides-375": {
+    "vh": 812,
+    "canvas": 607,
+    "stage": 355
+  },
+  "b-data-1440": {
+    "vh": 900,
+    "canvas": 712,
+    "rows": 31
+  },
+  "b-data-375": {
+    "vh": 812,
+    "canvas": 652,
+    "rows": 28
+  },
+  "b-text-1440": {
+    "vh": 900,
+    "canvas": 755
+  },
+  "b-text-375": {
+    "vh": 812,
+    "canvas": 695
+  },
+  "c-slides-1440": {
+    "vh": 900,
+    "canvas": 851,
+    "stage": 1136
+  },
+  "c-slides-375": {
+    "vh": 812,
+    "canvas": 617,
+    "stage": 355
+  },
+  "c-data-1440": {
+    "vh": 900,
+    "canvas": 779,
+    "rows": 33
+  },
+  "c-data-375": {
+    "vh": 812,
+    "canvas": 633,
+    "rows": 27
+  },
+  "c-text-1440": {
+    "vh": 900,
+    "canvas": 851
+  },
+  "c-text-375": {
+    "vh": 812,
+    "canvas": 705
+  }
+}
