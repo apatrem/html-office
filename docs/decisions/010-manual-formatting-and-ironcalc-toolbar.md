@@ -4,7 +4,7 @@ Status: accepted by the user after a design review on 21 October 2026. Supersede
 
 Update, 22 October 2026: F01 (model) is merged. Two parts are **under review** under [ADR-011](011-html-office-shared-principles.md):
 - the free direct styles, cell-style catalogue, themes and toolbar content: **superseded by [ADR-012](012-data-formatting-vocabulary.md)**, which adopts the closed Slides vocabulary;
-- the single-band interface layout, which waits for the cross-product editor-shell design (tasks U01–U03, which replace F04).
+- the single-band interface layout and the Preact fork of the IronCalc toolbar: **superseded by [ADR-011](011-html-office-shared-principles.md) §7** (U03, 22 October 2026). Data uses the shared native editor shell (variant A); the IronCalc toolbar is not adopted. The sections below are kept for history.
 
 ## Context
 
@@ -69,6 +69,8 @@ The IronCalc regional-settings panel is included. Its **locale** maps to the exi
 
 ### Interface layout
 
+_Superseded by [ADR-011](011-html-office-shared-principles.md) §7: file bar with complete menus, one native icon toolbar, formula bar, grid, and sheet tabs with a document-settings button._
+
 A single IronCalc toolbar band replaces the tabbed ribbon, following the IronCalc application layout:
 
 1. A thin file bar: workbook name, save status, `File` / `Insert` / `Data` menus for our product commands (save and save a copy, rows/columns/sheets, dropdowns, data-bar settings, later import/export/charts), and an always-visible scenario selector.
@@ -81,7 +83,7 @@ Menus use ARIA `menubar`/`menu` with keyboard navigation. Row/column header cont
 
 - The standard-mode ceiling for **HTML Data** embedded application code becomes **750,000 uncompressed bytes**. HTML Text keeps 500,000 until decided separately.
 - The toolbar is always embedded; no CDN UI request in standard mode. Only the calculation engine (and later charts/import components) loads on demand. `--offline` is unchanged.
-- The toolbar is forked from pinned IronCalc onto **Preact** (`preact/compat`) instead of React, with a static dictionary instead of i18next and build-time SVG icons. The R05 spike confirms size and compatibility before the production migration. Preact is the first UI framework in the Data runtime; it is embedded and pinned, and updates require re-running the toolbar test suite.
+- _Superseded by [ADR-011](011-html-office-shared-principles.md) §7: the shell is shared native code with no UI framework ([R06](../HTML-DATA-NATIVE-SHELL-SPIKE.md): 45,444 bytes against 199,681)._ Original decision: the toolbar is forked from pinned IronCalc onto **Preact** (`preact/compat`) instead of React, with a static dictionary instead of i18next and build-time SVG icons. The R05 spike confirms size and compatibility before the production migration. Preact is the first UI framework in the Data runtime; it is embedded and pinned, and updates require re-running the toolbar test suite.
 
 ## Consequences
 

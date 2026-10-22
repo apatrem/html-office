@@ -1,29 +1,48 @@
 # html-office cross-product plan
 
-Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/011-html-office-shared-principles.md). Each task is a separate, reviewable increment. **Design comes before code**: no shared-shell implementation starts before U03 is accepted.
+Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/011-html-office-shared-principles.md). Each task is a separate, reviewable increment. **Design comes before code**: no shared-shell implementation starts before U03 is accepted. U01–U03 were completed on 22 October 2026: the user chose variant A and native shared components (ADR-011 §7).
 
 ## U — Consistent editor shell (Slides, Data, Text)
 
-**U01 — Design brief and audit.** Scope S, docs only.
+**U01 — Design brief and audit — done 22 October 2026, see the [shell brief](HTML-OFFICE-SHELL-BRIEF.md).** Scope S, docs only.
 - Inventory the current editor shells: Slides toolbar and context toolbar, the Data ribbon and the R05 IronCalc toolbar, and the planned Text editor.
 - List every command per product and where it lives today.
 - Record constraints: keyboard and ARIA, 320–1440 px, print, engine-free formatting, code ceilings, shared charte.
 - Starting hypothesis to test, not to assume: a cross between IronCalc's toolbar and our ribbon, with **two ribbon rows at the top** (plus a **formula bar** in Data); at the bottom, either **floating settings** or **Data's sheet tabs**.
 
-**U02 — Mock-ups.** Scope M, static HTML mock-ups only, no product code.
+**U02 — Mock-ups — done 22 October 2026, see the [mock-ups](mockups/shell/index.html); variant A chosen.** Scope M, static HTML mock-ups only, no product code.
 - At least three distinct layout variants, each shown for all three products: top rows, formula bar, bottom area, side panels (cell styles, themes, regional settings, comments), and narrow-width behaviour.
 - Use real command sets and the fictional fixtures.
 - Present them side by side for the user's choice; iterate until one is chosen.
 
-**U03 — Decision.** Scope S.
+**U03 — Decision — done 22 October 2026, see [ADR-011](decisions/011-html-office-shared-principles.md) §7.** Scope S.
 - Accept ADR-011 §7 with the chosen layout, interaction rules and a component list: buttons, menus, colour and border pickers, drawers, status area.
 - Decide which components come from the IronCalc fork on Preact (R05) and which are shared native code.
 - Amend ADR-010's layout section and re-sequence Data F04.
 
-**U04 — Shared shell implementation.** One task per product. Scope M each.
-- A shared shell module and CSS tokens in the existing build, behind each product's code ceiling.
-- Data first (replaces F04), then Slides, then Text when its editor exists.
-- Browser, keyboard, size and performance gates as in each product plan.
+**R06 — Native shell spike for Data — done 22 October 2026, see the [report](HTML-DATA-NATIVE-SHELL-SPIKE.md).** It built variant A from framework-free components on R05's P&L sample.
+- Sizes: the shell is 45,444 bytes (14,357 gzip), against 199,681 for the Preact toolbar. The standard P&L comes to 417,611 bytes (baseline 370,560) and the offline sample to 1,373,859.
+- R05's functional, engine-failure and 320–1440 px checks pass.
+- Formatting without an ADR-012 model is only recorded, so in the spike sample bold, italic, alignment, wrap, borders, colours, theme, font, regional settings and links do nothing visible yet.
+
+**U04 — Shared native shell implementation.** One task per product. Scope M each.
+- One framework-free module and stylesheet (proposed `packages/shared/shell/`), built into each product behind its code ceiling. Start from R06's components and replace its assessment bridge with a deliberate command/state API.
+- **U04-Data** (replaces F04) can start after F01r.
+  - It ships the file bar and menus, the toolbar with the commands the model already supports (history, number formats, catalogue cell styles, clear formatting, clipboard, rows and columns, sheets, dropdowns, conditional formatting), the variant A formula bar and sheet bar, and the document-settings button.
+  - It removes the tabbed ribbon and its page-wide CSS, which leaks into the shell (R06 finding 1).
+  - It shows no inert button. Emphasis, alignment, wrap, colours and borders join the toolbar with F02/F03. The cell-style, theme, font and regional panels arrive with F05. Links arrive with F03.
+  - **Visual parity with variant A is an acceptance gate.** The R06 sample is still far from the mock-up; its [side-by-side comparison](HTML-DATA-NATIVE-SHELL-SPIKE.md#gap-to-variant-a) lists the gaps:
+    - the page frame and status lines;
+    - the four-field formula bar;
+    - the scenario row;
+    - grid density and colours;
+    - the boxed sheet groups;
+    - the keyboard hint line.
+    
+    U04-Data captures the same states at 1440 × 900 and 375 × 812 and compares them with the variant A screenshots. It must show at least the mock-up's grid rows (32 and 28, header included) with no page scroll.
+- **U04-Slides**: move the top bar, context bar and reading pill onto the module (variant A floating settings bar) with no visible regression.
+- **U04-Text**: build the editor on the module when Text starts.
+- Gates as in each product plan: browser, keyboard, size and performance. Add a screen-reader pass (VoiceOver or NVDA) and Safari and Firefox runs, which R06 did not cover.
 
 ## X — Cross-product copy and paste
 
