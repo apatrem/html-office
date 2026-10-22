@@ -8,13 +8,19 @@ A skill for creating and editing a presentation in one HTML file. The file inclu
 
 Download `html-slides.plugin` from the [0.7.1 release](https://github.com/apatrem/html-office/releases/tag/v0.7.1). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
 
-Ask your agent: “Create an html-slides presentation about organising a community garden.” It prepares the storyline, builds the HTML/PDF, checks the slides, and reviews the screenshots.
+Ask your agent: “Create an html-slides presentation about organising a community garden.” In an environment with the required tools, it prepares the storyline, builds the HTML/PDF, checks the slides, and reviews the screenshots.
 
 Open the HTML in Chrome or Edge. Click **Edit**, use the top toolbar to insert elements, the context toolbar to format them, and the left thumbnails to navigate or reorder. **Cmd/Ctrl+S** saves; **?** opens keyboard shortcuts and the **File format** guide. The generated file works without the plugin.
 
-## Agent-side requirements
+## Do I need to install developer tools?
 
-Node.js 18+ and Playwright 1.62.1 with Chromium. From a repository checkout, use `npm ci` and `npx playwright install chromium`. For a standalone skill folder, install Playwright with `npm install -g playwright@1.62.1 && npx playwright install chromium`. The inert HTML parser is bundled. Recipients need only a browser.
+**To open, edit or share a finished presentation: no.** You need only the HTML file and a browser.
+
+**To have the assistant generate and check a presentation:** the current scripts need Node.js 18+ in the assistant's execution environment. Rendering charts, exporting PDF, taking screenshots and running the checker also need Playwright 1.62.1 with Chromium. npm handles dependency installation and global package lookup; it is not part of editing the finished file. Existing local dependencies can be reused.
+
+Claude Desktop and ChatGPT Desktop are the intended experience for nontechnical users. Their built-in browsers can support visual inspection, but the current scripts launch their own browser through Playwright. Installing the skill alone does not configure those dependencies, and the complete workflow in either desktop app is not yet validated. If the assistant cannot run the tools, it should explain the missing capability rather than present an unchecked file as verified.
+
+Runtime setup and terminal commands are in the [developer guide](https://github.com/apatrem/html-office/blob/main/docs/DEVELOPMENT.md). They are for maintainers or whoever configures the assistant's environment.
 
 ## Behaviour and limitations
 
