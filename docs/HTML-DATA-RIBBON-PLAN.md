@@ -1,6 +1,6 @@
 # HTML Data ribbon assessment and implementation
 
-Current checkpoint, 21 October 2026: after the R04 report the user chose a **lighter fork of the actual IronCalc toolbar on Preact** with its complete formatting features. The design is recorded in [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md); R05 below is the spike, followed by production tasks F01–F06. The native ribbon remains the working default until F04. Import and T15–T22 remain paused. R01–R04 below are historical context.
+Current checkpoint, 22 October 2026: the user chose **variant A of the shared editor shell built from native components** (U03, [ADR-011](decisions/011-html-office-shared-principles.md) §7) after the [R06 spike](HTML-DATA-NATIVE-SHELL-SPIKE.md). The IronCalc toolbar on Preact (R05) is not adopted, and F04 becomes cross-plan U04-Data. Earlier checkpoint, 21 October 2026: after the R04 report the user chose a **lighter fork of the actual IronCalc toolbar on Preact** with its complete formatting features. The design is recorded in [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md); R05 below is the spike, followed by production tasks F01–F06. The native ribbon remains the working default until F04. Import and T15–T22 remain paused. R01–R04 below are historical context.
 
 Approved direction: 20 October 2026. The user requests a ribbon-based interface familiar to Excel users, asks for an assessment plan, then authorises implementation and resumption of the remaining Data plan. This replaces the earlier pause. Existing portability, JSON, engine, licence, code-size and performance requirements remain in force.
 
@@ -116,6 +116,17 @@ Build the pinned IronCalc toolbar (`297553dc3a37ec6b0f4821055220e3d26c4ac6a1`) a
 - Re-run R04's functional/failure browser cases on an embedded Preact variant; record every React-19/`preact/compat` incompatibility and the patch or workaround used.
 - Panels may use a recording host stub where ADR-010 model features do not exist yet; record which callbacks are wired and which only record intents.
 - Decision gate: confirm Preact for F04, or fall back to a framework-free port if compatibility or size fails. Report to the user before production migration.
+- **Outcome, 22 October 2026:** Preact worked, but the user chose the framework-free route for one shell shared by all three products (U03). See R06.
+
+## R06 — Native shared shell spike
+
+Status: spike completed on 22 October 2026; see [the spike report](HTML-DATA-NATIVE-SHELL-SPIKE.md) and [`tools/shell-spike/`](../tools/shell-spike/README.md). Assessment tooling only.
+
+- Variant A built from framework-free shared components on the same P&L sample and host seam as R05.
+- Shell: 46,816 raw bytes (15,072 gzip), no runtime package. R05's Preact toolbar was 199,681.
+- Standard P&L sample: 419,021 bytes of application code against a baseline of 370,560 (about 331,000 bytes under the ceiling); offline sample 1,375,269.
+- R05's functional checks, adapted to ADR-012, pass standard and offline, along with the three engine-failure modes and layout from 320 to 1440 px.
+- Bold, italic, alignment, wrap, borders, colours, theme, font, regional settings and links only record intents until F01r–F05.
 
 ## Production tasks after R05
 
@@ -123,10 +134,14 @@ Each task is a separate reviewable increment with the existing unit/browser/form
 
 - **F01 — Model and contract** (implemented on `feature/data-format-model`: F01a rename and ceiling, F01b schema and validation, F01c structural relocation and history). `cellStyle` replaces `role` (fixtures rewritten), cell/row/column `style`, dimensions, style-only cells, `namedStyles`, `link`, colour/theme references, charte slot tokens, enriched number-format presets. Validation, history/recovery round trips, structural relocation of row/column styles and internal links, embedded guide update, and the 750,000-byte Data ceiling in build/bench gates.
 - **F01r — Adjust the merged F01 model to [ADR-012](decisions/012-data-formatting-vocabulary.md).** Token colours and `fill`, bold/italic only, `none`/`thin`/`medium`/`double` borders, horizontal alignment and wrap, automatic row heights, the fixed 11-style catalogue, workbook `font` and `theme`, and tokenised conditional formatting. Remove `namedStyles`, sizes, fonts, hex and theme objects, vertical alignment and `customHeight`. Rewrite fixtures, tests, FORMAT.md and the guide.
-- **F02 — Rendering** (after F01r; scope reduced by ADR-012). Layer resolution, fonts, theme colours with tint, borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
+- **F02 — Rendering** (after F01r; scope reduced by ADR-012). Layer resolution, fonts, charte token colours (no tints, ADR-012 §2), borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
 - **F03 — Commands.** Formatting commands with the 50,000-cell guard, command-time auto-fit, resize by drag/keyboard, painter, clear formatting, links and popover, clipboard/fill carrying formatting.
-- **F04 — Interface migration** (replaced by cross-plan U04 after the editor-shell design U01–U03). Embedded Preact toolbar behind a deliberate command/state API (replacing R04's source injection), file bar menus, context menus, scenario selector and sheet tabs; remove the tabbed ribbon and replace its tests.
-- **F05 — Panels.** Cell-style catalogue and editor, theme picker/editor writing the workbook charte, regional settings.
+- **F04 — Interface migration: replaced by cross-plan [U04-Data](HTML-OFFICE-CROSS-PLAN.md)** (shared native shell, variant A).
+  - A deliberate command/state API replaces the assessment bridge.
+  - It brings file bar menus, header context menus, the scenario selector, and the formula bar and sheet bar.
+  - The tabbed ribbon, its page-wide CSS and its tests are removed.
+  - Formatting controls join only with their commands (F02/F03).
+- **F05 — Panels** (native shell panels, ADR-012). Cell-style catalogue (11 fixed styles, no editor), theme and font picker writing the workbook `theme` and `font`, regional settings.
 - **F06 — PNG.** Model-generated SVG of the selection rasterised to PNG, stale-result band and size limits.
 
 T15 import acceptance gains ADR-010 conversions: merges to `centerContinuous` or unmerge, number-format codes to presets, diagonal borders and unsupported alignment reported in diagnostics.

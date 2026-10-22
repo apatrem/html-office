@@ -59,10 +59,10 @@ Data uses a **closed vocabulary aligned with html-slides**: only named charte to
    - The picker lives in document settings, placed by the shell design.
    - The 12 Excel theme slots added to the charte by ADR-010 are removed.
 10. **Conditional formatting** ([ADR-008](008-conditional-format-rules.md)) uses the same tokens. Highlights use `style: { fill?, color?, bold?, italic? }`. Data bars use `positive` and `negative` tokens, `acc` and `alert` by default.
-11. **IronCalc toolbar content:**
-    - Removed: font-size group, underline, strike, theme menu and drawer, vertical alignment, custom-style editor.
-    - The IronCalc colour picker is replaced by a small keyboard-accessible swatch component. This removes the react-colorful dependency.
-    - The border picker is patched to the three styles and charte colours.
+11. **Toolbar content** (the shell itself is the shared native shell of [ADR-011](011-html-office-shared-principles.md) §7, not the IronCalc toolbar):
+    - Not offered: font size, underline, strike, a theme menu or drawer, vertical alignment, a custom-style editor.
+    - Colours use a small keyboard-accessible swatch component limited to the tokens above.
+    - The border picker offers the four sides, the three styles and charte colours.
     - The cell-style panel applies the fixed catalogue.
 12. **Excel import (T15):** formatting maps to the nearest vocabulary item and import never fails on formatting. A diagnostic report lists losses and is shown and stored with the import metadata.
     - Colours map to the nearest token in the workbook's charte (CIE ΔE); near-white fills become `none`.
