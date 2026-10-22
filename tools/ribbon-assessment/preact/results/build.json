@@ -1,0 +1,287 @@
+{
+  "upstream": {
+    "revision": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
+    "archiveSha256": "597790cd5e4de6706f44eb330e35fd329fcc3b5a6f745b3cb781b22c70835189"
+  },
+  "preactVersion": "11.0.1",
+  "patched": [
+    {
+      "file": "components/FormatMenu/FormatMenu.tsx",
+      "added": 1,
+      "removed": 5
+    },
+    {
+      "file": "components/LinkDialog/util.ts",
+      "added": 1,
+      "removed": 8
+    },
+    {
+      "file": "components/Menu/Menu.tsx",
+      "added": 1,
+      "removed": 0
+    },
+    {
+      "file": "components/RightDrawer/NamedStyles/EditNamedStyle.tsx",
+      "added": 1,
+      "removed": 1
+    },
+    {
+      "file": "components/RightDrawer/RightDrawer.tsx",
+      "added": 2,
+      "removed": 2
+    },
+    {
+      "file": "components/Toolbar/Toolbar.tsx",
+      "added": 24,
+      "removed": 62
+    }
+  ],
+  "dictionary": {
+    "templatePrefixes": [
+      "regional_settings.locale.delimiter_"
+    ],
+    "keys": 156,
+    "upstreamKeys": 403,
+    "bytes": 6743
+  },
+  "staticDataBytes": 17262,
+  "notices": {
+    "react-upstream": {
+      "packages": [
+        "@babel/runtime",
+        "html-parse-stringify",
+        "i18next",
+        "lucide-react",
+        "react",
+        "react-colorful",
+        "react-dom",
+        "react-i18next",
+        "scheduler",
+        "use-sync-external-store"
+      ],
+      "bytes": 14619
+    },
+    "react-shims": {
+      "packages": [
+        "react",
+        "react-colorful",
+        "react-dom",
+        "scheduler"
+      ],
+      "bytes": 8913
+    },
+    "preact": {
+      "packages": [
+        "preact",
+        "react-colorful"
+      ],
+      "bytes": 6671
+    }
+  },
+  "variants": {
+    "react-upstream": {
+      "jsBytes": 431487,
+      "cssBytes": 43564,
+      "totalBytes": 475051,
+      "gzipBytes": 133404,
+      "brotliBytes": 115351,
+      "jsSha256": "3c5c7397e58883a92632c53769af9b89c4a9f5a0f74d5ad703e7b4849a51d19e",
+      "packages": [
+        "html-parse-stringify",
+        "i18next",
+        "lucide-react",
+        "react",
+        "react-colorful",
+        "react-dom",
+        "react-i18next",
+        "scheduler",
+        "use-sync-external-store"
+      ],
+      "jsBreakdown": {
+        "package:react-dom": 209823,
+        "package:i18next": 43839,
+        "ironcalc:RightDrawer": 33264,
+        "spike:spike-static-data": 14067,
+        "package:lucide-react": 14049,
+        "spike:spike-i18n-init": 13011,
+        "ironcalc:Toolbar": 11163,
+        "package:react-colorful": 9726,
+        "package:react": 8433,
+        "ironcalc:ColorPicker": 7003,
+        "ironcalc:icons": 6689,
+        "ironcalc:Menu": 5951,
+        "ironcalc:LinkDialog": 5693,
+        "spike:entry.jsx": 5464,
+        "package:react-i18next": 5307,
+        "ironcalc:BorderPicker": 4603,
+        "ironcalc:Select": 4037,
+        "package:scheduler": 3713,
+        "ironcalc:AdvancedColorPicker": 3048,
+        "ironcalc:Input": 2568,
+        "ironcalc:FormatMenu": 2526,
+        "ironcalc:theme": 2469,
+        "ironcalc:Tooltip": 1364,
+        "ironcalc:Modal": 1326,
+        "ironcalc:Button": 994,
+        "spike:formats.mjs": 969,
+        "ironcalc:utils": 900,
+        "package:use-sync-external-store": 828,
+        "spike:ui-helpers.mjs": 799,
+        "ironcalc:ThemeMenu": 730,
+        "ironcalc:Switch": 679,
+        "ironcalc:ToggleButton": 665,
+        "ironcalc:util": 212,
+        "spike:wasm.mjs": 122,
+        "ironcalc:createAnchoredPortal": 102
+      }
+    },
+    "react-shims": {
+      "jsBytes": 365427,
+      "cssBytes": 43564,
+      "totalBytes": 408991,
+      "gzipBytes": 111855,
+      "brotliBytes": 96283,
+      "jsSha256": "8155d2c86ccdc33f30bd8e7d1b7bf647b5b092a13542a74d6dc68a2e6d80a976",
+      "packages": [
+        "react",
+        "react-colorful",
+        "react-dom",
+        "scheduler"
+      ],
+      "jsBreakdown": {
+        "package:react-dom": 209758,
+        "ironcalc:RightDrawer": 33282,
+        "spike:spike-static-data": 14067,
+        "ironcalc:Toolbar": 11163,
+        "package:react-colorful": 9726,
+        "package:react": 8433,
+        "spike:spike-lucide": 7329,
+        "ironcalc:ColorPicker": 7003,
+        "spike:spike-dictionary": 6757,
+        "ironcalc:icons": 6689,
+        "ironcalc:Menu": 5951,
+        "ironcalc:LinkDialog": 5699,
+        "spike:entry.jsx": 5464,
+        "ironcalc:BorderPicker": 4603,
+        "ironcalc:Select": 4039,
+        "package:scheduler": 3713,
+        "ironcalc:AdvancedColorPicker": 3048,
+        "ironcalc:Input": 2568,
+        "ironcalc:FormatMenu": 2526,
+        "ironcalc:theme": 2469,
+        "ironcalc:Tooltip": 1364,
+        "ironcalc:Modal": 1326,
+        "ironcalc:Button": 994,
+        "spike:formats.mjs": 969,
+        "ironcalc:utils": 900,
+        "spike:ui-helpers.mjs": 799,
+        "ironcalc:ThemeMenu": 730,
+        "ironcalc:Switch": 679,
+        "ironcalc:ToggleButton": 665,
+        "ironcalc:util": 212,
+        "spike:i18n.mjs": 194,
+        "spike:wasm.mjs": 122,
+        "ironcalc:createAnchoredPortal": 102
+      }
+    },
+    "preact": {
+      "jsBytes": 156117,
+      "cssBytes": 43564,
+      "totalBytes": 199681,
+      "gzipBytes": 50670,
+      "brotliBytes": 44355,
+      "jsSha256": "d0131c1bec1f7ab9597512e3ae65864323f17998b28150f280ce70b62d051998",
+      "packages": [
+        "preact",
+        "react-colorful"
+      ],
+      "jsBreakdown": {
+        "ironcalc:RightDrawer": 30353,
+        "package:preact": 24212,
+        "spike:spike-static-data": 14067,
+        "ironcalc:Toolbar": 9830,
+        "package:react-colorful": 9266,
+        "spike:spike-lucide": 7301,
+        "spike:spike-dictionary": 6757,
+        "ironcalc:ColorPicker": 6564,
+        "ironcalc:icons": 6006,
+        "ironcalc:Menu": 5347,
+        "spike:entry.jsx": 5331,
+        "ironcalc:LinkDialog": 5214,
+        "ironcalc:BorderPicker": 4159,
+        "ironcalc:Select": 3643,
+        "ironcalc:AdvancedColorPicker": 2707,
+        "ironcalc:theme": 2469,
+        "ironcalc:Input": 2325,
+        "ironcalc:FormatMenu": 2308,
+        "ironcalc:Tooltip": 1197,
+        "ironcalc:Modal": 1146,
+        "spike:formats.mjs": 969,
+        "ironcalc:Button": 866,
+        "ironcalc:utils": 826,
+        "spike:ui-helpers.mjs": 799,
+        "ironcalc:ThemeMenu": 645,
+        "ironcalc:ToggleButton": 622,
+        "ironcalc:Switch": 581,
+        "ironcalc:util": 212,
+        "spike:i18n.mjs": 193,
+        "spike:wasm.mjs": 122,
+        "ironcalc:createAnchoredPortal": 68
+      }
+    }
+  },
+  "sizes": [
+    {
+      "file": "toolbar-preact.html",
+      "variant": "preact",
+      "offline": false,
+      "applicationCodeBytes": 558873,
+      "documentContentBytes": 116033,
+      "totalHTMLBytes": 674906,
+      "baseline": {
+        "applicationCodeBytes": 349618,
+        "documentContentBytes": 116033,
+        "totalHTMLBytes": 465651
+      }
+    },
+    {
+      "file": "toolbar-react-upstream.html",
+      "variant": "react-upstream",
+      "offline": false,
+      "applicationCodeBytes": 842205,
+      "documentContentBytes": 116033,
+      "totalHTMLBytes": 958238,
+      "baseline": {
+        "applicationCodeBytes": 349618,
+        "documentContentBytes": 116033,
+        "totalHTMLBytes": 465651
+      }
+    },
+    {
+      "file": "toolbar-preact-offline.html",
+      "variant": "preact",
+      "offline": true,
+      "applicationCodeBytes": 1515132,
+      "documentContentBytes": 116033,
+      "totalHTMLBytes": 1631165,
+      "baseline": {
+        "applicationCodeBytes": 1305866,
+        "documentContentBytes": 116033,
+        "totalHTMLBytes": 1421899
+      }
+    },
+    {
+      "file": "toolbar-react-upstream-offline.html",
+      "variant": "react-upstream",
+      "offline": true,
+      "applicationCodeBytes": 1798464,
+      "documentContentBytes": 116033,
+      "totalHTMLBytes": 1914497,
+      "baseline": {
+        "applicationCodeBytes": 1305866,
+        "documentContentBytes": 116033,
+        "totalHTMLBytes": 1421899
+      }
+    }
+  ]
+}

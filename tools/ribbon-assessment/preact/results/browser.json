@@ -1,0 +1,179 @@
+{
+  "browser": "Chromium 151.0.7922.34",
+  "functional": [
+    {
+      "name": "toolbar-preact.html",
+      "variant": "preact",
+      "offline": false,
+      "checks": "exclusions/menu keyboard/format+history/long date/emphasis/centre across/font size/colour/borders/themes/cell styles add+apply/regional/link schemes/conditional/grid lines/scenario/save/reopen",
+      "requests": [
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.mjs",
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.wasm.gz"
+      ],
+      "passed": true
+    },
+    {
+      "name": "toolbar-preact-offline.html",
+      "variant": "preact",
+      "offline": true,
+      "checks": "exclusions/menu keyboard/format+history/long date/emphasis/centre across/font size/colour/borders/themes/cell styles add+apply/regional/link schemes/conditional/grid lines/scenario/save/reopen",
+      "requests": [],
+      "passed": true
+    },
+    {
+      "name": "toolbar-react-upstream.html",
+      "variant": "react-upstream",
+      "offline": false,
+      "checks": "exclusions/menu keyboard/format+history/long date/emphasis/centre across/font size/colour/borders/themes/cell styles add+apply/regional/link schemes/conditional/grid lines/scenario/save/reopen",
+      "requests": [
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.mjs",
+        "https://raw.githubusercontent.com/apatrem/html-office/f29064716eba7518008c03f443e9667ab1b87869/packages/data/engine/vendor/ironcalc.wasm.gz"
+      ],
+      "passed": true
+    },
+    {
+      "name": "toolbar-react-upstream-offline.html",
+      "variant": "react-upstream",
+      "offline": true,
+      "checks": "exclusions/menu keyboard/format+history/long date/emphasis/centre across/font size/colour/borders/themes/cell styles add+apply/regional/link schemes/conditional/grid lines/scenario/save/reopen",
+      "requests": [],
+      "passed": true
+    }
+  ],
+  "layout": [
+    {
+      "variant": "preact",
+      "width": 320,
+      "pageOverflow": false
+    },
+    {
+      "variant": "preact",
+      "width": 768,
+      "pageOverflow": false
+    },
+    {
+      "variant": "preact",
+      "width": 1024,
+      "pageOverflow": false
+    },
+    {
+      "variant": "preact",
+      "width": 1440,
+      "pageOverflow": false
+    },
+    {
+      "variant": "react-upstream",
+      "width": 320,
+      "pageOverflow": false
+    },
+    {
+      "variant": "react-upstream",
+      "width": 768,
+      "pageOverflow": false
+    },
+    {
+      "variant": "react-upstream",
+      "width": 1024,
+      "pageOverflow": false
+    },
+    {
+      "variant": "react-upstream",
+      "width": 1440,
+      "pageOverflow": false
+    }
+  ],
+  "timings": [
+    {
+      "variant": "preact",
+      "run": 0,
+      "mountMs": 4.399999976158142,
+      "firstMenuMs": 9.5
+    },
+    {
+      "variant": "preact",
+      "run": 1,
+      "mountMs": 6.900000035762787,
+      "firstMenuMs": 18.69999998807907
+    },
+    {
+      "variant": "preact",
+      "run": 2,
+      "mountMs": 4.700000047683716,
+      "firstMenuMs": 6.599999964237213
+    },
+    {
+      "variant": "preact",
+      "run": 3,
+      "mountMs": 4.699999988079071,
+      "firstMenuMs": 8.800000011920929
+    },
+    {
+      "variant": "preact",
+      "run": 4,
+      "mountMs": 4.900000035762787,
+      "firstMenuMs": 23.899999976158142
+    },
+    {
+      "variant": "react-upstream",
+      "run": 0,
+      "mountMs": 10.800000011920929,
+      "firstMenuMs": 3
+    },
+    {
+      "variant": "react-upstream",
+      "run": 1,
+      "mountMs": 9.900000035762787,
+      "firstMenuMs": 25.80000001192093
+    },
+    {
+      "variant": "react-upstream",
+      "run": 2,
+      "mountMs": 10.300000011920929,
+      "firstMenuMs": 18.100000023841858
+    },
+    {
+      "variant": "react-upstream",
+      "run": 3,
+      "mountMs": 10.5,
+      "firstMenuMs": 15.699999988079071
+    },
+    {
+      "variant": "react-upstream",
+      "run": 4,
+      "mountMs": 10.399999976158142,
+      "firstMenuMs": 19.100000023841858
+    }
+  ],
+  "failures": [
+    {
+      "variant": "preact",
+      "mode": "blocked",
+      "passed": true
+    },
+    {
+      "variant": "preact",
+      "mode": "bad-js",
+      "passed": true
+    },
+    {
+      "variant": "preact",
+      "mode": "cancel",
+      "passed": true
+    },
+    {
+      "variant": "react-upstream",
+      "mode": "blocked",
+      "passed": true
+    },
+    {
+      "variant": "react-upstream",
+      "mode": "bad-js",
+      "passed": true
+    },
+    {
+      "variant": "react-upstream",
+      "mode": "cancel",
+      "passed": true
+    }
+  ]
+}

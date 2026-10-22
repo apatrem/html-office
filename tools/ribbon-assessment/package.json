@@ -6,14 +6,15 @@
     "measure": "node measure.mjs"
   },
   "dependencies": {
-    "esbuild": "0.25.10",
     "@svgr/core": "8.1.0",
     "@svgr/plugin-jsx": "8.1.0",
-    "react": "19.3.1",
-    "react-dom": "19.3.1",
+    "esbuild": "0.25.10",
     "i18next": "26.5.3",
-    "react-i18next": "17.1.0",
     "lucide-react": "1.60.0",
-    "react-colorful": "5.8.1"
+    "preact": "11.0.1",
+    "react": "19.3.1",
+    "react-colorful": "5.8.1",
+    "react-dom": "19.3.1",
+    "react-i18next": "17.1.0"
   }
 }
