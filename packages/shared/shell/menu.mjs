@@ -55,8 +55,12 @@ function menuList(items, { label, onHorizontal } = {}) {
         onHorizontal(event.key === "ArrowRight" ? 1 : -1);
       } else if (event.key === "Tab") closePopover({ restore: false });
       else if (/^\w$/.test(event.key)) {
-        // Type-ahead: next item starting with the typed letter.
-        const all = [...list.querySelectorAll('[role^="menuitem"]')],
+        // Type-ahead: next enabled item starting with the typed letter.
+        const all = [
+            ...list.querySelectorAll(
+              '[role^="menuitem"]:not([aria-disabled="true"])',
+            ),
+          ],
           start = all.indexOf(li);
         const hit = [...all.slice(start + 1), ...all.slice(0, start)].find(
           (el) =>

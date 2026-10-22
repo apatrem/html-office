@@ -60,13 +60,17 @@ export function button({
 export function roving(
   container,
   selector,
-  { vertical = false, wrap = true, onMove } = {},
+  { vertical = false, wrap = true, onMove, edges } = {},
 ) {
+  // `edges` matches helper items (toolbar scroll arrows) that arrow keys reach
+  // but Home, End and the default tab stop skip.
+  const command = (el) => !edges || !el.matches(edges);
   const items = () =>
     [...container.querySelectorAll(selector)].filter(
       (el) =>
         !el.disabled &&
         el.offsetParent !== null &&
+        getComputedStyle(el).visibility !== "hidden" &&
         el.getAttribute("aria-disabled") !== "true",
     );
   function focusAt(index) {
@@ -87,11 +91,12 @@ export function roving(
     if (i < 0) return;
     const fwd = vertical ? "ArrowDown" : "ArrowRight",
       back = vertical ? "ArrowUp" : "ArrowLeft";
+    const commands = list.filter(command);
     const target = {
       [fwd]: i + 1,
       [back]: i - 1,
-      Home: 0,
-      End: list.length - 1,
+      Home: list.indexOf(commands[0]),
+      End: list.indexOf(commands.at(-1)),
     }[event.key];
     if (target === undefined) return;
     event.preventDefault();
@@ -104,7 +109,7 @@ export function roving(
   });
   // Keeps exactly one tab stop, preferring the current one if still enabled.
   const reset = () => {
-    const all = [...container.querySelectorAll(selector)];
+    const all = [...container.querySelectorAll(selector)].filter(command);
     const first =
       all.find((el) => el.getAttribute("aria-checked") === "true") ??
       all.find((el) => el.tabIndex === 0 && !el.disabled) ??
@@ -113,5 +118,5 @@ export function roving(
     for (const el of all) el.tabIndex = el === first ? 0 : -1;
   };
   reset();
-  return { focusAt, reset, items };
+  return { focusAt, reset, items, command };
 }

@@ -13,7 +13,8 @@ export const spacer = () => h("span", { class: "sh-spacer" });
 
 export function toolbar(label, ...children) {
   const scroll = h("div", { class: "sh-tscroll" }, ...children);
-  // Pointer-only helpers: keyboard users reach every item with the arrow keys.
+  // Overflow arrows sit at both ends of the roving order, so the keyboard
+  // reaches them too; arrow keys also scroll each item into view.
   const arrow = (dir) =>
     h(
       "button",
@@ -21,14 +22,15 @@ export function toolbar(label, ...children) {
         type: "button",
         class: `sh-ovf ${dir < 0 ? "sh-ovl" : "sh-ovr"}`,
         tabindex: "-1",
-        "aria-hidden": "true",
+        "aria-label": `Scroll toolbar ${dir < 0 ? "left" : "right"}`,
+        title: `Scroll toolbar ${dir < 0 ? "left" : "right"}`,
         onclick: () =>
           scroll.scrollBy({
             left: dir * scroll.clientWidth * 0.7,
             behavior: "smooth",
           }),
       },
-      dir < 0 ? "‹" : "›",
+      h("span", { "aria-hidden": "true" }, dir < 0 ? "‹" : "›"),
     );
   const bar = h(
     "div",
@@ -45,10 +47,23 @@ export function toolbar(label, ...children) {
       "at-end",
       scroll.scrollLeft + scroll.clientWidth >= scroll.scrollWidth - 1,
     );
+    // An arrow hidden at its end hands focus to the nearest command.
+    const active = document.activeElement;
+    if (
+      active?.matches?.(".sh-ovf") &&
+      bar.contains(active) &&
+      getComputedStyle(active).visibility === "hidden"
+    ) {
+      const commands = nav.items().filter(nav.command);
+      (active.matches(".sh-ovl") ? commands[0] : commands.at(-1))?.focus({
+        preventScroll: true,
+      });
+    }
   };
   new ResizeObserver(update).observe(scroll);
   scroll.addEventListener("scroll", update, { passive: true });
-  const nav = roving(bar, ".sh-tscroll button, .sh-tscroll select", {
+  const nav = roving(bar, ".sh-ovf, .sh-tscroll button, .sh-tscroll select", {
+    edges: ".sh-ovf",
     onMove: (el) => el.scrollIntoView({ block: "nearest", inline: "nearest" }),
   });
   // Call after changing items' disabled state, passing the element that had

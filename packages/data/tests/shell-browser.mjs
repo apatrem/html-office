@@ -117,6 +117,13 @@ try {
     await page.keyboard.press("ArrowDown");
     // The first enabled item takes focus; Undo has no history yet.
     assert.equal(await active(page), "Paste table…");
+    // Type-ahead skips disabled items (Undo) and keeps arrow navigation.
+    await page.keyboard.press("u");
+    assert.equal(await active(page), "Paste table…");
+    await page.keyboard.press("f");
+    assert.equal(await active(page), "Fill down");
+    await page.keyboard.press("ArrowUp");
+    assert.equal(await active(page), "Paste table…");
     await page.keyboard.press("ArrowRight");
     assert.equal(await active(page), "Insert rows");
     await page.keyboard.press("Escape");
@@ -310,6 +317,33 @@ try {
         `last toolbar item visible at ${width}px`,
       );
       if (narrow) {
+        // The input type stays available; the overflow arrows are keyboard
+        // items at both ends of the toolbar.
+        assert.equal(
+          await page.getByLabel("Input type", { exact: true }).isVisible(),
+          true,
+        );
+        const left = toolbar.getByRole("button", {
+          name: "Scroll toolbar left",
+        });
+        // Shown once the scroll position after End is reported.
+        await left.waitFor({ state: "visible" });
+        // Right from the last command passes the right arrow (while any
+        // overflow remains) and wraps to the left arrow.
+        for (let step = 0; step < 2; step++) {
+          await page.keyboard.press("ArrowRight");
+          if ((await active(page)) === "Scroll toolbar left") break;
+        }
+        assert.equal(await active(page), "Scroll toolbar left");
+        const before = await toolbar
+          .locator(".sh-tscroll")
+          .evaluate((el) => el.scrollLeft);
+        await page.keyboard.press("Enter");
+        await page.waitForFunction(
+          (start) =>
+            document.querySelector(".sh-tscroll").scrollLeft < start - 10,
+          before,
+        );
         await page.getByRole("button", { name: "Menu", exact: true }).click();
         await page
           .getByRole("menu", { name: "Menu" })
@@ -344,6 +378,34 @@ try {
     );
     assert.ok((await page.locator("#grid [data-cell]").count()) < 600);
     await page.emulateMedia({ media: "screen" });
+    // A workbook without formulas has nothing to calculate.
+    const plain = scenarioWorkbook();
+    for (const sheet of plain.sheets)
+      for (const [ref, cell] of Object.entries(sheet.cells))
+        if (cell.formula) delete sheet.cells[ref];
+    delete plain.conditionalFormats;
+    const plainFile = resolve(out, "shell-no-formulas.html");
+    await writeFile(
+      plainFile,
+      await buildWorkbook(plain, { offline, calculate: false }),
+    );
+    await page.goto(pathToFileURL(plainFile).href);
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    assert.equal(await page.locator("#calc-state").textContent(), "Calculated");
+    // Typing into an empty cell's value picks a type, as the grid does.
+    await page.getByLabel("Cell address", { exact: true }).fill("D9");
+    await page.getByLabel("Cell address", { exact: true }).press("Enter");
+    assert.equal(
+      await page.getByLabel("Input type", { exact: true }).inputValue(),
+      "blank",
+    );
+    await page.getByLabel("Cell value", { exact: true }).fill("42");
+    assert.equal(
+      await page.getByLabel("Input type", { exact: true }).inputValue(),
+      "number",
+    );
     assert.deepEqual(errors, []);
     await context.close();
     console.log(

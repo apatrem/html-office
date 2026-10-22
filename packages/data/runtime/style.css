@@ -9,9 +9,9 @@
 .formula-bar .name-box{width:76px;flex:none;font-weight:600;font-family:ui-monospace,Menlo,monospace}
 .formula-bar #cell-type{width:84px;flex:none;color:var(--sh-mute)}
 .fx{font:italic 600 14px Georgia,"Times New Roman",serif;color:var(--sh-mute);padding:0 2px;flex:none}
-.formula-bar #cell-value{flex:1 1 auto;font-family:ui-monospace,Menlo,monospace}
+.formula-bar #cell-value{flex:1 1 48px;min-width:40px;font-family:ui-monospace,Menlo,monospace}
 .formula-bar #apply{height:26px;min-width:28px}
-.dropdown-control{display:flex;align-items:center;gap:6px;flex:none;min-width:0}.dropdown-control[hidden]{display:none}
+.dropdown-control{display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0}.dropdown-control[hidden]{display:none}
 .dropdown-control label{font-size:12px;color:var(--sh-mute);white-space:nowrap}
 .dropdown-control select{max-width:180px;min-width:96px}.dropdown-control select[aria-invalid=true]{border-color:var(--sh-err)}
 /* A dropdown note is shown under the bar only when there is something to say. */
@@ -21,7 +21,7 @@
 .calc{display:flex;align-items:center;gap:4px;flex:none}
 #calc-state{display:inline-flex;align-items:center;gap:4px;font-size:12px;white-space:nowrap;padding:0 4px;color:var(--sh-mute)}
 #calc-state[data-tone=ok]{color:var(--sh-ok)}#calc-state[data-tone=ok]::before{content:"✓"}
-#calc-state[data-tone=warn]{color:var(--sh-warn)}#calc-state[data-tone=warn]::before{content:"!";font-weight:700}
+#calc-state[data-tone=warn]{color:var(--sh-warn)}#calc-state[data-tone=warn]::before{content:"!";font-weight:700}#calc-state[data-tone=busy]::before{content:"…"}
 .calc .sh-b{height:26px;font-size:12px;border-color:var(--sh-line)}
 /* Grid */
 .canvas{flex:1 1 auto;min-height:0;display:flex;margin:0}
@@ -53,7 +53,7 @@
 #sheet-tabs .calculations .sheet-tab{background:var(--calculation-bg,var(--tint))}#sheet-tabs .calculations .sheet-tab[aria-pressed=true]{background:var(--t2);color:var(--bg)}
 .group-empty{align-self:center;font-size:12px;color:var(--sh-mute);padding:0 8px}
 #sheet-select{display:none;height:28px;max-width:60vw;border:1px solid var(--sh-line);border-radius:6px;background:#fff;font:inherit;padding:0 6px}
-@media (max-width:719.98px){#sheet-tabs{display:none}#sheet-select{display:block}.formula-bar #cell-type,.fx,.dropdown-control label{display:none}.formula-bar .name-box{width:64px}.dropdown-control select{max-width:30vw;min-width:0}}
+@media (max-width:719.98px){#sheet-tabs{display:none}#sheet-select{display:block}.fx,.dropdown-control label{display:none}#calc-state{font-size:0;gap:0}#calc-state::before{font-size:14px}.formula-bar{gap:4px;padding:0 6px}.formula-bar .name-box,.formula-bar #cell-type{flex:0 1 auto;min-width:36px}.formula-bar #cell-type{width:56px}.dropdown-control select{min-width:48px}#sheet-select{flex:0 1 auto;min-width:0}.formula-bar .name-box{width:56px}.dropdown-control select{max-width:30vw}}
 /* Dialogs keep native controls. */
 dialog button,dialog input,dialog select{font:inherit}dialog button{border:1px solid var(--border);border-radius:4px;padding:6px 12px;background:var(--bg);color:var(--blue);cursor:pointer}dialog button:hover{background:var(--light)}dialog button:disabled{opacity:.5;cursor:default}dialog input,dialog select{padding:6px 8px;border:1px solid var(--bd);border-radius:3px}dialog :focus-visible{outline:2px solid var(--select);outline-offset:2px}
 dialog{max-width:min(900px,94vw);border:1px solid var(--border);border-radius:6px;color:inherit;padding:24px}dialog::backdrop{background:color-mix(in srgb,var(--ink) 40%,transparent)}dialog label{display:flex;flex-direction:column;gap:6px}dialog textarea{width:100%;font:13px monospace;padding:10px;resize:vertical}.paste-options{display:flex;flex-wrap:wrap;gap:16px;margin:16px 0}#paste-preview{max-height:200px;overflow:auto;background:var(--light);padding:12px}

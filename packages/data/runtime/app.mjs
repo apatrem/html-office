@@ -38,7 +38,10 @@ const revisions = new CalculationRevision();
 const history = new EditHistory();
 // Reuse verified fingerprints across formatting/history; recovery starts a new trust boundary.
 const verifiedSnapshots = new Set();
+// A verified workbook without formulas has no snapshot and nothing to calculate.
+let formulaFree = false;
 function trustSnapshot() {
+  formulaFree = !book.snapshot;
   if (book.snapshot) verifiedSnapshots.add(book.snapshot.fingerprint);
 }
 const config = JSON.parse($("engine-config").textContent);
@@ -64,6 +67,7 @@ const persistence = setupPersistence({
     pendingEdits = [];
     book = compactInputs(recovered);
     verifiedSnapshots.clear();
+    formulaFree = false;
     sheetId = book.sheets[0].id;
     history.clear();
     render();
@@ -111,12 +115,7 @@ const grid = createGrid($("grid"), {
   },
   onEdit: (initial) => {
     if (initial !== undefined) {
-      $("cell-type").value =
-        initial === "="
-          ? "formula"
-          : /[0-9.+-]/.test(initial)
-            ? "number"
-            : "text";
+      $("cell-type").value = inferType(initial);
       $("cell-value").value = initial;
     }
     if (initial === undefined && $("cell-type").value === "blank")
@@ -160,7 +159,11 @@ function drawCalculationState() {
     ? ["Calculating…", "busy"]
     : pendingEdits.length
       ? ["Not calculated", "warn"]
-      : book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint)
+      : (
+            book.snapshot
+              ? verifiedSnapshots.has(book.snapshot.fingerprint)
+              : formulaFree
+          )
         ? ["Calculated", "ok"]
         : ["Results stale", "warn"];
   $("calc-state").textContent = text;
@@ -352,6 +355,18 @@ $("cell-value").addEventListener("keydown", async (event) => {
     choose(selected);
     $("grid").focus();
   }
+});
+// Typing into an empty cell's value field picks a type, as typing in the grid does.
+function inferType(text) {
+  return text.startsWith("=")
+    ? "formula"
+    : /^[0-9.+-]/.test(text)
+      ? "number"
+      : "text";
+}
+$("cell-value").addEventListener("input", () => {
+  if ($("cell-type").value === "blank" && $("cell-value").value)
+    $("cell-type").value = inferType($("cell-value").value);
 });
 $("cell-address").addEventListener("change", () => {
   try {
