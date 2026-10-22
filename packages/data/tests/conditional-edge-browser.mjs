@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { conditionalWorkbook } from "../fixtures/conditional.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
@@ -31,7 +32,7 @@ async function ready(id, source = html, current = true) {
 }
 async function copy(page, id) {
   const wait = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy", exact: true }).click();
+  await command(page, "Save a copy");
   const file = resolve(out, `conditional-edge-${id}-saved.html`);
   await (await wait).saveAs(file);
   return readHTML(await readFile(file, "utf8")).book;
@@ -176,7 +177,7 @@ try {
         .getAttribute("aria-description"),
       /stale/,
     );
-    await button(page, "Recalculate").click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
@@ -278,7 +279,7 @@ try {
   }
   {
     const { context, page, errors } = await ready("structure");
-    await button(page, "Insert rows").click();
+    await command(page, "Insert rows");
     await page
       .getByText("Row/column references updated. Unsaved changes.", {
         exact: true,
@@ -290,7 +291,7 @@ try {
       ["B3", "B3", "B1:B3"],
     );
     await jump(page, "B3");
-    await button(page, "Delete rows").click();
+    await command(page, "Delete rows");
     await page
       .getByText("Row/column references updated. Unsaved changes.", {
         exact: true,

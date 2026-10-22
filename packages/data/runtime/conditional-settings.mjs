@@ -110,11 +110,11 @@ export function setupConditionalSettings({
     $("conditional-rule").value = selected;
     populate();
   }
-  $("manage-conditional").onclick = () => {
+  function open() {
     options();
     dialog.showModal();
     $("conditional-rule").focus();
-  };
+  }
   $("conditional-rule").onchange = populate;
   $("conditional-close").onclick = () => dialog.close();
   dialog.addEventListener("input", (event) => {
@@ -204,5 +204,5 @@ export function setupConditionalSettings({
   }
   for (const action of ["save", "remove", "earlier", "later"])
     $(`conditional-${action}`).onclick = () => void run(action);
-  return { draw };
+  return { draw, open };
 }

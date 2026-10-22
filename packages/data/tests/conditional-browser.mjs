@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { conditionalWorkbook } from "../fixtures/conditional.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
@@ -134,9 +135,7 @@ try {
       .filter({ hasText: "Recovery stored" })
       .waitFor();
     const wait = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Save a copy", exact: true })
-      .click();
+    await command(page, "Save a copy");
     const saved = resolve(
       out,
       `conditional-${offline ? "offline" : "standard"}-saved.html`,

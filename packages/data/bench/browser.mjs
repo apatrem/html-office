@@ -13,6 +13,7 @@ import {
   measureHTML,
   STANDARD_CODE_CEILING,
 } from "../tools/build.mjs";
+import { command } from "../tests/shell.mjs";
 const out = resolve("dist/data-bench");
 await mkdir(out, { recursive: true });
 const recipes = JSON.parse(
@@ -107,9 +108,10 @@ try {
         /<script id="engine-config"[^>]*>([\s\S]*?)<\/script>/.exec(html),
       standardConfig = JSON.parse(configMatch[1]);
     delete standardConfig.embedded;
-    const standardHTML = html
-      .replace(configMatch[1], JSON.stringify(standardConfig))
-      .replace("Offline engine embedded", "Verified engine loaded when needed");
+    const standardHTML = html.replace(
+      configMatch[1],
+      JSON.stringify(standardConfig),
+    );
     const standardSize = measureHTML(standardHTML);
     assert.ok(standardSize.applicationCodeBytes < STANDARD_CODE_CEILING);
     await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);
@@ -201,7 +203,7 @@ try {
       );
     }
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Save a copy" }).click();
+    await command(page, "Save a copy");
     const download = await downloadPromise;
     const saved = resolve(out, `${item.id}-saved.html`);
     await download.saveAs(saved);

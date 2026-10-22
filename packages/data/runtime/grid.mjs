@@ -102,6 +102,7 @@ export function createGrid(
         "grid-row-head",
       );
       head.setAttribute("role", "rowheader");
+      head.dataset.row = row;
     }
     for (let col = v.left; col <= v.right; col++) {
       const head = node(
@@ -113,6 +114,7 @@ export function createGrid(
         "grid-column-head",
       );
       head.setAttribute("role", "columnheader");
+      head.dataset.column = col;
     }
     node("div", "", root.scrollLeft, root.scrollTop, L, "grid-corner");
     plane.replaceChildren(fragment);
@@ -132,6 +134,17 @@ export function createGrid(
       );
       b.setAttribute("aria-pressed", b.dataset.cell === focus);
     }
+    // Headers of the selected rows and columns are highlighted.
+    for (const head of root.querySelectorAll("[data-row]"))
+      head.classList.toggle(
+        "in-selection",
+        +head.dataset.row >= r.top && +head.dataset.row <= r.bottom,
+      );
+    for (const head of root.querySelectorAll("[data-column]"))
+      head.classList.toggle(
+        "in-selection",
+        +head.dataset.column >= r.left && +head.dataset.column <= r.right,
+      );
     root.setAttribute(
       "aria-label",
       `${sheet.name}, selected ${anchor === focus ? focus : anchor + ":" + focus}`,

@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command, cellStyle } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -45,7 +46,7 @@ async function jump(page, ref) {
 }
 async function copy(page, name) {
   const wait = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const path = resolve(out, name);
   await (await wait).saveAs(path);
   return { book: readHTML(await readFile(path, "utf8")).book, path };
@@ -110,18 +111,13 @@ try {
   await calculated(page);
   // Pasting values keeps the destination's style and link.
   await jump(page, "A5");
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page.getByLabel("Table text").fill("new");
   await page.getByRole("button", { name: "Apply table", exact: true }).click();
   await calculated(page);
-  // Ribbon cell-style changes keep direct formatting.
+  // Toolbar cell-style changes keep direct formatting.
   await jump(page, "B2");
-  await page
-    .getByLabel("Cell style", { exact: true })
-    .selectOption("assumption");
-  await page
-    .getByRole("button", { name: "Format selection", exact: true })
-    .click();
+  await cellStyle(page, "Assumption");
   await page
     .getByText("Formatting changed. Unsaved changes.", { exact: true })
     .waitFor();
@@ -139,7 +135,7 @@ try {
 
   // Inserting a row above moves row formatting and internal links.
   await jump(page, "A2");
-  await page.getByRole("button", { name: "Insert rows", exact: true }).click();
+  await command(page, "Insert rows");
   await page
     .getByText("Row/column references updated. Unsaved changes.", {
       exact: true,
@@ -244,7 +240,9 @@ try {
       .locator("#status")
       .filter({ hasText: "The attempted range is retained" })
       .waitFor();
-    await page.locator("#decimals").click();
+    await page
+      .getByRole("button", { name: "Increase decimal places", exact: true })
+      .click();
     await page
       .getByText("Formatting changed. Unsaved changes.", { exact: true })
       .waitFor();

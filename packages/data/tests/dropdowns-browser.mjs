@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { scenarioWorkbook } from "../fixtures/scenarios.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
+import { command, currentSheet } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
@@ -61,10 +62,7 @@ try {
       await page.locator('#grid [data-cell="B2"]').textContent(),
       "€300.00",
     );
-    assert.equal(
-      await page.locator("#current-sheet").textContent(),
-      "Sheet: Summary",
-    );
+    assert.equal(await currentSheet(page), "Summary");
     assert.equal(requests.length, offline ? 0 : 2);
     await context.setOffline(true);
     await scenario.selectOption({ label: "Downside" });
@@ -99,9 +97,7 @@ try {
       .getByText("Unsaved changes. Recovery stored.", { exact: true })
       .waitFor();
     const wait = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Save a copy", exact: true })
-      .click();
+    await command(page, "Save a copy");
     const saved = resolve(
       out,
       `dropdowns-${offline ? "offline" : "standard"}-saved.html`,
@@ -148,9 +144,7 @@ try {
   }
   async function copy(page, id) {
     const wait = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Save a copy", exact: true })
-      .click();
+    await command(page, "Save a copy");
     const file = resolve(out, `dropdowns-${id}-copy.html`);
     await (await wait).saveAs(file);
     return readHTML(await readFile(file, "utf8")).book;
@@ -262,9 +256,7 @@ try {
       true,
     );
     if (["stale", "missing"].includes(mode)) {
-      await page
-        .getByRole("button", { name: "Recalculate", exact: true })
-        .click();
+      await command(page, "Recalculate");
       await page
         .getByText("Calculated locally. Unsaved changes.", { exact: true })
         .waitFor();
@@ -287,9 +279,7 @@ try {
     await page.getByRole("button", { name: "Inputs", exact: true }).click();
     await page.getByLabel("Cell address").fill("B1");
     await page.keyboard.press("Tab");
-    await page
-      .getByRole("button", { name: "Insert rows", exact: true })
-      .click();
+    await command(page, "Insert rows");
     await page
       .getByText("Row/column references updated. Unsaved changes.", {
         exact: true,
@@ -303,9 +293,7 @@ try {
       .waitFor();
     await page.getByLabel("Cell address").fill("B2");
     await page.keyboard.press("Tab");
-    await page
-      .getByRole("button", { name: "Delete rows", exact: true })
-      .click();
+    await command(page, "Delete rows");
     await page
       .getByText("Row/column references updated. Unsaved changes.", {
         exact: true,

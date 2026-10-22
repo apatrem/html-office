@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -66,7 +67,7 @@ try {
     .waitFor();
   // Formatting history never changes the numeric input, formula or result.
   await page
-    .getByRole("button", { name: "More decimals", exact: true })
+    .getByRole("button", { name: "Increase decimal places", exact: true })
     .click();
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Redo", exact: true }).click();
@@ -116,7 +117,7 @@ try {
     .waitFor();
   assert.equal(await page.getByLabel("Cell value").inputValue(), "30");
   const waiting = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const saved = resolve(out, "history-saved.html");
   await (await waiting).saveAs(saved);
   const result = readHTML(await readFile(saved, "utf8")).book;

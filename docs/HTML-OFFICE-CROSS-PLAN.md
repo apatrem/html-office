@@ -27,7 +27,7 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 **U04 — Shared native shell implementation.** One task per product. Scope M each.
 - One framework-free module and stylesheet (proposed `packages/shared/shell/`), built into each product behind its code ceiling. Start from R06's components and replace its assessment bridge with a deliberate command/state API.
-- **U04-Data** (replaces F04) can start after F01r.
+- **U04-Data** (replaces F04) — implemented 22 October 2026 on `feature/u04-data-shell`, awaiting review. The shared module is [`packages/shared/shell/`](../packages/shared/shell/README.md); the side-by-side comparison is in [`packages/data/bench/shell-variant-a/`](../packages/data/bench/shell-variant-a/index.html). Screen-reader, Safari and Firefox passes are still open (see below).
   - It ships the file bar and menus and the variant A formula bar and sheet bar.
   - Its toolbar holds only the commands today's runtime already applies and renders end to end:
     - history;

@@ -9,6 +9,7 @@ import {
   STANDARD_CODE_CEILING,
 } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command, currentSheet, moveGroup } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -25,8 +26,7 @@ try {
   page.on("dialog", (d) => d.accept());
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
-  const manager = async () =>
-    page.getByRole("button", { name: "Manage sheets", exact: true }).click();
+  const manager = async () => command(page, "Manage sheets");
   const undo = async () => {
     await page.getByRole("button", { name: "Undo", exact: true }).click();
     await page
@@ -41,9 +41,7 @@ try {
   };
   const save = async (name) => {
     const wait = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Save a copy", exact: true })
-      .click();
+    await command(page, "Save a copy");
     const target = resolve(out, name);
     await (await wait).saveAs(target);
     return {
@@ -53,30 +51,28 @@ try {
   };
   // Group navigation is keyboard-accessible and does not hide the current grid.
   const collapse = page.getByRole("button", {
-    name: "Collapse Inputs / Hypotheses",
+    name: "Inputs / Hypotheses group",
     exact: true,
   });
+  assert.equal(await collapse.getAttribute("aria-expanded"), "true");
   await collapse.focus();
   await page.keyboard.press("Enter");
+  assert.equal(await collapse.getAttribute("aria-expanded"), "false");
   assert.equal(
-    await page
-      .getByRole("button", { name: "Expand Inputs / Hypotheses", exact: true })
-      .evaluate((el) => el === document.activeElement),
+    await collapse.evaluate((el) => el === document.activeElement),
     true,
   );
   assert.equal(
     await page.getByRole("button", { name: "Inputs", exact: true }).count(),
     0,
   );
-  assert.match(await page.locator("#current-sheet").textContent(), /Inputs/);
+  assert.match(await currentSheet(page), /Inputs/);
   await undo();
   assert.equal(
     await page.getByRole("button", { name: "Inputs", exact: true }).count(),
     1,
   );
-  await page
-    .getByRole("button", { name: "Move Raw Data group earlier", exact: true })
-    .click();
+  await moveGroup(page, "Raw Data", "earlier");
   // Move selected Inputs to Calculations and retain the selected sheet and grey tabs.
   await manager();
   await page
@@ -106,10 +102,7 @@ try {
   await page
     .getByText("Sheet references updated. Unsaved changes.", { exact: true })
     .waitFor();
-  assert.equal(
-    await page.locator("#current-sheet").textContent(),
-    "Sheet: Forecast",
-  );
+  assert.equal(await currentSheet(page), "Forecast");
   await page.getByLabel("Input type").selectOption("formula");
   await page.getByLabel("Cell value", { exact: true }).fill("=Inputs!B2");
   await page.getByRole("button", { name: "Apply edit", exact: true }).click();
@@ -125,10 +118,7 @@ try {
   await redo();
   await redo();
   assert.equal(await page.locator('[data-cell="A1"]').textContent(), "100");
-  assert.equal(
-    await page.locator("#current-sheet").textContent(),
-    "Sheet: Forecast",
-  );
+  assert.equal(await currentSheet(page), "Forecast");
   await page.getByRole("button", { name: "Inputs", exact: true }).click();
   await manager();
   await page
@@ -160,11 +150,13 @@ try {
     .getByRole("button", { name: "Move sheet earlier", exact: true })
     .click();
   assert.deepEqual(
-    await page.locator(".calculations .group-tabs button").allTextContents(),
+    await page
+      .locator(".sheet-group.calculations .sheet-tab")
+      .allTextContents(),
     ["Forecast", "Next year's Inputs"],
   );
   await page
-    .getByRole("button", { name: "Collapse Calculations", exact: true })
+    .getByRole("button", { name: "Calculations group", exact: true })
     .click();
   await page
     .locator("#save-status")
@@ -190,15 +182,12 @@ try {
   await context.setOffline(true);
   await page.goto(pathToFileURL(saved.file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
-  assert.equal(
-    await page
-      .getByRole("button", { name: "Expand Calculations", exact: true })
-      .count(),
-    1,
-  );
-  await page
-    .getByRole("button", { name: "Expand Calculations", exact: true })
-    .click();
+  const calculations = page.getByRole("button", {
+    name: "Calculations group",
+    exact: true,
+  });
+  assert.equal(await calculations.getAttribute("aria-expanded"), "false");
+  await calculations.click();
   await page.getByRole("button", { name: "Summary", exact: true }).click();
   assert.match(await page.locator('[data-cell="B2"]').textContent(), /2,500/);
   await page.screenshot({ path: resolve(out, "sheets.png"), fullPage: true });
@@ -218,15 +207,8 @@ try {
   });
   await p.goto(pathToFileURL(standard).href);
   await p.getByText("Saved results are current.", { exact: true }).waitFor();
-  await p
-    .getByRole("button", { name: "Collapse Summary", exact: true })
-    .click();
-  await p
-    .getByRole("button", {
-      name: "Move Calculations group earlier",
-      exact: true,
-    })
-    .click();
+  await p.getByRole("button", { name: "Summary group", exact: true }).click();
+  await moveGroup(p, "Calculations", "earlier");
   await p.getByRole("button", { name: "Undo", exact: true }).click();
   assert.deepEqual(requests, []);
   await offline.close();
@@ -243,9 +225,7 @@ try {
         .waitFor();
       const copy = async (suffix) => {
         const wait = p.waitForEvent("download");
-        await p
-          .getByRole("button", { name: "Save a copy", exact: true })
-          .click();
+        await command(p, "Save a copy");
         const path = resolve(out, `sheets-${type}-${mode}-${suffix}.html`);
         await (await wait).saveAs(path);
         return readHTML(await readFile(path, "utf8")).book;
@@ -278,9 +258,7 @@ try {
         });
       }, mode);
       const attempt = async () => {
-        await p
-          .getByRole("button", { name: "Manage sheets", exact: true })
-          .click();
+        await command(p, "Manage sheets");
         await p.getByLabel("Sheet name", { exact: true }).fill("Revised");
         await p
           .getByRole("button", {

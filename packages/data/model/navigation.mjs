@@ -1,9 +1,9 @@
 import { parseAddress, address } from "./workbook.mjs";
 export const ROWS = 1048576,
   COLUMNS = 16384,
-  ROW_HEIGHT = 28,
-  COLUMN_WIDTH = 140,
-  ROW_HEADER = 56;
+  ROW_HEIGHT = 23,
+  COLUMN_WIDTH = 100,
+  ROW_HEADER = 40;
 const clamp = (n, max) => Math.max(1, Math.min(max, n));
 export function rectangle(anchor, focus) {
   const a = parseAddress(anchor),

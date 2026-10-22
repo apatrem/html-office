@@ -57,7 +57,7 @@ export function setupDropdownSettings({
       : "Create a list for the selected cell or another explicit range.";
     draw();
   }
-  $("manage-dropdowns").onclick = () => {
+  function open() {
     const book = getBook(),
       rule = validationForCell(book, getSheetId(), getSelection().focus);
     $("dropdown-definition").replaceChildren(
@@ -74,7 +74,7 @@ export function setupDropdownSettings({
     populate();
     dialog.showModal();
     $("dropdown-definition").focus();
-  };
+  }
   $("dropdown-definition").onchange = populate;
   $("dropdown-source-kind").onchange = draw;
   $("dropdown-list-type").onchange = draw;
@@ -140,5 +140,5 @@ export function setupDropdownSettings({
   }
   $("dropdown-save").onclick = () => void run();
   $("dropdown-remove").onclick = () => void run(true);
-  return { draw };
+  return { draw, open };
 }

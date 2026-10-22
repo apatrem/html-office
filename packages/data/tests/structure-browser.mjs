@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -41,7 +42,7 @@ async function jump(page, ref) {
 }
 async function copy(page, name) {
   const wait = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const file = resolve(out, name);
   await (await wait).saveAs(file);
   return { book: readHTML(await readFile(file, "utf8")).book, file };
@@ -56,9 +57,7 @@ try {
   for (const axis of ["row", "column"]) {
     const { context, page, errors } = await ready(axis),
       plural = axis === "row" ? "rows" : "columns";
-    await page
-      .getByRole("button", { name: `Insert ${plural}`, exact: true })
-      .click();
+    await command(page, `Insert ${plural}`);
     await updated(page);
     let saved = (await copy(page, `structure-${axis}-insert.html`)).book;
     assert.equal(saved.names[0].ref, axis === "row" ? "B3" : "C2");
@@ -68,9 +67,7 @@ try {
     assert.equal(saved.sheets[0].cells[moved].input.value, 100);
     assert.equal(saved.sheets[0].cells[moved].cellStyle, "assumption");
     await jump(page, axis === "row" ? "B3" : "C2");
-    await page
-      .getByRole("button", { name: `Delete ${plural}`, exact: true })
-      .click();
+    await command(page, `Delete ${plural}`);
     await updated(page);
     saved = (await copy(page, `structure-${axis}-deleted.html`)).book;
     assert.equal(saved.names[0].ref, "#REF!");
@@ -120,9 +117,7 @@ try {
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor();
-    await page
-      .getByRole("button", { name: "Recalculate", exact: true })
-      .click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
@@ -163,9 +158,7 @@ try {
       .locator("#status")
       .filter({ hasText: "Injected input failure" })
       .waitFor();
-    await page
-      .getByRole("button", { name: "Insert rows", exact: true })
-      .click();
+    await command(page, "Insert rows");
     await updated(page);
     await page
       .locator("#save-status")
@@ -224,9 +217,7 @@ try {
         },
       });
     }, mode);
-    await page
-      .getByRole("button", { name: "Insert rows", exact: true })
-      .click();
+    await command(page, "Insert rows");
     await page.waitForFunction(() => globalThis.interceptedStructure);
     if (mode === "cancel") {
       await page
@@ -247,9 +238,7 @@ try {
       (await copy(page, `structure-${mode}-kept.html`)).book,
       before,
     );
-    await page
-      .getByRole("button", { name: "Insert rows", exact: true })
-      .click();
+    await command(page, "Insert rows");
     await updated(page);
     const saved = (await copy(page, `structure-${mode}-retried.html`)).book;
     assert.equal(saved.sheets[0].cells.B3.input.value, 100);

@@ -10,6 +10,7 @@ import {
 } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 import { large } from "../fixtures/generate.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -78,7 +79,7 @@ try {
     .waitFor();
   assert.match(await page.locator('[data-cell="C5"]').textContent(), /#NAME\?/);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const saved = resolve(out, "grid-saved.html");
   await (await download).saveAs(saved);
   const result = readHTML(await readFile(saved, "utf8")).book;
@@ -120,7 +121,7 @@ try {
     .filter({ hasText: "Recovery stored" })
     .waitFor();
   const cancelledDownload = failed.waitForEvent("download");
-  await failed.getByRole("button", { name: "Save a copy" }).click();
+  await command(failed, "Save a copy");
   const cancelledFile = resolve(out, "grid-cancelled-copy.html");
   await (await cancelledDownload).saveAs(cancelledFile);
   assert.equal(

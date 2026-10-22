@@ -10,6 +10,7 @@ import {
   conformanceFixture,
   conformanceDifferences,
 } from "../fixtures/conformance.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
@@ -56,18 +57,14 @@ try {
         .waitFor();
       assert.deepEqual(requests, []);
       if (offline) await context.setOffline(true);
-      await page
-        .getByRole("button", { name: "Recalculate", exact: true })
-        .click();
+      await command(page, "Recalculate");
       await page
         .getByText("Calculated locally. Unsaved changes.", { exact: true })
         .waitFor();
       assert.equal(requests.length, offline ? 0 : 2);
       await context.setOffline(true);
       const wait = page.waitForEvent("download");
-      await page
-        .getByRole("button", { name: "Save a copy", exact: true })
-        .click();
+      await command(page, "Save a copy");
       const saved = resolve(
         out,
         `conformance-${family}-${offline ? "offline" : "standard"}-saved.html`,

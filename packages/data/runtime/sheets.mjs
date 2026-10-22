@@ -1,17 +1,26 @@
 import { groupView } from "../model/organization.mjs";
+// Variant A sheet bar: one row of group labels and sheet tabs (a sheet select
+// when narrow). Group order and sheet moves live in Manage sheets.
 export function setupSheetNavigation(
   root,
   { getBook, getSheetId, busy, select, apply, status },
 ) {
-  const $ = (id) => document.getElementById(id);
-  function button(text, label, key, action, disabled = false) {
+  const $ = (id) => document.getElementById(id),
+    picker = $("sheet-select");
+  function button(key, action, ...content) {
     const b = document.createElement("button");
-    b.textContent = text;
-    b.setAttribute("aria-label", label);
+    b.type = "button";
+    b.append(...content);
     b.dataset.navigationKey = key;
-    b.disabled = busy() || disabled;
+    b.disabled = busy();
     b.onclick = action;
     return b;
+  }
+  function hidden(text) {
+    const span = document.createElement("span");
+    span.className = "vh";
+    span.textContent = text;
+    return span;
   }
   function draw() {
     const active = document.activeElement?.dataset.navigationKey,
@@ -19,16 +28,15 @@ export function setupSheetNavigation(
       selected = getSheetId(),
       groups = groupView(book);
     root.replaceChildren();
-    groups.forEach((group, i) => {
-      const section = document.createElement("section");
+    picker.replaceChildren();
+    for (const group of groups) {
+      const section = document.createElement("div");
       section.className = `sheet-group ${group.kind ?? ""}`;
       section.dataset.group = group.id;
+      section.setAttribute("role", "group");
       section.setAttribute("aria-label", `${group.name} sheet group`);
-      const heading = document.createElement("div");
-      heading.className = "group-heading";
-      const collapse = button(
-        `${group.name} (${group.sheetIds.length})`,
-        `${group.collapsed ? "Expand" : "Collapse"} ${group.name}`,
+      // The visible group name stays inside the accessible name.
+      const label = button(
         `collapse-${group.id}`,
         () =>
           void apply({
@@ -36,91 +44,104 @@ export function setupSheetNavigation(
             groupId: group.id,
             collapsed: !group.collapsed,
           }),
+        group.name,
+        hidden(" group"),
       );
-      collapse.setAttribute("aria-expanded", String(!group.collapsed));
-      if (group.sheetIds.includes(selected)) collapse.dataset.current = "true";
-      heading.append(
-        collapse,
-        button(
-          "↑",
-          `Move ${group.name} group earlier`,
-          `earlier-${group.id}`,
-          () =>
-            void apply({ type: "moveGroup", groupId: group.id, index: i - 1 }),
-          i === 0,
-        ),
-        button(
-          "↓",
-          `Move ${group.name} group later`,
-          `later-${group.id}`,
-          () =>
-            void apply({ type: "moveGroup", groupId: group.id, index: i + 1 }),
-          i === groups.length - 1,
-        ),
-      );
-      section.append(heading);
-      const tabs = document.createElement("div");
-      tabs.className = "group-tabs";
-      tabs.hidden = !!group.collapsed;
+      // Generated content would join the accessible name; this mark does not.
+      if (group.collapsed) {
+        const caret = document.createElement("span");
+        caret.className = "group-caret";
+        caret.setAttribute("aria-hidden", "true");
+        caret.textContent = "▸";
+        label.append(caret);
+      }
+      label.className = "group-label";
+      label.title = `${group.collapsed ? "Show" : "Hide"} the ${group.name} sheets`;
+      label.setAttribute("aria-expanded", String(!group.collapsed));
+      if (group.sheetIds.includes(selected)) label.dataset.current = "true";
+      section.append(label);
+      const options = document.createElement("optgroup");
+      options.label = group.name;
       for (const id of group.sheetIds) {
-        const sheet = book.sheets.find((s) => s.id === id),
-          b = button(sheet.name, sheet.name, `sheet-${id}`, () => select(id));
-        b.setAttribute("aria-pressed", String(id === selected));
-        tabs.append(b);
+        const sheet = book.sheets.find((s) => s.id === id);
+        options.append(new Option(sheet.name, id, false, id === selected));
+        if (group.collapsed) continue;
+        const tab = button(`sheet-${id}`, () => select(id), sheet.name);
+        tab.className = "sheet-tab";
+        tab.setAttribute("aria-pressed", String(id === selected));
+        section.append(tab);
       }
       if (!group.sheetIds.length) {
         const empty = document.createElement("span");
+        empty.className = "group-empty";
         empty.textContent = "No sheets";
-        tabs.append(empty);
+        section.append(empty);
       }
-      section.append(tabs);
+      picker.append(options);
       root.append(section);
-    });
-    $("current-sheet").textContent =
-      `Sheet: ${book.sheets.find((s) => s.id === selected).name}`;
+    }
+    picker.value = selected;
+    picker.disabled = busy();
     for (const b of $("sheet-dialog").querySelectorAll("button,input,select"))
       b.disabled = busy();
-    const group = groups.find((g) => g.sheetIds.includes(selected)),
-      index = group.sheetIds.indexOf(selected);
-    $("sheet-earlier").disabled = busy() || index === 0;
-    $("sheet-later").disabled = busy() || index === group.sheetIds.length - 1;
+    syncDialog();
     if (active)
       [...root.querySelectorAll("button")]
         .find((b) => b.dataset.navigationKey === active)
         ?.focus({ preventScroll: true });
+    root
+      .querySelector('[aria-pressed="true"]')
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
-  function populate() {
+  // Order buttons follow the selected sheet and the destination group.
+  function syncDialog() {
+    if (busy()) return;
+    const groups = groupView(getBook()),
+      group = groups.find((g) => g.sheetIds.includes(getSheetId())),
+      index = group.sheetIds.indexOf(getSheetId()),
+      target = groups.findIndex((g) => g.id === $("sheet-group").value);
+    $("sheet-earlier").disabled = index === 0;
+    $("sheet-later").disabled = index === group.sheetIds.length - 1;
+    $("group-earlier").disabled = target <= 0;
+    $("group-later").disabled = target < 0 || target === groups.length - 1;
+  }
+  picker.onchange = () => {
+    if (!busy() && picker.value) select(picker.value);
+  };
+  function populate(destination) {
     const book = getBook(),
       groups = groupView(book),
       selected = getSheetId();
     $("sheet-name").value = book.sheets.find((s) => s.id === selected).name;
     $("sheet-group").replaceChildren(
-      ...groups.map((g) => {
-        const option = document.createElement("option");
-        option.value = g.id;
-        option.textContent = g.name;
-        return option;
-      }),
+      ...groups.map((g) => new Option(g.name, g.id)),
     );
-    $("sheet-group").value = groups.find((g) =>
-      g.sheetIds.includes(selected),
-    ).id;
+    $("sheet-group").value =
+      destination ?? groups.find((g) => g.sheetIds.includes(selected)).id;
     $("sheet-context").textContent =
-      `Selected: ${book.sheets.find((s) => s.id === selected).name}. Creation and renaming recalculate references; moving groups stays local.`;
+      `Selected: ${book.sheets.find((s) => s.id === selected).name}. Creation and renaming recalculate references; moving sheets and groups stays local.`;
     draw();
   }
-  $("manage-sheets").onclick = () => {
+  function open() {
     populate();
     $("sheet-dialog").showModal();
     $("sheet-name").focus();
     $("sheet-name").select();
-  };
+  }
+  $("sheet-group").onchange = syncDialog;
   $("sheet-close").onclick = () => $("sheet-dialog").close();
   async function run(command) {
-    const calculates = ["create", "rename"].includes(command.type);
+    const calculates = ["create", "rename"].includes(command.type),
+      destination = $("sheet-group").value;
     if (calculates) $("sheet-dialog").close();
     const ok = await apply(command);
-    if (ok) {
+    if (ok && command.type === "moveGroup") {
+      // Group order is often changed several times in a row.
+      populate(destination);
+      const focused = document.activeElement;
+      if (!$("sheet-dialog").contains(focused) || focused.disabled)
+        $("sheet-group").focus();
+    } else if (ok) {
       populate();
       $("sheet-dialog").close();
       $("grid").focus();
@@ -164,11 +185,24 @@ export function setupSheetNavigation(
         index: group.sheetIds.indexOf(getSheetId()) + delta,
       });
     };
+  for (const [id, delta] of [
+    ["group-earlier", -1],
+    ["group-later", 1],
+  ])
+    $(id).onclick = () => {
+      const groups = groupView(getBook()),
+        index = groups.findIndex((g) => g.id === $("sheet-group").value);
+      void run({
+        type: "moveGroup",
+        groupId: groups[index].id,
+        index: index + delta,
+      });
+    };
   $("sheet-dialog").addEventListener("cancel", (event) => {
     if (busy()) {
       event.preventDefault();
       status("Wait for the sheet operation or cancel its calculation.");
     }
   });
-  return { draw };
+  return { draw, open };
 }

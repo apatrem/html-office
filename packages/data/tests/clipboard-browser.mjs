@@ -9,6 +9,7 @@ import {
   STANDARD_CODE_CEILING,
 } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -29,7 +30,7 @@ async function jump(page, ref) {
 }
 async function copied(page, name) {
   const waiting = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const file = resolve(out, name);
   await (await waiting).saveAs(file);
   return readHTML(await readFile(file, "utf8")).book;
@@ -77,7 +78,7 @@ try {
   await jump(page, "F5");
   await page.keyboard.press("Shift+ArrowDown");
   await page.keyboard.press("Shift+ArrowDown");
-  await page.getByRole("button", { name: "Fill down", exact: true }).click();
+  await command(page, "Fill down");
   await calculated(page);
   saved = await copied(page, "clipboard-fill.html");
   assert.equal(saved.sheets[0].cells.F7.formula, "=$B7+E$3+$B$3");
@@ -95,12 +96,12 @@ try {
   await jump(page, "F5");
   await page.keyboard.press("Shift+ArrowRight");
   await page.keyboard.press("Shift+ArrowRight");
-  await page.getByRole("button", { name: "Fill right", exact: true }).click();
+  await command(page, "Fill right");
   await calculated(page);
   saved = await copied(page, "clipboard-fill-right.html");
   assert.equal(saved.sheets[0].cells.H5.formula, "=$B5+G$3+$B$3");
   await jump(page, "A10");
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page
     .getByLabel("Table text")
     .fill('0012\t=SUM(A1)\n"line one\nline two"\t2\n""\t3');
@@ -113,7 +114,7 @@ try {
   assert.equal(saved.sheets[0].cells.A11.input.value, "line one\nline two");
   assert.equal(saved.sheets[0].cells.A12.input.type, "blank");
   await jump(page, "A15");
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page.getByLabel("Table text").fill("1,234\t01/02/2026");
   assert.equal(
     await page
@@ -130,7 +131,7 @@ try {
   assert.equal(saved.sheets[0].cells.B15.input.type, "date");
   assert.equal(saved.sheets[0].cells.B15.input.value, 46054);
   await jump(page, "A20");
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page
     .getByLabel("Table text")
     .fill("Label | Value\n--- | ---\nA\\|B | 42");
@@ -140,7 +141,7 @@ try {
   assert.equal(saved.sheets[0].cells.A21.input.value, "A|B");
   assert.equal(saved.sheets[0].cells.B21.input.value, 42);
   const before = saved;
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page.getByLabel("Table text").fill("a\tb\nc");
   assert.equal(
     await page
@@ -150,7 +151,7 @@ try {
   );
   await page.getByRole("button", { name: "Cancel paste", exact: true }).click();
   assert.deepEqual(await copied(page, "clipboard-invalid-kept.html"), before);
-  await page.getByRole("button", { name: "Paste table", exact: true }).click();
+  await command(page, "Paste table");
   await page.getByLabel("Table text").fill("uncommitted paste marker");
   await page.getByRole("button", { name: "Cancel paste", exact: true }).click();
   await copied(page, "clipboard-cancelled-preview.html");
@@ -193,7 +194,7 @@ try {
   await context.setOffline(true);
   const file = resolve(out, "clipboard-final.html");
   const waiting = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   await (await waiting).saveAs(file);
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
@@ -227,7 +228,7 @@ try {
         return post.call(this, message);
       };
     }, failure);
-    await p.getByRole("button", { name: "Paste table", exact: true }).click();
+    await command(p, "Paste table");
     await p.getByLabel("Table text").fill("140\n30");
     await p.getByRole("button", { name: "Apply table", exact: true }).click();
     if (failure !== "cancel")

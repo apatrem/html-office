@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const source = JSON.parse(
@@ -66,15 +67,13 @@ try {
       )
       .waitFor();
     await page.getByLabel("Cell value").fill("987654");
-    await page
-      .getByRole("button", { name: "Recalculate", exact: true })
-      .click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
     assert.equal(await page.getByLabel("Cell value").inputValue(), "987654");
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Save a copy" }).click();
+    await command(page, "Save a copy");
     const saved = resolve(out, `snapshot-${mode}-saved.html`);
     await (await download).saveAs(saved);
     const actual = readHTML(await readFile(saved, "utf8")).book;
@@ -116,7 +115,7 @@ try {
   });
   await page.goto(pathToFileURL(file).href, { waitUntil: "commit" });
   await page.waitForFunction(() => globalThis.snapshotDigestWaiting);
-  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
+  await command(page, "Recalculate");
   await page
     .getByText("Calculated locally. Unsaved changes.", { exact: true })
     .waitFor();
