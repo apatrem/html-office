@@ -54,7 +54,7 @@ if (command === "prepare") {
   headers.forEach((value, c) => {
     records.cells[address(1, c + 1)] = {
       input: { type: "text", value },
-      role: "header",
+      cellStyle: "header",
     };
   });
   for (let r = 2; r <= 50001; r++) {

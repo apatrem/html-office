@@ -155,7 +155,7 @@ export function readModel(text) {
     }
     for (const [ref, metadata] of Object.entries(cellMetadata)) {
       parseAddress(ref);
-      record(metadata, ["role", "format"]);
+      record(metadata, ["cellStyle", "format", "style"]);
       if (!cells[ref]?.input || Object.hasOwn(overrides, ref))
         throw new Error("Orphan or duplicate table metadata");
     }

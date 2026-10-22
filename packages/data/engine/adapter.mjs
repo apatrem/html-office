@@ -44,7 +44,7 @@ export class EngineSession {
     const prepared=edits.map(({sheetId,ref,cell})=>{
       const index=this.book.sheets.findIndex(s=>s.id===sheetId),{row,column}=parseAddress(ref);
       if(index<0)throw new Error('Unknown sheet ID');
-      if(cell!==null)validateCell(cell);
+      if(cell!==null)validateCell(cell,this.book);
       return {index,row,column,ref,cell:structuredClone(cell)};
     });
     assertScenarioInputs(this.book, edits);

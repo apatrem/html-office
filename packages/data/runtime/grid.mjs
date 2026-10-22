@@ -77,7 +77,7 @@ export function createGrid(
           L + (col - 1) * W,
           0,
           W,
-          `grid-cell ${cell.role ?? "normal"}`,
+          `grid-cell ${cell.cellStyle ?? "normal"}`,
         );
         line.append(b);
         b.dataset.cell = ref;

@@ -15,7 +15,7 @@ globalThis.HTMLDataToolbarBridge = {
         document.querySelector(`#grid [data-cell="${selected}"]`)
           ?.textContent ?? "",
       format: cell.format ?? { kind: "general" },
-      role: cell.role ?? "normal",
+      cellStyle: cell.cellStyle ?? "normal",
       canEdit: !loading,
       canUndo: history.canUndo && !loading,
       canRedo: history.canRedo && !loading,
@@ -27,7 +27,7 @@ globalThis.HTMLDataToolbarBridge = {
   clear() {
     formatSelection((cell) => ({
       ...cell,
-      role: "normal",
+      cellStyle: "normal",
       format: { kind: "general" },
     }));
   },

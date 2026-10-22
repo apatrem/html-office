@@ -6,7 +6,7 @@ The document header and sparse cell schema are those of the validated `html-data
 
 ## Sheet representations
 
-Freeform sheets use `cells`, a map from Excel A1 addresses to explicit input/formula records. Formulas always remain there, with their full-precision typed `result`, role and format. An explicit blank is `{ "input": { "type": "blank" } }`; empty text has a text value of `""`. A missing cell has no record.
+Freeform sheets use `cells`, a map from Excel A1 addresses to explicit input/formula records. Formulas always remain there, with their full-precision typed `result`, `cellStyle` and format. `cellStyle` names a cell style: `header`, `rowHeader`, `assumption`, `calculation` or `normal` (the default). An explicit blank is `{ "input": { "type": "blank" } }`; empty text has a text value of `""`. A missing cell has no record.
 
 Authors declare a raw-data table with `sheet.metadata.layout: "table"`. The writer uses row storage if the A1 rectangle containing input cells is at least 60% populated and has at most 2,000,000 slots. It otherwise retains sparse cells without allocating the rectangle. These are conservative initial encoding rules, not engine capacity guarantees. One A1 table per sheet is supported initially; arbitrary offset/multiple blocks are not implemented.
 
@@ -19,7 +19,7 @@ A row table has these fields:
 | `columnTypes` | One type per column: number, text, date, boolean, error or blank |
 | `data` | Exactly `height` JSON row arrays, each with exactly `width` scalar/null entries |
 | `overrides` | A1-addressed complete typed input cells for blanks or type exceptions |
-| `cellMetadata` | A1-addressed role/format objects for non-null array inputs; never another value |
+| `cellMetadata` | A1-addressed `cellStyle`/format objects for non-null array inputs; never another value |
 
 `null` means no array input at that position. A missing cell has no array value, override or sparse record. `""` is empty text, distinct from `null`. Explicit blanks and mixed-type exceptions use an override and a null placeholder. Sparse formulas may occupy null positions in the table rectangle. Inputs in that rectangle belong only to `data` or `overrides`; duplicate sources are rejected. Override coordinates must be inside the table; orphan/duplicate metadata and inconsistent dimensions are rejected.
 
@@ -64,6 +64,52 @@ Structural input movement is lossless: an insertion that would push populated ce
 `locale` is a supported Intl locale for number/date display only; all formulas retain English names and decimal syntax. Number, currency, accounting and percent formats round only the displayed value. Dates are Gregorian Excel 1900 serials, including the fictitious leap day at 60; date format hides fractions and displays `####` for negative serials or dates after 9999-12-31. Zero displays 1899-12-31. The original number/date scalar is never replaced by a formatted string. The 1900 compatibility convention follows [Microsoft documentation](https://learn.microsoft.com/en-US/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year).
 
 `style#charte` embeds the same CSS brand tokens as Slides; Data builds accept `--charte FILE`. Optional semantic role tokens in the default shared brand are `--header-bg/--header-ink`, `--row-label-bg/--row-label-ink`, `--assumption-bg/--assumption-ink`, and `--calculation-bg`. Existing custom Slides themes without these tokens fall back to their `--ink`, `--bg`, `--acc`, `--lig`, `--alert`, `--callout`, `--tint`, and `--font` values. Formatting a selected rectangle is undoable and does not download the calculation engine or invalidate its fingerprint.
+
+## Manual formatting, cell styles and links
+
+[ADR-010](../../../docs/decisions/010-manual-formatting-and-ironcalc-toolbar.md) defines presentation-only fields. None of them changes values or the calculation fingerprint. The effective appearance resolves property by property: cell style, then column `style`, then row `style`, then the cell's own `style`, then conditional formatting.
+
+- **`cellStyle`** names a cell style. Built-in IDs are reserved:
+  - `normal`, `header`, `rowHeader`, `assumption` (Excel "Input") and `calculation`;
+  - `good`, `bad`, `neutral`, `checkCell`, `explanatoryText`, `linkedCell`, `note`, `output`, `warningText`;
+  - `title`, `heading1`–`heading4`, `total` and `hyperlink`;
+  - `accent1`–`accent6`, plus `-20`, `-40` and `-60` variants (for example `accent3-40`);
+  - `comma`, `comma0`, `currency`, `currency0` and `percent`.
+
+  Custom styles live in workbook `namedStyles: [{id, name, style, format?}]`, with at most 200. A style's optional number `format` applies unless the cell has its own `format`. A custom ID must not be a built-in one, and display names are unique ignoring case.
+- **`style`** holds only overridden properties:
+  - `bold`, `italic`, `underline` and `strike` are booleans;
+  - `fontSize` is in points, 1–409, in half-point steps;
+  - `fontFamily` is a family name only (letters, digits, spaces, `_`, `-`); absent means the charte font;
+  - `color` and `background`;
+  - `border.{top,right,bottom,left}: {style, color?}`, where `style` is `none` (explicitly suppresses an inherited side; no colour) or one of `thin`, `medium`, `thick`, `double`, `dotted`, `mediumdashed`, `mediumdashdot`, `mediumdashdotdot` or `slantdashdot`;
+  - `align.horizontal`: `general`, `left`, `center`, `right` or `centerContinuous`;
+  - `align.vertical`: `top`, `center` or `bottom`;
+  - `align.wrap`: boolean.
+
+  Diagonal borders, merges, rotation, indentation and other alignments are not part of V1.
+- **Colours** are `#RRGGBB` or `{theme, tint?}`:
+  - `theme` is a charte token: `ink`, `acc`, `mid`, `lig`, `alert`, `tint`, `callout`, `bd`, `t2`, `bg`, or an Excel slot `dk1`, `lt1`, `dk2`, `lt2`, `accent1`–`accent6`, `hlink`, `folHlink`;
+  - `tint` is between -1 (darker) and 1 (lighter).
+- **Rows and columns.** A sheet may have `rows` keyed `"1"`–`"1048576"` and `columns` keyed `"A"`–`"XFD"`:
+  - row entries: `{style?, height?, customHeight?}`, with `height` 1–600 px; `customHeight: true` marks a manually set height that auto-fit must keep;
+  - column entries: `{style?, width?}`, with `width` 1–2000 px.
+
+  Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
+- **A style-only cell** has no `input` or `formula`. It is blank for formulas and conditional rules. In row-table sheets it stays in sparse `cells`. `cellMetadata` may hold `cellStyle`, `format` and `style` for array values.
+- **Links** live per sheet in `links`, keyed by A1 cell, like Excel's worksheet hyperlink list. There are at most 10,000 per sheet, and a linked cell does not need a cell record. Each link is either `{url}` or `{sheetId, ref}`:
+  - `url` accepts only `https:`, `http:` or `mailto:` and is at most 2,048 characters;
+  - `ref` is an A1 cell or range, relocated by structural edits like named ranges, and becomes `"#REF!"` when its target is deleted.
+
+  A link moves with its cell, and disappears when its row or column is deleted. Relocation reads only the link maps, never all cells. Value edits, text-table paste and formatting never touch links. A rich copy carries the links of its cells. On paste, the pasted rectangle takes the source links exactly, with cells and links published in one undoable step. Internal links to sheets missing from the destination are dropped with a notice, and unsafe schemes reject the paste.
+- **Number formats** may add:
+  - `dateStyle: "short" | "long"` for `date`;
+  - `scale: "thousands" | "millions"` for number, currency and accounting;
+  - `negative: "minus" | "parentheses" | "red" | "redParentheses"` for number, currency, accounting and percent.
+
+  Custom Excel format codes are not accepted.
+
+Rendering, commands and the IronCalc toolbar that use these fields are delivered separately (F02–F06). Until then the browser preserves them through edits, paste, history, recovery and saving, but does not draw them.
 
 ## Sheet navigation
 

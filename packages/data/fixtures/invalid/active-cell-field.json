@@ -35,21 +35,21 @@
             "type": "text",
             "value": "Monthly drivers"
           },
-          "role": "header"
+          "cellStyle": "header"
         },
         "A2": {
           "input": {
             "type": "text",
             "value": "Participants"
           },
-          "role": "rowHeader"
+          "cellStyle": "rowHeader"
         },
         "B2": {
           "input": {
             "type": "number",
             "value": 100
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "number",
             "digits": 0
@@ -61,14 +61,14 @@
             "type": "text",
             "value": "Fee per participant"
           },
-          "role": "rowHeader"
+          "cellStyle": "rowHeader"
         },
         "B3": {
           "input": {
             "type": "number",
             "value": 25
           },
-          "role": "assumption",
+          "cellStyle": "assumption",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -86,7 +86,7 @@
             "type": "text",
             "value": "Monthly revenue"
           },
-          "role": "header"
+          "cellStyle": "header"
         },
         "B2": {
           "formula": "=Inputs!B2*Inputs!B3",
@@ -94,7 +94,7 @@
             "type": "number",
             "value": 2500
           },
-          "role": "calculation",
+          "cellStyle": "calculation",
           "format": {
             "kind": "currency",
             "currency": "EUR",
@@ -106,7 +106,7 @@
             "type": "text",
             "value": "Revenue per participant"
           },
-          "role": "rowHeader"
+          "cellStyle": "rowHeader"
         },
         "B3": {
           "formula": "=B2/Inputs!B2",

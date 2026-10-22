@@ -13,7 +13,7 @@ const book = JSON.parse(
 for (const ref of ["C1", "C2", "C3"])
   book.sheets[0].cells[ref] = {
     input: { type: "number", value: 100 },
-    role: "normal",
+    cellStyle: "normal",
     format: { kind: "number", digits: 0 },
   };
 const file = resolve(out, "literals.html");

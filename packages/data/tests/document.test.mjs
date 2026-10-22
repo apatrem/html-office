@@ -34,7 +34,7 @@ test("row arrays preserve signed zero, mixed types, blanks, missing cells and me
   const book = await fixture(),
     cells = book.sheets[0].cells;
   cells.A1 = { input: { type: "text", value: "0012" } };
-  cells.B1 = { input: { type: "number", value: -0 }, role: "assumption" };
+  cells.B1 = { input: { type: "number", value: -0 }, cellStyle: "assumption" };
   cells.A2 = { input: { type: "text", value: "" } };
   cells.B2 = { input: { type: "blank" } };
   cells.A3 = { input: { type: "text", value: "</script>\n café" } };
@@ -62,7 +62,7 @@ test("hybrid documents reject duplicate values, malformed dimensions and unknown
     (p) => p.sheets[0].table.data[0].push(null),
     (p) => (p.sheets[0].table.encoding = "csv"),
     (p) => (p.sheets[0].table.unrecognised = 1),
-    (p) => (p.sheets[0].table.cellMetadata.Z999 = { role: "header" }),
+    (p) => (p.sheets[0].table.cellMetadata.Z999 = { cellStyle: "header" }),
     (p) => (p.sheets[0].cells.B2 = { input: { type: "number", value: 20 } }),
     (p) =>
       (p.sheets[0].table.overrides.B2 = {

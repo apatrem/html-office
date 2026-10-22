@@ -1,3 +1,5 @@
+import { applyLinkEdits } from "./formatting.mjs";
+import { captureHead } from "./structure.mjs";
 export const pendingList = (value) =>
   value ? (Array.isArray(value) ? value : [value]) : [];
 export function draftPatches(book, value) {
@@ -30,9 +32,28 @@ export function overlayDraft(book, value) {
         if (edit.cell === null) delete cells[edit.ref];
         else cells[edit.ref] = edit.cell;
       }
-      return { ...sheet, cells };
+      return applyLinkEdits(
+        { ...sheet, cells },
+        pendingList(value).filter((a) => a.sheetId === sheet.id),
+      );
     }),
   };
   delete next.snapshot;
   return next;
+}
+
+// Head of the draft (canonical head plus pending link changes) without
+// materializing cells: heads exclude cells, and copying a large sheet here
+// would block the UI thread.
+export function draftHead(book, value, base) {
+  const head = structuredClone(base ?? captureHead(book)),
+    linkEdits = pendingList(value).filter((a) => a.link !== undefined);
+  if (linkEdits.length)
+    head.sheets = head.sheets.map((sheet) =>
+      applyLinkEdits(
+        sheet,
+        linkEdits.filter((edit) => edit.sheetId === sheet.id),
+      ),
+    );
+  return head;
 }

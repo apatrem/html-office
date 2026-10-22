@@ -3,7 +3,11 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 import { fingerprint } from "../model/workbook.mjs";
 const out = resolve("dist/data-test");
@@ -17,7 +21,7 @@ book.sheets[0].cells.C3 = { input: { type: "date", value: 60.5 } };
 const source = resolve(out, "format.html"),
   html = await buildWorkbook(book);
 await writeFile(source, html);
-assert.ok(measureHTML(html).applicationCodeBytes < 500000);
+assert.ok(measureHTML(html).applicationCodeBytes < STANDARD_CODE_CEILING);
 const browser = await chromium.launch();
 try {
   const context = await browser.newContext({ acceptDownloads: true }),
@@ -58,7 +62,7 @@ try {
   await page.locator("#grid").focus();
   await page.keyboard.press("Shift+ArrowRight");
   await page
-    .getByLabel("Style role", { exact: true })
+    .getByLabel("Cell style", { exact: true })
     .selectOption("assumption");
   await page
     .getByLabel("Number format", { exact: true })

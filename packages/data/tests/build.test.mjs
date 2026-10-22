@@ -3,7 +3,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 import { pnl } from "../fixtures/generate.mjs";
 import { ENGINE } from "../engine/identity.mjs";
 test("pinned executable digests and retained notices match committed artifacts", async () => {
@@ -55,7 +59,7 @@ test("standard code budget includes notices and preview scaffold; linked fiction
   const book = pnl(),
     html = await buildWorkbook(book),
     size = measureHTML(html);
-  assert.ok(size.applicationCodeBytes < 500000);
+  assert.ok(size.applicationCodeBytes < STANDARD_CODE_CEILING);
   assert.equal(
     size.applicationCodeBytes + size.documentContentBytes,
     size.totalHTMLBytes,

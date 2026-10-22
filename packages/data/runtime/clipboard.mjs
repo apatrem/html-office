@@ -1,3 +1,8 @@
+import {
+  presentation,
+  adaptReferences,
+  pastedLinks,
+} from "../model/formatting.mjs";
 import { address, parseAddress } from "../model/workbook.mjs";
 import {
   copyRange,
@@ -22,6 +27,7 @@ function plain(cells) {
     .join("\n");
 }
 export function setupClipboard({
+  getBook,
   getSheet,
   getSelection,
   busy,
@@ -125,8 +131,7 @@ export function setupClipboard({
         return {
           ...edit,
           cell: {
-            ...(old.role ? { role: old.role } : {}),
-            ...(old.format ? { format: old.format } : {}),
+            ...presentation(old),
             ...edit.cell,
           },
         };
@@ -185,10 +190,33 @@ export function setupClipboard({
           data.cells,
           { origin: data.origin },
         );
-      void commit(
-        edits.map((edit) => ({ ...edit, preserveFormat: false })),
-        destination,
-      );
+      // A range copied from another workbook may name its custom cell styles
+      // or sheets; those references are dropped rather than published.
+      const anchor = parseAddress(destination.anchor),
+        linked = pastedLinks(
+          getBook(),
+          destination.sheetId,
+          edits,
+          data.links,
+          anchor,
+        );
+      let dropped = linked.dropped;
+      const adapted = edits.map((edit) => {
+        const result = adaptReferences(getBook(), edit.cell);
+        dropped += result.dropped;
+        return {
+          ...edit,
+          cell: result.cell,
+          link: linked.links.get(edit.ref),
+          preserveFormat: false,
+        };
+      });
+      void commit(adapted, destination).then((done) => {
+        if (done && dropped)
+          status(
+            `Pasted. ${dropped} cell style or internal link reference${dropped === 1 ? "" : "s"} unknown in this workbook ${dropped === 1 ? "was" : "were"} not carried over.`,
+          );
+      });
     } catch (error) {
       status(`Paste failed: ${error.message}. Workbook unchanged.`);
     }

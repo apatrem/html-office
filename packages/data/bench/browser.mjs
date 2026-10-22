@@ -8,7 +8,11 @@ import os from "node:os";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { pnl, large } from "../fixtures/generate.mjs";
-import { buildWorkbook, measureHTML } from "../tools/build.mjs";
+import {
+  buildWorkbook,
+  measureHTML,
+  STANDARD_CODE_CEILING,
+} from "../tools/build.mjs";
 const out = resolve("dist/data-bench");
 await mkdir(out, { recursive: true });
 const recipes = JSON.parse(
@@ -107,7 +111,7 @@ try {
       .replace(configMatch[1], JSON.stringify(standardConfig))
       .replace("Offline engine embedded", "Verified engine loaded when needed");
     const standardSize = measureHTML(standardHTML);
-    assert.ok(standardSize.applicationCodeBytes < 500000);
+    assert.ok(standardSize.applicationCodeBytes < STANDARD_CODE_CEILING);
     await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
@@ -239,8 +243,8 @@ try {
       correctness:
         "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
       targets: {
-        standardCodeUnder500000Bytes:
-          standardSize.applicationCodeBytes < 500000,
+        standardCodeUnderCeiling:
+          standardSize.applicationCodeBytes < STANDARD_CODE_CEILING,
         pnlWarmUnder250MS: !isPL || warmMaxMS < 250,
         warmCalculationMainTaskUnder100MS: mainThreadMaxMS < 100,
       },

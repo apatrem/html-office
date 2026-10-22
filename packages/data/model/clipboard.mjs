@@ -251,16 +251,26 @@ export function copyRange(sheet, ref) {
     cells = [];
   if ((r.bottom - r.top + 1) * (r.right - r.left + 1) > LIMIT)
     throw new Error(`Range exceeds ${LIMIT} clipboard cells`);
+  let links = null;
   for (let row = r.top; row <= r.bottom; row++) {
     const line = [];
-    for (let col = r.left; col <= r.right; col++)
-      line.push(structuredClone(sheet.cells[address(row, col)] ?? null));
+    for (let col = r.left; col <= r.right; col++) {
+      const ref = address(row, col);
+      line.push(structuredClone(sheet.cells[ref] ?? null));
+      // Sheet-level links travel with their cells (as in Excel).
+      const link = sheet.links?.[ref];
+      if (link) {
+        links ??= {};
+        links[`${row - r.top},${col - r.left}`] = structuredClone(link);
+      }
+    }
     cells.push(line);
   }
   return {
     schema: "html-office-range/1",
     origin: { row: r.top, column: r.left },
     cells,
+    ...(links ? { links } : {}),
   };
 }
 export function rangePatches(sheetId, start, cells, { origin } = {}) {

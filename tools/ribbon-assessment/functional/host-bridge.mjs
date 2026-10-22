@@ -8,7 +8,7 @@ globalThis.HTMLDataToolbarBridge = {
       book.sheets.find((s) => s.id === sheetId).cells[selected] ?? {};
     return {
       format: cell.format ?? { kind: "general" },
-      role: cell.role ?? "normal",
+      cellStyle: cell.cellStyle ?? "normal",
       canEdit: !loading,
       canUndo: history.canUndo && !loading,
       canRedo: history.canRedo && !loading,
@@ -20,7 +20,7 @@ globalThis.HTMLDataToolbarBridge = {
   clear() {
     formatSelection((cell) => ({
       ...cell,
-      role: "normal",
+      cellStyle: "normal",
       format: { kind: "general" },
     }));
   },

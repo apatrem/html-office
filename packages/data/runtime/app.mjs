@@ -21,6 +21,7 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
+import { applyLinkEdits } from "../model/formatting.mjs";
 const $ = (id) => document.getElementById(id);
 let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
@@ -125,7 +126,7 @@ function choose(ref, updateGrid = true) {
   $("cell-address").value = ref;
   const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
     value = cell.input ?? { type: "blank" };
-  $("format-role").value = cell.role ?? "normal";
+  $("format-role").value = cell.cellStyle ?? "normal";
   $("format-kind").value = cell.format?.kind ?? "general";
   $("format-digits").value = cell.format?.digits ?? 2;
   $("format-currency").value = cell.format?.currency ?? "EUR";
@@ -210,7 +211,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         parseAddress(edit.ref);
         if (!book.sheets.some((s) => s.id === edit.sheetId))
           throw new Error("Unknown sheet ID");
-        if (edit.cell !== null) validateCell(edit.cell);
+        if (edit.cell !== null) validateCell(edit.cell, book);
       }
       assertScenarioInputs(book, edits);
       if (!edits.length) return;
@@ -239,6 +240,8 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     if (!revisions.current(epoch)) return;
     const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
+      linkEdits = edits.some((edit) => edit.link !== undefined),
+      headBefore = linkEdits ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
     for (const edit of edits) {
@@ -247,6 +250,16 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
       else sheet.cells[edit.ref] = edit.cell;
       touchPreview(sheet.cells, edit.ref);
     }
+    // Rich-paste links are published with their cells, in the same history
+    // entry (sheet links are part of the captured head).
+    if (linkEdits)
+      book.sheets = book.sheets.map((sheet) =>
+        applyLinkEdits(
+          sheet,
+          edits.filter((edit) => edit.sheetId === sheet.id),
+        ),
+      );
+    const headAfter = linkEdits ? captureHead(book) : undefined;
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
@@ -264,10 +277,14 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         choose(edits[0].ref);
       }
     }
-    persistence.changed(cellEdits(refs));
+    persistence.changed(
+      cellEdits(refs),
+      linkEdits ? { head: headAfter } : undefined,
+    );
     history.record({
       before,
       after: captureCells(book, refs),
+      ...(linkEdits ? { headBefore, headAfter } : {}),
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,
@@ -561,25 +578,28 @@ function formatSelection(transform) {
       for (let col = r.left; col <= r.right; col++) {
         const ref = address(row, col),
           cell = transform(sheet.cells[ref] ?? {});
-        validateCell(cell);
+        validateCell(cell, book);
         edits.push({ sheetId, ref, cell });
       }
+    // A pending (uncalculated) attempt receives the same formatting change
+    // applied to its own fields, so its pasted style or link is never replaced.
+    const targets = new Set(edits.map((e) => e.ref)),
+      pending = pendingEdits
+        .filter(
+          (attempt) =>
+            attempt.sheetId === sheetId &&
+            attempt.cell !== null &&
+            targets.has(attempt.ref),
+        )
+        .map((attempt) => [attempt, transform(attempt.cell)]);
+    for (const [, cell] of pending) validateCell(cell, book);
     const before = captureCells(book, edits),
       selection = { sheetId, ...r };
     for (const edit of edits) {
       sheet.cells[edit.ref] = edit.cell;
       touchPreview(sheet.cells, edit.ref);
     }
-    const formats = new Map(edits.map((e) => [e.ref, e.cell]));
-    for (const attempt of pendingEdits) {
-      const styled = attempt.sheetId === sheetId && formats.get(attempt.ref);
-      if (styled && attempt.cell !== null)
-        attempt.cell = {
-          ...attempt.cell,
-          format: styled.format,
-          role: styled.role,
-        };
-    }
+    for (const [attempt, cell] of pending) attempt.cell = cell;
     history.record({
       before,
       after: captureCells(book, edits),
@@ -600,12 +620,12 @@ $("format-apply").onclick = () => {
   const digits = Number($("format-digits").value),
     currency = $("format-currency").value.toUpperCase(),
     kind = $("format-kind").value,
-    role = $("format-role").value;
+    cellStyle = $("format-role").value;
   if (!$("format-digits").value.trim())
     return status("Enter decimal places between 0 and 15.");
   formatSelection((cell) => ({
     ...cell,
-    role,
+    cellStyle,
     format: {
       kind,
       digits,
@@ -737,6 +757,7 @@ const conditionalSettings = setupConditionalSettings({
   status,
 });
 setupClipboard({
+  getBook: () => book,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getSelection: () => grid.selection,
   busy: () => !!loading,

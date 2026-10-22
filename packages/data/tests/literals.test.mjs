@@ -17,21 +17,21 @@ test("browser literal reuse is bounded, immutable and keeps distinct cells indep
             B4: { input: { type: "text", value: "1" } },
             C1: { input: { type: "text", value: "" } },
             C2: { input: { type: "blank" } },
-            D1: { ...number(1), role: "assumption" },
+            D1: { ...number(1), cellStyle: "assumption" },
             D2: { formula: "=1", result: { type: "number", value: 1 } },
             D3: {
               ...number(1),
-              role: "assumption",
+              cellStyle: "assumption",
               format: { kind: "currency", currency: "EUR", digits: 2 },
             },
             D4: {
               ...number(1),
-              role: "assumption",
+              cellStyle: "assumption",
               format: { kind: "currency", currency: "EUR", digits: 2 },
             },
             D5: {
               ...number(1),
-              role: "assumption",
+              cellStyle: "assumption",
               format: { kind: "currency", currency: "USD", digits: 2 },
             },
           },
@@ -70,4 +70,36 @@ test("browser literal reuse is bounded, immutable and keeps distinct cells indep
   compactInputs(capped, 1);
   assert.equal(capped.sheets[0].cells.A1, capped.sheets[0].cells.A4);
   assert.notEqual(capped.sheets[0].cells.A2, capped.sheets[0].cells.A3);
+});
+
+test("cells with direct styles or extra format presets are never shared", () => {
+  const cell = (extra) => ({ input: { type: "number", value: 5 }, ...extra });
+  const book = {
+    sheets: [
+      {
+        id: "s",
+        cells: {
+          A1: cell({
+            style: { bold: true },
+          }),
+          A2: cell({
+            style: { italic: true },
+          }),
+          A3: cell({
+            format: { kind: "number", digits: 0, scale: "thousands" },
+          }),
+          A4: cell({ format: { kind: "number", digits: 0 } }),
+          A5: cell({ format: { kind: "number", digits: 0 } }),
+        },
+      },
+    ],
+  };
+  compactInputs(book);
+  const cells = book.sheets[0].cells;
+  assert.deepEqual(cells.A1.style, { bold: true });
+  assert.deepEqual(cells.A2.style, { italic: true });
+  assert.notEqual(cells.A1, cells.A2);
+  assert.equal(cells.A3.format.scale, "thousands");
+  assert.notEqual(cells.A3, cells.A4);
+  assert.equal(cells.A4, cells.A5, "plain identical inputs are still shared");
 });

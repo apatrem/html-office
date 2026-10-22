@@ -1,4 +1,11 @@
 import { jsonStringify } from "./json.mjs";
+import {
+  validateStyle,
+  validateSheetLinks,
+  checkReferences,
+  validateNamedStyles,
+  validateAxes,
+} from "./formatting.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
@@ -98,8 +105,59 @@ export function validateValue(value) {
   if (type === "error" && ERRORS.includes(v)) return;
   fail(`Invalid typed value: ${type}`);
 }
-export function validateCell(cell) {
-  fields(cell, ["input", "formula", "result", "format", "role"], "cell");
+// Number format presets, shared by cells and cell-style definitions.
+export function validateFormat(format) {
+  fields(
+    format,
+    ["kind", "digits", "currency", "dateStyle", "scale", "negative"],
+    "format",
+  );
+  if (
+    ![
+      "general",
+      "number",
+      "currency",
+      "accounting",
+      "date",
+      "percent",
+    ].includes(format.kind)
+  )
+    fail("Invalid format");
+  if (
+    format.digits !== undefined &&
+    (!Number.isInteger(format.digits) ||
+      format.digits < 0 ||
+      format.digits > 15)
+  )
+    fail("Invalid digits");
+  if (format.currency !== undefined && !/^[A-Z]{3}$/.test(format.currency))
+    fail("Invalid currency");
+  const { kind, dateStyle, scale, negative } = format;
+  if (
+    dateStyle !== undefined &&
+    (kind !== "date" || !["short", "long"].includes(dateStyle))
+  )
+    fail("Invalid date format style");
+  if (
+    scale !== undefined &&
+    (!["number", "currency", "accounting"].includes(kind) ||
+      !["thousands", "millions"].includes(scale))
+  )
+    fail("Invalid format scale");
+  if (
+    negative !== undefined &&
+    (!["number", "currency", "accounting", "percent"].includes(kind) ||
+      !["minus", "parentheses", "red", "redParentheses"].includes(negative))
+  )
+    fail("Invalid negative number format");
+}
+// With a workbook, also checks the cell's catalogue and sheet references.
+export function validateCell(cell, book) {
+  fields(
+    cell,
+    ["input", "formula", "result", "format", "cellStyle", "style"],
+    "cell",
+  );
   if (cell.formula !== undefined) {
     if (
       typeof cell.formula !== "string" ||
@@ -114,39 +172,12 @@ export function validateCell(cell) {
     if (!cell.formula) fail("Result requires formula");
     validateValue(cell.result);
   }
-  if (
-    cell.role !== undefined &&
-    !["header", "rowHeader", "assumption", "calculation", "normal"].includes(
-      cell.role,
-    )
-  )
-    fail("Invalid role");
-  if (cell.format !== undefined) {
-    fields(cell.format, ["kind", "digits", "currency"], "format");
-    if (
-      ![
-        "general",
-        "number",
-        "currency",
-        "accounting",
-        "date",
-        "percent",
-      ].includes(cell.format.kind)
-    )
-      fail("Invalid format");
-    if (
-      cell.format.digits !== undefined &&
-      (!Number.isInteger(cell.format.digits) ||
-        cell.format.digits < 0 ||
-        cell.format.digits > 15)
-    )
-      fail("Invalid digits");
-    if (
-      cell.format.currency !== undefined &&
-      !/^[A-Z]{3}$/.test(cell.format.currency)
-    )
-      fail("Invalid currency");
-  }
+  // Catalogue membership (built-in or custom) is checked by validateWorkbook.
+  if (cell.cellStyle !== undefined && !id(cell.cellStyle))
+    fail("Invalid cell style");
+  if (cell.style !== undefined) validateStyle(cell.style);
+  if (cell.format !== undefined) validateFormat(cell.format);
+  if (book) checkReferences(book, cell);
 }
 function jsonData(value) {
   if (value === null || ["string", "boolean"].includes(typeof value)) return;
@@ -339,6 +370,7 @@ export function validateWorkbook(book) {
       "validations",
       "scenario",
       "conditionalFormats",
+      "namedStyles",
     ],
     "workbook",
   );
@@ -354,8 +386,15 @@ export function validateWorkbook(book) {
     fail("Expected sheets");
   const ids = new Set(),
     names = new Set();
+  // Single pass over cells: the style catalogue and sheet IDs are known first.
+  const cellStyles = validateNamedStyles(book),
+    sheetIds = new Set(book.sheets.map((s) => s?.id));
   for (const sheet of book.sheets) {
-    fields(sheet, ["id", "name", "cells", "metadata"], "sheet");
+    fields(
+      sheet,
+      ["id", "name", "cells", "metadata", "rows", "columns", "links"],
+      "sheet",
+    );
     if (!id(sheet.id) || ids.has(sheet.id)) fail("Duplicate/invalid sheet ID");
     ids.add(sheet.id);
     if (
@@ -371,7 +410,11 @@ export function validateWorkbook(book) {
     for (const [ref, cell] of Object.entries(sheet.cells)) {
       parseAddress(ref);
       validateCell(cell);
+      if (cell.cellStyle !== undefined && !cellStyles.has(cell.cellStyle))
+        fail(`Unknown cell style: ${cell.cellStyle}`);
     }
+    validateAxes(sheet);
+    validateSheetLinks(sheet, sheetIds);
   }
   if (!Array.isArray(book.groups) || !Array.isArray(book.names))
     fail("Expected groups and names");

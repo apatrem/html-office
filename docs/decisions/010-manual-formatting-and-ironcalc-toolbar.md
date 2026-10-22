@@ -31,7 +31,7 @@ Effective appearance is resolved property by property: **cell style → column s
 
 ### Cell styles (named styles)
 
-- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `row-label`, `assumption`, `calculation`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style, format? }]`. A cell style may carry a number `format` (the IronCalc style editor offers presets); the cell's own `format` overrides it.
+- One catalogue, distinct from the theme, whose colours reference the theme: our four semantic styles (`header`, `rowHeader`, `assumption`, `calculation`, plus the default `normal`), IronCalc's built-in styles expressed with charte references, and custom styles in workbook-level `namedStyles: [{ id, name, style, format? }]`. A cell style may carry a number `format` (the IronCalc style editor offers presets); the cell's own `format` overrides it.
 - Excel "Input" and "Calculation" are our `assumption` and `calculation` (charte appearance, labelled accordingly), not duplicates. Built-in IDs are reserved lowercase names; custom styles get generated stable IDs and editable display names.
 - Editing a style updates every cell using it. Deleting a style in use requires confirmation and leaves those cells without a cell style. IronCalc's custom-style editor is included.
 
@@ -55,7 +55,7 @@ Effective appearance is resolved property by property: **cell style → column s
 
 ### Links, painter, clear, image
 
-- `link` is `{ url }` (only `https:`, `http:`, `mailto:`; opened in a new tab with `noopener noreferrer`) or `{ sheetId, ref }` (relocated like named ranges, `#REF!` when its target is deleted). A click selects the cell and shows a popover; Cmd/Ctrl-click opens. The link dialog offers the built-in `hyperlink` cell style, checked by default.
+- Links are stored per sheet in `links`, keyed by A1 cell, like Excel's worksheet hyperlinks (amended after review: a per-cell field forced structural edits to scan every cell of every sheet). Each link is `{ url }` (only `https:`, `http:`, `mailto:`; opened in a new tab with `noopener noreferrer`) or `{ sheetId, ref }` (relocated like named ranges, `#REF!` when its target is deleted). A click selects the cell and shows a popover; Cmd/Ctrl-click opens. Rich copy/paste carries links: the pasted rectangle takes the source links, published atomically with its cells. The link dialog offers the built-in `hyperlink` cell style, checked by default.
 - Copy style and Clear formatting act on `cellStyle`, `style` and `format` only. The painter tiles the source pattern, replaces rather than merges, and copies row/column styles for full selections. It does not copy values, links, dropdowns or conditional rules. Clear removes empty style-only cells and keeps values, links, dropdowns, conditional rules and dimensions.
 - **Download PNG** renders an SVG of the selection from the model (displayed values, styles, borders, alignment, overflow, conditional highlights/bars, dimensions; no headers), then rasterises it at 2× through a canvas without `foreignObject`. Saved results are used without the engine; stale results add a warning band inside the image. Selections are capped (about 5,000 cells or 8,000 px) with guidance to use print/PDF.
 

@@ -2,12 +2,12 @@ export function scenarioWorkbook() {
   const text = (value) => ({ input: { type: "text", value } });
   const number = (value) => ({
     input: { type: "number", value },
-    role: "assumption",
+    cellStyle: "assumption",
     format: { kind: "percent", digits: 1 },
   });
   const money = (formula) => ({
     formula,
-    role: "calculation",
+    cellStyle: "calculation",
     format: { kind: "currency", currency: "EUR", digits: 2 },
   });
   return {
@@ -44,9 +44,9 @@ export function scenarioWorkbook() {
         id: "summary",
         name: "Summary",
         cells: {
-          A1: { ...text("Revenue"), role: "rowHeader" },
+          A1: { ...text("Revenue"), cellStyle: "rowHeader" },
           B1: money("=1000*(1+Inputs!B8)"),
-          A2: { ...text("Profit"), role: "rowHeader" },
+          A2: { ...text("Profit"), cellStyle: "rowHeader" },
           B2: money("=B1*Inputs!C8"),
           D1: text("Currency"),
           D2: text("EUR"),
@@ -59,10 +59,10 @@ export function scenarioWorkbook() {
         name: "Inputs",
         cells: {
           A1: text("Scenario"),
-          B1: { ...text("Base"), role: "assumption" },
-          A3: { ...text("Case"), role: "header" },
-          B3: { ...text("Growth"), role: "header" },
-          C3: { ...text("Margin"), role: "header" },
+          B1: { ...text("Base"), cellStyle: "assumption" },
+          A3: { ...text("Case"), cellStyle: "header" },
+          B3: { ...text("Growth"), cellStyle: "header" },
+          C3: { ...text("Margin"), cellStyle: "header" },
           A4: text("Base"),
           A5: text("Upside"),
           A6: text("Downside"),
