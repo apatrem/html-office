@@ -26,6 +26,7 @@ import { EditHistory, captureCells } from "../model/history.mjs";
 import {
   applyLinkEdits,
   FONTS,
+  MAX_LINKS_PER_SHEET,
   validateAxes,
   validateSheetLinks,
 } from "../model/formatting.mjs";
@@ -272,7 +273,12 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
       linkEdits = edits.some((edit) => edit.link !== undefined),
-      wrapped = formatting.wrappedRows(book, edits),
+      // Rows holding wrapped cells among the edits and recalculated results
+      // are re-measured once the new values are in place.
+      wrapped = formatting.wrappedRows(book, [
+        ...edits,
+        ...result.results.map(({ sheetId, ref }) => ({ sheetId, ref })),
+      ]),
       headChange = linkEdits || wrapped.size > 0,
       headBefore = headChange ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
@@ -292,12 +298,12 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
           edits.filter((edit) => edit.sheetId === sheet.id),
         ),
       );
-    // Wrapped cells resize their rows in the same history entry.
-    if (wrapped.size) book = formatting.withRowHeights(book, wrapped);
-    const headAfter = headChange ? captureHead(book) : undefined;
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
+    // Wrapped cells resize their rows in the same history entry.
+    if (wrapped.size) book = formatting.withRowHeights(book, wrapped);
+    const headAfter = headChange ? captureHead(book) : undefined;
     book.snapshot = result.snapshot;
     trustSnapshot();
     if (!recalculateOnly) {
@@ -623,6 +629,10 @@ async function moveHistory(direction) {
 function publishPresentation({
   refs = [],
   transform = (cell) => cell,
+  // covers(ref): pending attempts in the selection that committed refs miss.
+  covers,
+  // link: {ref, value} also updates a pending pasted link on that cell.
+  link,
   sheetPatch,
   label = "Formatting",
 }) {
@@ -632,22 +642,42 @@ function publishPresentation({
       r = grid.selection,
       edits = [];
     for (const ref of refs) {
-      const cell = transform(sheet.cells[ref] ?? {}, ref);
+      const original = sheet.cells[ref] ?? {},
+        cell = transform(original, ref);
+      // Unchanged cells stay out of the history entry.
+      if (cell === original) continue;
       validateCell(cell, book);
       edits.push({ sheetId, ref, cell });
     }
     // A pending (uncalculated) attempt receives the same formatting change
     // applied to its own fields, so its pasted style or link is never replaced.
-    const targets = new Set(edits.map((e) => e.ref)),
+    const targets = new Set(refs),
       pending = pendingEdits
         .filter(
           (attempt) =>
             attempt.sheetId === sheetId &&
             attempt.cell !== null &&
-            targets.has(attempt.ref),
+            (targets.has(attempt.ref) || covers?.(attempt.ref)),
         )
         .map((attempt) => [attempt, transform(attempt.cell, attempt.ref)]);
+    const pendingLinks = link
+      ? pendingEdits.filter(
+          (attempt) =>
+            attempt.sheetId === sheetId &&
+            attempt.ref === link.ref &&
+            attempt.link !== undefined,
+        )
+      : [];
     for (const [, cell] of pending) validateCell(cell, book);
+    if (
+      !edits.length &&
+      !pending.length &&
+      !pendingLinks.length &&
+      !sheetPatch
+    ) {
+      status(`${label}: nothing to change.`);
+      return true;
+    }
     let next = null;
     if (sheetPatch) {
       next = { ...sheet };
@@ -656,6 +686,15 @@ function publishPresentation({
         else next[key] = value;
       validateAxes(next);
       validateSheetLinks(next, new Set(book.sheets.map((s) => s.id)));
+      // The saved draft overlays pending pasted links: count them too.
+      const draft = new Set(Object.keys(next.links ?? {}));
+      for (const attempt of pendingEdits)
+        if (attempt.sheetId === sheetId && attempt.link !== undefined)
+          if (pendingLinks.includes(attempt)) continue;
+          else if (attempt.link) draft.add(attempt.ref);
+          else draft.delete(attempt.ref);
+      if (draft.size > MAX_LINKS_PER_SHEET)
+        throw new Error("the sheet would exceed 10,000 links");
     }
     const before = captureCells(book, edits),
       headBefore = next ? captureHead(book) : undefined,
@@ -673,6 +712,7 @@ function publishPresentation({
       touchPreview(cells, edit.ref);
     }
     for (const [attempt, cell] of pending) attempt.cell = cell;
+    for (const attempt of pendingLinks) attempt.link = link.value;
     const headAfter = next ? captureHead(book) : undefined;
     history.record({
       before,
@@ -707,6 +747,8 @@ const selectedCell = () =>
   book.sheets.find((s) => s.id === sheetId).cells[selected] ?? {};
 // Currency formats keep a cell's own currency; new ones use EUR, as before.
 const currencyOf = (cell) => cell.format?.currency ?? "EUR";
+const negativeDefault = (kind) =>
+  kind === "accounting" ? "parentheses" : "minus";
 // Keeps only the options a kind accepts (FORMAT.md number formats).
 function setNumberFormat({
   kind,
@@ -725,8 +767,10 @@ function setNumberFormat({
       ...(money ? { currency: currency ?? currencyOf(cell) } : {}),
       ...(kind === "date" && dateStyle === "long" ? { dateStyle } : {}),
       ...(scale && (kind === "number" || money) ? { scale } : {}),
+      // Stored when it differs from the kind's default sign policy
+      // (parentheses for accounting, minus otherwise).
       ...(negative &&
-      negative !== "minus" &&
+      negative !== negativeDefault(kind) &&
       (money || kind === "number" || kind === "percent")
         ? { negative }
         : {}),
@@ -760,7 +804,7 @@ function openNumberFormat() {
   $("format-currency").value = currencyOf(selectedCell());
   $("format-date-style").value = format.dateStyle ?? "short";
   $("format-scale").value = format.scale ?? "";
-  $("format-negative").value = format.negative ?? "minus";
+  $("format-negative").value = format.negative ?? negativeDefault(format.kind);
   $("number-context").textContent =
     `Applies to ${grid.selection.anchor === grid.selection.focus ? grid.selection.focus : `${grid.selection.anchor}:${grid.selection.focus}`}. Values and formulas are unchanged.`;
   $("number-dialog").showModal();

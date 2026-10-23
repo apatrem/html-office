@@ -71,6 +71,41 @@ export function setupFormatting({
         refs.push(address(row, col));
     return refs;
   }
+  // Which properties and border sides any crossing row or column style sets.
+  function crossingLayers(entries) {
+    const any = { border: {}, align: {} };
+    for (const { style } of Object.values(entries ?? {})) {
+      if (!style) continue;
+      for (const [key, value] of Object.entries(style))
+        if (key === "border" || key === "align")
+          for (const field of Object.keys(value))
+            any[key][field] = value[field];
+        else any[key] = value;
+    }
+    return any;
+  }
+  // Axis styles keep a reset (false, none, general) only where a crossing
+  // layer sets that property; other values are stored as given.
+  function settleAxis(patch, crossing) {
+    const RESETS = { bold: false, italic: false, fill: "none" },
+      out = {};
+    for (const [key, value] of Object.entries(patch))
+      if (key === "align") {
+        out.align = {};
+        for (const [field, part] of Object.entries(value))
+          out.align[field] =
+            part === (field === "wrap" ? false : "general") &&
+            crossing.align[field] === undefined
+              ? null
+              : part;
+      } else if (key === "border") out.border = value;
+      else
+        out[key] =
+          key in RESETS && value === RESETS[key] && crossing[key] === undefined
+            ? null
+            : value;
+    return out;
+  }
   const layers = (sheet, row, col) => [
     sheet.columns?.[columnName(col)]?.style,
     sheet.rows?.[row]?.style,
@@ -109,7 +144,10 @@ export function setupFormatting({
       let axis;
       if (r.kind !== "cells") {
         const key = r.kind,
-          entries = { ...sheet[key] };
+          entries = { ...sheet[key] },
+          // Styles crossing these rows (column styles) or columns (row
+          // styles): a reset must be stored where one of them would show.
+          crossing = crossingLayers(sheet[key === "rows" ? "columns" : "rows"]);
         const [from, to] =
           key === "rows" ? [r.top, r.bottom] : [r.left, r.right];
         if (to - from + 1 > MAX_FORMAT_CELLS)
@@ -119,7 +157,7 @@ export function setupFormatting({
             position = key === "rows" ? at(i, 0) : at(0, i),
             next = applyStylePatch(
               entries[name]?.style,
-              settle(patchFor(position, {}), inheritedStyle()),
+              settleAxis(patchFor(position, crossing), crossing),
             ),
             entry = { ...entries[name], style: next };
           if (!next) delete entry.style;
@@ -139,13 +177,16 @@ export function setupFormatting({
           next = applyStylePatch(
             cell.style,
             settle(patchFor(position, inherited), inherited),
-          ),
-          { style: _, ...rest } = cell;
+          );
+        // An unchanged cell is returned as is, so it is not published.
+        if (JSON.stringify(next) === JSON.stringify(cell.style)) return cell;
+        const { style: _, ...rest } = cell;
         return next ? { ...rest, style: next } : rest;
       };
       publish({
         refs,
         transform,
+        covers: (ref) => inside(r, ref),
         label,
         sheetPatch:
           axis || wrap
@@ -305,22 +346,27 @@ export function setupFormatting({
   const columnWidth = (px, column) =>
     setWidths(() => px, "Column width", column);
   // Auto-fit: the widest unwrapped displayed value, or the standard width.
-  const autoFit = (column) =>
+  // One pass over the sheet collects every selected column.
+  function autoFit(column) {
+    const columns = new Set(columnsFor(column)),
+      sheet = getSheet(),
+      widest = new Map();
+    for (const [ref, cell] of Object.entries(sheet.cells)) {
+      const col = parseAddress(ref).column;
+      if (!columns.has(col)) continue;
+      const effective = effectiveOf(sheet, ref, cell);
+      if (effective.align?.wrap || !display(cell, getBook().locale)) continue;
+      widest.set(
+        col,
+        Math.max(widest.get(col) ?? 0, textWidth(cell, effective) + 14),
+      );
+    }
     setWidths(
-      (col, sheet) => {
-        let widest = 0;
-        for (const [ref, cell] of Object.entries(sheet.cells)) {
-          if (parseAddress(ref).column !== col) continue;
-          const effective = effectiveOf(sheet, ref, cell);
-          if (effective.align?.wrap || !display(cell, getBook().locale))
-            continue;
-          widest = Math.max(widest, textWidth(cell, effective) + 14);
-        }
-        return widest ? Math.max(24, widest) : undefined;
-      },
+      (col) => (widest.has(col) ? Math.max(24, widest.get(col)) : undefined),
       "Column width",
       column,
     );
+  }
   const widthOf = (col) =>
     getSheet().columns?.[columnName(col)]?.width ?? COLUMN_WIDTH;
 
@@ -368,19 +414,44 @@ export function setupFormatting({
       status("Copy style applies to a range of cells.");
       return true;
     }
+    let refs;
+    try {
+      refs = targetRefs(r);
+    } catch (error) {
+      status(`Copy style not applied: ${error.message}`);
+      return true;
+    }
+    const transform = (cell, ref) => {
+      const p = parseAddress(ref),
+        line = source[(p.row - r.top) % source.length],
+        look = line[(p.column - r.left) % line.length],
+        rest = Object.fromEntries(
+          Object.entries(cell).filter(
+            ([key]) => !PRESENTATION_FIELDS.includes(key),
+          ),
+        ),
+        next = { ...rest, ...structuredClone(look) };
+      return JSON.stringify(next) === JSON.stringify(cell) ? cell : next;
+    };
+    // Painting wrap on or off re-measures the target rows.
     publish({
-      refs: targetRefs(r),
+      refs,
       label: "Formatting",
-      transform: (cell, ref) => {
-        const p = parseAddress(ref),
-          line = source[(p.row - r.top) % source.length],
-          look = line[(p.column - r.left) % line.length],
-          rest = Object.fromEntries(
-            Object.entries(cell).filter(
-              ([key]) => !PRESENTATION_FIELDS.includes(key),
-            ),
-          );
-        return { ...rest, ...structuredClone(look) };
+      transform,
+      covers: (ref) => inside(r, ref),
+      sheetPatch: (s) => {
+        const preview = { ...s, cells: { ...s.cells } };
+        for (const ref of refs) {
+          const next = transform(s.cells[ref] ?? {}, ref);
+          if (Object.keys(next).length) preview.cells[ref] = next;
+          else delete preview.cells[ref];
+        }
+        return {
+          rows: rowHeights(
+            preview,
+            new Set(refs.map((ref) => parseAddress(ref).row)),
+          ),
+        };
       },
     });
     return true;
@@ -401,14 +472,17 @@ export function setupFormatting({
       const r = scope(),
         refs = targetRefs(r),
         transform = (cell) =>
-          Object.fromEntries(
-            Object.entries(cell).filter(
-              ([key]) => !PRESENTATION_FIELDS.includes(key),
-            ),
-          );
+          PRESENTATION_FIELDS.some((key) => key in cell)
+            ? Object.fromEntries(
+                Object.entries(cell).filter(
+                  ([key]) => !PRESENTATION_FIELDS.includes(key),
+                ),
+              )
+            : cell;
       publish({
         refs,
         transform,
+        covers: (ref) => inside(r, ref),
         sheetPatch: (sheet) => {
           const fields = {};
           if (r.kind !== "cells") {
@@ -448,6 +522,8 @@ export function setupFormatting({
   function setLink(ref, link) {
     return publish({
       label: "Link",
+      // A pending pasted link on this cell takes the same change.
+      link: { ref, value: link },
       sheetPatch: (sheet) => {
         const links = { ...sheet.links };
         if (link) links[ref] = link;

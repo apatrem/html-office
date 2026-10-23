@@ -226,7 +226,76 @@ try {
     .getByRole("menuitem", { name: "Clear formatting" })
     .click();
   await changed();
+  // Menu commands return focus to the grid, which survives the redraw.
+  assert.equal(await page.evaluate(() => document.activeElement.id), "grid");
+  // Whole columns: Bold on column C writes a column style and leaves its
+  // cells' own styles alone; turning bold off for row 30 stores the reset
+  // that the crossing column style needs.
+  await page.locator('#grid [data-column="3"]').click();
+  await tool("Bold").click();
+  await changed();
+  await page.locator('#grid [data-row="30"]').click();
+  await tool("Bold").click();
+  await changed();
+  assert.equal(await tool("Bold").getAttribute("aria-pressed"), "true");
+  await tool("Bold").click();
+  await changed();
+  // Accounting with an explicit minus sign keeps it.
+  await select("H5");
+  await openMenu(page, "Format");
+  await menuItem(page, "Format", "Number format…").click();
+  await page
+    .getByLabel("Number format", { exact: true })
+    .selectOption("accounting");
+  await page.getByLabel("Negative numbers").selectOption("minus");
+  await page.getByRole("button", { name: "Apply number format" }).click();
+  // Wrap painted by Copy style grows the target row.
+  await select("A6");
+  await tool("Copy style").click();
+  await select("B9");
+  await size("B9", "offsetHeight", "v > 23");
+  // The painter refuses more than 50,000 cells without throwing.
+  await select("D3");
+  await tool("Copy style").click();
+  await page.getByLabel("Cell address", { exact: true }).fill("A20:KN220");
+  await page.getByLabel("Cell address", { exact: true }).press("Enter");
+  await page.locator("#grid").focus();
+  await page.keyboard.press("Enter");
+  await page
+    .locator("#status")
+    .filter({ hasText: "Copy style not applied" })
+    .waitFor();
+  assert.equal(await tool("Copy style").getAttribute("aria-pressed"), "false");
+  // The link dialog applies the model's rules before saving.
+  await select("E9");
+  await tool("Link").click();
+  const check = page.getByRole("dialog", { name: "Link" });
+  for (const bad of ["http:example.org", "mailto:"]) {
+    await check.getByLabel("Address", { exact: true }).fill(bad);
+    assert.equal(
+      await check.getByRole("button", { name: "Save link" }).isDisabled(),
+      true,
+      bad,
+    );
+  }
+  await check.getByLabel("Place in this workbook").check();
+  await check.getByLabel("Cell", { exact: true }).fill("A1048577");
+  assert.equal(
+    await check.getByRole("button", { name: "Save link" }).isDisabled(),
+    true,
+  );
+  await check.getByRole("button", { name: "Cancel" }).click();
   sheet = await save("commands-2.html");
+  assert.equal(sheet.columns.C.style.bold, true);
+  assert.equal(sheet.cells.C4.style, undefined);
+  assert.equal(sheet.rows["30"].style.bold, false);
+  assert.deepEqual(sheet.cells.H5.format, {
+    kind: "accounting",
+    digits: 2,
+    currency: "EUR",
+    negative: "minus",
+  });
+  assert.ok(sheet.rows["9"].height > 23);
   assert.equal(sheet.rows["12"].style.fill, "lig");
   assert.equal(sheet.columns.D.width, 150);
   assert.equal(sheet.columns.B.width, 160);
@@ -241,6 +310,20 @@ try {
   assert.equal(sheet.cells.C3.format, undefined);
   // Widening column A re-measured the wrapped A8: its row needs less height.
   assert.ok((sheet.rows["8"]?.height ?? 23) < tall);
+  // Recovery: the automatic draft restores sizes, row styles and links.
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Restore draft", exact: true })
+    .click();
+  await size("D3", "offsetWidth", "v === 150");
+  await size("B9", "offsetHeight", "v > 23");
+  assert.match(await cell("A9").getAttribute("class"), /linked/);
+  assert.equal(
+    await page
+      .locator('#grid [data-cell="A12"]')
+      .evaluate((el) => el.style.backgroundColor),
+    "var(--lig)",
+  );
   // Reopen: everything persisted and redrawn.
   await page.goto(pathToFileURL(resolve(out, "commands-2.html")).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
@@ -289,9 +372,28 @@ try {
     (h) => document.querySelector('#grid [data-cell="A6"]')?.offsetHeight === h,
     before,
   );
+  // Redo brings the taller row back with the value.
+  await p.getByRole("button", { name: "Redo", exact: true }).click();
+  await p.getByText("Redo restored the previous workbook.").waitFor();
+  await p.waitForFunction(
+    (h) => document.querySelector('#grid [data-cell="A6"]')?.offsetHeight === h,
+    grown,
+  );
+  // A wrapped formula is measured with its new result.
+  await p.locator('#grid [data-cell="A6"]').click();
+  await p.getByLabel("Input type", { exact: true }).selectOption("formula");
+  await p
+    .getByLabel("Cell value", { exact: true })
+    .fill('=REPT("formula text ",20)');
+  await p.getByRole("button", { name: "Apply edit", exact: true }).click();
+  await p
+    .getByText("Calculated locally. Unsaved changes.", { exact: true })
+    .waitFor();
+  const formula = await (await rowOf()).jsonValue();
+  assert.ok(formula > before, `formula row ${formula}px`);
   await engine.close();
   console.log(
-    "PASS commands: emphasis, colours, borders, alignment, wrap heights, row styles, widths, copy style, links, context menus, undo and save/reopen without the engine",
+    "PASS commands: emphasis, colours, borders, alignment, wrap heights (values and formulas), row and column styles, widths, copy style, links, context menus, undo/redo, recovery and save/reopen",
   );
 } finally {
   await browser.close();

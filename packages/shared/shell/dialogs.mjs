@@ -65,11 +65,13 @@ export const checkRef = (text) =>
     : "Enter a cell or range such as B4 or B4:C9.";
 
 // Link dialog. initial: {url} or {sheetId, ref}; sheets: [{id, name}].
-// onSave(link) receives {url} or {sheetId, ref}; onRemove() deletes it.
+// check(link) returns the product's validation message ("" when valid);
+// onSave(link) returns false to keep the dialog open; onRemove() deletes.
 export function linkDialog({
   sheets,
   sheetId,
   initial,
+  check = () => "",
   onSave,
   onRemove,
   opener,
@@ -128,11 +130,16 @@ export function linkDialog({
       ),
     );
   const kind = () => kinds.querySelector("input:checked").value;
+  const linkOf = () =>
+    kind() === "url"
+      ? { url: url.value.trim() }
+      : { sheetId: sheet.value, ref: ref.value.trim().toUpperCase() };
   function validate() {
     const isUrl = kind() === "url",
       target = isUrl ? url : ref,
-      error = isUrl ? checkUrl(url.value) : checkRef(ref.value),
-      touched = target.value !== "" || !isUrl;
+      touched = target.value !== "" || !isUrl,
+      error =
+        (isUrl ? checkUrl(url.value) : checkRef(ref.value)) || check(linkOf());
     urlBox.hidden = !isUrl;
     placeBox.hidden = isUrl;
     target.setAttribute("aria-invalid", String(!!error && touched));
@@ -178,12 +185,13 @@ export function linkDialog({
   );
   save.addEventListener("click", () => {
     if (!validate()) return;
-    const link =
-      kind() === "url"
-        ? { url: url.value.trim() }
-        : { sheetId: sheet.value, ref: ref.value.trim().toUpperCase() };
-    dialog.close("save");
-    onSave(link);
+    // The dialog stays open when the product refuses the link.
+    if (onSave(linkOf()) !== false) dialog.close("save");
+    else
+      (kind() === "url" ? url : ref)
+        .closest(".sh-fld")
+        .querySelector(".sh-err").textContent =
+        "The link could not be saved; see the status line.";
   });
   validate();
   (place ? ref : url).focus();

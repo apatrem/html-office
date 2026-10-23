@@ -2,6 +2,7 @@
 // shared native components. It only runs registered commands and shows their
 // state; every control here applies and renders end to end.
 import { h, button, icon } from "../../shared/shell/dom.mjs";
+import { validateLinkShape } from "../model/formatting.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group, spacer } from "../../shared/shell/toolbar.mjs";
 import {
@@ -136,6 +137,15 @@ export function mountShell({ commands, state }) {
       sheetId: s.sheetId,
       initial: s.link,
       opener: opener ?? document.activeElement,
+      // The model's own rules: schemes, length and Excel bounds.
+      check: (link) => {
+        try {
+          validateLinkShape(link);
+          return "";
+        } catch (error) {
+          return error.message;
+        }
+      },
       onSave: (link) => commands.run("link", link),
       onRemove: () => commands.run("link", null),
     });
@@ -279,13 +289,17 @@ export function mountShell({ commands, state }) {
               ...rows,
               ...columns,
               "-",
-              item("Link…", "link", { onSelect: () => editLink(element) }),
+              item("Link…", "link", {
+                onSelect: () => editLink(document.getElementById("grid")),
+              }),
               ...(state().link ? [item("Open link", "open-link")] : []),
               "-",
               ...common,
             ];
+    // Focus returns to the grid: the cell or header may be redrawn.
     openMenu(element, items, {
       label: `${kind === "cell" ? "Cell" : kind === "row" ? "Row" : "Column"} menu`,
+      restoreTo: document.getElementById("grid"),
     });
   }
   const formatItems = () => {
