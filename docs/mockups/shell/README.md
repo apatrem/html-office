@@ -14,4 +14,4 @@ node docs/mockups/shell/screenshots.mjs    # pages, screenshots, measurements an
 node docs/mockups/shell/check.mjs          # interaction checks: menus, submenus, panels, focus return
 ```
 
-Built-in theme colours are placeholders until T01.
+Built-in theme colours are placeholders until TH01.

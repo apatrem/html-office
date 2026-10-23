@@ -96,7 +96,7 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | | Type in element | Canvas | Double-click, Enter; Escape |
 | Chart | Edit data (title, unit, highlight, rows, series, advanced JSON) | Context bar → modal | — |
 | Table | Insert/delete row, insert/delete column | Context bar | — |
-| **Planned** | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, T02; no place yet | — |
+| **Planned** | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, TH02; no place yet | — |
 
 ### 4.2 Data (native ribbon today, plus planned)
 
@@ -131,8 +131,8 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | | Pivot, charts | — | T17, T18 |
 | Edit | Cell address, input type, value, apply edit; F2 edits the active cell | Formula bar, grid | — |
 | View | Grid lines on/off | — | ADR-010 |
-| Document settings | Theme (blue, red, green, black, document charte) | — | ADR-012 §9, T02 |
-| | Document font (6 fonts) | — | ADR-012 §4, T02 |
+| Document settings | Theme (blue, red, green, black, document charte) | — | ADR-012 §9, TH02 |
+| | Document font (6 fonts) | — | ADR-012 §4, TH02 |
 | | Regional settings: locale (display); time zone under review | — | ADR-010, F05 |
 
 ### 4.3 Text (all planned)
@@ -156,7 +156,7 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | Structure | Heading numbers on/off and format per level; outline / go to section | T08, spec |
 | Review | Add comment, reply, resolve, reopen; orphan recovery (confirm candidate) | T13 |
 | Document settings | Page format A4/Letter, margins, running header/footer | T14 |
-| | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, T02 |
+| | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, TH02 |
 
 ### 4.4 Shared command families
 
@@ -188,7 +188,7 @@ The shell's job is to put these in the same place and with the same control in a
 - Labels, not placeholders, on every field (R05 finding 3).
 - Existing shortcuts stay: Cmd/Ctrl+S, Z, Shift+Z, Y, B, I, D, ], [; Slides E, P, ?; Data arrows, Shift+arrows, Enter, F2 and Escape in the grid, plus Cmd/Ctrl+C and V for rich range copy and paste. Tab leaves the grid today.
 - Status messages use `role="status"`; save state is announced, not only coloured.
-- Colour contrast of shell chrome ≥ 4.5:1 for text, 3:1 for icons and focus rings; chartes are checked in T01.
+- Colour contrast of shell chrome ≥ 4.5:1 for text, 3:1 for icons and focus rings; chartes are checked in TH01.
 
 ### Widths and density
 
