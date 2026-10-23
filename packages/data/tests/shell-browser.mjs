@@ -384,7 +384,18 @@ try {
         .locator("#grid")
         .evaluate((el) => el.clientHeight <= innerHeight),
     );
-    assert.ok((await page.locator("#grid [data-cell]").count()) < 600);
+    // Bounded by the page: the visible rows and columns plus a small margin.
+    await page.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() => requestAnimationFrame(done)),
+        ),
+    );
+    const [cells, bound] = await page.evaluate(() => [
+      document.querySelectorAll("#grid [data-cell]").length,
+      (Math.ceil(innerHeight / 23) + 5) * (Math.ceil(innerWidth / 100) + 5),
+    ]);
+    assert.ok(cells <= bound, `${cells} cells rendered for print`);
     await page.emulateMedia({ media: "screen" });
     // A workbook without formulas has nothing to calculate.
     const plain = scenarioWorkbook();
