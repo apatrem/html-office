@@ -108,7 +108,15 @@ Structural input movement is lossless: an insertion that would push populated ce
 - column widths and stored row heights; the workbook `font` over the whole grid;
 - the `dateStyle`, `scale` (k and M suffixes) and `negative` presets.
 
-Formatting commands, panels and theme switching follow separately (F03, F05, TH01–TH02).
+**Commands (F03).** Formatting commands write these fields without the engine, one undoable entry each:
+- bold and italic toggles, text and fill colours, borders (all, outer, inner, one side or none, in `thin`, `medium` or `double` and a text-colour token), alignment, centre across selection and wrap; a value equal to what the cell inherits is removed rather than stored, and turning off an inherited property stores it explicitly (for example `bold: false` on a header);
+- whole rows or columns (header click, Shift+Space, Ctrl+Space) write `rows`/`columns` styles and update their populated cells; a rectangle of more than 50,000 cells is refused;
+- column widths by dragging a header edge, a width dialog or auto-fit; wrap, width and value edits re-measure the affected rows and store `rows.N.height`;
+- Copy style tiles the source rectangle's `cellStyle`, `format` and `style` over the target;
+- links (`Ctrl/Cmd+K`) are stored in `links`; a click shows the target, Ctrl/Cmd-click opens a web link in a new tab with `noopener`, and an internal link selects its range;
+- Clear formatting removes `cellStyle`, `format` and `style` (and row or column styles for whole rows or columns), keeping values, links and widths.
+
+Panels and theme switching follow separately (F05, TH01–TH02).
 
 ## Sheet navigation
 

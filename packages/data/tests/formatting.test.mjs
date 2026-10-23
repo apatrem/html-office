@@ -641,3 +641,66 @@ test("a shared border edge keeps the heavier line, the lower or right cell on a 
     color: "ink",
   });
 });
+
+test("formatting commands patch styles and store only what differs from inheritance", async () => {
+  const { applyStylePatch, settle, inheritedStyle } = await import(
+    "../model/formatting.mjs"
+  );
+  assert.deepEqual(
+    applyStylePatch(
+      { bold: true, align: { wrap: true } },
+      {
+        bold: null,
+        fill: "tint",
+        align: { wrap: null },
+      },
+    ),
+    { fill: "tint" },
+  );
+  assert.equal(applyStylePatch({ italic: true }, { italic: null }), undefined);
+  const header = inheritedStyle("header", { fill: "lig" }, undefined);
+  assert.equal(header.bold, true);
+  assert.equal(header.fill, "lig");
+  // Turning bold off on a header must be stored; on a normal cell it is removed.
+  assert.deepEqual(settle({ bold: false }, header), { bold: false });
+  assert.deepEqual(settle({ bold: false }, inheritedStyle("normal")), {
+    bold: null,
+  });
+  assert.deepEqual(settle({ fill: "none" }, inheritedStyle("assumption")), {
+    fill: "none",
+  });
+  assert.deepEqual(
+    settle({ align: { horizontal: "general", wrap: false } }, inheritedStyle()),
+    { align: { horizontal: null, wrap: null } },
+  );
+});
+test("border presets write sides by position and none only over inherited sides", async () => {
+  const { borderPatch } = await import("../model/formatting.mjs");
+  const line = { style: "medium", color: "acc" },
+    corner = { top: true, left: true, bottom: false, right: false };
+  assert.deepEqual(Object.keys(borderPatch("all", corner, line).border), [
+    "top",
+    "right",
+    "bottom",
+    "left",
+  ]);
+  assert.deepEqual(Object.keys(borderPatch("outer", corner, line).border), [
+    "top",
+    "left",
+  ]);
+  assert.deepEqual(Object.keys(borderPatch("inner", corner, line).border), [
+    "right",
+    "bottom",
+  ]);
+  // A whole-row style has inner left/right sides and no outer ones.
+  const row = { top: true, bottom: true, left: false, right: false };
+  assert.deepEqual(Object.keys(borderPatch("outer", row, line).border), [
+    "top",
+    "bottom",
+  ]);
+  assert.deepEqual(
+    borderPatch("none", corner, line, { bottom: { style: "double" } }).border,
+    { top: null, right: null, bottom: { style: "none" }, left: null },
+  );
+  assert.throws(() => borderPatch("diagonal", corner, line));
+});

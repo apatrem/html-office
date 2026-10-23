@@ -79,6 +79,14 @@ export function createGrid(
     onEdit,
     onCommand,
     decorateCell,
+    // F03 hooks: intercept(event) handles a key first; onSelectEnd(event,
+    // ref, moved) after a pointer selection; onContextMenu({kind, index,
+    // element}); onResize(column, width) and onAutoFit(column).
+    intercept,
+    onSelectEnd,
+    onContextMenu,
+    onResize,
+    onAutoFit,
   },
 ) {
   let anchor = "B2",
@@ -382,27 +390,199 @@ export function createGrid(
   }
   root.addEventListener("scroll", schedule, { passive: true });
   new ResizeObserver(schedule).observe(root);
+  // Whole rows and columns: anchor at the far end, active cell at the start.
+  function selectRange(from, to, { scroll = true } = {}) {
+    anchor = from;
+    select(to, { extend: true, scroll });
+  }
+  const rowRange = (row, extend) =>
+    selectRange(
+      extend ? anchor.replace(/^[A-Z]+/, "XFD") : `XFD${row}`,
+      `A${row}`,
+      { scroll: false },
+    );
+  const columnRange = (col, extend) => {
+    const name = address(1, col).replace(/\d+$/, "");
+    selectRange(
+      extend ? anchor.replace(/\d+$/, String(ROWS)) : `${name}${ROWS}`,
+      `${name}1`,
+      { scroll: false },
+    );
+  };
+  let resizing = null,
+    moved = false;
+  const edgeOf = (event) => {
+    const head = event.target.closest("[data-column]");
+    if (!head) return null;
+    const box = head.getBoundingClientRect();
+    if (event.clientX > box.right - 5) return +head.dataset.column;
+    if (event.clientX < box.left + 4 && +head.dataset.column > 1)
+      return +head.dataset.column - 1;
+    return null;
+  };
   root.addEventListener("pointerdown", (event) => {
+    if (busy() || event.button !== 0) return;
+    const edge = edgeOf(event);
+    if (edge !== null && onResize) {
+      event.preventDefault();
+      const start = axes().columns.size(edge),
+        guide = document.createElement("div");
+      guide.className = "resize-guide";
+      guide.style.height = `${root.clientHeight}px`;
+      root.append(guide);
+      resizing = { column: edge, x: event.clientX, start, width: start, guide };
+      root.setPointerCapture?.(event.pointerId);
+      return;
+    }
+    const rowHead = event.target.closest("[data-row]"),
+      columnHead = event.target.closest("[data-column]");
+    if (rowHead || columnHead) {
+      event.preventDefault();
+      root.focus({ preventScroll: true });
+      drag = rowHead ? "row" : "column";
+      if (rowHead) rowRange(+rowHead.dataset.row, event.shiftKey);
+      else columnRange(+columnHead.dataset.column, event.shiftKey);
+      return;
+    }
     const b = event.target.closest("[data-cell]");
-    if (!b || busy() || event.button !== 0) return;
+    if (!b) return;
     event.preventDefault();
     root.focus({ preventScroll: true });
-    drag = true;
+    drag = "cell";
+    moved = false;
     select(b.dataset.cell, { extend: event.shiftKey });
   });
   root.addEventListener("pointermove", (event) => {
+    if (resizing) {
+      resizing.width = Math.max(
+        8,
+        Math.min(2000, resizing.start + event.clientX - resizing.x),
+      );
+      const head = root.querySelector(`[data-column="${resizing.column}"]`);
+      if (head) {
+        const box = head.getBoundingClientRect(),
+          grid = root.getBoundingClientRect();
+        resizing.guide.style.left = `${box.left - grid.left + root.scrollLeft + resizing.width}px`;
+        resizing.guide.style.top = `${root.scrollTop}px`;
+      }
+      return;
+    }
+    root.classList.toggle("over-edge", edgeOf(event) !== null);
     if (!drag || !event.buttons || busy()) return;
+    if (drag === "row") {
+      const head = event.target.closest("[data-row]");
+      if (head) select(`A${head.dataset.row}`, { extend: true, scroll: false });
+      return;
+    }
+    if (drag === "column") {
+      const head = event.target.closest("[data-column]");
+      if (head)
+        select(`${address(1, +head.dataset.column).replace(/\d+$/, "")}1`, {
+          extend: true,
+          scroll: false,
+        });
+      return;
+    }
     const b = event.target.closest("[data-cell]");
-    if (b && b.dataset.cell !== focus)
+    if (b && b.dataset.cell !== focus) {
+      moved = true;
       select(b.dataset.cell, { extend: true, scroll: false });
+    }
   });
-  window.addEventListener("pointerup", () => (drag = false));
+  window.addEventListener("pointerup", (event) => {
+    if (resizing) {
+      const { column, width, start, guide } = resizing;
+      resizing = null;
+      guide.remove();
+      if (Math.round(width) !== start) onResize(column, Math.round(width));
+      return;
+    }
+    const was = drag;
+    drag = false;
+    if (was === "cell" || was === "row" || was === "column")
+      onSelectEnd?.(event, focus, moved || was !== "cell");
+  });
   root.addEventListener("dblclick", (event) => {
+    const edge = edgeOf(event);
+    if (edge !== null && onAutoFit && !busy()) return onAutoFit(edge);
     if (event.target.closest("[data-cell]") && !busy()) onEdit();
   });
+  root.addEventListener("contextmenu", (event) => {
+    if (busy() || !onContextMenu) return;
+    const rowHead = event.target.closest("[data-row]"),
+      columnHead = event.target.closest("[data-column]"),
+      b = event.target.closest("[data-cell]");
+    if (!rowHead && !columnHead && !b) return;
+    event.preventDefault();
+    const r = rectangle(anchor, focus);
+    if (rowHead) {
+      const row = +rowHead.dataset.row;
+      if (
+        !(
+          r.left === 1 &&
+          r.right === COLUMNS &&
+          row >= r.top &&
+          row <= r.bottom
+        )
+      )
+        rowRange(row, false);
+      onContextMenu({ kind: "row", element: rowHead });
+    } else if (columnHead) {
+      const col = +columnHead.dataset.column;
+      if (
+        !(r.top === 1 && r.bottom === ROWS && col >= r.left && col <= r.right)
+      )
+        columnRange(col, false);
+      onContextMenu({ kind: "column", element: columnHead });
+    } else {
+      const p = parseAddress(b.dataset.cell);
+      if (
+        !(
+          p.row >= r.top &&
+          p.row <= r.bottom &&
+          p.column >= r.left &&
+          p.column <= r.right
+        )
+      )
+        select(b.dataset.cell);
+      onContextMenu({
+        kind: "cell",
+        element: root.querySelector(`#grid-${focus}`) ?? b,
+      });
+    }
+  });
   root.addEventListener("keydown", (event) => {
-    if (busy()) return;
+    if (busy() || intercept?.(event)) return;
     const command = event.ctrlKey || event.metaKey;
+    // Excel shortcuts: Shift+Space selects rows, Ctrl+Space columns;
+    // Shift+F10 or the context-menu key opens the cell menu.
+    if (
+      event.key === " " &&
+      (event.shiftKey || event.ctrlKey) &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      const r = rectangle(anchor, focus);
+      if (event.ctrlKey)
+        selectRange(
+          `${address(1, r.right).replace(/\d+$/, "")}${ROWS}`,
+          `${address(1, r.left).replace(/\d+$/, "")}1`,
+          { scroll: false },
+        );
+      else selectRange(`XFD${r.bottom}`, `A${r.top}`, { scroll: false });
+      return;
+    }
+    if (
+      event.key === "ContextMenu" ||
+      (event.key === "F10" && event.shiftKey)
+    ) {
+      event.preventDefault();
+      onContextMenu?.({
+        kind: "cell",
+        element: root.querySelector(`#grid-${focus}`) ?? root,
+      });
+      return;
+    }
     if (command && ["z", "y", "c", "v"].includes(event.key.toLowerCase())) {
       onCommand?.(event);
       return;
@@ -444,6 +624,7 @@ export function createGrid(
   return {
     draw,
     select,
+    selectRange,
     get selection() {
       return { anchor, focus, ...rectangle(anchor, focus) };
     },

@@ -297,3 +297,103 @@ export function resolveEdge(first, second) {
   const side = b >= a ? second : first;
   return { style: side.style, color: side.color ?? "ink" };
 }
+
+// ---- Formatting commands (F03) ----
+// Refused above this many individual cells; whole rows or columns write
+// row or column styles instead (ADR-010 storage).
+export const MAX_FORMAT_CELLS = 50000;
+// Emphasis and fill that catalogue styles draw from the stylesheet, so a
+// command knows when turning a property off must be stored explicitly.
+const CATALOGUE = {
+  title: { bold: true },
+  header: { bold: true, fill: true },
+  rowHeader: { fill: true },
+  assumption: { fill: true },
+  calculation: { fill: true },
+  output: { bold: true },
+  total: { bold: true },
+  note: { italic: true },
+  alert: { bold: true },
+};
+// What a cell would show without its own style.
+export function inheritedStyle(cellStyle, columnStyle, rowStyle) {
+  const look = CATALOGUE[cellStyle] ?? {},
+    style = effectiveStyle(cellStyle, columnStyle, rowStyle) ?? {};
+  return {
+    ...style,
+    bold: style.bold ?? !!look.bold,
+    italic: style.italic ?? !!look.italic,
+    fill: style.fill ?? (look.fill ? "catalogue" : "none"),
+  };
+}
+// Applies a patch to a style: null removes a property (or a border side or
+// alignment field); empty groups disappear. Returns undefined when empty.
+export function applyStylePatch(style, patch) {
+  const next = { ...style };
+  for (const [key, value] of Object.entries(patch)) {
+    if (key === "border" || key === "align") {
+      const inner = { ...next[key] };
+      for (const [field, part] of Object.entries(value))
+        if (part === null) delete inner[field];
+        else inner[field] = part;
+      if (Object.keys(inner).length) next[key] = inner;
+      else delete next[key];
+    } else if (value === null) delete next[key];
+    else next[key] = value;
+  }
+  return Object.keys(next).length ? next : undefined;
+}
+// A property set to the value the cell inherits is removed instead of stored.
+export function settle(patch, inherited) {
+  const out = {};
+  for (const [key, value] of Object.entries(patch))
+    if (key === "align") {
+      out.align = {};
+      for (const [field, part] of Object.entries(value))
+        out.align[field] =
+          part ===
+          (inherited.align?.[field] ?? (field === "wrap" ? false : "general"))
+            ? null
+            : part;
+    } else if (key === "border") out.border = value;
+    else out[key] = value === inherited[key] ? null : value;
+  return out;
+}
+export const BORDER_PRESETS = [
+  "all",
+  "outer",
+  "inner",
+  "top",
+  "bottom",
+  "left",
+  "right",
+  "none",
+];
+// Border sides a preset writes on one cell of a selection. `at` tells where
+// the cell sits: {top, bottom, left, right} booleans for the selection's
+// edges; a whole-row style has no left/right edge, a column no top/bottom.
+// "none" writes an explicit none only where an inherited side would show.
+export function borderPatch(preset, at, line, inheritedBorder = {}) {
+  const sides = {
+    all: ["top", "right", "bottom", "left"],
+    outer: ["top", "right", "bottom", "left"].filter((side) => at[side]),
+    inner: ["top", "right", "bottom", "left"].filter(
+      (side) => at[side] === false,
+    ),
+    top: at.top ? ["top"] : [],
+    bottom: at.bottom ? ["bottom"] : [],
+    left: at.left ? ["left"] : [],
+    right: at.right ? ["right"] : [],
+    none: [],
+  }[preset];
+  if (!sides) throw new Error("Unknown border preset");
+  const border = {};
+  if (preset === "none")
+    for (const side of ["top", "right", "bottom", "left"])
+      border[side] =
+        inheritedBorder[side] && inheritedBorder[side].style !== "none"
+          ? { style: "none" }
+          : null;
+  else for (const side of sides) border[side] = { ...line };
+  return { border };
+}

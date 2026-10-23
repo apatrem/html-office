@@ -1,10 +1,10 @@
 /* Shared native editor shell (ADR-011 §7). Chrome uses neutral greys; only the canvas follows the charte. */
 :root{--sh-bg:#fff;--sh-bg2:#f6f7f9;--sh-line:#dde1e6;--sh-ink:#1d2a35;--sh-mute:#5f6b75;--sh-hover:#eceff3;--sh-press:#dfe6ef;--sh-focus:#2563eb;--sh-sel:#e8eefb;--sh-ok:#1f7a4d;--sh-warn:#9a5b00;--sh-err:#b42318}
-.sh-root,.sh-pop{font:13px/1.3 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--sh-ink);box-sizing:border-box}
-.sh-root *,.sh-pop *{box-sizing:border-box}
-.sh-root :focus-visible,.sh-pop :focus-visible{outline:2px solid var(--sh-focus);outline-offset:1px}
+.sh-root,.sh-pop,.sh-dialog{font:13px/1.3 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--sh-ink);box-sizing:border-box}
+.sh-root *,.sh-pop *,.sh-dialog *{box-sizing:border-box}
+.sh-root :focus-visible,.sh-pop :focus-visible,.sh-dialog :focus-visible{outline:2px solid var(--sh-focus);outline-offset:1px}
 /* Host pages may style bare elements; neutralise them inside the shell. */
-:is(.sh-root,.sh-pop) button{box-shadow:none;letter-spacing:normal;text-transform:none}
+:is(.sh-root,.sh-pop,.sh-dialog) button{box-shadow:none;letter-spacing:normal;text-transform:none}
 :is(.sh-root,.sh-pop) :is(h1,h2,p){margin:0}
 .sh-ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .sh-car{width:12px;height:12px;margin-left:-2px;opacity:.65}
@@ -56,6 +56,43 @@
 .sh-menu kbd{margin-left:auto;padding-left:16px;font:11px system-ui;color:var(--sh-mute)}
 .sh-msep{height:1px;background:var(--sh-line);margin:4px 6px}
 .sh-mhead{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--sh-mute);padding:8px 10px 4px}
+/* colour buttons, swatches, border picker, link card and dialogs */
+.sh-colour{flex-direction:column;gap:0;padding:2px 6px}.sh-colour .sh-swbar{display:block;width:16px;height:3px;border-radius:1px;margin-top:1px;border:1px solid var(--sh-line)}
+.sh-g b,.sh-g i{font-family:Arial,sans-serif}
+.sh-prow{display:flex;flex-wrap:wrap;gap:6px;margin:8px 6px 4px}.sh-link-target{margin:0 6px;max-width:320px;overflow-wrap:anywhere;font-size:12.5px}
+.sh-sw:hover{filter:brightness(.9)}
+.sh-ghost{border-color:var(--sh-line);background:var(--sh-bg)}
+.sh-pop-h{margin:6px 6px 6px;font-size:11px;color:var(--sh-mute)}
+.sh-pop-n{margin:8px 6px 2px;font-size:11px;color:var(--sh-mute)}
+.sh-pop-sw,.sh-pop-borders{min-width:0}
+.sh-swrow{display:flex;gap:6px;padding:0 6px 4px}
+.sh-sw{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.22);cursor:pointer;padding:0}
+.sh-sw[aria-checked=true]{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--sh-focus)}
+.sh-swrow .sh-sw-ink,.sh-swrow .sh-sw-dark{background:var(--ink,#0B1C2C)}.sh-swrow .sh-sw-acc{background:var(--acc,#14517A)}.sh-swrow .sh-sw-mid{background:var(--mid,#4F7FA3)}.sh-swrow .sh-sw-lig{background:var(--lig,#AFC5D4)}
+.sh-swrow .sh-sw-alert{background:var(--alert,#C2521C)}.sh-swrow .sh-sw-t2{background:var(--t2,#5A6670)}.sh-swrow .sh-sw-bg{background:var(--bg,#fff)}.sh-swrow .sh-sw-tint{background:var(--tint,#ECEFF2)}
+.sh-swrow .sh-sw-none{background:linear-gradient(135deg,#fff 44%,#C2521C 44%,#C2521C 56%,#fff 56%)}
+.sh-bpresets{display:grid;grid-template-columns:repeat(4,32px);gap:2px;padding:0 4px}
+.sh-seg{display:inline-flex;border:1px solid var(--sh-line);border-radius:6px;overflow:hidden;margin:0 6px}
+.sh-seg button{display:inline-flex;align-items:center;gap:6px;border:0;background:#fff;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}
+.sh-seg button+button{border-left:1px solid var(--sh-line)}
+.sh-seg [aria-checked=true]{background:var(--sh-sel);color:#1e4f91}
+.sh-line{display:inline-block;width:18px;border-top:1px solid currentColor}
+.sh-line-medium{border-top-width:2px}.sh-line-double{border-top:3px double currentColor;height:0}
+.sh-fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--sh-mute);margin:8px 0}
+.sh-fld input,.sh-fld select{height:30px;border:1px solid var(--sh-line);border-radius:6px;padding:0 8px;background:#fff;color:var(--sh-ink);font:inherit;font-size:13px}
+.sh-fld input[aria-invalid=true]{border-color:#b42318}
+.sh-err{margin:0;min-height:14px;font-size:11.5px;color:#b42318}
+.sh-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sh-two[hidden],.sh-dialog [hidden]{display:none}
+.sh-dialog{border:1px solid var(--sh-line);border-radius:12px;padding:0;width:min(440px,calc(100vw - 24px));box-shadow:0 20px 50px rgba(16,24,40,.25)}
+.sh-dialog::backdrop{background:rgba(16,24,40,.32)}
+.sh-dialog form{padding:18px 20px}
+.sh-dialog h2{font-size:16px;margin:0 0 10px}
+.sh-radios{border:0;padding:0;margin:0 0 6px;display:flex;gap:16px;flex-wrap:wrap}
+.sh-radios legend{font-size:12px;color:var(--sh-mute);padding:0;margin-bottom:6px}
+.sh-chk,.sh-dialog label.sh-chk{display:flex;flex-direction:row;gap:6px;align-items:center;font-size:13px}
+.sh-dialog .sh-fld label{display:block}
+.sh-actions{display:flex;gap:6px;margin-top:14px;align-items:center}
 @media (max-width:719.98px){
   .sh-only-narrow{display:inline-flex!important}
   .sh-menubar,.sh-wide{display:none!important}
@@ -64,4 +101,4 @@
   /* Visually hidden, still the accessible name. */
   .sh-row .sh-t .sh-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 }
-@media print{.sh-root,.sh-pop{display:none!important}}
+@media print{.sh-root,.sh-pop,.sh-dialog{display:none!important}}

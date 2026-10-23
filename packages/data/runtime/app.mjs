@@ -2,6 +2,7 @@ import { setupConditionalSettings } from "./conditional-settings.mjs";
 import { createConditionalDecorator } from "./conditional.mjs";
 import { createCommands } from "./commands.mjs";
 import { mountShell } from "./shell.mjs";
+import { setupFormatting } from "./formatting.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
@@ -22,7 +23,12 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
-import { applyLinkEdits, FONTS } from "../model/formatting.mjs";
+import {
+  applyLinkEdits,
+  FONTS,
+  validateAxes,
+  validateSheetLinks,
+} from "../model/formatting.mjs";
 import { groupView } from "../model/organization.mjs";
 const $ = (id) => document.getElementById(id);
 const commands = createCommands();
@@ -123,6 +129,29 @@ const grid = createGrid($("grid"), {
     $("cell-value").focus();
     if (initial === undefined) $("cell-value").select();
   },
+  // Copy style paints on Enter; Escape cancels it.
+  intercept: (event) => {
+    if (!formatting.painting()) return false;
+    if (event.key === "Enter") formatting.paint();
+    else if (event.key === "Escape") formatting.cancelPainter();
+    else return false;
+    commands.changed();
+    event.preventDefault();
+    return true;
+  },
+  onSelectEnd: (event, ref, moved) => {
+    if (formatting.painting()) {
+      formatting.paint();
+      return void commands.changed();
+    }
+    const link = book.sheets.find((s) => s.id === sheetId).links?.[ref];
+    if (!link || moved || event.shiftKey) return;
+    if (event.metaKey || event.ctrlKey) formatting.openLink(link);
+    else shell.showLink($(`grid-${ref}`), link);
+  },
+  onContextMenu: ({ kind, element }) => shell.contextMenu(kind, element),
+  onResize: (column, width) => formatting.columnWidth(width, column),
+  onAutoFit: (column) => formatting.autoFit(column),
 });
 function choose(ref, updateGrid = true) {
   if (updateGrid) grid.select(ref, { notify: false });
@@ -243,7 +272,9 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
       linkEdits = edits.some((edit) => edit.link !== undefined),
-      headBefore = linkEdits ? captureHead(book) : undefined,
+      wrapped = formatting.wrappedRows(book, edits),
+      headChange = linkEdits || wrapped.size > 0,
+      headBefore = headChange ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
     for (const edit of edits) {
@@ -261,7 +292,9 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
           edits.filter((edit) => edit.sheetId === sheet.id),
         ),
       );
-    const headAfter = linkEdits ? captureHead(book) : undefined;
+    // Wrapped cells resize their rows in the same history entry.
+    if (wrapped.size) book = formatting.withRowHeights(book, wrapped);
+    const headAfter = headChange ? captureHead(book) : undefined;
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
@@ -281,12 +314,12 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     }
     persistence.changed(
       cellEdits(refs),
-      linkEdits ? { head: headAfter } : undefined,
+      headChange ? { head: headAfter } : undefined,
     );
     history.record({
       before,
       after: captureCells(book, refs),
-      ...(linkEdits ? { headBefore, headAfter } : {}),
+      ...(headChange ? { headBefore, headAfter } : {}),
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,
@@ -370,10 +403,20 @@ $("cell-value").addEventListener("input", () => {
   if ($("cell-type").value === "blank" && $("cell-value").value)
     $("cell-type").value = inferType($("cell-value").value);
 });
+// The name box takes a cell or a range (B4 or B4:D20, active cell first).
 $("cell-address").addEventListener("change", () => {
   try {
-    parseAddress($("cell-address").value);
-    choose($("cell-address").value);
+    const text = $("cell-address").value.trim().toUpperCase();
+    if (text.includes(":")) {
+      const [from, to] = text.split(":");
+      parseAddress(from);
+      parseAddress(to);
+      grid.selectRange(to, from);
+      choose(from, false);
+    } else {
+      parseAddress(text);
+      choose(text);
+    }
   } catch (error) {
     status(error.message);
   }
@@ -574,21 +617,25 @@ async function moveHistory(direction) {
     }
   }
 }
-function formatSelection(transform) {
-  if (loading) return;
+// Publishes an engine-free presentation change as one history entry: cell
+// transforms over refs of the current sheet and, optionally, new fields for
+// that sheet (row/column styles and sizes, links).
+function publishPresentation({
+  refs = [],
+  transform = (cell) => cell,
+  sheetPatch,
+  label = "Formatting",
+}) {
+  if (loading) return false;
   try {
     const sheet = book.sheets.find((s) => s.id === sheetId),
-      r = grid.selection;
-    if ((r.bottom - r.top + 1) * (r.right - r.left + 1) > 2000000)
-      throw new Error("Formatting rectangle exceeds 2,000,000 cells");
-    const edits = [];
-    for (let row = r.top; row <= r.bottom; row++)
-      for (let col = r.left; col <= r.right; col++) {
-        const ref = address(row, col),
-          cell = transform(sheet.cells[ref] ?? {});
-        validateCell(cell, book);
-        edits.push({ sheetId, ref, cell });
-      }
+      r = grid.selection,
+      edits = [];
+    for (const ref of refs) {
+      const cell = transform(sheet.cells[ref] ?? {}, ref);
+      validateCell(cell, book);
+      edits.push({ sheetId, ref, cell });
+    }
     // A pending (uncalculated) attempt receives the same formatting change
     // applied to its own fields, so its pasted style or link is never replaced.
     const targets = new Set(edits.map((e) => e.ref)),
@@ -599,29 +646,59 @@ function formatSelection(transform) {
             attempt.cell !== null &&
             targets.has(attempt.ref),
         )
-        .map((attempt) => [attempt, transform(attempt.cell)]);
+        .map((attempt) => [attempt, transform(attempt.cell, attempt.ref)]);
     for (const [, cell] of pending) validateCell(cell, book);
+    let next = null;
+    if (sheetPatch) {
+      next = { ...sheet };
+      for (const [key, value] of Object.entries(sheetPatch(sheet)))
+        if (value === undefined) delete next[key];
+        else next[key] = value;
+      validateAxes(next);
+      validateSheetLinks(next, new Set(book.sheets.map((s) => s.id)));
+    }
     const before = captureCells(book, edits),
+      headBefore = next ? captureHead(book) : undefined,
       selection = { sheetId, ...r };
+    if (next)
+      book = {
+        ...book,
+        sheets: book.sheets.map((s) => (s.id === sheetId ? next : s)),
+      };
+    const cells = (next ?? sheet).cells;
     for (const edit of edits) {
       // Clearing leaves no empty cell entry behind.
-      if (Object.keys(edit.cell).length) sheet.cells[edit.ref] = edit.cell;
-      else delete sheet.cells[edit.ref];
-      touchPreview(sheet.cells, edit.ref);
+      if (Object.keys(edit.cell).length) cells[edit.ref] = edit.cell;
+      else delete cells[edit.ref];
+      touchPreview(cells, edit.ref);
     }
     for (const [attempt, cell] of pending) attempt.cell = cell;
+    const headAfter = next ? captureHead(book) : undefined;
     history.record({
       before,
       after: captureCells(book, edits),
+      ...(next ? { headBefore, headAfter } : {}),
       snapshotBefore: book.snapshot,
       snapshotAfter: book.snapshot,
       selectionBefore: selection,
       selectionAfter: selection,
       calculate: false,
     });
-    persistence.changed(cellEdits(edits));
+    persistence.changed(
+      cellEdits(edits),
+      next ? { head: headAfter } : undefined,
+    );
     render();
-    status("Formatting changed. Unsaved changes.");
+    status(`${label} changed. Unsaved changes.`);
+    return true;
+  } catch (error) {
+    status(`${label} not applied: ${error.message}`);
+    return false;
+  }
+}
+function formatSelection(transform) {
+  try {
+    return publishPresentation({ refs: formatting.targetRefs(), transform });
   } catch (error) {
     status(`Formatting not applied: ${error.message}`);
   }
@@ -870,10 +947,52 @@ register("decimals-less", () => changeDecimals(-1));
 register("cell-style", (cellStyle) =>
   formatSelection((cell) => ({ ...cell, cellStyle })),
 );
-// Clears cell style, number format and direct formatting; values stay.
-register("clear-formatting", () =>
-  formatSelection(({ cellStyle, format, style, ...cell }) => cell),
+// Clears cell style, number format and direct formatting (and row or column
+// styles for whole rows or columns); values, links and sizes stay.
+register("clear-formatting", () => formatting.clear());
+const formatting = setupFormatting({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  grid,
+  busy: () => !!loading,
+  status,
+  publish: publishPresentation,
+  // Internal links select their target sheet and range.
+  locate: (target, range) => {
+    if (!book.sheets.some((s) => s.id === target))
+      return status("This link's sheet no longer exists.");
+    sheetId = target;
+    render();
+    grid.selectRange(
+      address(range.bottom, range.right),
+      address(range.top, range.left),
+    );
+    choose(grid.selection.focus, false);
+    $("grid").focus();
+  },
+});
+for (const name of ["bold", "italic"])
+  register(name, () => formatting.toggle(name));
+register("text-color", (token) => formatting.color("text", token));
+register("fill-color", (token) => formatting.color("fill", token));
+register("borders", (spec) => formatting.borders(spec));
+register("align", (value) => formatting.align(value));
+register("wrap", () => formatting.wrap());
+register("column-width", (px) => formatting.columnWidth(px));
+register("auto-fit", () => formatting.autoFit());
+register("copy-style", () => {
+  formatting.startPainter();
+  commands.changed();
+});
+register("link", (link) =>
+  formatting.setLink(grid.selection.focus, link ?? null),
 );
+register("open-link", () => {
+  const link = book.sheets.find((s) => s.id === sheetId).links?.[
+    grid.selection.focus
+  ];
+  if (link) formatting.openLink(link);
+});
 register("conditional-formatting", () => conditionalSettings.open());
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
@@ -898,7 +1017,7 @@ register(
   () => true,
 );
 // Mounted after persistence fingerprints the opened file's shell.
-mountShell({
+const shell = mountShell({
   commands,
   state: () => {
     const cell = selectedCell(),
@@ -912,6 +1031,17 @@ mountShell({
           .find((part) => part.type === "currency")?.value ?? currency,
       gridLines,
       busy: !!loading,
+      style: formatting.current(),
+      painting: formatting.painting(),
+      link:
+        book.sheets.find((s) => s.id === sheetId).links?.[
+          grid.selection.focus
+        ] ?? null,
+      sheetId,
+      sheets: book.sheets.map((s) => ({ id: s.id, name: s.name })),
+      columnWidth: formatting.widthOf(
+        parseAddress(grid.selection.focus).column,
+      ),
       groups: groupView(book).map((group) => ({
         name: group.name,
         sheets: group.sheetIds.map((id) => ({

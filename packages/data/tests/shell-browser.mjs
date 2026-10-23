@@ -29,24 +29,24 @@ const MENUS = {
     "Paste table…",
     "Fill down",
     "Fill right",
+    "Copy style",
     "Delete rows",
     "Delete columns",
     "Clear formatting",
   ],
-  Insert: ["Insert rows", "Insert columns", "New sheet…"],
+  Insert: ["Insert rows", "Insert columns", "Link…", "New sheet…"],
   Format: [
-    "General",
-    "Number",
-    "Currency",
-    "Accounting",
-    "Percent",
-    "Short date",
-    "Long date",
-    "Thousands (k)",
-    "Millions (M)",
-    "Negative in parentheses",
-    "Negative in red",
-    "More number formats…",
+    "Bold",
+    "Italic",
+    "Text colour…",
+    "Fill colour…",
+    "Borders…",
+    "Align left",
+    "Align centre",
+    "Align right",
+    "Centre across selection",
+    "Wrap text",
+    "Number format…",
     "Increase decimal places",
     "Decrease decimal places",
     "Normal",
@@ -60,6 +60,8 @@ const MENUS = {
     "Note",
     "Alert",
     "Hyperlink",
+    "Column width…",
+    "Auto-fit column width",
     "Conditional formatting…",
     "Clear formatting",
   ],
@@ -144,8 +146,9 @@ try {
     await toolbar.getByRole("button", { name: "Clear formatting" }).focus();
     await page.keyboard.press("End");
     assert.equal(await active(page), "Grid lines");
+    // Home reaches the first enabled command (Undo and Redo have no history).
     await page.keyboard.press("Home");
-    assert.equal(await active(page), "Clear formatting");
+    assert.equal(await active(page), "Copy style");
     // Engine-free formatting from the toolbar, menu buttons and menus.
     await page.locator('#grid [data-cell="B2"]').click();
     await toolbar

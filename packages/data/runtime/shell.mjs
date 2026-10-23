@@ -4,7 +4,19 @@
 import { h, button, icon } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group, spacer } from "../../shared/shell/toolbar.mjs";
-import { closePopover } from "../../shared/shell/popover.mjs";
+import {
+  closePopover,
+  openPopover,
+  openPopoverState,
+} from "../../shared/shell/popover.mjs";
+import { openMenu } from "../../shared/shell/menu.mjs";
+import { openSwatches, openBorders } from "../../shared/shell/pickers.mjs";
+import {
+  modal,
+  field,
+  linkDialog,
+  dialogOpen,
+} from "../../shared/shell/dialogs.mjs";
 
 const STYLES = [
   ["normal", "Normal"],
@@ -48,6 +60,12 @@ const formatName = (format) =>
     (f) => f !== "-" && f[1].kind === (format?.kind ?? "general"),
   )[0];
 const styleName = (id) => STYLES.find(([v]) => v === id)?.[1] ?? id;
+const ALIGN = [
+  ["left", "Align left", "alignL"],
+  ["center", "Align centre", "alignC"],
+  ["right", "Align right", "alignR"],
+  ["centerContinuous", "Centre across selection", "across"],
+];
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k, shift) => `${mac ? "⌘" : "Ctrl+"}${shift ? "Shift+" : ""}${k}`;
 
@@ -63,6 +81,213 @@ export function mountShell({ commands, state }) {
     onSelect: run(id, ...(extra.args ?? [])),
     ...extra,
   });
+  // ---- pickers and dialogs the toolbar and menus share ----
+  const ui = { border: { style: "thin", color: "ink" } };
+  function colourButton(kind) {
+    const fill = kind === "fill",
+      label = fill ? "Fill colour" : "Text colour",
+      bar = h("span", { class: "sh-swbar" }),
+      b = h(
+        "button",
+        {
+          type: "button",
+          class: "sh-b sh-colour",
+          "aria-label": label,
+          title: label,
+          "aria-haspopup": "dialog",
+          "aria-expanded": "false",
+          onclick: () => pickColour(kind),
+        },
+        fill ? icon("fill") : h("span", { class: "sh-g" }, h("b", {}, "A")),
+        bar,
+      );
+    b.bar = bar;
+    return b;
+  }
+  // Menus open the same pickers, anchored to their toolbar button.
+  function anchor(b) {
+    b.scrollIntoView({ block: "nearest", inline: "nearest" });
+    return b;
+  }
+  function pickColour(kind) {
+    const fill = kind === "fill",
+      s = state().style;
+    openSwatches(
+      anchor(fill ? B.fill : B.color),
+      kind,
+      fill
+        ? s.fill === "catalogue"
+          ? "none"
+          : (s.fill ?? "none")
+        : (s.color ?? "ink"),
+      (token) => commands.run(fill ? "fill-color" : "text-color", token),
+    );
+  }
+  function pickBorders() {
+    openBorders(anchor(B.borders), ui.border, ({ preset, style, color }) =>
+      commands.run("borders", { preset, style, color }),
+    );
+  }
+  function editLink(opener) {
+    if (dialogOpen() || !commands.enabled("link")) return;
+    const s = state();
+    linkDialog({
+      sheets: s.sheets,
+      sheetId: s.sheetId,
+      initial: s.link,
+      opener: opener ?? document.activeElement,
+      onSave: (link) => commands.run("link", link),
+      onRemove: () => commands.run("link", null),
+    });
+  }
+  function columnWidth() {
+    if (dialogOpen() || !commands.enabled("column-width")) return;
+    const input = h("input", {
+        type: "number",
+        min: "8",
+        max: "2000",
+        value: String(state().columnWidth),
+      }),
+      apply = h(
+        "button",
+        { type: "button", class: "sh-b sh-t sh-primary" },
+        "Apply width",
+      );
+    const dialog = modal(
+      "Column width",
+      [field("Width in pixels", input)],
+      [
+        h("span", { class: "sh-spacer" }),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => dialog.close("cancel"),
+          },
+          "Cancel",
+        ),
+        apply,
+      ],
+    );
+    const check = () => {
+      const value = Number(input.value),
+        ok = Number.isInteger(value) && value >= 8 && value <= 2000;
+      input.setAttribute("aria-invalid", String(!ok));
+      input.closest(".sh-fld").querySelector(".sh-err").textContent = ok
+        ? ""
+        : "Enter a whole number of pixels from 8 to 2000.";
+      apply.disabled = !ok;
+      return ok;
+    };
+    input.addEventListener("input", check);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        apply.click();
+      }
+    });
+    apply.addEventListener("click", () => {
+      if (!check()) return;
+      dialog.close("apply");
+      commands.run("column-width", Number(input.value));
+    });
+    input.select();
+  }
+  // A linked cell clicked with the pointer shows its target and actions.
+  function showLink(element, link) {
+    if (!element) return;
+    const s = state(),
+      target = link.url
+        ? link.url
+        : `${s.sheets.find((x) => x.id === link.sheetId)?.name ?? "Missing sheet"}!${link.ref}`;
+    openPopover(
+      element,
+      [
+        h(
+          "p",
+          { class: "sh-pop-h" },
+          link.url ? "Link" : "Link to a place in this workbook",
+        ),
+        h("p", { class: "sh-link-target" }, target),
+        h(
+          "div",
+          { class: "sh-prow" },
+          h(
+            "button",
+            {
+              type: "button",
+              class: "sh-b sh-t sh-ghost",
+              onclick: () => {
+                closePopover({ restore: false });
+                commands.run("open-link");
+              },
+            },
+            link.url ? "Open link" : "Go to",
+          ),
+          h(
+            "button",
+            {
+              type: "button",
+              class: "sh-b sh-t sh-ghost",
+              onclick: () => editLink(document.getElementById("grid")),
+            },
+            "Edit link…",
+          ),
+          h(
+            "button",
+            {
+              type: "button",
+              class: "sh-b sh-t sh-ghost",
+              onclick: () => {
+                closePopover({ restore: false });
+                commands.run("link", null);
+                document.getElementById("grid").focus();
+              },
+            },
+            "Remove link",
+          ),
+        ),
+      ],
+      { label: "Link", cls: "sh-pop-link", focus: false },
+    );
+  }
+  // Row, column and cell context menus (pointer or Shift+F10).
+  function contextMenu(kind, element) {
+    const rows = [
+        item("Insert rows", "insert-rows"),
+        item("Delete rows", "delete-rows"),
+      ],
+      columns = [
+        item("Insert columns", "insert-columns"),
+        item("Delete columns", "delete-columns"),
+      ],
+      width = [
+        item("Column width…", "column-width", { onSelect: columnWidth }),
+        item("Auto-fit column width", "auto-fit"),
+      ],
+      common = [
+        item("Copy style", "copy-style"),
+        item("Clear formatting", "clear-formatting"),
+      ];
+    const items =
+      kind === "row"
+        ? [...rows, "-", ...common]
+        : kind === "column"
+          ? [...columns, "-", ...width, "-", ...common]
+          : [
+              ...rows,
+              ...columns,
+              "-",
+              item("Link…", "link", { onSelect: () => editLink(element) }),
+              ...(state().link ? [item("Open link", "open-link")] : []),
+              "-",
+              ...common,
+            ];
+    openMenu(element, items, {
+      label: `${kind === "cell" ? "Cell" : kind === "row" ? "Row" : "Column"} menu`,
+    });
+  }
   const formatItems = () => {
     const current = formatName(state().format);
     return [
@@ -105,6 +330,7 @@ export function mountShell({ commands, state }) {
         item("Paste table…", "paste-table"),
         item("Fill down", "fill-down"),
         item("Fill right", "fill-right"),
+        item("Copy style", "copy-style"),
         "-",
         item("Delete rows", "delete-rows"),
         item("Delete columns", "delete-columns"),
@@ -118,23 +344,51 @@ export function mountShell({ commands, state }) {
         item("Insert rows", "insert-rows"),
         item("Insert columns", "insert-columns"),
         "-",
+        item("Link…", "link", { shortcut: key("K"), onSelect: editLink }),
         item("New sheet…", "new-sheet"),
       ],
     },
     {
       name: "Format",
-      items: () => [
-        { heading: "Number format" },
-        ...formatItems(),
-        item("Increase decimal places", "decimals-more"),
-        item("Decrease decimal places", "decimals-less"),
-        "-",
-        { heading: "Cell style" },
-        ...styleItems(),
-        "-",
-        item("Conditional formatting…", "conditional-formatting"),
-        item("Clear formatting", "clear-formatting"),
-      ],
+      items: () => {
+        const s = state().style;
+        return [
+          item("Bold", "bold", { shortcut: key("B"), checked: !!s.bold }),
+          item("Italic", "italic", {
+            shortcut: key("I"),
+            checked: !!s.italic,
+          }),
+          "-",
+          item("Text colour…", "text-color", {
+            onSelect: () => pickColour("text"),
+          }),
+          item("Fill colour…", "fill-color", {
+            onSelect: () => pickColour("fill"),
+          }),
+          item("Borders…", "borders", { onSelect: pickBorders }),
+          "-",
+          ...ALIGN.map(([value, label]) =>
+            item(label, "align", {
+              args: [value],
+              checked: s.align?.horizontal === value,
+            }),
+          ),
+          item("Wrap text", "wrap", { checked: !!s.align?.wrap }),
+          "-",
+          item("Number format…", "number-format-dialog"),
+          item("Increase decimal places", "decimals-more"),
+          item("Decrease decimal places", "decimals-less"),
+          "-",
+          { heading: "Cell style" },
+          ...styleItems(),
+          "-",
+          item("Column width…", "column-width", { onSelect: columnWidth }),
+          item("Auto-fit column width", "auto-fit"),
+          "-",
+          item("Conditional formatting…", "conditional-formatting"),
+          item("Clear formatting", "clear-formatting"),
+        ];
+      },
     },
     {
       name: "Data",
@@ -213,7 +467,12 @@ export function mountShell({ commands, state }) {
       }),
     ),
     group(
-      "Clear",
+      "Clipboard",
+      (B.painter = button({
+        label: "Copy style",
+        ic: "painter",
+        onClick: run("copy-style"),
+      })),
       add("clear-formatting", { label: "Clear formatting", ic: "eraser" }),
     ),
     group(
@@ -232,7 +491,63 @@ export function mountShell({ commands, state }) {
     ),
     group("Cell style", B.cellStyle),
     group(
+      "Emphasis",
+      add("bold", {
+        label: "Bold",
+        glyph: "<b>B</b>",
+        pressed: false,
+        title: `Bold (${key("B")})`,
+      }),
+      add("italic", {
+        label: "Italic",
+        glyph: "<i>I</i>",
+        pressed: false,
+        title: `Italic (${key("I")})`,
+      }),
+    ),
+    group(
+      "Colour",
+      (B.color = colourButton("text")),
+      (B.fill = colourButton("fill")),
+    ),
+    group(
+      "Borders",
+      (B.borders = h(
+        "button",
+        {
+          type: "button",
+          class: "sh-b",
+          "aria-label": "Borders",
+          title: "Borders",
+          "aria-haspopup": "dialog",
+          "aria-expanded": "false",
+          onclick: () => pickBorders(),
+        },
+        icon("borders"),
+        icon("caret", "sh-ic sh-car"),
+      )),
+    ),
+    group(
+      "Alignment",
+      ...ALIGN.map(
+        ([value, label, ic]) =>
+          (B[`align-${value}`] = button({
+            label,
+            ic,
+            pressed: false,
+            onClick: run("align", value),
+          })),
+      ),
+      add("wrap", { label: "Wrap text", ic: "wrap", pressed: false }),
+    ),
+    group(
       "Rules and view",
+      (B.link = button({
+        label: "Link",
+        ic: "link",
+        title: `Link (${key("K")})`,
+        onClick: () => editLink(),
+      })),
       add("conditional-formatting", {
         label: "Conditional formatting",
         ic: "condfmt",
@@ -289,6 +604,28 @@ export function mountShell({ commands, state }) {
     B.numberFormat.setAttribute("aria-label", `Number format: ${format}`);
     B.cellStyle.querySelector(".sh-lbl").textContent = style;
     B.cellStyle.setAttribute("aria-label", `Cell style: ${style}`);
+    // Pressed states and swatch bars follow the active cell.
+    const look = s.style;
+    B.bold.setAttribute("aria-pressed", String(!!look.bold));
+    B.italic.setAttribute("aria-pressed", String(!!look.italic));
+    B.wrap.setAttribute("aria-pressed", String(!!look.align?.wrap));
+    for (const [value] of ALIGN) {
+      const b = B[`align-${value}`];
+      b.setAttribute("aria-pressed", String(look.align?.horizontal === value));
+      b.disabled = !commands.enabled("align");
+    }
+    for (const b of [B.color, B.fill, B.borders])
+      b.disabled = !commands.enabled("borders");
+    B.color.bar.style.background = `var(--${look.color ?? "ink"})`;
+    B.fill.bar.style.background =
+      !look.fill || ["none", "catalogue"].includes(look.fill)
+        ? "transparent"
+        : look.fill === "tint"
+          ? "var(--callout)"
+          : `var(--${look.fill === "dark" ? "ink" : look.fill})`;
+    B.painter.setAttribute("aria-pressed", String(s.painting));
+    B.painter.disabled = !commands.enabled("copy-style");
+    B.link.disabled = !commands.enabled("link");
     bar.refresh(focused);
   }
   commands.subscribe(sync);
@@ -306,11 +643,21 @@ export function mountShell({ commands, state }) {
   // Shortcuts that belong to the shell; the grid keeps its own.
   document.addEventListener("keydown", (event) => {
     if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-    if (event.key.toLowerCase() === "s" && !event.shiftKey) {
+    const k = event.key.toLowerCase();
+    if (k === "s" && !event.shiftKey) {
       event.preventDefault();
       closePopover({ restore: false });
       commands.run("save");
+    } else if ((k === "b" || k === "i") && !event.shiftKey && !dialogOpen()) {
+      event.preventDefault();
+      commands.run(k === "b" ? "bold" : "italic");
+    } else if (k === "k" && !event.shiftKey) {
+      // A shortcut that opens a dialog closes any open popover first.
+      event.preventDefault();
+      if (openPopoverState()) closePopover({ restore: false });
+      editLink();
     }
   });
   sync();
+  return { showLink, contextMenu };
 }
