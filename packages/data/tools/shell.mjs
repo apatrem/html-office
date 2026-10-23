@@ -31,7 +31,8 @@ export const formulaBarHTML = `<div class="sh-root formula-bar" role="group" ari
 <div class="calc"><span id="calc-state" data-tone="busy">Checking…</span><button id="cancel" type="button" class="sh-b sh-t" hidden disabled>Cancel calculation</button><button id="retry-range" type="button" class="sh-b sh-t" hidden>Retry pending range</button></div>
 </div>`;
 
-export const sheetBarHTML = `<div class="sh-root sheet-bar"><span id="sheet-actions" class="sheet-actions-bar" data-shell-mount></span><nav id="sheet-tabs" aria-label="Sheets"></nav><select id="sheet-select" aria-label="Sheet"></select></div>`;
+export const sheetBarHTML = `<div class="sh-root sheet-bar"><span id="sheet-actions" class="sheet-actions-bar" data-shell-mount></span><nav id="sheet-tabs" aria-label="Sheets"></nav><select id="sheet-select" aria-label="Sheet"></select><span id="sheet-end" class="sheet-end" data-shell-mount></span></div>
+<div id="shell-drawer" data-shell-mount></div>`;
 
 export const numberDialogHTML = `<dialog id="number-dialog" aria-labelledby="number-title"><h2 id="number-title">More number formats</h2><p id="number-context"></p>
 <div class="dialog-fields"><label>Number format<select id="format-kind" aria-label="Number format">${options(

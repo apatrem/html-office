@@ -116,7 +116,7 @@ Structural input movement is lossless: an insertion that would push populated ce
 - links (`Ctrl/Cmd+K`) are stored in `links`; a click shows the target, Ctrl/Cmd-click opens a web link in a new tab with `noopener`, and an internal link selects its range;
 - Clear formatting removes `cellStyle`, `format` and `style` (and row or column styles for whole rows or columns), keeping values, links and widths.
 
-Panels and theme switching follow separately (F05, TH01–TH02).
+**Panels (F05) and built-in chartes (TH01).** The Styles toolbar toggle and Format › Cell styles… open the fixed catalogue; the sheet bar's settings button and File › Document settings… open the theme and font pickers; File › Regional settings… sets the display `locale`. Panels open on the right (a bottom sheet below 720 px), one at a time. `theme` selects one of four built-in chartes embedded in the editor (blue is the html-slides default; red, green and black are checked for contrast), applied as an overlay; the document's `style#charte` is never rewritten and "Document charte" removes the field. `font` picks one of six fonts for the whole grid; "Charte font" removes it. Each change is one undoable entry and needs no network.
 
 ## Sheet navigation
 

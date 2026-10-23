@@ -83,12 +83,12 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 ## TH — Shared themes and document font
 
-**TH01 — Built-in chartes.** Scope S.
+**TH01 — Built-in chartes — implemented with Data F05 in [`packages/shared/themes/chartes.mjs`](../packages/shared/themes/chartes.mjs).** Scope S. Blue is the Slides default; two of its pairs are below 4.5:1 (white on `mid` 4.29, alert on assumption 4.30) and are recorded in the test rather than changed for every product.
 - Design the blue (current default), red, green and black (greyscale, single alert colour) chartes.
 - Each defines every charte token, including chart palette and Data role tokens, with checked contrast (text on fills, white on dark fills).
 
 **TH02 — Theme and font settings per product.** Scope M each.
-- Data: workbook `theme` and `font` with overlay rendering, undo, guide and tests.
+- Data: workbook `theme` and `font` with overlay rendering, undo, guide and tests — implemented with F05.
 - Slides: `data-theme` and `data-font`, body font only.
 - Text: the same as Slides, when its editor exists.
 

@@ -11,6 +11,13 @@ import {
   openPopoverState,
 } from "../../shared/shell/popover.mjs";
 import { openMenu } from "../../shared/shell/menu.mjs";
+import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
+import {
+  cellStylesBody,
+  documentBody,
+  regionalBody,
+  LOCALES,
+} from "../../shared/shell/panels.mjs";
 import { openSwatches, openBorders } from "../../shared/shell/pickers.mjs";
 import {
   modal,
@@ -82,6 +89,82 @@ export function mountShell({ commands, state }) {
     onSelect: run(id, ...(extra.args ?? [])),
     ...extra,
   });
+  // ---- side panels (ADR-011 §7): one at a time, over the canvas ----
+  const drawer = createDrawer($("shell-drawer"));
+  const panels = {
+    styles: () => ({
+      title: "Cell styles",
+      subtitle: `Selection ${state().address}`,
+      body: () =>
+        cellStylesBody({
+          current: state().cellStyle,
+          onApply: (id) => commands.run("cell-style", id),
+          extra: h(
+            "div",
+            { class: "sh-prow" },
+            button({
+              label: "Clear formatting",
+              ic: "eraser",
+              text: "Clear formatting",
+              cls: "sh-ghost",
+              onClick: run("clear-formatting"),
+            }),
+            button({
+              label: "Copy style",
+              ic: "painter",
+              text: "Copy style",
+              cls: "sh-ghost",
+              onClick: run("copy-style"),
+            }),
+          ),
+        }),
+    }),
+    settings: () => ({
+      title: "Document settings",
+      subtitle: "Theme and font apply to the whole workbook",
+      body: () =>
+        documentBody({
+          theme: state().theme,
+          font: state().font,
+          documentColours: state().documentColours,
+          onTheme: (theme) => commands.run("theme", theme),
+          onFont: (font) => commands.run("font", font),
+          fontNote: "Applies to the whole grid; one size for every cell.",
+          extra: [
+            h("h3", {}, "Regional"),
+            h(
+              "p",
+              { class: "sh-hint" },
+              `Locale: ${LOCALES.find(([v]) => v === state().locale)?.[1] ?? state().locale}`,
+            ),
+            h(
+              "div",
+              { class: "sh-prow" },
+              button({
+                label: "Regional settings…",
+                ic: "globe",
+                text: "Regional settings…",
+                cls: "sh-ghost",
+                onClick: () => openPanel("regional"),
+              }),
+            ),
+          ],
+        }),
+    }),
+    regional: () => ({
+      title: "Regional settings",
+      subtitle: "Display of numbers and dates",
+      body: () =>
+        regionalBody({
+          locale: state().locale,
+          onSave: (locale) => commands.run("locale", locale),
+        }),
+    }),
+  };
+  function openPanel(id, trigger) {
+    closePopover({ restore: false });
+    drawer.open(id, { ...panels[id](), trigger });
+  }
   // ---- pickers and dialogs the toolbar and menus share ----
   const ui = { border: { style: "thin", color: "ink" } };
   function colourButton(kind) {
@@ -333,6 +416,13 @@ export function mountShell({ commands, state }) {
       items: () => [
         item("Save", "save", { shortcut: key("S") }),
         item("Save a copy", "save-copy"),
+        "-",
+        item("Document settings…", "theme", {
+          onSelect: () => openPanel("settings"),
+        }),
+        item("Regional settings…", "locale", {
+          onSelect: () => openPanel("regional"),
+        }),
       ],
     },
     {
@@ -393,8 +483,9 @@ export function mountShell({ commands, state }) {
           item("Increase decimal places", "decimals-more"),
           item("Decrease decimal places", "decimals-less"),
           "-",
-          { heading: "Cell style" },
-          ...styleItems(),
+          item("Cell styles…", "cell-style", {
+            onSelect: () => openPanel("styles"),
+          }),
           "-",
           item("Column width…", "column-width", { onSelect: columnWidth }),
           item("Auto-fit column width", "auto-fit"),
@@ -574,8 +665,38 @@ export function mountShell({ commands, state }) {
       })),
     ),
     spacer(),
+    group(
+      "Panels",
+      (B.stylesPanel = drawer.toggle(
+        button({ label: "Styles", ic: "styles", text: "Styles" }),
+        "styles",
+        panels.styles,
+      )),
+    ),
   );
   $("shell-toolbar").replaceChildren(bar);
+  // The document-settings button ends the sheet bar (variant A).
+  $("sheet-end").replaceChildren(
+    (B.settings = drawer.toggle(
+      button({ label: "Document settings", ic: "sliders", cls: "sh-sm" }),
+      "settings",
+      panels.settings,
+    )),
+  );
+  // Panels open between the formula bar and the sheet bar.
+  const top = () => {
+    const root = document.documentElement.style;
+    root.setProperty(
+      "--sh-top",
+      `${Math.round(document.querySelector(".formula-bar").getBoundingClientRect().bottom)}px`,
+    );
+    root.setProperty(
+      "--sh-bottom",
+      `${Math.round(innerHeight - document.querySelector(".sheet-bar").getBoundingClientRect().top)}px`,
+    );
+  };
+  new ResizeObserver(top).observe(document.querySelector(".app"));
+  top();
 
   // Sheet bar actions: new sheet and the list of all sheets.
   const sheetMenu = () => [
@@ -637,6 +758,24 @@ export function mountShell({ commands, state }) {
         : look.fill === "tint"
           ? "var(--callout)"
           : `var(--${look.fill === "dark" ? "ink" : look.fill})`;
+    // An open panel follows the selection, undo and other changes.
+    const open = drawer.current();
+    if (open === "styles") {
+      const sub = drawer.host.querySelector(".sh-ph p");
+      if (sub) sub.textContent = `Selection ${s.address}`;
+      for (const tile of drawer.host.querySelectorAll(
+        ".sh-style-grid > button",
+      ))
+        tile.setAttribute(
+          "aria-checked",
+          String(tile.dataset.value === s.cellStyle),
+        );
+    } else if (open === "settings") {
+      for (const b of drawer.host.querySelectorAll(".sh-themes > button"))
+        b.setAttribute("aria-checked", String(b.dataset.value === s.theme));
+      for (const b of drawer.host.querySelectorAll(".sh-fonts > button"))
+        b.setAttribute("aria-checked", String(b.dataset.value === s.font));
+    }
     B.painter.setAttribute("aria-pressed", String(s.painting));
     B.painter.disabled = !commands.enabled("copy-style");
     B.link.disabled = !commands.enabled("link");

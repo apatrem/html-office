@@ -270,6 +270,13 @@ export function setupPersistence({
     for (const mount of copy.querySelectorAll("[data-shell-mount]"))
       mount.replaceChildren();
     copy.querySelector("#grid")?.classList.remove("no-grid-lines");
+    // The theme is a workbook field, applied afresh on open.
+    copy.removeAttribute("data-theme");
+    // Layout measurements of the open shell are not part of the file.
+    copy.style.removeProperty("--sh-top");
+    copy.style.removeProperty("--sh-bottom");
+    if (!copy.getAttribute("style")) copy.removeAttribute("style");
+    copy.querySelector("body")?.classList.remove("sh-drawer-open");
     copy.querySelector("#status").textContent = "Checking saved results…";
     copy.querySelector("#save-status").textContent = "Saved file opened.";
     copy.querySelector("#recovery-message").textContent = "";

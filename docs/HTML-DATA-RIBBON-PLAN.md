@@ -141,7 +141,7 @@ Each task is a separate reviewable increment with the existing unit/browser/form
   - It brings file bar menus, header context menus, the scenario selector, and the formula bar and sheet bar.
   - The tabbed ribbon, its page-wide CSS and its tests are removed.
   - Formatting controls join only with their commands (F02/F03).
-- **F05 — Panels** (native shell panels, ADR-012). Cell-style catalogue (11 fixed styles, no editor), theme and font picker writing the workbook `theme` and `font`, regional settings.
+- **F05 — Panels** (implemented on `feature/data-f05-panels`, with TH01) (native shell panels, ADR-012). Cell-style catalogue (11 fixed styles, no editor), theme and font picker writing the workbook `theme` and `font`, regional settings.
 - **F06 — PNG.** Model-generated SVG of the selection rasterised to PNG, stale-result band and size limits.
 
 T15 import acceptance gains ADR-010 conversions: merges to `centerContinuous` or unmerge, number-format codes to presets, diagonal borders and unsupported alignment reported in diagnostics.

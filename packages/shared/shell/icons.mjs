@@ -40,5 +40,11 @@ export const ICONS = {
     '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M16.5 3.5v13"/>',
   bNone:
     '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/>',
+  styles:
+    '<rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1"/><rect x="11" y="3.5" width="5.5" height="5.5" rx="1" fill="currentColor"/><rect x="3.5" y="11" width="5.5" height="5.5" rx="1" fill="currentColor" opacity=".45"/><rect x="11" y="11" width="5.5" height="5.5" rx="1"/>',
+  sliders:
+    '<path d="M4 6h12M4 14h12"/><circle cx="8" cy="6" r="2" fill="var(--ui-bg)"/><circle cx="12.5" cy="14" r="2" fill="var(--ui-bg)"/>',
+  globe:
+    '<circle cx="10" cy="10" r="7"/><path d="M3 10h14"/><path d="M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3z"/>',
   plus: '<path d="M10 4v12M4 10h12"/>',
 };
