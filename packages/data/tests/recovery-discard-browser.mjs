@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { dataBarWorkbook } from "../fixtures/bars.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const source = await buildWorkbook(dataBarWorkbook(), { offline: true });
@@ -220,9 +221,7 @@ try {
         .waitFor();
       assert.equal(await page.evaluate(() => globalThis.discardWrites), 0);
       const waiting = page.waitForEvent("download");
-      await page
-        .getByRole("button", { name: "Save a copy", exact: true })
-        .click();
+      await command(page, "Save a copy");
       const saved = resolve(out, "recovery-failed-discard-protected-copy.html");
       await (await waiting).saveAs(saved);
       assert.equal(

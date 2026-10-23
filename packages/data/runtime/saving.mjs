@@ -266,6 +266,10 @@ export function setupPersistence({
     const copy = document.documentElement.cloneNode(true),
       modelText = writeModel(documentBook());
     copy.querySelector("#workbook").textContent = modelText;
+    // The shell is mounted afresh on every open; its view state is not saved.
+    for (const mount of copy.querySelectorAll("[data-shell-mount]"))
+      mount.replaceChildren();
+    copy.querySelector("#grid")?.classList.remove("no-grid-lines");
     copy.querySelector("#status").textContent = "Checking saved results…";
     copy.querySelector("#save-status").textContent = "Saved file opened.";
     copy.querySelector("#recovery-message").textContent = "";
@@ -284,7 +288,7 @@ export function setupPersistence({
       dialog.removeAttribute("open");
     return { html: "<!doctype html>\n" + copy.outerHTML, modelText };
   }
-  $("save").onclick = () => {
+  function saveCopy() {
     try {
       const { html } = capture(),
         url = URL.createObjectURL(
@@ -303,9 +307,9 @@ export function setupPersistence({
     } catch (error) {
       saveFeedback(`Copy failed: ${error.message}. Your work remains open.`);
     }
-  };
+  }
   $("direct-save").disabled = true;
-  $("direct-save").onclick = async () => {
+  async function saveDirect() {
     if (writer?.busy || !recoveryReady) return;
     $("direct-save").disabled = true;
     saveInProgress = true;
@@ -370,7 +374,8 @@ export function setupPersistence({
       saveInProgress = false;
       $("direct-save").disabled = !recoveryReady;
     }
-  };
+  }
+  $("direct-save").onclick = saveDirect;
   window.addEventListener("beforeunload", (event) => {
     if (dirty.dirty) {
       event.preventDefault();
@@ -380,6 +385,12 @@ export function setupPersistence({
   return {
     initialSnapshot,
     changed,
+    saveCopy,
+    saveDirect,
+    // The file bar's Save button carries the direct-save state.
+    get canSaveDirect() {
+      return !$("direct-save").disabled;
+    },
     refreshConditionalScales,
     reset() {
       dirty.change();

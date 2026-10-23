@@ -9,6 +9,7 @@ import {
   decodeWorkbook,
   safeJSON,
 } from "../bench/storage/encodings.mjs";
+import { command } from "./shell.mjs";
 const book = JSON.parse(
   await readFile(new URL("../fixtures/two-sheets.json", import.meta.url)),
 );
@@ -39,7 +40,7 @@ try {
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Save a copy" }).click();
+    await command(page, "Save a copy");
     const download = await downloadPromise;
     const saved = resolve(`dist/data-storage/${encoding}-saved.html`);
     await download.saveAs(saved);

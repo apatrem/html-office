@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const fixture = JSON.parse(
@@ -72,7 +73,7 @@ async function edit(page, value) {
 }
 async function copy(page, name) {
   const waiting = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const file = resolve(out, name);
   await (await waiting).saveAs(file);
   return readHTML(await readFile(file, "utf8")).book;
@@ -391,9 +392,7 @@ try {
         .getByText("Undo restored the previous workbook.", { exact: true })
         .waitFor();
     } else {
-      await page
-        .getByRole("button", { name: "Recalculate", exact: true })
-        .click();
+      await command(page, "Recalculate");
       await page
         .getByText("Calculated locally. Unsaved changes.", { exact: true })
         .waitFor();

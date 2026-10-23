@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readModel } from "../model/document.mjs";
+import { command } from "./shell.mjs";
 const output = resolve("dist/data-test");
 await mkdir(output, { recursive: true });
 const book = JSON.parse(
@@ -43,7 +44,7 @@ try {
   await page.goto(pathToFileURL(standard).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
   assert.equal(requests, 0, "viewing must not fetch engines");
-  await page.getByRole("button", { name: "More decimals" }).click();
+  await page.getByRole("button", { name: "Increase decimal places" }).click();
   assert.equal(requests, 0, "formatting must not fetch engines");
   await page.getByLabel("Cell value").fill("140");
   await page.getByRole("button", { name: "Apply edit" }).click();
@@ -54,7 +55,7 @@ try {
   await page.getByRole("button", { name: "Summary", exact: true }).click();
   assert.match(await page.locator('[data-cell="B2"]').textContent(), /3,500/);
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy" }).click();
+  await command(page, "Save a copy");
   const download = await downloadPromise;
   const saved = resolve(output, "saved.html");
   await download.saveAs(saved);

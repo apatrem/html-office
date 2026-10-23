@@ -10,6 +10,7 @@ import {
 } from "../tools/build.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
 import { fingerprint } from "../model/workbook.mjs";
+import { command, cellStyle } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const book = JSON.parse(
@@ -61,16 +62,15 @@ try {
   await select("B2");
   await page.locator("#grid").focus();
   await page.keyboard.press("Shift+ArrowRight");
-  await page
-    .getByLabel("Cell style", { exact: true })
-    .selectOption("assumption");
+  await cellStyle(page, "Assumption");
+  await command(page, "Number format");
   await page
     .getByLabel("Number format", { exact: true })
     .selectOption("currency");
   await page.getByLabel("Decimal places", { exact: true }).fill("3");
   await page.getByLabel("Currency code", { exact: true }).fill("USD");
   await page
-    .getByRole("button", { name: "Format selection", exact: true })
+    .getByRole("button", { name: "Apply number format", exact: true })
     .click();
   assert.match(
     await page.locator('[data-cell="C2"]').textContent(),
@@ -86,9 +86,10 @@ try {
     await page.locator('[data-cell="C2"]').textContent(),
     /-1\u202f234,568/,
   );
+  await command(page, "Number format");
   await page.getByLabel("Decimal places", { exact: true }).fill("16");
   await page
-    .getByRole("button", { name: "Format selection", exact: true })
+    .getByRole("button", { name: "Apply number format", exact: true })
     .click();
   await page
     .locator("#status")
@@ -100,7 +101,7 @@ try {
   );
   await page.screenshot({ path: resolve(out, "format.png"), fullPage: true });
   const wait = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy", exact: true }).click();
+  await command(page, "Save a copy");
   const saved = resolve(out, "format-saved.html");
   await (await wait).saveAs(saved);
   const result = readHTML(await readFile(saved, "utf8")).book;

@@ -4,6 +4,8 @@ Assessment tooling only; production Data sources are untouched. The report is [d
 
 ## Reproduce
 
+U04-Data replaced the Data ribbon with the shared shell in [`packages/shared/shell/`](../../packages/shared/shell/README.md), so `build.mjs` patches anchors that no longer exist. Reproduce the spike from commit `ca4aae6`, the last one before U04-Data.
+
 From the repository root, with the repository's Playwright Chromium:
 
 ```sh

@@ -117,7 +117,6 @@ export function setupClipboard({
     dialog.showModal();
     $("paste-text").focus();
   }
-  $("paste-table").onclick = () => open();
   for (const id of ["paste-text", "paste-typing", "paste-syntax"])
     $(id).addEventListener(id === "paste-text" ? "input" : "change", preview);
   $("paste-apply").onclick = async () => {
@@ -221,22 +220,22 @@ export function setupClipboard({
       status(`Paste failed: ${error.message}. Workbook unchanged.`);
     }
   });
-  for (const direction of ["down", "right"])
-    $("fill-" + direction).onclick = () => {
-      if (busy()) return;
-      try {
-        const r = getSelection(),
-          edits = fillRange(getSheet(), selection(), direction);
-        void commit(
-          edits.map((edit) => ({ ...edit, preserveFormat: false })),
-          {
-            sheetId: getSheet().id,
-            anchor: address(r.top, r.left),
-            focus: address(r.bottom, r.right),
-          },
-        );
-      } catch (error) {
-        status(`Fill failed: ${error.message}. Workbook unchanged.`);
-      }
-    };
+  function fill(direction) {
+    if (busy()) return;
+    try {
+      const r = getSelection(),
+        edits = fillRange(getSheet(), selection(), direction);
+      void commit(
+        edits.map((edit) => ({ ...edit, preserveFormat: false })),
+        {
+          sheetId: getSheet().id,
+          anchor: address(r.top, r.left),
+          focus: address(r.bottom, r.right),
+        },
+      );
+    } catch (error) {
+      status(`Fill failed: ${error.message}. Workbook unchanged.`);
+    }
+  }
+  return { open: () => open(), fill };
 }

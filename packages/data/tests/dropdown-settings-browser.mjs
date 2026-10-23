@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { scenarioWorkbook } from "../fixtures/scenarios.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
@@ -31,11 +32,8 @@ try {
   });
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-  await page
-    .getByRole("button", { name: "Dropdown settings", exact: true })
-    .click();
+  await command(page, "Dropdown settings");
   await page.getByLabel("Target range", { exact: true }).fill("H2");
   await page
     .getByLabel("List value type", { exact: true })
@@ -57,11 +55,8 @@ try {
     .waitFor();
   assert.equal(requests.length, 2);
   await context.setOffline(true);
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-  await page
-    .getByRole("button", { name: "Dropdown settings", exact: true })
-    .click();
+  await command(page, "Dropdown settings");
   await page.getByLabel("Use as scenario selector", { exact: true }).check();
   await page
     .getByRole("button", { name: "Save dropdown", exact: true })
@@ -103,7 +98,7 @@ try {
     .filter({ hasText: "Recovery stored" })
     .waitFor();
   const wait = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy", exact: true }).click();
+  await command(page, "Save a copy");
   const saved = resolve(out, "dropdown-settings-saved.html");
   await (await wait).saveAs(saved);
   const book = readHTML(await readFile(saved, "utf8")).book;
@@ -144,19 +139,13 @@ try {
   }
   async function copy(page, id) {
     const wait = page.waitForEvent("download");
-    await page
-      .getByRole("button", { name: "Save a copy", exact: true })
-      .click();
+    await command(page, "Save a copy");
     const file = resolve(out, `dropdown-settings-${id}-saved.html`);
     await (await wait).saveAs(file);
     return readHTML(await readFile(file, "utf8")).book;
   }
   async function openNew(page) {
-    await page.getByRole("tab", { name: "Data", exact: true }).click();
-
-    await page
-      .getByRole("button", { name: "Dropdown settings", exact: true })
-      .click();
+    await command(page, "Dropdown settings");
     await page
       .getByLabel("Dropdown definition", { exact: true })
       .selectOption("");
@@ -226,11 +215,8 @@ try {
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
-    await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-    await page
-      .getByRole("button", { name: "Dropdown settings", exact: true })
-      .click();
+    await command(page, "Dropdown settings");
     await page
       .getByRole("button", { name: "Remove dropdown", exact: true })
       .click();
@@ -271,9 +257,7 @@ try {
   }
   {
     const { context, page, errors } = await ready("history-worker");
-    await page
-      .getByRole("button", { name: "Recalculate", exact: true })
-      .click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
@@ -331,11 +315,8 @@ try {
     );
     await page.getByLabel("Cell address").fill("H2");
     await page.keyboard.press("Tab");
-    await page.getByRole("tab", { name: "Data", exact: true }).click();
 
-    await page
-      .getByRole("button", { name: "Dropdown settings", exact: true })
-      .click();
+    await command(page, "Dropdown settings");
     assert.equal(
       await page.getByLabel("List value type", { exact: true }).inputValue(),
       "keep",
@@ -409,9 +390,7 @@ try {
   }
   for (const mode of ["cancel", "error"]) {
     const { context, page, errors } = await ready(mode);
-    await page
-      .getByRole("button", { name: "Recalculate", exact: true })
-      .click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();

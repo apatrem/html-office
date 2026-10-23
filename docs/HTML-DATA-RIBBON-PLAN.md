@@ -136,7 +136,7 @@ Each task is a separate reviewable increment with the existing unit/browser/form
 - **F01r — Adjust the merged F01 model to [ADR-012](decisions/012-data-formatting-vocabulary.md).** Token colours and `fill`, bold/italic only, `none`/`thin`/`medium`/`double` borders, horizontal alignment and wrap, automatic row heights, the fixed 11-style catalogue, workbook `font` and `theme`, and tokenised conditional formatting. Remove `namedStyles`, sizes, fonts, hex and theme objects, vertical alignment and `customHeight`. Rewrite fixtures, tests, FORMAT.md and the guide.
 - **F02 — Rendering** (after F01r; scope reduced by ADR-012). Layer resolution, fonts, charte token colours (no tints, ADR-012 §2), borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
 - **F03 — Commands.** Formatting commands with the 50,000-cell guard, command-time auto-fit, resize by drag/keyboard, painter, clear formatting, links and popover, clipboard/fill carrying formatting.
-- **F04 — Interface migration: replaced by cross-plan [U04-Data](HTML-OFFICE-CROSS-PLAN.md)** (shared native shell, variant A).
+- **F04 — Interface migration: replaced by cross-plan [U04-Data](HTML-OFFICE-CROSS-PLAN.md)** (shared native shell, variant A), implemented on `feature/u04-data-shell`.
   - A deliberate command/state API replaces the assessment bridge.
   - It brings file bar menus, header context menus, the scenario selector, and the formula bar and sheet bar.
   - The tabbed ribbon, its page-wide CSS and its tests are removed.

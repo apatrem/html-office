@@ -1,6 +1,6 @@
 # Familiar ribbon with the existing native editor
 
-Status: superseded on 21 October 2026 by [ADR-010](010-manual-formatting-and-ironcalc-toolbar.md), which replaces the tabbed native ribbon with a single IronCalc toolbar band. Retained as the record of the shipped R02 ribbon until that migration lands.
+Status: superseded on 21 October 2026 by [ADR-010](010-manual-formatting-and-ironcalc-toolbar.md), which replaces the tabbed native ribbon with a single IronCalc toolbar band. Retained as the record of the shipped R02 ribbon. The ribbon was removed on 22 October 2026 by U04-Data, which moved Data to the shared native shell ([ADR-011](011-html-office-shared-principles.md) §7).
 
 Original status: accepted implementation direction following the user-authorised assessment, 20 October 2026.
 

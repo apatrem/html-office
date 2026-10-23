@@ -7,6 +7,7 @@ import { buildWorkbook } from "../tools/build.mjs";
 import { dataBarWorkbook } from "../fixtures/bars.mjs";
 import { large } from "../fixtures/generate.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const original = await buildWorkbook(dataBarWorkbook(), { offline: true }),
@@ -49,7 +50,7 @@ async function edit(page, ref, value) {
 }
 async function copy(page, id) {
   const waiting = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save a copy", exact: true }).click();
+  await command(page, "Save a copy");
   const file = resolve(out, `data-bars-edge-${id}-saved.html`);
   await (await waiting).saveAs(file);
   return { file, book: readHTML(await readFile(file, "utf8")).book };
@@ -103,7 +104,7 @@ try {
     await page.evaluate(() => globalThis.releaseBarSummary());
     await width(page, "F3", 20);
     const count = await page.evaluate(() => globalThis.barSummaryCount);
-    await page.locator("#grid").evaluate((el) => (el.scrollTop = 1200));
+    await page.locator("#grid").evaluate((el) => (el.scrollTop = 900));
     await page.waitForFunction(() =>
       document.querySelector('#grid [data-cell="F40"]'),
     );
@@ -244,9 +245,7 @@ try {
       await page.locator('#grid [data-cell="B2"] .data-bar-fill').count(),
       0,
     );
-    await page
-      .getByRole("button", { name: "Recalculate", exact: true })
-      .click();
+    await command(page, "Recalculate");
     await page
       .getByText("Calculated locally. Unsaved changes.", { exact: true })
       .waitFor();
@@ -262,9 +261,7 @@ try {
     await width(page, "F3", 100 / 3);
     await page.getByLabel("Cell address", { exact: true }).fill("F3");
     await page.keyboard.press("Tab");
-    await page
-      .getByRole("button", { name: "Insert rows", exact: true })
-      .click();
+    await command(page, "Insert rows");
     await page
       .getByText("Row/column references updated. Unsaved changes.", {
         exact: true,

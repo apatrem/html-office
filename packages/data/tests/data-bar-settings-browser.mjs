@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { conditionalWorkbook } from "../fixtures/conditional.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
+import { command } from "./shell.mjs";
 // Selects offer only tokens; a tampered DOM must still be rejected by the model.
 async function tamper(page, id, value) {
   await page.evaluate(
@@ -59,7 +60,7 @@ for (const offline of [false, true]) {
   }
   async function copy(id) {
     const wait = page.waitForEvent("download");
-    await button("Save a copy").click();
+    await command(page, "Save a copy");
     const file = resolve(
       out,
       `data-bar-settings-${offline ? "offline" : "standard"}-${id}.html`,

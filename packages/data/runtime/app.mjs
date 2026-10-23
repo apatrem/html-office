@@ -1,6 +1,7 @@
 import { setupConditionalSettings } from "./conditional-settings.mjs";
 import { createConditionalDecorator } from "./conditional.mjs";
-import { setupRibbon } from "./ribbon.mjs";
+import { createCommands } from "./commands.mjs";
+import { mountShell } from "./shell.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
@@ -22,7 +23,10 @@ import {
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
 import { applyLinkEdits } from "../model/formatting.mjs";
+import { groupView } from "../model/organization.mjs";
 const $ = (id) => document.getElementById(id);
+const commands = createCommands();
+commands.subscribe(drawCalculationState);
 let book = compactInputs(readModel($("workbook").textContent)),
   sheetId = book.sheets[0].id,
   selected = "B2",
@@ -34,7 +38,10 @@ const revisions = new CalculationRevision();
 const history = new EditHistory();
 // Reuse verified fingerprints across formatting/history; recovery starts a new trust boundary.
 const verifiedSnapshots = new Set();
+// A verified workbook without formulas has no snapshot and nothing to calculate.
+let formulaFree = false;
 function trustSnapshot() {
+  formulaFree = !book.snapshot;
   if (book.snapshot) verifiedSnapshots.add(book.snapshot.fingerprint);
 }
 const config = JSON.parse($("engine-config").textContent);
@@ -60,6 +67,7 @@ const persistence = setupPersistence({
     pendingEdits = [];
     book = compactInputs(recovered);
     verifiedSnapshots.clear();
+    formulaFree = false;
     sheetId = book.sheets[0].id;
     history.clear();
     render();
@@ -71,6 +79,7 @@ const persistence = setupPersistence({
         dropdowns.draw();
         persistence.refreshConditionalScales();
         grid.draw();
+        drawCalculationState();
         status(
           value.state === "current"
             ? "Saved results are current."
@@ -106,12 +115,7 @@ const grid = createGrid($("grid"), {
   },
   onEdit: (initial) => {
     if (initial !== undefined) {
-      $("cell-type").value =
-        initial === "="
-          ? "formula"
-          : /[0-9.+-]/.test(initial)
-            ? "number"
-            : "text";
+      $("cell-type").value = inferType(initial);
       $("cell-value").value = initial;
     }
     if (initial === undefined && $("cell-type").value === "blank")
@@ -126,48 +130,44 @@ function choose(ref, updateGrid = true) {
   $("cell-address").value = ref;
   const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
     value = cell.input ?? { type: "blank" };
-  $("format-role").value = cell.cellStyle ?? "normal";
-  $("format-kind").value = cell.format?.kind ?? "general";
-  $("format-digits").value = cell.format?.digits ?? 2;
-  $("format-currency").value = cell.format?.currency ?? "EUR";
   $("cell-type").value = cell.formula ? "formula" : value.type;
   $("cell-value").value =
     cell.formula ?? (value.type === "blank" ? "" : String(value.value));
   dropdowns.draw();
+  commands.changed();
 }
 function render() {
   navigation.draw();
   grid.draw();
-  $("preview-note").textContent =
-    "Arrow keys navigate · Shift selects a rectangle · F2 edits · Enter applies in the formula bar · Escape cancels form changes";
-  $("undo").disabled = !history.canUndo || !!loading;
-  $("redo").disabled = !history.canRedo || !!loading;
   $("apply").disabled = !!loading;
-  $("recalculate").disabled = !!loading;
+  $("cancel").hidden = !loading;
   $("cancel").disabled = !loading;
-  $("save").disabled = false;
   $("retry-range").hidden = !pendingEdits.some((edit) => edit.range);
   $("retry-range").disabled = !!loading;
-  $("decimals").disabled = !!loading;
-  for (const id of [
-    "manage-sheets",
-    "manage-dropdowns",
-    "manage-conditional",
-    "format-apply",
-    "paste-table",
-    "fill-down",
-    "fill-right",
-    "insert-row",
-    "delete-row",
-    "insert-column",
-    "delete-column",
-  ])
-    $(id).disabled = !!loading;
-  for (const field of document.querySelectorAll(".fields input,.fields select"))
+  for (const field of document.querySelectorAll(
+    ".formula-bar input,.formula-bar select,#number-dialog input,#number-dialog select",
+  ))
     field.disabled = !!loading;
   dropdowns.draw();
   dropdownSettings.draw();
   conditionalSettings.draw();
+  commands.changed();
+}
+// The formula bar's calculation-state chip; details stay in the status line.
+function drawCalculationState() {
+  const [text, tone] = loading
+    ? ["Calculating…", "busy"]
+    : pendingEdits.length
+      ? ["Not calculated", "warn"]
+      : (
+            book.snapshot
+              ? verifiedSnapshots.has(book.snapshot.fingerprint)
+              : formulaFree
+          )
+        ? ["Calculated", "ok"]
+        : ["Results stale", "warn"];
+  $("calc-state").textContent = text;
+  $("calc-state").dataset.tone = tone;
 }
 function enteredCell() {
   const type = $("cell-type").value,
@@ -356,6 +356,18 @@ $("cell-value").addEventListener("keydown", async (event) => {
     $("grid").focus();
   }
 });
+// Typing into an empty cell's value field picks a type, as typing in the grid does.
+function inferType(text) {
+  return text.startsWith("=")
+    ? "formula"
+    : /^[0-9.+-]/.test(text)
+      ? "number"
+      : "text";
+}
+$("cell-value").addEventListener("input", () => {
+  if ($("cell-type").value === "blank" && $("cell-value").value)
+    $("cell-type").value = inferType($("cell-value").value);
+});
 $("cell-address").addEventListener("change", () => {
   try {
     parseAddress($("cell-address").value);
@@ -364,7 +376,6 @@ $("cell-address").addEventListener("change", () => {
     status(error.message);
   }
 });
-$("recalculate").onclick = () => apply({ recalculateOnly: true });
 $("cancel").onclick = () => {
   const operation = loading?.operation;
   revisions.cancel();
@@ -483,9 +494,6 @@ async function applyLayout(command, structural = false) {
     }
   }
 }
-for (const axis of ["row", "column"])
-  for (const action of ["insert", "delete"])
-    $(action + "-" + axis).onclick = () => applyStructure(axis, action);
 async function moveHistory(direction) {
   if (loading) return;
   const priorRestoration = cellEdits(pendingEdits);
@@ -564,8 +572,6 @@ async function moveHistory(direction) {
     }
   }
 }
-$("undo").onclick = () => moveHistory("undo");
-$("redo").onclick = () => moveHistory("redo");
 function formatSelection(transform) {
   if (loading) return;
   try {
@@ -596,7 +602,9 @@ function formatSelection(transform) {
     const before = captureCells(book, edits),
       selection = { sheetId, ...r };
     for (const edit of edits) {
-      sheet.cells[edit.ref] = edit.cell;
+      // Clearing leaves no empty cell entry behind.
+      if (Object.keys(edit.cell).length) sheet.cells[edit.ref] = edit.cell;
+      else delete sheet.cells[edit.ref];
       touchPreview(sheet.cells, edit.ref);
     }
     for (const [attempt, cell] of pending) attempt.cell = cell;
@@ -616,32 +624,64 @@ function formatSelection(transform) {
     status(`Formatting not applied: ${error.message}`);
   }
 }
-$("format-apply").onclick = () => {
-  const digits = Number($("format-digits").value),
-    currency = $("format-currency").value.toUpperCase(),
-    kind = $("format-kind").value,
-    cellStyle = $("format-role").value;
-  if (!$("format-digits").value.trim())
-    return status("Enter decimal places between 0 and 15.");
+const selectedCell = () =>
+  book.sheets.find((s) => s.id === sheetId).cells[selected] ?? {};
+// Currency formats keep a cell's own currency; new ones use EUR, as before.
+const currencyOf = (cell) => cell.format?.currency ?? "EUR";
+function setNumberFormat({ kind, digits, currency }) {
   formatSelection((cell) => ({
     ...cell,
-    cellStyle,
     format: {
       kind,
-      digits,
-      ...(["currency", "accounting"].includes(kind) ? { currency } : {}),
+      ...(digits === undefined ? {} : { digits }),
+      ...(["currency", "accounting"].includes(kind)
+        ? { currency: currency ?? currencyOf(cell) }
+        : {}),
     },
   }));
+}
+function changeDecimals(delta) {
+  formatSelection((cell) => {
+    const kind =
+      !cell.format || cell.format.kind === "general"
+        ? "number"
+        : cell.format.kind;
+    if (kind === "date") return cell;
+    return {
+      ...cell,
+      format: {
+        ...cell.format,
+        kind,
+        digits: Math.max(
+          0,
+          Math.min(15, (cell.format?.digits ?? (delta > 0 ? 0 : 2)) + delta),
+        ),
+      },
+    };
+  });
+}
+function openNumberFormat() {
+  const format = selectedCell().format ?? { kind: "general" };
+  $("format-kind").value = format.kind;
+  $("format-digits").value = format.digits ?? 2;
+  $("format-currency").value = currencyOf(selectedCell());
+  $("number-context").textContent =
+    `Applies to ${grid.selection.anchor === grid.selection.focus ? grid.selection.focus : `${grid.selection.anchor}:${grid.selection.focus}`}. Values and formulas are unchanged.`;
+  $("number-dialog").showModal();
+  $("format-kind").focus();
+}
+$("format-apply").onclick = () => {
+  if (!/^\d+$/.test($("format-digits").value.trim()))
+    return status("Enter decimal places between 0 and 15.");
+  $("number-dialog").close();
+  setNumberFormat({
+    kind: $("format-kind").value,
+    digits: Number($("format-digits").value),
+    currency: $("format-currency").value.toUpperCase(),
+  });
+  $("grid").focus();
 };
-$("decimals").onclick = () =>
-  formatSelection((cell) => ({
-    ...cell,
-    format: {
-      ...cell.format,
-      kind: cell.format?.kind ?? "number",
-      digits: Math.min(15, (cell.format?.digits ?? 0) + 1),
-    },
-  }));
+$("format-cancel").onclick = () => $("number-dialog").close();
 
 async function applyOrganization(command) {
   if (loading) return;
@@ -756,7 +796,7 @@ const conditionalSettings = setupConditionalSettings({
   apply: (next) => applyDefinitionHeader(next, "Conditional formatting"),
   status,
 });
-setupClipboard({
+const clipboard = setupClipboard({
   getBook: () => book,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getSelection: () => grid.selection,
@@ -765,7 +805,102 @@ setupClipboard({
   status,
   cancel: () => $("cancel").click(),
 });
-setupRibbon();
+let gridLines = true;
+const idle = () => !loading,
+  register = (id, run, enabled = idle) => commands.register(id, run, enabled);
+register(
+  "save",
+  () => persistence.saveDirect(),
+  () => persistence.canSaveDirect,
+);
+register(
+  "save-copy",
+  () => persistence.saveCopy(),
+  () => true,
+);
+register(
+  "undo",
+  () => moveHistory("undo"),
+  () => idle() && history.canUndo,
+);
+register(
+  "redo",
+  () => moveHistory("redo"),
+  () => idle() && history.canRedo,
+);
+register("paste-table", () => clipboard.open());
+register("fill-down", () => clipboard.fill("down"));
+register("fill-right", () => clipboard.fill("right"));
+for (const axis of ["row", "column"])
+  for (const action of ["insert", "delete"])
+    register(`${action}-${axis}s`, () => applyStructure(axis, action));
+register("new-sheet", () => navigation.open());
+register("manage-sheets", () => navigation.open());
+register("select-sheet", (id) => {
+  sheetId = id;
+  render();
+  choose(selected);
+});
+register("number-format", setNumberFormat);
+register("number-format-dialog", openNumberFormat);
+register("decimals-more", () => changeDecimals(1));
+register("decimals-less", () => changeDecimals(-1));
+register("cell-style", (cellStyle) =>
+  formatSelection((cell) => ({ ...cell, cellStyle })),
+);
+// Clears cell style, number format and direct formatting; values stay.
+register("clear-formatting", () =>
+  formatSelection(({ cellStyle, format, style, ...cell }) => cell),
+);
+register("conditional-formatting", () => conditionalSettings.open());
+register("dropdown-settings", () => dropdownSettings.open());
+register("recalculate", () => apply({ recalculateOnly: true }));
+register(
+  "grid-lines",
+  () => {
+    gridLines = !gridLines;
+    $("grid").classList.toggle("no-grid-lines", !gridLines);
+    commands.changed();
+  },
+  () => true,
+);
+register(
+  "help",
+  (section) => {
+    const dialog = $("help-dialog");
+    for (const details of dialog.querySelectorAll("details"))
+      details.open = details.dataset.section === section;
+    dialog.showModal();
+    dialog.querySelector(`[data-section="${section}"] summary`)?.focus();
+  },
+  () => true,
+);
+// Mounted after persistence fingerprints the opened file's shell.
+mountShell({
+  commands,
+  state: () => {
+    const cell = selectedCell(),
+      currency = currencyOf(cell);
+    return {
+      format: cell.format,
+      cellStyle: cell.cellStyle ?? "normal",
+      currencySymbol:
+        new Intl.NumberFormat(book.locale, { style: "currency", currency })
+          .formatToParts(0)
+          .find((part) => part.type === "currency")?.value ?? currency,
+      gridLines,
+      busy: !!loading,
+      groups: groupView(book).map((group) => ({
+        name: group.name,
+        sheets: group.sheetIds.map((id) => ({
+          id,
+          name: book.sheets.find((s) => s.id === id).name,
+          current: id === sheetId,
+        })),
+      })),
+    };
+  },
+});
 render();
 choose(selected);
 const initialRevision = revisions.revision;
@@ -779,6 +914,7 @@ if (revisions.current(initialRevision)) {
   if (fallbackInspection) persistence.refreshConditionalScales();
   dropdowns.draw();
   grid.draw();
+  drawCalculationState();
   status(
     initialState.state === "current"
       ? "Saved results are current."

@@ -11,6 +11,8 @@ Current Data P&L standard application code is 324,414 bytes (`packages/data/benc
 
 ## Reproduce
 
+These assessments patch the Data runtime as it was before U04-Data replaced the ribbon with the shared shell. Reproduce them from commit `ca4aae6` or earlier.
+
 Use a Git checkout of https://github.com/ironcalc/IronCalc containing commit `297553dc3a37ec6b0f4821055220e3d26c4ac6a1`:
 
 ```sh
