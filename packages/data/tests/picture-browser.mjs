@@ -17,7 +17,17 @@ const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const file = resolve(out, "picture.html"),
   staleFile = resolve(out, "picture-stale.html");
-await writeFile(file, await buildWorkbook(formattingWorkbook()));
+// Two extra cells for line handling: kept line breaks without wrap, and a
+// wrap the browser breaks after hyphens.
+const book = formattingWorkbook();
+Object.assign(book.sheets[0].cells, {
+  G6: { input: { type: "text", value: "line one\nline two" } },
+  H6: {
+    input: { type: "text", value: "alpha-beta-gamma-delta" },
+    style: { align: { wrap: true } },
+  },
+});
+await writeFile(file, await buildWorkbook(book));
 // Changing an input after the build leaves the saved results stale.
 const current = await buildWorkbook(
     readModel(
@@ -32,6 +42,7 @@ try {
   const context = await browser.newContext({
       acceptDownloads: true,
       viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 2,
     }),
     page = await context.newPage(),
     requests = [],
@@ -123,9 +134,100 @@ try {
     at(579.5, 10 * 23 + 50 + 10),
     await css("F12", "borderRightColor"),
   );
+  // The picture matches the grid on screen pixel for pixel (allowing for
+  // text antialiasing): geometry, wrap, kept line breaks, overflow.
+  await select("A1:H12");
+  const full = await download("picture-full.png");
+  await select("J20");
+  const shot = (
+    await page.screenshot({
+      clip: await page.locator("#grid").evaluate((grid) => {
+        const box = grid.getBoundingClientRect();
+        return { x: box.x + 40, y: box.y + 23, width: 880, height: 303 };
+      }),
+    })
+  ).toString("base64");
+  const differing = await page.evaluate(
+    async ({ shot, picture }) => {
+      const read = async (data) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${data}`;
+        await img.decode();
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        c.getContext("2d").drawImage(img, 0, 0);
+        return c.getContext("2d").getImageData(0, 0, img.width, img.height);
+      };
+      const a = await read(shot),
+        b = await read(picture);
+      if (a.width !== b.width || a.height !== b.height)
+        return `size ${a.width}×${a.height} vs ${b.width}×${b.height}`;
+      // A pixel matches when the other image has a close colour within 1 CSS
+      // px (2 device px), both ways: antialiasing and subpixel text
+      // placement pass; misplaced or missing content does not.
+      const close = (p, q, i, j) =>
+        Math.max(
+          Math.abs(p.data[i] - q.data[j]),
+          Math.abs(p.data[i + 1] - q.data[j + 1]),
+          Math.abs(p.data[i + 2] - q.data[j + 2]),
+        ) <= 48;
+      const near = (p, q, x, y) => {
+        for (let dy = -2; dy <= 2; dy++)
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = x + dx,
+              ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= q.width || ny >= q.height) continue;
+            if (close(p, q, (y * p.width + x) * 4, (ny * q.width + nx) * 4))
+              return true;
+          }
+        return false;
+      };
+      let count = 0;
+      const d = document.createElement("canvas");
+      d.width = a.width;
+      d.height = a.height;
+      const dx = d.getContext("2d"),
+        img = dx.createImageData(a.width, a.height);
+      for (let y = 0; y < a.height; y++)
+        for (let x = 0; x < a.width; x++) {
+          const i = (y * a.width + x) * 4,
+            bad = !near(a, b, x, y) || !near(b, a, x, y);
+          if (bad) count++;
+          img.data[i] = bad ? 255 : 170 + a.data[i] * 0.3;
+          img.data[i + 1] = bad ? 0 : 170 + a.data[i + 1] * 0.3;
+          img.data[i + 2] = bad ? 0 : 170 + a.data[i + 2] * 0.3;
+          img.data[i + 3] = 255;
+        }
+      dx.putImageData(img, 0, 0);
+      window.__diff = d.toDataURL();
+      return count / (a.width * a.height);
+    },
+    {
+      shot,
+      picture: (await readFile(resolve(out, "picture-full.png"))).toString(
+        "base64",
+      ),
+    },
+  );
+  // On failure, picture-diff.png marks the differing pixels in red.
+  await writeFile(
+    resolve(out, "picture-diff.png"),
+    Buffer.from(
+      (await page.evaluate(() => window.__diff)).split(",")[1],
+      "base64",
+    ),
+  );
+  await writeFile(
+    resolve(out, "picture-shot.png"),
+    Buffer.from(shot, "base64"),
+  );
+  assert.ok(typeof differing === "number" && differing < 0.001, `${differing}`);
+  assert.equal(full.image.width, 2 * 880);
   // Grid lines off: the same point is the cell background.
   const toolbar = page.getByRole("toolbar", { name: /Formatting/ });
   await toolbar.getByRole("button", { name: "Grid lines" }).click();
+  await select("A1:F12");
   const plain = await download("picture-plain.png");
   assert.equal(
     plain.image.at(579.5, 10 * 23 + 50 + 10),
@@ -161,8 +263,15 @@ try {
   await fromMenu();
   await page
     .locator("#status")
-    .filter({ hasText: "the limit is 5,000 cells and 8,000 px" })
+    .filter({ hasText: "(1,000 cells, 280 × 11,527 px; the limit" })
     .waitFor();
+  // Refused at once, before any per-cell work (17 billion cells).
+  await select("A1:XFC1048575");
+  await fromMenu();
+  await page
+    .locator("#status")
+    .filter({ hasText: "(17,178,804,225 cells" })
+    .waitFor({ timeout: 3000 });
   assert.equal(downloads, 0);
   // Stale saved results: a warning band inside the image; none without
   // formulas.
@@ -194,7 +303,7 @@ try {
   assert.deepEqual(errors, []);
   await context.close();
   console.log(
-    "PASS picture: PNG of the selection at 2× with formatting, borders, conditional fills and grid lines, cut whole columns, size limits and the stale band, without the engine",
+    "PASS picture: PNG of the selection at 2×, matching the on-screen grid, with formatting, borders, conditional fills and grid lines, cut whole columns, size limits and the stale band, without the engine",
   );
 } finally {
   await browser.close();

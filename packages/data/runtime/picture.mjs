@@ -80,8 +80,8 @@ export function fitText(text, width, measure) {
   return text.slice(0, lo) + "…";
 }
 
-// Lines of wrapped text, like white-space: pre-wrap with overflow-wrap:
-// anywhere (spaces first, then inside words that do not fit).
+// Lines of the stale-results notice (cells use the browser's own line
+// breaking): spaces first, then inside words that do not fit.
 export function wrapLines(text, width, measure) {
   const lines = [];
   for (const paragraph of text.split("\n")) {
@@ -109,6 +109,40 @@ export function wrapLines(text, width, measure) {
 const visible = (colour) =>
   colour && colour !== "transparent" && !/rgba\(.*,\s*0\)$/.test(colour);
 
+// Lines of a laid-out text node: each paragraph is cut where the next
+// character starts a lower line (binary search over character boxes).
+function layoutLines(span) {
+  const node = span?.firstChild;
+  if (!node?.data) return [];
+  const range = document.createRange(),
+    top = (i) => {
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      return range.getClientRects()[0]?.top ?? -Infinity;
+    },
+    lines = [];
+  let start = 0;
+  for (const paragraph of node.data.split("\n")) {
+    const end = start + paragraph.length;
+    let from = start;
+    while (from < end) {
+      const line = top(from);
+      let lo = from + 1,
+        hi = end;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (top(mid) > line + 1) hi = mid;
+        else lo = mid + 1;
+      }
+      lines.push(node.data.slice(from, lo).trimEnd());
+      from = lo;
+    }
+    if (paragraph === "") lines.push("");
+    start = end + 1;
+  }
+  return lines;
+}
+
 export function setupPicture({
   getBook,
   getSheet,
@@ -119,7 +153,9 @@ export function setupPicture({
 }) {
   // Each cell styled like the grid's (classes, direct formatting and
   // conditional formatting), inside #grid so its rules apply; read once.
-  function probe(sheet, bounds, styleAt, locale) {
+  // Wrapped cells are laid out at their real size, and their lines are read
+  // back from the browser's own line breaking.
+  function probe(sheet, bounds, styleAt, locale, { rows, columns }) {
     const root = document.getElementById("grid"),
       host = document.createElement("div"),
       found = new Map();
@@ -132,6 +168,9 @@ export function setupPicture({
           b = document.createElement("div"),
           span = document.createElement("span");
         b.className = `grid-cell ${cellClasses(cell, !!sheet.links?.[ref])}`;
+        b.style.width = `${columns.size(col)}px`;
+        b.style.height = `${rows.size(row)}px`;
+        if (styleAt(row, col)?.align?.wrap) b.classList.add("wrap");
         span.className = "cell-text";
         span.textContent = display(cell, locale);
         b.append(span);
@@ -153,6 +192,9 @@ export function setupPicture({
           font: `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`,
           underline: css.textDecorationLine.includes("underline"),
           gridLine: css.borderRightColor,
+          lines: b.classList.contains("wrap")
+            ? layoutLines(b.querySelector(".cell-text"))
+            : null,
           bar: fill && {
             left: parseFloat(fill.style.left),
             width: parseFloat(fill.style.width),
@@ -176,6 +218,10 @@ export function setupPicture({
       axes = sheetAxes(sheet, SIZES),
       { rows, columns } = axes,
       bounds = pictureBounds(selection, sheet);
+    // Refused before any per-cell work: a whole empty sheet is 17 billion
+    // cells.
+    const early = pictureSize(bounds, axes);
+    if (early.refused) return status(early.refused);
     let formulas = false;
     for (let row = bounds.top; row <= bounds.bottom && !formulas; row++)
       for (let col = bounds.left; col <= bounds.right; col++)
@@ -227,7 +273,7 @@ export function setupPicture({
       col <= COLUMNS &&
       !!display(sheet.cells[address(row, col)], locale);
     await document.fonts?.ready;
-    const looks = probe(sheet, bounds, styleAt, locale);
+    const looks = probe(sheet, bounds, styleAt, locale, axes);
     const canvas = document.createElement("canvas");
     canvas.width = size.width * size.scale;
     canvas.height = size.height * size.scale;
@@ -307,10 +353,15 @@ export function setupPicture({
           descent =
             metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent,
           baseline = (LINE_HEIGHT - ascent - descent) / 2 + ascent;
+        // The text box: the cell's content box (6 px padding, a 1 px border
+        // right and below), or the overflow span the grid positions over
+        // its neighbours.
         let left = x(col) + PAD,
-          width = w - 2 * PAD,
+          width = w - 2 * PAD - 1,
+          cut = new Set(),
           lines;
-        if (align.wrap) lines = wrapLines(text, width, measure);
+        const bottom = y(row) + h - 1;
+        if (align.wrap) lines = look.lines;
         else {
           if (
             horizontal === "centerContinuous" ||
@@ -321,31 +372,42 @@ export function setupPicture({
               styleAt,
               size: columns.size,
             });
-            left -= before;
-            width += before + after;
+            if (before || after) {
+              left -= before;
+              width = w + before + after - 2 * PAD;
+            }
           }
-          lines = [fitText(text, width, measure)];
+          // white-space: pre keeps line breaks; each line is cut alone.
+          lines = text.split("\n").map((line) => fitText(line, width, measure));
+          // A line too long for its box starts at its left edge, whatever
+          // the alignment, like an overflowing CSS line.
+          cut = new Set(
+            text
+              .split("\n")
+              .flatMap((line, i) => (line === lines[i] ? [] : [i])),
+          );
         }
-        const shown = Math.min(lines.length, Math.floor(h / LINE_HEIGHT)) || 1,
-          first = y(row) + h - Math.min(lines.length * LINE_HEIGHT, h);
+        // Wrapped text shows its first lines (max-height: 100%); unwrapped
+        // text its last ones, bottom-aligned.
+        const first = align.wrap
+          ? bottom - Math.min(lines.length * LINE_HEIGHT, h - 1)
+          : bottom - lines.length * LINE_HEIGHT;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(left, Math.max(top, y(row)), width, h);
+        ctx.rect(left, Math.max(top, y(row)), width, bottom - y(row));
         ctx.clip();
         ctx.fillStyle = look.color;
         ctx.textBaseline = "alphabetic";
-        lines.slice(0, align.wrap ? shown : 1).forEach((line, i) => {
+        lines.forEach((line, i) => {
           const lineWidth = measure(line),
-            at =
-              horizontal === "right"
+            at = cut.has(i)
+              ? left
+              : horizontal === "right"
                 ? left + width - lineWidth
                 : horizontal === "center" || horizontal === "centerContinuous"
                   ? left + (width - lineWidth) / 2
                   : left,
-            base =
-              (align.wrap
-                ? first + i * LINE_HEIGHT
-                : y(row) + h - LINE_HEIGHT) + baseline;
+            base = first + i * LINE_HEIGHT + baseline;
           ctx.fillText(line, at, base);
           if (look.underline)
             ctx.fillRect(at, base + Math.max(1, descent / 3), lineWidth, 1);
@@ -429,7 +491,7 @@ export function setupPicture({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     status(
-      `PNG download requested: ${sheet.name}!${range}, ${size.width} × ${size.height} px${stale ? ", with a stale-results warning" : ""}.`,
+      `PNG download requested: ${sheet.name}!${range}, ${size.width.toLocaleString("en-US")} × ${size.height.toLocaleString("en-US")} px${stale ? ", with a stale-results warning" : ""}.`,
     );
   }
   return { download };
