@@ -106,7 +106,7 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | | Recover draft (restore / discard) | Modal on open | — |
 | | Embedded guide, third-party notices | `<details>` under the editor | L01 |
 | | Export CSV, print / PDF of selected sheets | — | T19 |
-| | Download PNG of selection | — | F06 |
+| | Download PNG of selection | File menu, cell menu (F06) | — |
 | | Import CSV / XLSX, refresh source | — | T15, T16 |
 | History | Undo, Redo | Quick access | — |
 | Clipboard | Copy and paste ranges with formats (`application/x-html-office-range+json`, plus TSV) | Grid, Cmd/Ctrl+C and V | X01 extends it across products |

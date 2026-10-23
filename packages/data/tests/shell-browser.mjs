@@ -22,7 +22,13 @@ const active = (page) =>
   });
 // Every command the shell offers; a released shell lists no inert command.
 const MENUS = {
-  File: ["Save", "Save a copy", "Document settings…", "Regional settings…"],
+  File: [
+    "Save",
+    "Save a copy",
+    "Download selection as PNG",
+    "Document settings…",
+    "Regional settings…",
+  ],
   Edit: [
     "Undo",
     "Redo",

@@ -22,7 +22,7 @@ import { display, negativeRed, usedBounds } from "./view.mjs";
 const SIZES = { rows: ROWS, columns: COLUMNS, height: H, width: W };
 // Unwrapped text overflows into at most this many empty neighbours (ADR-010).
 const OVERFLOW = 20;
-const LINE = {
+export const LINE = {
   thin: [1, "solid"],
   medium: [2, "solid"],
   double: [3, "double"],
@@ -30,7 +30,7 @@ const LINE = {
 const columnName = (col) => address(1, col).replace(/\d+$/, "");
 // Value kinds for general alignment: numbers and dates right, text left,
 // booleans and errors centred.
-function generalAlign(cell) {
+export function generalAlign(cell) {
   const v = cell.formula ? cell.result : cell.input;
   return !v || v.type === "text"
     ? "left"
@@ -43,7 +43,7 @@ function generalAlign(cell) {
 // data-text-color tells conditional formatting whether the text colour was
 // chosen (explicit: a colour or the red negative preset) or derived from the
 // fill (auto).
-function paint(element, style, cell) {
+export function paint(element, style, cell) {
   const chosen = style?.color ?? (negativeRed(cell) ? "alert" : null);
   if (style) {
     if (style.bold !== undefined)
@@ -67,6 +67,42 @@ function paint(element, style, cell) {
     element.style.color = colorCSS(chosen);
     element.dataset.textColor = "explicit";
   }
+}
+// Text overflows into empty neighbours (left text to the right, right text
+// to the left, centred text both ways); centre across selection spans the
+// following empty centerContinuous cells, for any value. Returns the widths
+// borrowed before and after the cell.
+export function spill(row, col, horizontal, { filled, styleAt, size }) {
+  let before = 0,
+    after = 0;
+  if (horizontal === "centerContinuous") {
+    for (
+      let c = col + 1;
+      c <= col + OVERFLOW &&
+      c <= COLUMNS &&
+      !filled(row, c) &&
+      styleAt(row, c)?.align?.horizontal === "centerContinuous";
+      c++
+    )
+      after += size(c);
+  } else {
+    if (horizontal !== "right")
+      for (
+        let c = col + 1;
+        c <= col + OVERFLOW && c <= COLUMNS && !filled(row, c);
+        c++
+      )
+        after += size(c);
+    if (horizontal !== "left")
+      for (
+        let c = col - 1;
+        c >= col - OVERFLOW && c >= 1 && !filled(row, c);
+        c--
+      )
+        before += size(c);
+    if (horizontal === "center") before = after = Math.min(before, after);
+  }
+  return { before, after };
 }
 // One focusable grid, a bounded DOM viewport, and a single rectangular selection.
 export function createGrid(
@@ -228,39 +264,12 @@ export function createGrid(
       head.setAttribute("role", "rowheader");
       head.dataset.row = row;
     }
-    // Text overflows into empty neighbours (left text to the right, right
-    // text to the left, centred text both ways); centre across selection
-    // spans the following empty centerContinuous cells, for any value.
     function overflow(b, span, row, col, horizontal) {
-      let before = 0,
-        after = 0;
-      if (horizontal === "centerContinuous") {
-        for (
-          let c = col + 1;
-          c <= col + OVERFLOW &&
-          c <= COLUMNS &&
-          !filled(row, c) &&
-          styleAt(row, c)?.align?.horizontal === "centerContinuous";
-          c++
-        )
-          after += columns.size(c);
-      } else {
-        if (horizontal !== "right")
-          for (
-            let c = col + 1;
-            c <= col + OVERFLOW && c <= COLUMNS && !filled(row, c);
-            c++
-          )
-            after += columns.size(c);
-        if (horizontal !== "left")
-          for (
-            let c = col - 1;
-            c >= col - OVERFLOW && c >= 1 && !filled(row, c);
-            c--
-          )
-            before += columns.size(c);
-        if (horizontal === "center") before = after = Math.min(before, after);
-      }
+      const { before, after } = spill(row, col, horizontal, {
+        filled,
+        styleAt,
+        size: columns.size,
+      });
       if (!before && !after) return;
       b.classList.add("overflow");
       Object.assign(span.style, {

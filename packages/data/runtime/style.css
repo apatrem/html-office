@@ -41,7 +41,7 @@
 .grid-row-head{z-index:2}.grid-column-head,.grid-corner{z-index:3}
 .grid-corner{pointer-events:none}.grid-row-head,.grid-column-head{cursor:default}#grid.over-edge .grid-column-head{cursor:col-resize}
 .resize-guide{position:absolute;width:0;border-left:2px solid var(--select);z-index:4;pointer-events:none}
-.measure-probe{position:absolute;left:-10000px;top:0;visibility:hidden;line-height:22px;font-size:inherit;overflow-wrap:anywhere;pointer-events:none}
+.picture-probe{position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none}.measure-probe{position:absolute;left:-10000px;top:0;visibility:hidden;line-height:22px;font-size:inherit;overflow-wrap:anywhere;pointer-events:none}
 .grid-row-head.in-selection,.grid-column-head.in-selection{background:var(--head-sel);color:var(--select);font-weight:600}
 .grid-cell:disabled{opacity:1;cursor:wait}
 #grid.no-grid-lines .grid-cell{border-color:transparent}
