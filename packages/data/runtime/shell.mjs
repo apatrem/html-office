@@ -164,6 +164,13 @@ export function mountShell({ commands, state }) {
   function openPanel(id, trigger) {
     closePopover({ restore: false });
     drawer.open(id, { ...panels[id](), trigger });
+    recordLocale();
+  }
+  // A freshly opened regional panel shows the committed locale.
+  function recordLocale() {
+    if (drawer.current() !== "regional") return;
+    const select = drawer.host.querySelector("select");
+    if (select) select.dataset.committed = state().locale;
   }
   // ---- pickers and dialogs the toolbar and menus share ----
   const ui = { border: { style: "thin", color: "ink" } };
@@ -777,17 +784,15 @@ export function mountShell({ commands, state }) {
         b.setAttribute("aria-checked", String(b.dataset.value === s.font));
     } else if (open === "regional") {
       // Undo or redo can change the committed locale under the panel.
+      // The panel records the locale it opened with (openPanel), so an
+      // unapplied choice is kept until the committed locale changes.
       const select = drawer.host.querySelector("select");
-      // The first sync records the locale the panel opened with, so an
-      // unapplied choice in the selector is not overwritten.
-      if (select && select.dataset.committed === undefined)
+      if (select && select.dataset.committed !== s.locale) {
         select.dataset.committed = s.locale;
-      else if (select && select.dataset.committed !== s.locale) {
-        select.dataset.committed = s.locale;
-        if ([...select.options].some((o) => o.value === s.locale)) {
-          select.value = s.locale;
-          select.dispatchEvent(new Event("change"));
-        }
+        if (![...select.options].some((o) => o.value === s.locale))
+          select.prepend(new Option(s.locale, s.locale));
+        select.value = s.locale;
+        select.dispatchEvent(new Event("change"));
       }
     }
     B.painter.setAttribute("aria-pressed", String(s.painting));

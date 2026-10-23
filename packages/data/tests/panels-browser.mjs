@@ -173,6 +173,19 @@ try {
     .getByRole("button", { name: "Close Regional settings" })
     .click();
   assert.equal(await active(), "Document settings");
+  // Reopened after the locale was applied, the panel still follows undo.
+  await openMenu(page, "File");
+  await menuItem(page, "File", "Regional settings…").click();
+  await panel("Regional settings")
+    .getByRole("button", { name: "Apply locale" })
+    .focus();
+  await page.keyboard.press(`${mod}+z`);
+  assert.equal(
+    await panel("Regional settings").getByLabel("Locale").inputValue(),
+    "en-US",
+  );
+  await page.keyboard.press(`${mod}+Shift+z`);
+  await page.keyboard.press("Escape");
   // File menu entries open the same panels.
   await openMenu(page, "File");
   await menuItem(page, "File", "Document settings…").click();
