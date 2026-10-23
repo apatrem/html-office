@@ -587,3 +587,55 @@ test("the recovery head overlays pending links without copying sheet cells", asy
     "https://example.org/old",
   );
 });
+
+test("appearance resolves cell style, column, row and cell style layers", async () => {
+  const { effectiveStyle } = await import("../model/formatting.mjs");
+  assert.equal(effectiveStyle("normal"), null);
+  const total = effectiveStyle("total");
+  assert.deepEqual(total.border.bottom, { style: "double", color: "ink" });
+  const style = effectiveStyle(
+    "total",
+    { fill: "tint", bold: true, align: { horizontal: "center" } },
+    { fill: "lig", border: { bottom: { style: "none" } } },
+    {
+      italic: true,
+      align: { wrap: true },
+      border: { left: { style: "medium", color: "acc" } },
+    },
+  );
+  assert.equal(style.fill, "lig");
+  assert.equal(style.bold, true);
+  assert.equal(style.italic, true);
+  assert.deepEqual(style.align, { horizontal: "center", wrap: true });
+  assert.deepEqual(style.border, {
+    top: { style: "thin", color: "ink" },
+    bottom: { style: "none" },
+    left: { style: "medium", color: "acc" },
+  });
+});
+test("a shared border edge keeps the heavier line, the lower or right cell on a tie", async () => {
+  const { resolveEdge } = await import("../model/formatting.mjs");
+  assert.equal(resolveEdge(undefined, { style: "none" }), null);
+  assert.deepEqual(resolveEdge({ style: "thin", color: "acc" }, undefined), {
+    style: "thin",
+    color: "acc",
+  });
+  assert.deepEqual(
+    resolveEdge(
+      { style: "double", color: "ink" },
+      { style: "medium", color: "alert" },
+    ),
+    { style: "double", color: "ink" },
+  );
+  assert.deepEqual(
+    resolveEdge(
+      { style: "thin", color: "ink" },
+      { style: "thin", color: "alert" },
+    ),
+    { style: "thin", color: "alert" },
+  );
+  assert.deepEqual(resolveEdge({ style: "none" }, { style: "thin" }), {
+    style: "thin",
+    color: "ink",
+  });
+});

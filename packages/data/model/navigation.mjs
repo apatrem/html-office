@@ -1,4 +1,5 @@
 import { parseAddress, address } from "./workbook.mjs";
+import { createAxis } from "./axis.mjs";
 export const ROWS = 1048576,
   COLUMNS = 16384,
   ROW_HEIGHT = 23,
@@ -42,11 +43,17 @@ export function navigate(
   else if (key === "Enter") row += shift ? -1 : 1;
   return address(clamp(row, ROWS), clamp(column, COLUMNS));
 }
-export function viewport({ top, left, height, width }) {
+const uniform = {
+  rows: createAxis(ROW_HEIGHT, ROWS),
+  columns: createAxis(COLUMN_WIDTH, COLUMNS),
+};
+// Visible rows and columns, plus two of margin, for a scroll position measured
+// from the first row and column (headers excluded).
+export function viewport({ top, left, height, width }, axes = uniform) {
   return {
-    top: clamp(Math.floor(top / ROW_HEIGHT) - 2, ROWS),
-    bottom: clamp(Math.ceil((top + height) / ROW_HEIGHT) + 2, ROWS),
-    left: clamp(Math.floor(left / COLUMN_WIDTH) - 2, COLUMNS),
-    right: clamp(Math.ceil((left + width) / COLUMN_WIDTH) + 2, COLUMNS),
+    top: clamp(axes.rows.indexAt(top) - 2, ROWS),
+    bottom: clamp(axes.rows.indexAt(top + height) + 2, ROWS),
+    left: clamp(axes.columns.indexAt(left) - 2, COLUMNS),
+    right: clamp(axes.columns.indexAt(left + width) + 2, COLUMNS),
   };
 }

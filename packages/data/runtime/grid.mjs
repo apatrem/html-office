@@ -1,5 +1,12 @@
 import { address, parseAddress } from "../model/workbook.mjs";
-import { cellClasses } from "../model/formatting.mjs";
+import {
+  cellClasses,
+  effectiveStyle,
+  resolveEdge,
+  colorCSS,
+  fillCSS,
+  DARK_FILLS,
+} from "../model/formatting.mjs";
 import {
   rectangle,
   navigate,
@@ -10,7 +17,47 @@ import {
   COLUMN_WIDTH as W,
   ROW_HEADER as L,
 } from "../model/navigation.mjs";
-import { display, usedBounds } from "./view.mjs";
+import { sheetAxes } from "../model/axis.mjs";
+import { display, negativeRed, usedBounds } from "./view.mjs";
+const SIZES = { rows: ROWS, columns: COLUMNS, height: H, width: W };
+// Unwrapped text overflows into at most this many empty neighbours (ADR-010).
+const OVERFLOW = 20;
+const LINE = {
+  thin: [1, "solid"],
+  medium: [2, "solid"],
+  double: [3, "double"],
+};
+const columnName = (col) => address(1, col).replace(/\d+$/, "");
+// Value kinds for general alignment: numbers and dates right, text left,
+// booleans and errors centred.
+function generalAlign(cell) {
+  const v = cell.formula ? cell.result : cell.input;
+  return !v || v.type === "text"
+    ? "left"
+    : v.type === "boolean" || v.type === "error"
+      ? "center"
+      : "right";
+}
+// Direct formatting as inline styles; catalogue classes stay underneath and
+// conditional formatting is applied after, on top.
+function paint(element, style, cell) {
+  if (negativeRed(cell)) element.style.color = colorCSS("alert");
+  if (!style) return;
+  if (style.bold !== undefined)
+    element.style.fontWeight = style.bold ? "bold" : "normal";
+  if (style.italic !== undefined)
+    element.style.fontStyle = style.italic ? "italic" : "normal";
+  if (style.fill) {
+    element.style.backgroundColor = fillCSS(style.fill);
+    // Text follows the fill unless a colour is given: white on dark fills;
+    // ink when a light fill replaces the header style's dark one.
+    if (!style.color && DARK_FILLS.includes(style.fill))
+      element.style.color = colorCSS("bg");
+    else if (!style.color && cell.cellStyle === "header")
+      element.style.color = colorCSS("ink");
+  }
+  if (style.color) element.style.color = colorCSS(style.color);
+}
 // One focusable grid, a bounded DOM viewport, and a single rectangular selection.
 export function createGrid(
   root,
@@ -34,53 +81,101 @@ export function createGrid(
   root.setAttribute("aria-colcount", COLUMNS);
   const plane = document.createElement("div");
   plane.className = "grid-plane";
-  plane.style.width = `${L + COLUMNS * W}px`;
-  plane.style.height = `${H + ROWS * H}px`;
   root.replaceChildren(plane);
+  const axes = () => sheetAxes(getSheet(), SIZES);
   function draw() {
     frame = null;
     const sheet = getSheet(),
+      { rows, columns } = axes(),
       r = rectangle(anchor, focus),
-      v = viewport({
-        top: root.scrollTop,
-        left: root.scrollLeft,
-        height: root.clientHeight,
-        width: root.clientWidth,
-      });
-    const fragment = document.createDocumentFragment();
-    function node(tag, text, x, y, width, cls) {
+      v = viewport(
+        {
+          top: root.scrollTop,
+          left: root.scrollLeft,
+          height: Math.max(0, root.clientHeight - H),
+          width: Math.max(0, root.clientWidth - L),
+        },
+        { rows, columns },
+      );
+    const width = L + columns.total;
+    plane.style.width = `${width}px`;
+    plane.style.height = `${H + rows.total}px`;
+    const fragment = document.createDocumentFragment(),
+      locale = getLocale();
+    function node(tag, text, x, y, w, h, cls) {
       const el = document.createElement(tag);
       el.textContent = text;
       el.className = cls;
       Object.assign(el.style, {
         left: `${x}px`,
         top: `${y}px`,
-        width: `${width}px`,
-        height: `${H}px`,
+        width: `${w}px`,
+        height: `${h}px`,
       });
       fragment.append(el);
       return el;
     }
+    // Effective formatting of every cell in and around the viewport.
+    const styles = new Map();
+    function styleAt(row, col) {
+      const key = row * 20000 + col;
+      if (!styles.has(key)) {
+        const cell =
+          row < 1 || col < 1 ? undefined : sheet.cells[address(row, col)];
+        styles.set(
+          key,
+          effectiveStyle(
+            cell?.cellStyle,
+            sheet.columns?.[columnName(col)]?.style,
+            sheet.rows?.[row]?.style,
+            cell?.style,
+          ),
+        );
+      }
+      return styles.get(key);
+    }
+    const x = (col) => L + columns.start(col),
+      y = (row) => H + rows.start(row);
     for (let row = v.top; row <= v.bottom; row++) {
-      const line = node("div", "", 0, row * H, L + COLUMNS * W, "grid-row");
+      const height = rows.size(row),
+        line = node("div", "", 0, y(row), width, height, "grid-row");
       line.setAttribute("role", "row");
       line.setAttribute("aria-rowindex", row);
-      // Cells remain descendants of their semantic row, with row-relative coordinates.
+      const cells = [];
       for (let col = v.left; col <= v.right; col++) {
         const ref = address(row, col),
           cell = sheet.cells[ref] ?? {},
-          text = display(cell, getLocale()),
+          text = display(cell, locale);
+        cells.push({ col, ref, cell, text, style: styleAt(row, col) });
+      }
+      // Cells remain descendants of their semantic row, with row-relative coordinates.
+      cells.forEach((info, i) => {
+        const { col, ref, cell, text, style } = info,
           selected =
-            row >= r.top && row <= r.bottom && col >= r.left && col <= r.right;
-        const b = node(
-          "button",
-          text || "\u00a0",
-          L + (col - 1) * W,
-          0,
-          W,
-          `grid-cell ${cellClasses(cell, !!sheet.links?.[ref])}`,
-        );
+            row >= r.top && row <= r.bottom && col >= r.left && col <= r.right,
+          b = document.createElement("button"),
+          span = document.createElement("span");
+        b.className = `grid-cell ${cellClasses(cell, !!sheet.links?.[ref])}`;
+        Object.assign(b.style, {
+          left: `${x(col)}px`,
+          top: "0px",
+          width: `${columns.size(col)}px`,
+          height: `${height}px`,
+        });
+        span.className = "cell-text";
+        span.textContent = text || "\u00a0";
+        b.append(span);
         line.append(b);
+        const align = style?.align ?? {},
+          horizontal =
+            align.horizontal && align.horizontal !== "general"
+              ? align.horizontal
+              : generalAlign(cell);
+        b.dataset.align = horizontal;
+        if (align.wrap) b.classList.add("wrap");
+        else if (text && generalAlign(cell) === "left")
+          overflow(b, span, cells, i, horizontal);
+        paint(b, style, cell);
         b.dataset.cell = ref;
         b.id = `grid-${ref}`;
         b.tabIndex = -1;
@@ -92,31 +187,105 @@ export function createGrid(
         b.setAttribute("aria-pressed", ref === focus);
         b.title = `${ref}${cell.formula ? ` · ${cell.formula}` : ""}`;
         decorateCell?.(b, sheet.id, ref, cell);
-      }
+      });
       const head = node(
         "div",
         String(row),
         root.scrollLeft,
-        row * H,
+        y(row),
         L,
+        height,
         "grid-row-head",
       );
       head.setAttribute("role", "rowheader");
       head.dataset.row = row;
     }
+    // Text overflows into empty neighbours (left text to the right, right
+    // text to the left, centred text both ways); centre across selection
+    // spans the following empty centerContinuous cells.
+    function overflow(b, span, cells, i, horizontal) {
+      const empty = (j) => cells[j] && !cells[j].text,
+        widthOf = (j) => columns.size(cells[j].col);
+      let before = 0,
+        after = 0;
+      if (horizontal === "centerContinuous") {
+        for (
+          let j = i + 1;
+          j <= i + OVERFLOW &&
+          empty(j) &&
+          cells[j].style?.align?.horizontal === "centerContinuous";
+          j++
+        )
+          after += widthOf(j);
+      } else {
+        if (horizontal !== "right")
+          for (let j = i + 1; j <= i + OVERFLOW && empty(j); j++)
+            after += widthOf(j);
+        if (horizontal !== "left")
+          for (let j = i - 1; j >= i - OVERFLOW && empty(j); j--)
+            before += widthOf(j);
+        if (horizontal === "center") before = after = Math.min(before, after);
+      }
+      if (!before && !after) return;
+      b.classList.add("overflow");
+      Object.assign(span.style, {
+        left: `${6 - before}px`,
+        width: `${columns.size(cells[i].col) + before + after - 12}px`,
+      });
+    }
+    // Borders: each shared edge drawn once, above the cells (ADR-010 rule).
+    const edges = document.createElement("div");
+    edges.className = "grid-edges";
+    edges.setAttribute("aria-hidden", "true");
+    function edge(side, left, top, length, vertical) {
+      if (!side) return;
+      const [px, kind] = LINE[side.style],
+        el = document.createElement("div");
+      el.className = "grid-edge";
+      Object.assign(el.style, {
+        left: `${vertical ? left - Math.ceil(px / 2) : left}px`,
+        top: `${vertical ? top : top - Math.ceil(px / 2)}px`,
+        [vertical ? "height" : "width"]: `${length}px`,
+        [vertical ? "borderLeft" : "borderTop"]:
+          `${px}px ${kind} ${colorCSS(side.color)}`,
+      });
+      edges.append(el);
+    }
+    const side = (row, col, name) => styleAt(row, col)?.border?.[name];
+    for (let row = v.top - 1; row <= v.bottom; row++)
+      for (let col = v.left - 1; col <= v.right; col++) {
+        if (col >= v.left && row >= 1)
+          edge(
+            resolveEdge(side(row, col, "bottom"), side(row + 1, col, "top")),
+            x(col),
+            y(row + 1),
+            columns.size(col),
+            false,
+          );
+        if (row >= v.top && col >= 1)
+          edge(
+            resolveEdge(side(row, col, "right"), side(row, col + 1, "left")),
+            x(col + 1),
+            y(row),
+            rows.size(row),
+            true,
+          );
+      }
+    if (edges.childElementCount) fragment.append(edges);
     for (let col = v.left; col <= v.right; col++) {
       const head = node(
         "div",
-        address(1, col).replace(/\d+$/, ""),
-        L + (col - 1) * W,
+        columnName(col),
+        x(col),
         root.scrollTop,
-        W,
+        columns.size(col),
+        H,
         "grid-column-head",
       );
       head.setAttribute("role", "columnheader");
       head.dataset.column = col;
     }
-    node("div", "", root.scrollLeft, root.scrollTop, L, "grid-corner");
+    node("div", "", root.scrollLeft, root.scrollTop, L, H, "grid-corner");
     plane.replaceChildren(fragment);
     markSelection();
   }
@@ -162,14 +331,17 @@ export function createGrid(
     focus = ref;
     if (scroll) {
       const p = parseAddress(ref),
-        x = L + (p.column - 1) * W,
-        y = p.row * H;
+        { rows, columns } = axes(),
+        x = L + columns.start(p.column),
+        y = H + rows.start(p.row),
+        w = columns.size(p.column),
+        h = rows.size(p.row);
       if (y < root.scrollTop + H) root.scrollTop = y - H;
-      else if (y + H > root.scrollTop + root.clientHeight)
-        root.scrollTop = y + H - root.clientHeight;
+      else if (y + h > root.scrollTop + root.clientHeight)
+        root.scrollTop = y + h - root.clientHeight;
       if (x < root.scrollLeft + L) root.scrollLeft = x - L;
-      else if (x + W > root.scrollLeft + root.clientWidth)
-        root.scrollLeft = x + W - root.clientWidth;
+      else if (x + w > root.scrollLeft + root.clientWidth)
+        root.scrollLeft = x + w - root.clientWidth;
     }
     if (!root.querySelector(`#grid-${focus}`)) draw();
     else markSelection();

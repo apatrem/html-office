@@ -100,7 +100,15 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   Custom Excel format codes are not accepted.
 
-Rendering, commands, theme switching and the toolbar that use these fields are delivered separately (F02–F06, T01–T02). Until then the browser preserves them through edits, paste, history, recovery and saving; catalogue cell styles and conditional tokens already render.
+**Rendering (F02).** The grid resolves each property in layer order and draws every field without the calculation engine:
+- fills and text colours with charte tokens; white text on dark fills unless a colour is given;
+- borders once per shared edge: the heavier line wins (`double` over `medium` over `thin`), the lower or right cell on a tie; `total` and `output` borders come from their cell styles;
+- general alignment by value (numbers and dates right, text left, booleans and errors centred), explicit alignment, and text at the bottom of the cell;
+- unwrapped text overflowing into at most 20 empty neighbours; `centerContinuous` centring across the following empty `centerContinuous` cells; wrapped text inside its row height;
+- column widths and stored row heights; the workbook `font` over the whole grid;
+- the `dateStyle`, `scale` (k and M suffixes) and `negative` presets.
+
+Formatting commands, panels and theme switching follow separately (F03, F05, TH01–TH02).
 
 ## Sheet navigation
 

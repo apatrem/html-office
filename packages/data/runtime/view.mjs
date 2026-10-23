@@ -10,16 +10,18 @@ export function display(cell, locale = "en-US") {
   if (f.kind === "date" || v.type === "date") {
     const serial = Math.floor(v.value);
     if (serial < 0 || serial > 2958465) return "####";
-    let formatter = dateFormats.get(locale);
+    const long = f.dateStyle === "long",
+      dateKey = locale + (long ? ":long" : "");
+    let formatter = dateFormats.get(dateKey);
     if (!formatter) {
       formatter = new Intl.DateTimeFormat(locale, {
         year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
+        month: long ? "long" : "2-digit",
+        day: long ? "numeric" : "2-digit",
         timeZone: "UTC",
         calendar: "gregory",
       });
-      dateFormats.set(locale, formatter);
+      dateFormats.set(dateKey, formatter);
     }
     const date = new Date(
       Date.UTC(1899, 11, 31) + (serial > 59 ? serial - 1 : serial) * 86400000,
@@ -48,7 +50,29 @@ export function display(cell, locale = "en-US") {
     formatter = new Intl.NumberFormat(locale, options);
     numberFormats.set(key, formatter);
   }
-  return formatter.format(v.value);
+  // Presets (ADR-010): scale with a k/M suffix, negatives in parentheses.
+  const scale = SCALES[f.scale],
+    parentheses =
+      v.value < 0 && ["parentheses", "redParentheses"].includes(f.negative);
+  let value = scale ? v.value / scale.divisor : v.value;
+  if (parentheses) value = -value;
+  let text = formatter.format(value);
+  if (scale) text = text.replace(/(\d)(?!.*\d)/, `$1${scale.suffix}`);
+  return parentheses ? `(${text})` : text;
+}
+const SCALES = {
+  thousands: { divisor: 1e3, suffix: "k" },
+  millions: { divisor: 1e6, suffix: "M" },
+};
+// Negative values shown in the alert colour by the red presets.
+export function negativeRed(cell) {
+  const v = cell?.formula ? cell.result : cell?.input;
+  return (
+    v?.type === "number" &&
+    v.value < 0 &&
+    ["red", "redParentheses"].includes(cell.format?.negative) &&
+    cell.format.kind !== "date"
+  );
 }
 const bounds = new WeakMap();
 export function touchPreview(cells, ref) {

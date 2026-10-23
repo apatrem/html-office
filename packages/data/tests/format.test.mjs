@@ -65,3 +65,48 @@ test("workbook locale is a supported Intl display locale, never a formula-langua
     assert.throws(() => validateWorkbook(book), /header/);
   }
 });
+test("presets show long dates, k/M scales and negatives in parentheses or red", async () => {
+  const { negativeRed } = await import("../runtime/view.mjs");
+  assert.equal(
+    display(number(45292, { kind: "date", dateStyle: "long" })),
+    "January 1, 2024",
+  );
+  assert.equal(
+    display(number(60, { kind: "date", dateStyle: "long" }), "fr-FR"),
+    "29 février 1900",
+  );
+  assert.equal(
+    display(
+      number(3953.4, {
+        kind: "currency",
+        currency: "EUR",
+        digits: 1,
+        scale: "thousands",
+      }),
+    ),
+    "€4.0k",
+  );
+  assert.equal(
+    display(number(-2500000, { kind: "number", digits: 1, scale: "millions" })),
+    "-2.5M",
+  );
+  const parentheses = number(-1234.5, {
+    kind: "number",
+    digits: 0,
+    negative: "parentheses",
+  });
+  assert.equal(display(parentheses), "(1,235)");
+  assert.equal(negativeRed(parentheses), false);
+  const red = number(-12, {
+    kind: "percent",
+    digits: 0,
+    negative: "redParentheses",
+  });
+  assert.equal(display(red), "(1,200%)");
+  assert.equal(negativeRed(red), true);
+  assert.equal(
+    negativeRed(number(12, { kind: "number", negative: "red" })),
+    false,
+  );
+  assert.equal(red.input.value, -12);
+});

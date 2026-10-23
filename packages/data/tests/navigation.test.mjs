@@ -31,3 +31,41 @@ test("a large-sheet viewport stays bounded at distant scroll positions", () => {
   assert.ok(v.top > 99000);
   assert.ok(v.left > 90);
 });
+test("variable row and column sizes give cumulative offsets and lookups", async () => {
+  const { createAxis, sheetAxes } = await import("../model/axis.mjs");
+  const axis = createAxis(
+    23,
+    1048576,
+    new Map([
+      [3, 50],
+      [10, 1],
+      [1048576, 100],
+    ]),
+  );
+  assert.equal(axis.start(1), 0);
+  assert.equal(axis.start(3), 46);
+  assert.equal(axis.start(4), 96);
+  assert.equal(axis.start(11), 96 + 6 * 23 + 1);
+  assert.equal(axis.size(3), 50);
+  assert.equal(axis.total, 1048576 * 23 + 27 - 22 + 77);
+  assert.equal(axis.indexAt(0), 1);
+  assert.equal(axis.indexAt(46), 3);
+  assert.equal(axis.indexAt(95), 3);
+  assert.equal(axis.indexAt(96), 4);
+  assert.equal(axis.indexAt(axis.total + 500), 1048576);
+  const sheet = { rows: { 2: { height: 40 } }, columns: { B: { width: 200 } } };
+  const axes = sheetAxes(sheet, {
+    rows: 1048576,
+    columns: 16384,
+    height: 23,
+    width: 100,
+  });
+  assert.equal(axes.rows.start(3), 63);
+  assert.equal(axes.columns.start(3), 300);
+  assert.equal(
+    sheetAxes(sheet, { rows: 1048576, columns: 16384, height: 23, width: 100 }),
+    axes,
+  );
+  const v = viewport({ top: 0, left: 0, height: 100, width: 250 }, axes);
+  assert.equal(v.right, 4);
+});
