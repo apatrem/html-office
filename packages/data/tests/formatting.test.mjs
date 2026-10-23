@@ -172,6 +172,8 @@ test("row and column entries are bounded and explicit", () => {
     [{ columns: { b: { width: 20 } } }, /column key/],
     [{ columns: { B: {} } }, /Empty/],
     [{ columns: { B: { width: 0 } } }, /width/],
+    [{ columns: { B: { width: 7 } } }, /width/],
+    [{ rows: { 2: { height: 22 } } }, /height/],
     [{ rows: { 2: { height: 601 } } }, /height/],
     [
       { rows: { 2: { height: 20, customHeight: true } } },
@@ -358,7 +360,7 @@ test("structural edits move row/column formatting and internal links; undo resto
 test("formatting pushed past the grid edge is dropped instead of blocking an insert", async () => {
   const { shiftWorkbook } = await import("../model/structure.mjs");
   const book = fixture();
-  book.sheets[0].rows = { 1048576: { height: 20 }, 10: { height: 30 } };
+  book.sheets[0].rows = { 1048576: { height: 24 }, 10: { height: 30 } };
   book.sheets[0].columns = { XFD: { width: 90 } };
   const rows = shiftWorkbook(book, {
     sheetId: "inputs",

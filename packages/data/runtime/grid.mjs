@@ -41,31 +41,30 @@ function generalAlign(cell) {
 // Direct formatting as inline styles; catalogue classes stay underneath and
 // conditional formatting is applied after, on top.
 // data-text-color tells conditional formatting whether the text colour was
-// chosen (explicit) or derived from a dark fill (auto).
+// chosen (explicit: a colour or the red negative preset) or derived from the
+// fill (auto).
 function paint(element, style, cell) {
-  if (negativeRed(cell)) {
-    element.style.color = colorCSS("alert");
-    element.dataset.textColor = "explicit";
-  }
-  if (!style) return;
-  if (style.bold !== undefined)
-    element.style.fontWeight = style.bold ? "bold" : "normal";
-  if (style.italic !== undefined)
-    element.style.fontStyle = style.italic ? "italic" : "normal";
-  if (style.fill) {
-    element.style.backgroundColor = fillCSS(style.fill);
-    // Text follows the fill unless a colour is given: white on dark fills;
-    // ink when a light fill replaces the header style's dark one.
-    if (!style.color && DARK_FILLS.includes(style.fill)) {
-      element.style.color = colorCSS("bg");
-      element.dataset.textColor ??= "auto";
-    } else if (!style.color && cell.cellStyle === "header") {
-      element.style.color = colorCSS("ink");
-      element.dataset.textColor ??= "auto";
+  const chosen = style?.color ?? (negativeRed(cell) ? "alert" : null);
+  if (style) {
+    if (style.bold !== undefined)
+      element.style.fontWeight = style.bold ? "bold" : "normal";
+    if (style.italic !== undefined)
+      element.style.fontStyle = style.italic ? "italic" : "normal";
+    if (style.fill) {
+      element.style.backgroundColor = fillCSS(style.fill);
+      // Text follows the fill unless chosen: white on dark fills; ink when a
+      // light fill replaces the header style's dark one.
+      if (!chosen && DARK_FILLS.includes(style.fill)) {
+        element.style.color = colorCSS("bg");
+        element.dataset.textColor = "auto";
+      } else if (!chosen && cell.cellStyle === "header") {
+        element.style.color = colorCSS("ink");
+        element.dataset.textColor = "auto";
+      }
     }
   }
-  if (style.color) {
-    element.style.color = colorCSS(style.color);
+  if (chosen) {
+    element.style.color = colorCSS(chosen);
     element.dataset.textColor = "explicit";
   }
 }
@@ -265,14 +264,17 @@ export function createGrid(
     const edges = document.createElement("div");
     edges.className = "grid-edges";
     edges.setAttribute("aria-hidden", "true");
-    function edge(side, left, top, length, vertical) {
+    // `outer` edges (the sheet's top and left) are drawn inside the first
+    // row or column so the sticky headers do not cover them.
+    function edge(side, left, top, length, vertical, outer = false) {
       if (!side) return;
       const [px, kind] = LINE[side.style],
-        el = document.createElement("div");
+        el = document.createElement("div"),
+        shift = outer ? 0 : Math.ceil(px / 2);
       el.className = "grid-edge";
       Object.assign(el.style, {
-        left: `${vertical ? left - Math.ceil(px / 2) : left}px`,
-        top: `${vertical ? top : top - Math.ceil(px / 2)}px`,
+        left: `${vertical ? left - shift : left}px`,
+        top: `${vertical ? top : top - shift}px`,
         [vertical ? "height" : "width"]: `${length}px`,
         [vertical ? "borderLeft" : "borderTop"]:
           `${px}px ${kind} ${colorCSS(side.color)}`,
@@ -290,6 +292,7 @@ export function createGrid(
             y(row + 1),
             columns.size(col),
             false,
+            row === 0,
           );
         if (row >= v.top)
           edge(
@@ -298,6 +301,7 @@ export function createGrid(
             y(row),
             rows.size(row),
             true,
+            col === 0,
           );
       }
     if (edges.childElementCount) fragment.append(edges);

@@ -188,10 +188,12 @@ export function validateAxes(sheet) {
       fields(entry, ["style", key], axis.slice(0, -1));
       if (!Object.keys(entry).length) fail(`Empty ${axis.slice(0, -1)} entry`);
       if (entry.style !== undefined) validateStyle(entry.style);
-      const max = axis === "rows" ? 600 : 2000;
+      // Heights are automatic: at least the standard 23 px row. Widths are at
+      // least 8 px. These minimums also bound the grid's rendered viewport.
+      const [min, max] = axis === "rows" ? [23, 600] : [8, 2000];
       if (
         entry[key] !== undefined &&
-        (!Number.isInteger(entry[key]) || entry[key] < 1 || entry[key] > max)
+        (!Number.isInteger(entry[key]) || entry[key] < min || entry[key] > max)
       )
         fail(`Invalid ${key}`);
     }

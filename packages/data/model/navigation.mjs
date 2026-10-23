@@ -49,23 +49,13 @@ const uniform = {
 };
 // Visible rows and columns, plus two of margin, for a scroll position measured
 // from the first row and column (headers excluded).
-// Tiny stored sizes cannot make the DOM unbounded: at most this many rows and
-// columns render, whatever their sizes.
-export const MAX_VIEW_ROWS = 160,
-  MAX_VIEW_COLUMNS = 60;
+// The rendered viewport is bounded by the minimum stored sizes (23 px rows,
+// 8 px columns; validateAxes), so every visible cell renders.
 export function viewport({ top, left, height, width }, axes = uniform) {
-  const first = clamp(axes.rows.indexAt(top) - 2, ROWS),
-    start = clamp(axes.columns.indexAt(left) - 2, COLUMNS);
   return {
-    top: first,
-    bottom: Math.min(
-      clamp(axes.rows.indexAt(top + height) + 2, ROWS),
-      first + MAX_VIEW_ROWS - 1,
-    ),
-    left: start,
-    right: Math.min(
-      clamp(axes.columns.indexAt(left + width) + 2, COLUMNS),
-      start + MAX_VIEW_COLUMNS - 1,
-    ),
+    top: clamp(axes.rows.indexAt(top) - 2, ROWS),
+    bottom: clamp(axes.rows.indexAt(top + height) + 2, ROWS),
+    left: clamp(axes.columns.indexAt(left) - 2, COLUMNS),
+    right: clamp(axes.columns.indexAt(left + width) + 2, COLUMNS),
   };
 }

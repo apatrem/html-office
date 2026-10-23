@@ -42,6 +42,25 @@ export function formattingWorkbook() {
         style: { fill: "tint" },
       },
       {
+        id: "region",
+        sheetId: "show",
+        ref: "A2",
+        kind: "highlight",
+        condition: {
+          operator: "eq",
+          values: [{ type: "text", value: "Region" }],
+        },
+        style: { fill: "tint" },
+      },
+      {
+        id: "loss",
+        sheetId: "show",
+        ref: "D10",
+        kind: "highlight",
+        condition: { operator: "lt", values: [{ type: "number", value: 0 }] },
+        style: { fill: "lig" },
+      },
+      {
         id: "bars",
         sheetId: "show",
         ref: "B3:B4",
@@ -129,6 +148,10 @@ export function formattingWorkbook() {
             style: { align: { horizontal: "right" } },
           }),
           A10: { input: { type: "boolean", value: true } },
+          D10: number(-12, {
+            format: { kind: "number", digits: 0, negative: "red" },
+            style: { fill: "dark" },
+          }),
           D13: number(42, {
             style: { align: { horizontal: "centerContinuous" } },
           }),

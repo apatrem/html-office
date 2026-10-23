@@ -80,8 +80,8 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   There is one font size and no vertical alignment, underline, strike, font family, merges or diagonal borders.
 - **Rows and columns.** A sheet may have `rows` keyed `"1"`–`"1048576"` and `columns` keyed `"A"`–`"XFD"`:
-  - row entries are `{style?, height?}`, where `height` (1–600 px) is the **automatic** height written by the editor when wrapped text grows a row; rows are never sized by hand;
-  - column entries are `{style?, width?}`, with `width` 1–2000 px, set by the user.
+  - row entries are `{style?, height?}`, where `height` (23–600 px; 23 is the standard row) is the **automatic** height written by the editor when wrapped text grows a row; rows are never sized by hand;
+  - column entries are `{style?, width?}`, with `width` 8–2000 px, set by the user. These minimums keep the rendered grid bounded.
 
   Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
 - **Document settings.**

@@ -45,6 +45,9 @@ export function createConditionalDecorator(
         if (!highlight.color && element.dataset.textColor !== "explicit") {
           if (DARK_FILLS.includes(highlight.fill))
             element.style.color = colorCSS("bg");
+          // A light fill over the header style's white text needs ink.
+          else if (element.classList.contains("header"))
+            element.style.color = colorCSS("ink");
           else if (element.dataset.textColor === "auto")
             element.style.color = "";
         }

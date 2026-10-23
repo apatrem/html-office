@@ -69,19 +69,17 @@ test("variable row and column sizes give cumulative offsets and lookups", async 
   const v = viewport({ top: 0, left: 0, height: 100, width: 250 }, axes);
   assert.equal(v.right, 4);
 });
-test("tiny stored sizes keep the rendered viewport within its budget", async () => {
+test("minimum stored sizes bound the rendered viewport", async () => {
   const { createAxis } = await import("../model/axis.mjs");
-  const { MAX_VIEW_ROWS, MAX_VIEW_COLUMNS } = await import(
-    "../model/navigation.mjs"
-  );
-  const tiny = new Map(Array.from({ length: 1000 }, (_, i) => [i + 1, 1]));
+  const smallest = (size) =>
+    new Map(Array.from({ length: 1000 }, (_, i) => [i + 1, size]));
   const v = viewport(
-    { top: 0, left: 0, height: 600, width: 1000 },
+    { top: 0, left: 0, height: 900, width: 1440 },
     {
-      rows: createAxis(23, 1048576, tiny),
-      columns: createAxis(100, 16384, tiny),
+      rows: createAxis(23, 1048576, smallest(23)),
+      columns: createAxis(100, 16384, smallest(8)),
     },
   );
-  assert.equal(v.bottom - v.top + 1, MAX_VIEW_ROWS);
-  assert.equal(v.right - v.left + 1, MAX_VIEW_COLUMNS);
+  assert.ok(v.bottom - v.top + 1 <= Math.ceil(900 / 23) + 5);
+  assert.ok(v.right - v.left + 1 <= Math.ceil(1440 / 8) + 5);
 });

@@ -47,6 +47,11 @@ try {
   assert.equal(await css("A3", "color"), await token("acc"));
   assert.equal(await css("A4", "backgroundColor"), await token("callout"));
   assert.equal(await css("A4", "color"), await token("ink"));
+  // A light conditional fill over a header gives ink text; the red negative
+  // preset survives a dark fill and a later light conditional fill.
+  assert.equal(await css("A2", "backgroundColor"), await token("callout"));
+  assert.equal(await css("A2", "color"), await token("ink"));
+  assert.equal(await css("D10", "color"), await token("alert"));
   // Data bars keep the grid's text span and its rules.
   assert.equal(await cell("B3").locator(".cell-text.data-bar-text").count(), 1);
   // The tint fill is the charte callout colour, as bg-tint in html-slides.
@@ -134,16 +139,16 @@ try {
   const B4 = await box("B4");
   assert.match(under(B4)[0].style, /^2px solid/, "medium bottom on B4");
   // The sheet's top and left edges draw too (A1 top and left borders).
+  // Drawn inside A1, so the sticky headers do not cover them.
   const A1 = await box("A1");
   assert.ok(
-    edges.some(
-      (e) =>
-        Math.abs(e.top - A1.top) < 3 && e.left <= A1.left + 1 && e.width > 50,
-    ),
+    edges.some((e) => e.top >= A1.top && e.top < A1.top + 3 && e.width > 50),
     "A1 top edge",
   );
   assert.ok(
-    edges.some((e) => Math.abs(e.left - A1.left) < 3 && e.height > 10),
+    edges.some(
+      (e) => e.left >= A1.left && e.left < A1.left + 3 && e.height > 10,
+    ),
     "A1 left edge",
   );
   // The workbook font applies to the whole grid.
