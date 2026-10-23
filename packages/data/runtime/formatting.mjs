@@ -33,6 +33,8 @@ export function setupFormatting({
   status,
   publish,
   locate,
+  // Pending (uncalculated) attempts: [{sheetId, ref, cell}].
+  getPending = () => [],
 }) {
   const probe = document.createElement("div");
   probe.className = "measure-probe";
@@ -58,8 +60,34 @@ export function setupFormatting({
   // Cells a command writes: the rectangle, or only populated cells of whole
   // rows or columns. Refused above MAX_FORMAT_CELLS individual cells.
   function targetRefs(r = scope()) {
-    if (r.kind !== "cells")
-      return Object.keys(getSheet().cells).filter((ref) => inside(r, ref));
+    if (r.kind !== "cells") {
+      const sheet = getSheet(),
+        refs = new Set(
+          Object.keys(sheet.cells).filter((ref) => inside(r, ref)),
+        );
+      // Pending-only cells in the selection take the change too.
+      for (const attempt of getPending())
+        if (
+          attempt.sheetId === sheet.id &&
+          attempt.cell &&
+          inside(r, attempt.ref)
+        )
+          refs.add(attempt.ref);
+      // Where a styled crossing row (or column) meets the selection, a cell
+      // override may be needed for the change to show (blank or not).
+      const crossing = Object.entries(
+          sheet[r.kind === "rows" ? "columns" : "rows"] ?? {},
+        ).filter(([, entry]) => entry.style),
+        [from, to] = r.kind === "rows" ? [r.top, r.bottom] : [r.left, r.right];
+      if (crossing.length * (to - from + 1) > MAX_FORMAT_CELLS)
+        throw new Error("select fewer rows or columns");
+      for (const [name] of crossing)
+        for (let i = from; i <= to; i++)
+          refs.add(
+            r.kind === "rows" ? `${name}${i}` : address(Number(name), i),
+          );
+      return [...refs];
+    }
     const count = (r.bottom - r.top + 1) * (r.right - r.left + 1);
     if (count > MAX_FORMAT_CELLS)
       throw new Error(
@@ -77,9 +105,13 @@ export function setupFormatting({
     for (const { style } of Object.values(entries ?? {})) {
       if (!style) continue;
       for (const [key, value] of Object.entries(style))
-        if (key === "border" || key === "align")
+        if (key === "border") {
+          // Only drawn sides count: a crossing "none" draws nothing.
+          for (const [side, line] of Object.entries(value))
+            if (line.style !== "none") any.border[side] = line;
+        } else if (key === "align")
           for (const field of Object.keys(value))
-            any[key][field] = value[field];
+            any.align[field] = value[field];
         else any[key] = value;
     }
     return any;
@@ -105,6 +137,14 @@ export function setupFormatting({
             ? null
             : value;
     return out;
+  }
+  // Row heights measure what the draft will show: a pending attempt's cell
+  // where there is one.
+  function draftCell(sheet, ref) {
+    const attempt = getPending().find(
+      (a) => a.sheetId === sheet.id && a.ref === ref && a.cell,
+    );
+    return attempt?.cell ?? sheet.cells[ref] ?? {};
   }
   const layers = (sheet, row, col) => [
     sheet.columns?.[columnName(col)]?.style,
@@ -195,7 +235,7 @@ export function setupFormatting({
                 if (wrap) {
                   const preview = { ...s, ...axis, cells: { ...s.cells } };
                   for (const ref of refs)
-                    preview.cells[ref] = transform(s.cells[ref] ?? {}, ref);
+                    preview.cells[ref] = transform(draftCell(s, ref), ref);
                   fields.rows = rowHeights(
                     preview,
                     new Set(refs.map((ref) => parseAddress(ref).row)),
@@ -442,7 +482,7 @@ export function setupFormatting({
       sheetPatch: (s) => {
         const preview = { ...s, cells: { ...s.cells } };
         for (const ref of refs) {
-          const next = transform(s.cells[ref] ?? {}, ref);
+          const next = transform(draftCell(s, ref), ref);
           if (Object.keys(next).length) preview.cells[ref] = next;
           else delete preview.cells[ref];
         }
@@ -502,7 +542,7 @@ export function setupFormatting({
           }
           const preview = { ...sheet, ...fields, cells: { ...sheet.cells } };
           for (const ref of refs) {
-            const next = transform(preview.cells[ref] ?? {});
+            const next = transform(draftCell(preview, ref));
             if (Object.keys(next).length) preview.cells[ref] = next;
             else delete preview.cells[ref];
           }

@@ -686,7 +686,9 @@ function publishPresentation({
         else next[key] = value;
       validateAxes(next);
       validateSheetLinks(next, new Set(book.sheets.map((s) => s.id)));
-      // The saved draft overlays pending pasted links: count them too.
+      // The saved draft overlays pending pasted links: count them too. The
+      // canonical map is checked on its own above as well, because it is
+      // what remains if the pending attempt is discarded.
       const draft = new Set(Object.keys(next.links ?? {}));
       for (const attempt of pendingEdits)
         if (attempt.sheetId === sheetId && attempt.link !== undefined)
@@ -1001,6 +1003,7 @@ const formatting = setupFormatting({
   busy: () => !!loading,
   status,
   publish: publishPresentation,
+  getPending: () => pendingEdits,
   // Internal links select their target sheet and range.
   locate: (target, range) => {
     if (!book.sheets.some((s) => s.id === target))

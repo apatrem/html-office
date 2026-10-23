@@ -240,6 +240,22 @@ try {
   assert.equal(await tool("Bold").getAttribute("aria-pressed"), "true");
   await tool("Bold").click();
   await changed();
+  // Row 31 bold, then column C bold off: the blank intersection C31 needs
+  // its own override for the whole column to read as not bold.
+  await page.locator('#grid [data-row="31"]').click();
+  await tool("Bold").click();
+  await changed();
+  await page.locator('#grid [data-column="3"]').click();
+  assert.equal(await tool("Bold").getAttribute("aria-pressed"), "true");
+  await tool("Bold").click();
+  await changed();
+  assert.equal(
+    await cell("C31").evaluate((el) => getComputedStyle(el).fontWeight),
+    "400",
+  );
+  // Bringing row 31's header into view scrolled the grid; go back up.
+  await page.locator("#grid").evaluate((el) => (el.scrollTop = 0));
+  await cell("H5").waitFor();
   // Accounting with an explicit minus sign keeps it.
   await select("H5");
   await openMenu(page, "Format");
@@ -286,7 +302,8 @@ try {
   );
   await check.getByRole("button", { name: "Cancel" }).click();
   sheet = await save("commands-2.html");
-  assert.equal(sheet.columns.C.style.bold, true);
+  assert.equal(sheet.columns.C.style.bold, false);
+  assert.equal(sheet.cells.C31.style.bold, false);
   assert.equal(sheet.cells.C4.style, undefined);
   assert.equal(sheet.rows["30"].style.bold, false);
   assert.deepEqual(sheet.cells.H5.format, {
