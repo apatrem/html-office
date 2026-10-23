@@ -13,5 +13,32 @@ export const ICONS = {
   caret: '<path d="m6 8 4 4 4-4"/>',
   check: '<path d="m4.5 10.5 3.5 3.5 7.5-8"/>',
   save: '<path d="M4 3.5h9.5l2.5 2.5v10.5H4z"/><path d="M7 3.5v3.5h5.5V3.5"/><rect x="6.5" y="11" width="7" height="5.5"/>',
+  fill: '<path d="m5 9 5-5 6 6-5 5z"/><path d="M16.5 12.5c.8 1.2 1.2 2 1.2 2.5a1.2 1.2 0 0 1-2.4 0c0-.5.4-1.3 1.2-2.5z"/>',
+  borders:
+    '<rect x="3.5" y="3.5" width="13" height="13" rx="1"/><path d="M10 3.5v13M3.5 10h13" stroke-dasharray="1.5 1.8"/>',
+  alignL: '<path d="M3 5h14M3 9h9M3 13h14M3 17h9"/>',
+  alignC: '<path d="M3 5h14M5.5 9h9M3 13h14M5.5 17h9"/>',
+  alignR: '<path d="M3 5h14M8 9h9M3 13h14M8 17h9"/>',
+  across:
+    '<path d="M2.5 4v12M17.5 4v12"/><path d="M5 10h10"/><path d="m7 7.5-2.5 2.5L7 12.5M13 7.5l2.5 2.5-2.5 2.5"/>',
+  wrap: '<path d="M3 5h14"/><path d="M3 10h11a2.8 2.8 0 0 1 0 5.6H10"/><path d="m11.5 13.8-1.8 1.8 1.8 1.8"/><path d="M3 15.5h4"/>',
+  link: '<path d="m8.2 11.8 3.6-3.6"/><path d="m9 6.3 1.3-1.3a3.2 3.2 0 0 1 4.6 4.6l-1.3 1.3"/><path d="m11 13.7-1.3 1.3a3.2 3.2 0 0 1-4.6-4.6l1.3-1.3"/>',
+  painter:
+    '<rect x="4" y="3" width="10" height="5" rx="1"/><path d="M14 5.5h2v4h-6v3"/><rect x="9" y="12.5" width="2" height="5" rx=".5"/>',
+  close: '<path d="m5 5 10 10M15 5 5 15"/>',
+  bAll: '<rect x="3.5" y="3.5" width="13" height="13"/><path d="M10 3.5v13M3.5 10h13"/>',
+  bOuter:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><rect x="3.5" y="3.5" width="13" height="13"/>',
+  bInner:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13"/>',
+  bTop: '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M3.5 3.5h13"/>',
+  bBottom:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M3.5 16.5h13"/>',
+  bLeft:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M3.5 3.5v13"/>',
+  bRight:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M16.5 3.5v13"/>',
+  bNone:
+    '<rect x="3.5" y="3.5" width="13" height="13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/><path d="M10 3.5v13M3.5 10h13" stroke-opacity=".35" stroke-dasharray="1.5 1.8"/>',
   plus: '<path d="M10 4v12M4 10h12"/>',
 };

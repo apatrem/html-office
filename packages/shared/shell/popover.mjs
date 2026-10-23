@@ -21,10 +21,12 @@ function place(pop, trigger) {
   pop.style.maxHeight = `${innerHeight - Math.max(8, top) - 8}px`;
 }
 
+// restoreTo: where focus returns when the trigger may not survive (a grid
+// cell redrawn by the command, a header that cannot take focus).
 export function openPopover(
   trigger,
   content,
-  { label, role = "dialog", onClose, focus = true, cls = "" } = {},
+  { label, role = "dialog", onClose, focus = true, cls = "", restoreTo } = {},
 ) {
   closePopover({ restore: false });
   const pop = h(
@@ -35,7 +37,7 @@ export function openPopover(
   layer().append(pop);
   place(pop, trigger);
   trigger.setAttribute("aria-expanded", "true");
-  current = { pop, trigger, onClose };
+  current = { pop, trigger, onClose, restoreTo };
   if (focus) {
     const first =
       pop.querySelector('[tabindex="0"]:not([disabled])') ??
@@ -47,12 +49,13 @@ export function openPopover(
 
 export function closePopover({ restore = true } = {}) {
   if (!current) return;
-  const { pop, trigger, onClose } = current;
+  const { pop, trigger, onClose, restoreTo } = current;
   current = null;
   pop.remove();
   trigger.setAttribute("aria-expanded", "false");
   onClose?.();
-  if (restore && trigger.isConnected) trigger.focus({ preventScroll: true });
+  const target = restoreTo ?? trigger;
+  if (restore && target.isConnected) target.focus({ preventScroll: true });
 }
 
 document.addEventListener(

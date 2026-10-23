@@ -12,7 +12,7 @@ const MENUS = {
   "Delete columns": ["Edit", "Delete columns"],
   "Insert rows": ["Insert", "Insert rows"],
   "Insert columns": ["Insert", "Insert columns"],
-  "Number format": ["Format", "More number formats…"],
+  "Number format": ["Format", "Number format…"],
 };
 
 export function openMenu(page, menu) {

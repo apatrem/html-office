@@ -2,6 +2,7 @@ import { setupConditionalSettings } from "./conditional-settings.mjs";
 import { createConditionalDecorator } from "./conditional.mjs";
 import { createCommands } from "./commands.mjs";
 import { mountShell } from "./shell.mjs";
+import { setupFormatting } from "./formatting.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";
 import { setupDropdowns } from "./dropdowns.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
@@ -22,7 +23,13 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
-import { applyLinkEdits, FONTS } from "../model/formatting.mjs";
+import {
+  applyLinkEdits,
+  FONTS,
+  MAX_LINKS_PER_SHEET,
+  validateAxes,
+  validateSheetLinks,
+} from "../model/formatting.mjs";
 import { groupView } from "../model/organization.mjs";
 const $ = (id) => document.getElementById(id);
 const commands = createCommands();
@@ -123,6 +130,29 @@ const grid = createGrid($("grid"), {
     $("cell-value").focus();
     if (initial === undefined) $("cell-value").select();
   },
+  // Copy style paints on Enter; Escape cancels it.
+  intercept: (event) => {
+    if (!formatting.painting()) return false;
+    if (event.key === "Enter") formatting.paint();
+    else if (event.key === "Escape") formatting.cancelPainter();
+    else return false;
+    commands.changed();
+    event.preventDefault();
+    return true;
+  },
+  onSelectEnd: (event, ref, moved) => {
+    if (formatting.painting()) {
+      formatting.paint();
+      return void commands.changed();
+    }
+    const link = book.sheets.find((s) => s.id === sheetId).links?.[ref];
+    if (!link || moved || event.shiftKey) return;
+    if (event.metaKey || event.ctrlKey) formatting.openLink(link);
+    else shell.showLink($(`grid-${ref}`), link);
+  },
+  onContextMenu: ({ kind, element }) => shell.contextMenu(kind, element),
+  onResize: (column, width) => formatting.columnWidth(width, column),
+  onAutoFit: (column) => formatting.autoFit(column),
 });
 function choose(ref, updateGrid = true) {
   if (updateGrid) grid.select(ref, { notify: false });
@@ -243,7 +273,14 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     const refs = [...edits, ...result.results],
       before = captureCells(book, refs),
       linkEdits = edits.some((edit) => edit.link !== undefined),
-      headBefore = linkEdits ? captureHead(book) : undefined,
+      // Rows holding wrapped cells among the edits and recalculated results
+      // are re-measured once the new values are in place.
+      wrapped = formatting.wrappedRows(book, [
+        ...edits,
+        ...result.results.map(({ sheetId, ref }) => ({ sheetId, ref })),
+      ]),
+      headChange = linkEdits || wrapped.size > 0,
+      headBefore = headChange ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
     for (const edit of edits) {
@@ -261,10 +298,12 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
           edits.filter((edit) => edit.sheetId === sheet.id),
         ),
       );
-    const headAfter = linkEdits ? captureHead(book) : undefined;
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
+    // Wrapped cells resize their rows in the same history entry.
+    if (wrapped.size) book = formatting.withRowHeights(book, wrapped);
+    const headAfter = headChange ? captureHead(book) : undefined;
     book.snapshot = result.snapshot;
     trustSnapshot();
     if (!recalculateOnly) {
@@ -281,12 +320,12 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     }
     persistence.changed(
       cellEdits(refs),
-      linkEdits ? { head: headAfter } : undefined,
+      headChange ? { head: headAfter } : undefined,
     );
     history.record({
       before,
       after: captureCells(book, refs),
-      ...(linkEdits ? { headBefore, headAfter } : {}),
+      ...(headChange ? { headBefore, headAfter } : {}),
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,
@@ -370,10 +409,20 @@ $("cell-value").addEventListener("input", () => {
   if ($("cell-type").value === "blank" && $("cell-value").value)
     $("cell-type").value = inferType($("cell-value").value);
 });
+// The name box takes a cell or a range (B4 or B4:D20, active cell first).
 $("cell-address").addEventListener("change", () => {
   try {
-    parseAddress($("cell-address").value);
-    choose($("cell-address").value);
+    const text = $("cell-address").value.trim().toUpperCase();
+    if (text.includes(":")) {
+      const [from, to] = text.split(":");
+      parseAddress(from);
+      parseAddress(to);
+      grid.selectRange(to, from);
+      choose(from, false);
+    } else {
+      parseAddress(text);
+      choose(text);
+    }
   } catch (error) {
     status(error.message);
   }
@@ -574,54 +623,124 @@ async function moveHistory(direction) {
     }
   }
 }
-function formatSelection(transform) {
-  if (loading) return;
+// Publishes an engine-free presentation change as one history entry: cell
+// transforms over refs of the current sheet and, optionally, new fields for
+// that sheet (row/column styles and sizes, links).
+function publishPresentation({
+  refs = [],
+  transform = (cell) => cell,
+  // covers(ref): pending attempts in the selection that committed refs miss.
+  covers,
+  // link: {ref, value} also updates a pending pasted link on that cell.
+  link,
+  sheetPatch,
+  label = "Formatting",
+}) {
+  if (loading) return false;
   try {
     const sheet = book.sheets.find((s) => s.id === sheetId),
-      r = grid.selection;
-    if ((r.bottom - r.top + 1) * (r.right - r.left + 1) > 2000000)
-      throw new Error("Formatting rectangle exceeds 2,000,000 cells");
-    const edits = [];
-    for (let row = r.top; row <= r.bottom; row++)
-      for (let col = r.left; col <= r.right; col++) {
-        const ref = address(row, col),
-          cell = transform(sheet.cells[ref] ?? {});
-        validateCell(cell, book);
-        edits.push({ sheetId, ref, cell });
-      }
+      r = grid.selection,
+      edits = [];
+    for (const ref of refs) {
+      const original = sheet.cells[ref] ?? {},
+        cell = transform(original, ref);
+      // Unchanged cells stay out of the history entry.
+      if (cell === original) continue;
+      validateCell(cell, book);
+      edits.push({ sheetId, ref, cell });
+    }
     // A pending (uncalculated) attempt receives the same formatting change
     // applied to its own fields, so its pasted style or link is never replaced.
-    const targets = new Set(edits.map((e) => e.ref)),
+    const targets = new Set(refs),
       pending = pendingEdits
         .filter(
           (attempt) =>
             attempt.sheetId === sheetId &&
             attempt.cell !== null &&
-            targets.has(attempt.ref),
+            (targets.has(attempt.ref) || covers?.(attempt.ref)),
         )
-        .map((attempt) => [attempt, transform(attempt.cell)]);
+        .map((attempt) => [attempt, transform(attempt.cell, attempt.ref)]);
+    const pendingLinks = link
+      ? pendingEdits.filter(
+          (attempt) =>
+            attempt.sheetId === sheetId &&
+            attempt.ref === link.ref &&
+            attempt.link !== undefined,
+        )
+      : [];
     for (const [, cell] of pending) validateCell(cell, book);
+    if (
+      !edits.length &&
+      !pending.length &&
+      !pendingLinks.length &&
+      !sheetPatch
+    ) {
+      status(`${label}: nothing to change.`);
+      return true;
+    }
+    let next = null;
+    if (sheetPatch) {
+      next = { ...sheet };
+      for (const [key, value] of Object.entries(sheetPatch(sheet)))
+        if (value === undefined) delete next[key];
+        else next[key] = value;
+      validateAxes(next);
+      validateSheetLinks(next, new Set(book.sheets.map((s) => s.id)));
+      // The saved draft overlays pending pasted links: count them too. The
+      // canonical map is checked on its own above as well, because it is
+      // what remains if the pending attempt is discarded.
+      const draft = new Set(Object.keys(next.links ?? {}));
+      for (const attempt of pendingEdits)
+        if (attempt.sheetId === sheetId && attempt.link !== undefined)
+          if (pendingLinks.includes(attempt)) continue;
+          else if (attempt.link) draft.add(attempt.ref);
+          else draft.delete(attempt.ref);
+      if (draft.size > MAX_LINKS_PER_SHEET)
+        throw new Error("the sheet would exceed 10,000 links");
+    }
     const before = captureCells(book, edits),
+      headBefore = next ? captureHead(book) : undefined,
       selection = { sheetId, ...r };
+    if (next)
+      book = {
+        ...book,
+        sheets: book.sheets.map((s) => (s.id === sheetId ? next : s)),
+      };
+    const cells = (next ?? sheet).cells;
     for (const edit of edits) {
       // Clearing leaves no empty cell entry behind.
-      if (Object.keys(edit.cell).length) sheet.cells[edit.ref] = edit.cell;
-      else delete sheet.cells[edit.ref];
-      touchPreview(sheet.cells, edit.ref);
+      if (Object.keys(edit.cell).length) cells[edit.ref] = edit.cell;
+      else delete cells[edit.ref];
+      touchPreview(cells, edit.ref);
     }
     for (const [attempt, cell] of pending) attempt.cell = cell;
+    for (const attempt of pendingLinks) attempt.link = link.value;
+    const headAfter = next ? captureHead(book) : undefined;
     history.record({
       before,
       after: captureCells(book, edits),
+      ...(next ? { headBefore, headAfter } : {}),
       snapshotBefore: book.snapshot,
       snapshotAfter: book.snapshot,
       selectionBefore: selection,
       selectionAfter: selection,
       calculate: false,
     });
-    persistence.changed(cellEdits(edits));
+    persistence.changed(
+      cellEdits(edits),
+      next ? { head: headAfter } : undefined,
+    );
     render();
-    status("Formatting changed. Unsaved changes.");
+    status(`${label} changed. Unsaved changes.`);
+    return true;
+  } catch (error) {
+    status(`${label} not applied: ${error.message}`);
+    return false;
+  }
+}
+function formatSelection(transform) {
+  try {
+    return publishPresentation({ refs: formatting.targetRefs(), transform });
   } catch (error) {
     status(`Formatting not applied: ${error.message}`);
   }
@@ -630,6 +749,8 @@ const selectedCell = () =>
   book.sheets.find((s) => s.id === sheetId).cells[selected] ?? {};
 // Currency formats keep a cell's own currency; new ones use EUR, as before.
 const currencyOf = (cell) => cell.format?.currency ?? "EUR";
+const negativeDefault = (kind) =>
+  kind === "accounting" ? "parentheses" : "minus";
 // Keeps only the options a kind accepts (FORMAT.md number formats).
 function setNumberFormat({
   kind,
@@ -648,8 +769,10 @@ function setNumberFormat({
       ...(money ? { currency: currency ?? currencyOf(cell) } : {}),
       ...(kind === "date" && dateStyle === "long" ? { dateStyle } : {}),
       ...(scale && (kind === "number" || money) ? { scale } : {}),
+      // Stored when it differs from the kind's default sign policy
+      // (parentheses for accounting, minus otherwise).
       ...(negative &&
-      negative !== "minus" &&
+      negative !== negativeDefault(kind) &&
       (money || kind === "number" || kind === "percent")
         ? { negative }
         : {}),
@@ -683,7 +806,7 @@ function openNumberFormat() {
   $("format-currency").value = currencyOf(selectedCell());
   $("format-date-style").value = format.dateStyle ?? "short";
   $("format-scale").value = format.scale ?? "";
-  $("format-negative").value = format.negative ?? "minus";
+  $("format-negative").value = format.negative ?? negativeDefault(format.kind);
   $("number-context").textContent =
     `Applies to ${grid.selection.anchor === grid.selection.focus ? grid.selection.focus : `${grid.selection.anchor}:${grid.selection.focus}`}. Values and formulas are unchanged.`;
   $("number-dialog").showModal();
@@ -870,10 +993,53 @@ register("decimals-less", () => changeDecimals(-1));
 register("cell-style", (cellStyle) =>
   formatSelection((cell) => ({ ...cell, cellStyle })),
 );
-// Clears cell style, number format and direct formatting; values stay.
-register("clear-formatting", () =>
-  formatSelection(({ cellStyle, format, style, ...cell }) => cell),
+// Clears cell style, number format and direct formatting (and row or column
+// styles for whole rows or columns); values, links and sizes stay.
+register("clear-formatting", () => formatting.clear());
+const formatting = setupFormatting({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  grid,
+  busy: () => !!loading,
+  status,
+  publish: publishPresentation,
+  getPending: () => pendingEdits,
+  // Internal links select their target sheet and range.
+  locate: (target, range) => {
+    if (!book.sheets.some((s) => s.id === target))
+      return status("This link's sheet no longer exists.");
+    sheetId = target;
+    render();
+    grid.selectRange(
+      address(range.bottom, range.right),
+      address(range.top, range.left),
+    );
+    choose(grid.selection.focus, false);
+    $("grid").focus();
+  },
+});
+for (const name of ["bold", "italic"])
+  register(name, () => formatting.toggle(name));
+register("text-color", (token) => formatting.color("text", token));
+register("fill-color", (token) => formatting.color("fill", token));
+register("borders", (spec) => formatting.borders(spec));
+register("align", (value) => formatting.align(value));
+register("wrap", () => formatting.wrap());
+register("column-width", (px) => formatting.columnWidth(px));
+register("auto-fit", () => formatting.autoFit());
+register("copy-style", () => {
+  formatting.startPainter();
+  commands.changed();
+});
+register("link", (link) =>
+  formatting.setLink(grid.selection.focus, link ?? null),
 );
+register("open-link", () => {
+  const link = book.sheets.find((s) => s.id === sheetId).links?.[
+    grid.selection.focus
+  ];
+  if (link) formatting.openLink(link);
+});
 register("conditional-formatting", () => conditionalSettings.open());
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
@@ -898,7 +1064,7 @@ register(
   () => true,
 );
 // Mounted after persistence fingerprints the opened file's shell.
-mountShell({
+const shell = mountShell({
   commands,
   state: () => {
     const cell = selectedCell(),
@@ -912,6 +1078,17 @@ mountShell({
           .find((part) => part.type === "currency")?.value ?? currency,
       gridLines,
       busy: !!loading,
+      style: formatting.current(),
+      painting: formatting.painting(),
+      link:
+        book.sheets.find((s) => s.id === sheetId).links?.[
+          grid.selection.focus
+        ] ?? null,
+      sheetId,
+      sheets: book.sheets.map((s) => ({ id: s.id, name: s.name })),
+      columnWidth: formatting.widthOf(
+        parseAddress(grid.selection.focus).column,
+      ),
       groups: groupView(book).map((group) => ({
         name: group.name,
         sheets: group.sheetIds.map((id) => ({
