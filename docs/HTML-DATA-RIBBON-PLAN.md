@@ -134,14 +134,14 @@ Each task is a separate reviewable increment with the existing unit/browser/form
 
 - **F01 — Model and contract** (implemented on `feature/data-format-model`: F01a rename and ceiling, F01b schema and validation, F01c structural relocation and history). `cellStyle` replaces `role` (fixtures rewritten), cell/row/column `style`, dimensions, style-only cells, `namedStyles`, `link`, colour/theme references, charte slot tokens, enriched number-format presets. Validation, history/recovery round trips, structural relocation of row/column styles and internal links, embedded guide update, and the 750,000-byte Data ceiling in build/bench gates.
 - **F01r — Adjust the merged F01 model to [ADR-012](decisions/012-data-formatting-vocabulary.md).** Token colours and `fill`, bold/italic only, `none`/`thin`/`medium`/`double` borders, horizontal alignment and wrap, automatic row heights, the fixed 11-style catalogue, workbook `font` and `theme`, and tokenised conditional formatting. Remove `namedStyles`, sizes, fonts, hex and theme objects, vertical alignment and `customHeight`. Rewrite fixtures, tests, FORMAT.md and the guide.
-- **F02 — Rendering** (after F01r; scope reduced by ADR-012). Layer resolution, fonts, charte token colours (no tints, ADR-012 §2), borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
-- **F03 — Commands** (implemented on `feature/data-f03-commands`). Formatting commands with the 50,000-cell guard, command-time auto-fit, resize by drag/keyboard, painter, clear formatting, links and popover, clipboard/fill carrying formatting.
+- **F02 — Rendering** (merged in PR #52; after F01r; scope reduced by ADR-012). Layer resolution, fonts, charte token colours (no tints, ADR-012 §2), borders with shared-edge rule, alignment, `centerContinuous`, bounded text overflow, variable row/column sizes in the virtual grid, print. Viewing stays engine-free; large-sheet navigation gates unchanged.
+- **F03 — Commands** (merged in PR #53). Formatting commands with the 50,000-cell guard, command-time auto-fit, resize by drag/keyboard, painter, clear formatting, links and popover, clipboard/fill carrying formatting.
 - **F04 — Interface migration: replaced by cross-plan [U04-Data](HTML-OFFICE-CROSS-PLAN.md)** (shared native shell, variant A), implemented on `feature/u04-data-shell`.
   - A deliberate command/state API replaces the assessment bridge.
   - It brings file bar menus, header context menus, the scenario selector, and the formula bar and sheet bar.
   - The tabbed ribbon, its page-wide CSS and its tests are removed.
   - Formatting controls join only with their commands (F02/F03).
-- **F05 — Panels** (implemented on `feature/data-f05-panels`, with TH01) (native shell panels, ADR-012). Cell-style catalogue (11 fixed styles, no editor), theme and font picker writing the workbook `theme` and `font`, regional settings.
+- **F05 — Panels** (merged in PR #54, with TH01) (native shell panels, ADR-012). Cell-style catalogue (11 fixed styles, no editor), theme and font picker writing the workbook `theme` and `font`, regional settings.
 - **F06 — PNG.** Model-generated SVG of the selection rasterised to PNG, stale-result band and size limits.
 
 T15 import acceptance gains ADR-010 conversions: merges to `centerContinuous` or unmerge, number-format codes to presets, diagonal borders and unsupported alignment reported in diagnostics.
