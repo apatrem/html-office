@@ -109,21 +109,26 @@ export function wrapLines(text, width, measure) {
 const visible = (colour) =>
   colour && colour !== "transparent" && !/rgba\(.*,\s*0\)$/.test(colour);
 
-// Lines of a laid-out text node: each paragraph is cut where the next
-// character starts a lower line (binary search over character boxes).
-function layoutLines(span) {
+// Lines of a laid-out text node, with where each starts relative to `left`
+// (the browser's own breaking and alignment): each paragraph is cut where
+// the next character starts a lower line (binary search over character
+// boxes). A final line break adds no line, as in CSS.
+function layoutLines(span, left) {
   const node = span?.firstChild;
   if (!node?.data) return [];
   const range = document.createRange(),
-    top = (i) => {
+    box = (i) => {
       range.setStart(node, i);
       range.setEnd(node, i + 1);
-      return range.getClientRects()[0]?.top ?? -Infinity;
+      return range.getClientRects()[0];
     },
-    lines = [];
+    top = (i) => box(i)?.top ?? -Infinity,
+    lines = [],
+    paragraphs = node.data.replace(/\n$/, "").split("\n");
   let start = 0;
-  for (const paragraph of node.data.split("\n")) {
+  for (const paragraph of paragraphs) {
     const end = start + paragraph.length;
+    if (!paragraph) lines.push({ text: "", x: 0 });
     let from = start;
     while (from < end) {
       const line = top(from);
@@ -134,10 +139,12 @@ function layoutLines(span) {
         if (top(mid) > line + 1) hi = mid;
         else lo = mid + 1;
       }
-      lines.push(node.data.slice(from, lo).trimEnd());
+      lines.push({
+        text: node.data.slice(from, lo),
+        x: (box(from)?.left ?? left) - left,
+      });
       from = lo;
     }
-    if (paragraph === "") lines.push("");
     start = end + 1;
   }
   return lines;
@@ -170,7 +177,13 @@ export function setupPicture({
         b.className = `grid-cell ${cellClasses(cell, !!sheet.links?.[ref])}`;
         b.style.width = `${columns.size(col)}px`;
         b.style.height = `${rows.size(row)}px`;
-        if (styleAt(row, col)?.align?.wrap) b.classList.add("wrap");
+        // Alignment as the grid sets it, for the browser's line layout.
+        const align = styleAt(row, col)?.align ?? {};
+        b.dataset.align =
+          align.horizontal && align.horizontal !== "general"
+            ? align.horizontal
+            : generalAlign(cell);
+        if (align.wrap) b.classList.add("wrap");
         span.className = "cell-text";
         span.textContent = display(cell, locale);
         b.append(span);
@@ -193,7 +206,10 @@ export function setupPicture({
           underline: css.textDecorationLine.includes("underline"),
           gridLine: css.borderRightColor,
           lines: b.classList.contains("wrap")
-            ? layoutLines(b.querySelector(".cell-text"))
+            ? layoutLines(
+                b.querySelector(".cell-text"),
+                b.getBoundingClientRect().left,
+              )
             : null,
           bar: fill && {
             left: parseFloat(fill.style.left),
@@ -358,10 +374,15 @@ export function setupPicture({
         // its neighbours.
         let left = x(col) + PAD,
           width = w - 2 * PAD - 1,
-          cut = new Set(),
+          spilled = false,
           lines;
         const bottom = y(row) + h - 1;
-        if (align.wrap) lines = look.lines;
+        if (align.wrap)
+          // Where the browser placed each wrapped line.
+          lines = look.lines.map((line) => ({
+            text: line.text.trimEnd(),
+            at: x(col) + line.x,
+          }));
         else {
           if (
             horizontal === "centerContinuous" ||
@@ -375,42 +396,48 @@ export function setupPicture({
             if (before || after) {
               left -= before;
               width = w + before + after - 2 * PAD;
+              spilled = true;
             }
           }
-          // white-space: pre keeps line breaks; each line is cut alone.
-          lines = text.split("\n").map((line) => fitText(line, width, measure));
-          // A line too long for its box starts at its left edge, whatever
-          // the alignment, like an overflowing CSS line.
-          cut = new Set(
-            text
-              .split("\n")
-              .flatMap((line, i) => (line === lines[i] ? [] : [i])),
-          );
+          // white-space: pre keeps line breaks (a final one adds no line);
+          // each line is cut alone, and a line too long for its box starts
+          // at its left edge whatever the alignment, like CSS.
+          lines = text
+            .replace(/\n$/, "")
+            .split("\n")
+            .map((whole) => {
+              const shown = fitText(whole, width, measure),
+                advance = measure(shown);
+              return {
+                text: shown,
+                at:
+                  shown !== whole || horizontal === "left"
+                    ? left
+                    : horizontal === "right"
+                      ? left + width - advance
+                      : left + (width - advance) / 2,
+              };
+            });
         }
         // Wrapped text shows its first lines (max-height: 100%); unwrapped
         // text its last ones, bottom-aligned.
         const first = align.wrap
           ? bottom - Math.min(lines.length * LINE_HEIGHT, h - 1)
           : bottom - lines.length * LINE_HEIGHT;
+        // Cells clip their text; an overflow span is visible above and below
+        // its row, so only the picture's edges clip it.
         ctx.save();
         ctx.beginPath();
-        ctx.rect(left, Math.max(top, y(row)), width, bottom - y(row));
+        if (spilled) ctx.rect(left, top, width, size.height - top);
+        else ctx.rect(left, y(row), width, bottom - y(row));
         ctx.clip();
         ctx.fillStyle = look.color;
         ctx.textBaseline = "alphabetic";
-        lines.forEach((line, i) => {
-          const lineWidth = measure(line),
-            at = cut.has(i)
-              ? left
-              : horizontal === "right"
-                ? left + width - lineWidth
-                : horizontal === "center" || horizontal === "centerContinuous"
-                  ? left + (width - lineWidth) / 2
-                  : left,
-            base = first + i * LINE_HEIGHT + baseline;
+        lines.forEach(({ text: line, at }, i) => {
+          const base = first + i * LINE_HEIGHT + baseline;
           ctx.fillText(line, at, base);
           if (look.underline)
-            ctx.fillRect(at, base + Math.max(1, descent / 3), lineWidth, 1);
+            ctx.fillRect(at, base + Math.max(1, descent / 3), measure(line), 1);
         });
         ctx.restore();
       }

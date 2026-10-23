@@ -17,8 +17,10 @@ const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const file = resolve(out, "picture.html"),
   staleFile = resolve(out, "picture-stale.html");
-// Two extra cells for line handling: kept line breaks without wrap, and a
-// wrap the browser breaks after hyphens.
+// Extra cells for line handling: kept line breaks without wrap, a wrap the
+// browser breaks after hyphens, a final line break (no extra line), spaces
+// before a break in right-aligned wrapped text, and a two-line overflow
+// span drawn above its row.
 const book = formattingWorkbook();
 Object.assign(book.sheets[0].cells, {
   G6: { input: { type: "text", value: "line one\nline two" } },
@@ -26,6 +28,12 @@ Object.assign(book.sheets[0].cells, {
     input: { type: "text", value: "alpha-beta-gamma-delta" },
     style: { align: { wrap: true } },
   },
+  E3: { input: { type: "text", value: "hello\n" } },
+  F6: {
+    input: { type: "text", value: "foo   \nbar" },
+    style: { align: { horizontal: "right", wrap: true } },
+  },
+  G10: { input: { type: "text", value: "first\nsecond" } },
 });
 await writeFile(file, await buildWorkbook(book));
 // Changing an input after the build leaves the saved results stale.
