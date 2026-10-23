@@ -19,8 +19,8 @@ const file = resolve(out, "picture.html"),
   staleFile = resolve(out, "picture-stale.html");
 // Extra cells for line handling: kept line breaks without wrap, a wrap the
 // browser breaks after hyphens, a final line break (no extra line), spaces
-// before a break in right-aligned wrapped text, and a two-line overflow
-// span drawn above its row.
+// before a break in right-aligned wrapped text, a two-line overflow span
+// drawn above its row, and wrapped right-to-left text.
 const book = formattingWorkbook();
 Object.assign(book.sheets[0].cells, {
   G6: { input: { type: "text", value: "line one\nline two" } },
@@ -34,6 +34,11 @@ Object.assign(book.sheets[0].cells, {
     style: { align: { horizontal: "right", wrap: true } },
   },
   G10: { input: { type: "text", value: "first\nsecond" } },
+  // Right-to-left text wrapped and left-aligned.
+  H3: {
+    input: { type: "text", value: "אבגדהוזחטי כלמנסעפצקר" },
+    style: { align: { horizontal: "left", wrap: true } },
+  },
 });
 await writeFile(file, await buildWorkbook(book));
 // Changing an input after the build leaves the saved results stale.

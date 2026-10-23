@@ -117,12 +117,11 @@ function layoutLines(span, left) {
   const node = span?.firstChild;
   if (!node?.data) return [];
   const range = document.createRange(),
-    box = (i) => {
+    top = (i) => {
       range.setStart(node, i);
       range.setEnd(node, i + 1);
-      return range.getClientRects()[0];
+      return range.getClientRects()[0]?.top ?? -Infinity;
     },
-    top = (i) => box(i)?.top ?? -Infinity,
     lines = [],
     paragraphs = node.data.replace(/\n$/, "").split("\n");
   let start = 0;
@@ -139,9 +138,16 @@ function layoutLines(span, left) {
         if (top(mid) > line + 1) hi = mid;
         else lo = mid + 1;
       }
+      // The line's own left edge (its visible characters as a whole, so
+      // right-to-left runs start where they are drawn).
+      const text = node.data.slice(from, lo),
+        visible = text.trimEnd().length || 1;
+      range.setStart(node, from);
+      range.setEnd(node, from + visible);
+      const edges = [...range.getClientRects()].map((rect) => rect.left);
       lines.push({
-        text: node.data.slice(from, lo),
-        x: (box(from)?.left ?? left) - left,
+        text,
+        x: (edges.length ? Math.min(...edges) : left) - left,
       });
       from = lo;
     }
