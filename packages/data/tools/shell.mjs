@@ -43,7 +43,26 @@ export const numberDialogHTML = `<dialog id="number-dialog" aria-labelledby="num
     ["date", "Date"],
     ["percent", "Percent"],
   ],
-)}</select></label><label>Decimal places<input id="format-digits" type="number" min="0" max="15" value="2"></label><label>Currency code<input id="format-currency" value="EUR" maxlength="3"></label></div>
+)}</select></label><label>Decimal places<input id="format-digits" type="number" min="0" max="15" value="2"></label><label>Currency code<input id="format-currency" value="EUR" maxlength="3"></label>
+<label>Date style<select id="format-date-style" aria-label="Date style">${options(
+  [
+    ["short", "Short"],
+    ["long", "Long"],
+  ],
+)}</select></label>
+<label>Scale<select id="format-scale" aria-label="Scale">${options([
+  ["", "None"],
+  ["thousands", "Thousands (k)"],
+  ["millions", "Millions (M)"],
+])}</select></label>
+<label>Negative numbers<select id="format-negative" aria-label="Negative numbers">${options(
+  [
+    ["minus", "Minus sign"],
+    ["parentheses", "Parentheses"],
+    ["red", "Red"],
+    ["redParentheses", "Red parentheses"],
+  ],
+)}</select></label></div>
 <div class="sheet-actions"><button id="format-apply" type="button">Apply number format</button><button id="format-cancel" type="button">Cancel</button></div></dialog>`;
 
 export function helpDialogHTML(guide, notices) {

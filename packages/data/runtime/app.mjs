@@ -22,7 +22,7 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
-import { applyLinkEdits } from "../model/formatting.mjs";
+import { applyLinkEdits, FONTS } from "../model/formatting.mjs";
 import { groupView } from "../model/organization.mjs";
 const $ = (id) => document.getElementById(id);
 const commands = createCommands();
@@ -137,6 +137,8 @@ function choose(ref, updateGrid = true) {
   commands.changed();
 }
 function render() {
+  // The workbook font applies to the whole grid; absent means the charte font.
+  $("grid").style.fontFamily = FONTS[book.font] ?? "";
   navigation.draw();
   grid.draw();
   $("apply").disabled = !!loading;
@@ -628,14 +630,28 @@ const selectedCell = () =>
   book.sheets.find((s) => s.id === sheetId).cells[selected] ?? {};
 // Currency formats keep a cell's own currency; new ones use EUR, as before.
 const currencyOf = (cell) => cell.format?.currency ?? "EUR";
-function setNumberFormat({ kind, digits, currency }) {
+// Keeps only the options a kind accepts (FORMAT.md number formats).
+function setNumberFormat({
+  kind,
+  digits,
+  currency,
+  dateStyle,
+  scale,
+  negative,
+}) {
+  const money = ["currency", "accounting"].includes(kind);
   formatSelection((cell) => ({
     ...cell,
     format: {
       kind,
-      ...(digits === undefined ? {} : { digits }),
-      ...(["currency", "accounting"].includes(kind)
-        ? { currency: currency ?? currencyOf(cell) }
+      ...(digits === undefined || kind === "date" ? {} : { digits }),
+      ...(money ? { currency: currency ?? currencyOf(cell) } : {}),
+      ...(kind === "date" && dateStyle === "long" ? { dateStyle } : {}),
+      ...(scale && (kind === "number" || money) ? { scale } : {}),
+      ...(negative &&
+      negative !== "minus" &&
+      (money || kind === "number" || kind === "percent")
+        ? { negative }
         : {}),
     },
   }));
@@ -665,6 +681,9 @@ function openNumberFormat() {
   $("format-kind").value = format.kind;
   $("format-digits").value = format.digits ?? 2;
   $("format-currency").value = currencyOf(selectedCell());
+  $("format-date-style").value = format.dateStyle ?? "short";
+  $("format-scale").value = format.scale ?? "";
+  $("format-negative").value = format.negative ?? "minus";
   $("number-context").textContent =
     `Applies to ${grid.selection.anchor === grid.selection.focus ? grid.selection.focus : `${grid.selection.anchor}:${grid.selection.focus}`}. Values and formulas are unchanged.`;
   $("number-dialog").showModal();
@@ -678,6 +697,9 @@ $("format-apply").onclick = () => {
     kind: $("format-kind").value,
     digits: Number($("format-digits").value),
     currency: $("format-currency").value.toUpperCase(),
+    dateStyle: $("format-date-style").value,
+    scale: $("format-scale").value || undefined,
+    negative: $("format-negative").value,
   });
   $("grid").focus();
 };

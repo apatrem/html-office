@@ -188,10 +188,12 @@ export function validateAxes(sheet) {
       fields(entry, ["style", key], axis.slice(0, -1));
       if (!Object.keys(entry).length) fail(`Empty ${axis.slice(0, -1)} entry`);
       if (entry.style !== undefined) validateStyle(entry.style);
-      const max = axis === "rows" ? 600 : 2000;
+      // Heights are automatic: at least the standard 23 px row. Widths are at
+      // least 8 px. These minimums also bound the grid's rendered viewport.
+      const [min, max] = axis === "rows" ? [23, 600] : [8, 2000];
       if (
         entry[key] !== undefined &&
-        (!Number.isInteger(entry[key]) || entry[key] < 1 || entry[key] > max)
+        (!Number.isInteger(entry[key]) || entry[key] < min || entry[key] > max)
       )
         fail(`Invalid ${key}`);
     }
@@ -252,3 +254,46 @@ export const presentation = (cell) =>
       cell[key],
     ]),
   );
+
+// Borders drawn by catalogue styles (ADR-012 §8). Their fills, colours and
+// emphasis come from charte classes in the stylesheet; borders are data so the
+// shared-edge rule sees them.
+const line = (style) => ({ style, color: "ink" });
+export const CELL_STYLE_BORDERS = {
+  output: {
+    top: line("thin"),
+    right: line("thin"),
+    bottom: line("thin"),
+    left: line("thin"),
+  },
+  total: { top: line("thin"), bottom: line("double") },
+};
+// Effective direct formatting of a cell, resolved property by property and
+// border side by side: cell style borders, column, row, then the cell's own
+// style (ADR-010 layers). Conditional formatting applies after, when drawing.
+// Returns null when nothing applies.
+export function effectiveStyle(cellStyle, columnStyle, rowStyle, cellOwnStyle) {
+  const border = CELL_STYLE_BORDERS[cellStyle];
+  if (!border && !columnStyle && !rowStyle && !cellOwnStyle) return null;
+  const result = border ? { border: { ...border } } : {};
+  for (const layer of [columnStyle, rowStyle, cellOwnStyle]) {
+    if (!layer) continue;
+    for (const [key, value] of Object.entries(layer))
+      result[key] =
+        key === "border" || key === "align"
+          ? { ...result[key], ...value }
+          : value;
+  }
+  return result;
+}
+const WEIGHT = { none: 0, thin: 1, medium: 2, double: 3 };
+// One shared edge: the upper (or left) cell's bottom (right) side against the
+// lower (right) cell's top (left). The heavier line wins; on a tie the lower
+// or right cell wins. Returns the winning {style, color} or null.
+export function resolveEdge(first, second) {
+  const a = WEIGHT[first?.style] ?? 0,
+    b = WEIGHT[second?.style] ?? 0;
+  if (!a && !b) return null;
+  const side = b >= a ? second : first;
+  return { style: side.style, color: side.color ?? "ink" };
+}

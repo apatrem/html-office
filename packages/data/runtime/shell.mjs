@@ -19,17 +19,34 @@ const STYLES = [
   ["alert", "Alert"],
   ["hyperlink", "Hyperlink"],
 ];
-// Presets the grid renders today; scale, negative and long-date presets join with F02.
 const FORMATS = [
   ["General", { kind: "general" }],
   ["Number", { kind: "number", digits: 2 }],
   ["Currency", { kind: "currency", digits: 2 }],
   ["Accounting", { kind: "accounting", digits: 2 }],
   ["Percent", { kind: "percent", digits: 1 }],
-  ["Date", { kind: "date" }],
+  ["Short date", { kind: "date" }],
+  ["Long date", { kind: "date", dateStyle: "long" }],
+  "-",
+  ["Thousands (k)", { kind: "number", digits: 1, scale: "thousands" }],
+  ["Millions (M)", { kind: "number", digits: 1, scale: "millions" }],
+  [
+    "Negative in parentheses",
+    { kind: "number", digits: 0, negative: "parentheses" },
+  ],
+  ["Negative in red", { kind: "number", digits: 0, negative: "red" }],
 ];
+// A preset matches on kind and its display options, not on decimals.
+const same = (a = { kind: "general" }, b) =>
+  ["kind", "dateStyle", "scale", "negative"].every(
+    (key) => (a[key] ?? DEFAULTS[key]) === (b[key] ?? DEFAULTS[key]),
+  );
+const DEFAULTS = { kind: "general", dateStyle: "short", negative: "minus" };
 const formatName = (format) =>
-  FORMATS.find(([, f]) => f.kind === (format?.kind ?? "general"))[0];
+  FORMATS.find((f) => f !== "-" && same(format, f[1]))?.[0] ??
+  FORMATS.find(
+    (f) => f !== "-" && f[1].kind === (format?.kind ?? "general"),
+  )[0];
 const styleName = (id) => STYLES.find(([v]) => v === id)?.[1] ?? id;
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k, shift) => `${mac ? "⌘" : "Ctrl+"}${shift ? "Shift+" : ""}${k}`;
@@ -47,14 +64,16 @@ export function mountShell({ commands, state }) {
     ...extra,
   });
   const formatItems = () => {
-    const current = state().format?.kind ?? "general";
+    const current = formatName(state().format);
     return [
-      ...FORMATS.map(([label, format]) =>
-        item(label, "number-format", {
-          args: [format],
-          checked: current === format.kind,
-          radio: true,
-        }),
+      ...FORMATS.map((preset) =>
+        preset === "-"
+          ? preset
+          : item(preset[0], "number-format", {
+              args: [preset[1]],
+              checked: current === preset[0],
+              radio: true,
+            }),
       ),
       "-",
       item("More number formats…", "number-format-dialog"),

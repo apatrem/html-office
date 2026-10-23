@@ -80,8 +80,8 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   There is one font size and no vertical alignment, underline, strike, font family, merges or diagonal borders.
 - **Rows and columns.** A sheet may have `rows` keyed `"1"`–`"1048576"` and `columns` keyed `"A"`–`"XFD"`:
-  - row entries are `{style?, height?}`, where `height` (1–600 px) is the **automatic** height written by the editor when wrapped text grows a row; rows are never sized by hand;
-  - column entries are `{style?, width?}`, with `width` 1–2000 px, set by the user.
+  - row entries are `{style?, height?}`, where `height` (23–600 px; 23 is the standard row) is the **automatic** height written by the editor when wrapped text grows a row; rows are never sized by hand;
+  - column entries are `{style?, width?}`, with `width` 8–2000 px, set by the user. These minimums keep the rendered grid bounded.
 
   Insertions and deletions move these entries with their row or column; entries in deleted rows or columns disappear.
 - **Document settings.**
@@ -100,7 +100,15 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   Custom Excel format codes are not accepted.
 
-Rendering, commands, theme switching and the toolbar that use these fields are delivered separately (F02–F06, T01–T02). Until then the browser preserves them through edits, paste, history, recovery and saving; catalogue cell styles and conditional tokens already render.
+**Rendering (F02).** The grid resolves each property in layer order and draws every field without the calculation engine:
+- fills and text colours with charte tokens; white text on dark fills unless a colour is given;
+- borders once per shared edge: the heavier line wins (`double` over `medium` over `thin`), the lower or right cell on a tie; `total` and `output` borders come from their cell styles;
+- general alignment by value (numbers and dates right, text left, booleans and errors centred), explicit alignment, and text at the bottom of the cell;
+- unwrapped text overflowing into at most 20 empty neighbours; `centerContinuous` centring across the following empty `centerContinuous` cells; wrapped text inside its row height;
+- column widths and stored row heights; the workbook `font` over the whole grid;
+- the `dateStyle`, `scale` (k and M suffixes) and `negative` presets.
+
+Formatting commands, panels and theme switching follow separately (F03, F05, TH01–TH02).
 
 ## Sheet navigation
 
