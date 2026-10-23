@@ -775,6 +775,20 @@ export function mountShell({ commands, state }) {
         b.setAttribute("aria-checked", String(b.dataset.value === s.theme));
       for (const b of drawer.host.querySelectorAll(".sh-fonts > button"))
         b.setAttribute("aria-checked", String(b.dataset.value === s.font));
+    } else if (open === "regional") {
+      // Undo or redo can change the committed locale under the panel.
+      const select = drawer.host.querySelector("select");
+      // The first sync records the locale the panel opened with, so an
+      // unapplied choice in the selector is not overwritten.
+      if (select && select.dataset.committed === undefined)
+        select.dataset.committed = s.locale;
+      else if (select && select.dataset.committed !== s.locale) {
+        select.dataset.committed = s.locale;
+        if ([...select.options].some((o) => o.value === s.locale)) {
+          select.value = s.locale;
+          select.dispatchEvent(new Event("change"));
+        }
+      }
     }
     B.painter.setAttribute("aria-pressed", String(s.painting));
     B.painter.disabled = !commands.enabled("copy-style");
@@ -796,7 +810,21 @@ export function mountShell({ commands, state }) {
   // Shortcuts that belong to the shell; the grid keeps its own.
   document.addEventListener("keydown", (event) => {
     if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
-    const k = event.key.toLowerCase();
+    const k = event.key.toLowerCase(),
+      target = event.target;
+    // Undo and redo from panels and the shell; the grid and text fields
+    // keep their own handling (native undo in fields).
+    if (
+      (k === "z" || k === "y") &&
+      !target.closest?.("#grid") &&
+      !target.matches?.("input, textarea, select, [contenteditable]") &&
+      !dialogOpen()
+    ) {
+      event.preventDefault();
+      commands.run(k === "y" || event.shiftKey ? "redo" : "undo");
+      return;
+    }
+
     if (k === "s" && !event.shiftKey) {
       event.preventDefault();
       closePopover({ restore: false });

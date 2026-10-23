@@ -656,6 +656,8 @@ function publishPresentation({
   link,
   sheetPatch,
   bookPatch,
+  // reshape(book): a final pass over the next workbook (row heights).
+  reshape,
   label = "Formatting",
 }) {
   if (loading) return false;
@@ -742,6 +744,7 @@ function publishPresentation({
         if (value === undefined) delete book[key];
         else book[key] = value;
     }
+    if (reshape) book = reshape(book);
     const cells = (next ?? sheet).cells;
     for (const edit of edits) {
       // Clearing leaves no empty cell entry behind.
@@ -1100,10 +1103,18 @@ register(
   () => true,
 );
 // Theme, font and display locale are workbook fields: undoable, engine-free.
+// Font and locale change the text of wrapped cells: their rows are
+// re-measured with the new font in the same history entry.
+const remeasure = (next) => {
+  $("grid").style.fontFamily = FONTS[next.font] ?? "";
+  const rows = formatting.allWrappedRows(next);
+  return rows.size ? formatting.withRowHeights(next, rows) : next;
+};
 const setField = (key, label) => (value) =>
   publishPresentation({
     label,
     bookPatch: () => ({ [key]: value === "document" ? undefined : value }),
+    reshape: key === "theme" ? undefined : remeasure,
   });
 register("theme", setField("theme", "Theme"));
 register("font", setField("font", "Font"));

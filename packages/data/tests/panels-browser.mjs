@@ -12,6 +12,7 @@ import { readHTML } from "../bench/storage/html.mjs";
 import { CHARTES } from "../../shared/themes/chartes.mjs";
 import { openMenu, menuItem } from "./shell.mjs";
 const out = resolve("dist/data-test");
+const mod = process.platform === "darwin" ? "Meta" : "Control";
 await mkdir(out, { recursive: true });
 const book = formattingWorkbook();
 delete book.font;
@@ -107,6 +108,35 @@ try {
   );
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await page.getByRole("button", { name: "Redo", exact: true }).click();
+  // Choosing the document charte and charte font removes both fields and
+  // restores the document's own appearance; style#charte never changes.
+  const charte = await page.locator("style#charte").textContent();
+  await panel("Document settings")
+    .getByRole("radio", { name: "Document charte" })
+    .click();
+  await panel("Document settings")
+    .getByRole("radio", { name: /^Charte font/ })
+    .click();
+  assert.equal(
+    await page.evaluate(() => document.documentElement.dataset.theme ?? null),
+    null,
+  );
+  assert.equal(await token("ink"), documentInk);
+  assert.equal(
+    await page.locator("#grid").evaluate((el) => el.style.fontFamily),
+    "",
+  );
+  assert.equal(await page.locator("style#charte").textContent(), charte);
+  // Undo shortcuts work from inside the panel.
+  await panel("Document settings")
+    .getByRole("radio", { name: "Document charte" })
+    .focus();
+  await page.keyboard.press(`${mod}+z`);
+  await page.keyboard.press(`${mod}+z`);
+  assert.equal(
+    await page.evaluate(() => document.documentElement.dataset.theme),
+    "red",
+  );
   // Regional settings opened from inside the panel return focus to the
   // sheet-bar button when closed.
   await panel("Document settings")
@@ -124,6 +154,20 @@ try {
   assert.match(
     await page.locator('#grid [data-cell="B3"]').textContent(),
     /1,2\sM\s?€|€1,2M|1,2M/,
+  );
+  // Undo returns to the previous locale and the panel follows it.
+  await panel("Regional settings")
+    .getByRole("button", { name: "Apply locale" })
+    .focus();
+  await page.keyboard.press(`${mod}+z`);
+  assert.equal(
+    await panel("Regional settings").getByLabel("Locale").inputValue(),
+    "en-US",
+  );
+  await page.keyboard.press(`${mod}+Shift+z`);
+  assert.equal(
+    await panel("Regional settings").getByLabel("Locale").inputValue(),
+    "fr-FR",
   );
   await panel("Regional settings")
     .getByRole("button", { name: "Close Regional settings" })
@@ -154,6 +198,16 @@ try {
     await page.evaluate(() => document.documentElement.dataset.theme),
     "red",
   );
+  // A font change re-measures wrapped rows: A6's text fits its row.
+  await page.getByRole("button", { name: "Document settings" }).click();
+  await panel("Document settings")
+    .getByRole("radio", { name: /^Verdana/ })
+    .click();
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#grid [data-cell="A6"] .cell-text');
+    return el && el.scrollHeight <= el.parentElement.clientHeight;
+  });
+  await page.keyboard.press("Escape");
   // Narrow: the panel becomes a bottom sheet.
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Styles", exact: true }).click();
