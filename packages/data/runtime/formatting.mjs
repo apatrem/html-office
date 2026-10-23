@@ -325,6 +325,18 @@ export function setupFormatting({
     }
     return rows;
   }
+  // Every row holding a wrapped cell, per sheet: a font or locale change
+  // can alter all of their heights.
+  function allWrappedRows(book) {
+    const rows = new Map();
+    for (const sheet of book.sheets)
+      for (const [ref, cell] of Object.entries(sheet.cells))
+        if (effectiveOf(sheet, ref, cell).align?.wrap) {
+          if (!rows.has(sheet.id)) rows.set(sheet.id, new Set());
+          rows.get(sheet.id).add(parseAddress(ref).row);
+        }
+    return rows;
+  }
   const withRowHeights = (book, rows) => ({
     ...book,
     sheets: book.sheets.map((sheet) => {
@@ -606,6 +618,7 @@ export function setupFormatting({
     widthOf,
     rowHeights,
     wrappedRows,
+    allWrappedRows,
     withRowHeights,
     painting: () => !!pattern,
     startPainter,

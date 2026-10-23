@@ -26,10 +26,28 @@ import { EditHistory, captureCells } from "../model/history.mjs";
 import {
   applyLinkEdits,
   FONTS,
+  THEMES,
   MAX_LINKS_PER_SHEET,
   validateAxes,
   validateSheetLinks,
 } from "../model/formatting.mjs";
+// Workbook-level presentation fields a panel may change (FORMAT.md).
+function validateBookFields(fields) {
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) continue;
+    if (key === "theme" && !THEMES.includes(value))
+      throw new Error(`Invalid theme ${value}`);
+    else if (key === "font" && !Object.hasOwn(FONTS, value))
+      throw new Error(`Invalid font ${value}`);
+    else if (
+      key === "locale" &&
+      Intl.NumberFormat.supportedLocalesOf([value]).length !== 1
+    )
+      throw new Error(`Unsupported locale ${value}`);
+    else if (!["theme", "font", "locale"].includes(key))
+      throw new Error(`Unexpected workbook field ${key}`);
+  }
+}
 import { groupView } from "../model/organization.mjs";
 const $ = (id) => document.getElementById(id);
 const commands = createCommands();
@@ -169,6 +187,9 @@ function choose(ref, updateGrid = true) {
 function render() {
   // The workbook font applies to the whole grid; absent means the charte font.
   $("grid").style.fontFamily = FONTS[book.font] ?? "";
+  // A built-in charte overlays the document's own (TH01); absent keeps it.
+  if (book.theme) document.documentElement.dataset.theme = book.theme;
+  else delete document.documentElement.dataset.theme;
   navigation.draw();
   grid.draw();
   $("apply").disabled = !!loading;
@@ -634,6 +655,9 @@ function publishPresentation({
   // link: {ref, value} also updates a pending pasted link on that cell.
   link,
   sheetPatch,
+  bookPatch,
+  // reshape(book): a final pass over the next workbook (row heights).
+  reshape,
   label = "Formatting",
 }) {
   if (loading) return false;
@@ -673,12 +697,14 @@ function publishPresentation({
       !edits.length &&
       !pending.length &&
       !pendingLinks.length &&
-      !sheetPatch
+      !sheetPatch &&
+      !bookPatch
     ) {
       status(`${label}: nothing to change.`);
       return true;
     }
-    let next = null;
+    let next = null,
+      fields = null;
     if (sheetPatch) {
       next = { ...sheet };
       for (const [key, value] of Object.entries(sheetPatch(sheet)))
@@ -698,14 +724,27 @@ function publishPresentation({
       if (draft.size > MAX_LINKS_PER_SHEET)
         throw new Error("the sheet would exceed 10,000 links");
     }
-    const before = captureCells(book, edits),
-      headBefore = next ? captureHead(book) : undefined,
+    // Workbook fields (theme, font, locale); undefined removes one.
+    if (bookPatch) {
+      fields = bookPatch(book);
+      validateBookFields(fields);
+    }
+    const changesHead = !!(next || fields),
+      before = captureCells(book, edits),
+      headBefore = changesHead ? captureHead(book) : undefined,
       selection = { sheetId, ...r };
     if (next)
       book = {
         ...book,
         sheets: book.sheets.map((s) => (s.id === sheetId ? next : s)),
       };
+    if (fields) {
+      book = { ...book };
+      for (const [key, value] of Object.entries(fields))
+        if (value === undefined) delete book[key];
+        else book[key] = value;
+    }
+    if (reshape) book = reshape(book);
     const cells = (next ?? sheet).cells;
     for (const edit of edits) {
       // Clearing leaves no empty cell entry behind.
@@ -715,11 +754,11 @@ function publishPresentation({
     }
     for (const [attempt, cell] of pending) attempt.cell = cell;
     for (const attempt of pendingLinks) attempt.link = link.value;
-    const headAfter = next ? captureHead(book) : undefined;
+    const headAfter = changesHead ? captureHead(book) : undefined;
     history.record({
       before,
       after: captureCells(book, edits),
-      ...(next ? { headBefore, headAfter } : {}),
+      ...(changesHead ? { headBefore, headAfter } : {}),
       snapshotBefore: book.snapshot,
       snapshotAfter: book.snapshot,
       selectionBefore: selection,
@@ -728,7 +767,7 @@ function publishPresentation({
     });
     persistence.changed(
       cellEdits(edits),
-      next ? { head: headAfter } : undefined,
+      changesHead ? { head: headAfter } : undefined,
     );
     render();
     status(`${label} changed. Unsaved changes.`);
@@ -1063,6 +1102,33 @@ register(
   },
   () => true,
 );
+// Theme, font and display locale are workbook fields: undoable, engine-free.
+// Font and locale change the text of wrapped cells: their rows are
+// re-measured with the new font in the same history entry.
+const remeasure = (next) => {
+  $("grid").style.fontFamily = FONTS[next.font] ?? "";
+  const rows = formatting.allWrappedRows(next);
+  return rows.size ? formatting.withRowHeights(next, rows) : next;
+};
+const setField = (key, label) => (value) =>
+  publishPresentation({
+    label,
+    bookPatch: () => ({ [key]: value === "document" ? undefined : value }),
+    reshape: key === "theme" ? undefined : remeasure,
+  });
+register("theme", setField("theme", "Theme"));
+register("font", setField("font", "Font"));
+register("locale", setField("locale", "Regional settings"));
+// The document's own charte colours, read before any built-in overlay.
+delete document.documentElement.dataset.theme;
+const documentColours = Object.fromEntries(
+  ["ink", "acc", "mid", "lig", "alert"].map((token) => [
+    token,
+    getComputedStyle(document.documentElement)
+      .getPropertyValue(`--${token}`)
+      .trim(),
+  ]),
+);
 // Mounted after persistence fingerprints the opened file's shell.
 const shell = mountShell({
   commands,
@@ -1080,6 +1146,14 @@ const shell = mountShell({
       busy: !!loading,
       style: formatting.current(),
       painting: formatting.painting(),
+      address:
+        grid.selection.anchor === grid.selection.focus
+          ? grid.selection.focus
+          : `${grid.selection.anchor}:${grid.selection.focus}`,
+      theme: book.theme ?? "document",
+      font: book.font ?? "document",
+      locale: book.locale,
+      documentColours,
       link:
         book.sheets.find((s) => s.id === sheetId).links?.[
           grid.selection.focus

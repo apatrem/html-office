@@ -13,8 +13,43 @@ const out = resolve("bench/shell-variant-a"),
   targets = "../../../../docs/mockups/shell/screenshots";
 // Variant A mock-up measurements (docs/mockups/shell/screenshots).
 const STATES = [
-  { id: "1440", width: 1440, height: 900, rows: 32, target: "a-data-1440.jpg" },
+  {
+    id: "1440",
+    width: 1440,
+    height: 900,
+    rows: 32,
+    panel: "Styles",
+    target: "a-data-1440.jpg",
+    label: "cell styles panel",
+  },
   { id: "375", width: 375, height: 812, rows: 28, target: "a-data-375.jpg" },
+  {
+    id: "settings-1440",
+    width: 1440,
+    height: 900,
+    rows: 32,
+    panel: "Document settings",
+    target: "a-data-settings-1440.jpg",
+    label: "document settings",
+  },
+  {
+    id: "regional-1440",
+    width: 1440,
+    height: 900,
+    rows: 32,
+    panel: "Regional settings…",
+    target: "a-data-regional-1440.jpg",
+    label: "regional settings",
+  },
+  {
+    id: "styles-375",
+    width: 375,
+    height: 812,
+    rows: 0,
+    panel: "Styles",
+    target: "a-data-styles-375.jpg",
+    label: "cell styles as a bottom sheet",
+  },
 ];
 await mkdir(out, { recursive: true });
 const file = resolve("dist/data-test/shell-compare.html");
@@ -42,6 +77,13 @@ try {
         .getByRole("button", { name: "Calculations", exact: true })
         .click();
     await page.locator('#grid [data-cell="C4"]').click();
+    if (state.panel === "Regional settings…") {
+      await page.getByRole("button", { name: "Document settings" }).click();
+      await page.getByRole("button", { name: "Regional settings…" }).click();
+    } else if (state.panel)
+      await page
+        .getByRole("button", { name: state.panel, exact: true })
+        .click();
     measured[state.id] = await page.evaluate(() => {
       const grid = document.getElementById("grid").getBoundingClientRect();
       return {
@@ -68,11 +110,13 @@ try {
 }
 const rows = STATES.map(
   (s) =>
-    `<tr><th scope="row">${s.width} × ${s.height}</th><td>${s.rows}, no page scroll</td><td>${measured[s.id].rows}, ${measured[s.id].pageScroll ? "page scrolls" : "no page scroll"}</td></tr>`,
+    `<tr><th scope="row">${s.width} × ${s.height}${s.label ? `, ${s.label}` : ""}</th><td>${s.rows || "—"}, no page scroll</td><td>${measured[s.id].rows}, ${measured[s.id].pageScroll ? "page scrolls" : "no page scroll"}</td></tr>`,
 ).join("");
 const pairs = STATES.map(
-  (s) => `<section><h2>${s.width} × ${s.height}</h2><div class="pair">
-<figure><img src="${targets}/${s.target}" alt="Variant A mock-up at ${s.width} × ${s.height}"><figcaption>Variant A mock-up (U02)${s.width > 720 ? ", cell styles panel open (arrives with F05)" : ""}</figcaption></figure>
+  (
+    s,
+  ) => `<section><h2>${s.width} × ${s.height}${s.label ? ` · ${s.label}` : ""}</h2><div class="pair">
+<figure><img src="${targets}/${s.target}" alt="Variant A mock-up at ${s.width} × ${s.height}"><figcaption>Variant A mock-up (U02)</figcaption></figure>
 <figure><img src="current-${s.id}.jpg" alt="html-data at ${s.width} × ${s.height}"><figcaption>html-data after U04-Data</figcaption></figure></div></section>`,
 ).join("\n");
 await writeFile(

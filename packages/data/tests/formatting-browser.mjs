@@ -97,10 +97,11 @@ try {
       }));
     assert.match(look.classes, /\bhyperlink\b/, ref);
     assert.equal(look.line, "underline", `${ref} is underlined`);
+    // The workbook's green theme (TH01) supplies the accent token.
     assert.equal(
       look.color,
-      "rgb(20, 81, 122)",
-      `${ref} uses the accent token`,
+      "rgb(30, 107, 71)",
+      `${ref} uses the green accent token`,
     );
   }
 

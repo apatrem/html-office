@@ -12,7 +12,7 @@ import {
 } from "../tools/build.mjs";
 import { scenarioWorkbook } from "../fixtures/scenarios.mjs";
 import { readHTML } from "../bench/storage/html.mjs";
-import { command, openMenu, menuItem } from "./shell.mjs";
+import { command, openMenu, menuItem, cellStyle } from "./shell.mjs";
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const active = (page) =>
@@ -22,7 +22,7 @@ const active = (page) =>
   });
 // Every command the shell offers; a released shell lists no inert command.
 const MENUS = {
-  File: ["Save", "Save a copy"],
+  File: ["Save", "Save a copy", "Document settings…", "Regional settings…"],
   Edit: [
     "Undo",
     "Redo",
@@ -49,17 +49,7 @@ const MENUS = {
     "Number format…",
     "Increase decimal places",
     "Decrease decimal places",
-    "Normal",
-    "Title",
-    "Header",
-    "Row label",
-    "Assumption",
-    "Calculation",
-    "Output",
-    "Total",
-    "Note",
-    "Alert",
-    "Hyperlink",
+    "Cell styles…",
     "Column width…",
     "Auto-fit column width",
     "Conditional formatting…",
@@ -145,7 +135,7 @@ try {
     );
     await toolbar.getByRole("button", { name: "Clear formatting" }).focus();
     await page.keyboard.press("End");
-    assert.equal(await active(page), "Grid lines");
+    assert.equal(await active(page), "Styles");
     // Home reaches the first enabled command (Undo and Redo have no history).
     await page.keyboard.press("Home");
     assert.equal(await active(page), "Copy style");
@@ -166,8 +156,7 @@ try {
     await menuItem(page, "Number format", "Percent").waitFor();
     await page.keyboard.press("Escape");
     assert.equal(await active(page), "Number format: Currency");
-    await openMenu(page, "Format");
-    await menuItem(page, "Format", "Output").click();
+    await cellStyle(page, "Output");
     assert.equal(
       await toolbar
         .getByRole("button", { name: /^Cell style: / })
@@ -313,10 +302,10 @@ try {
       );
       await toolbar.getByRole("button", { name: "Clear formatting" }).focus();
       await page.keyboard.press("End");
-      assert.equal(await active(page), "Grid lines");
+      assert.equal(await active(page), "Styles");
       assert.ok(
         await toolbar
-          .getByRole("button", { name: "Grid lines" })
+          .getByRole("button", { name: "Styles", exact: true })
           .evaluate((el) => {
             const r = el.getBoundingClientRect(),
               box = el.closest(".sh-tbar").getBoundingClientRect();
