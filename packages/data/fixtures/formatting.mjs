@@ -18,6 +18,39 @@ export function formattingWorkbook() {
     font: "georgia",
     names: [],
     metadata: { fictional: true },
+    conditionalFormats: [
+      {
+        id: "north",
+        sheetId: "show",
+        ref: "A3",
+        kind: "highlight",
+        condition: {
+          operator: "eq",
+          values: [{ type: "text", value: "North" }],
+        },
+        style: { fill: "dark" },
+      },
+      {
+        id: "south",
+        sheetId: "show",
+        ref: "A4",
+        kind: "highlight",
+        condition: {
+          operator: "eq",
+          values: [{ type: "text", value: "South" }],
+        },
+        style: { fill: "tint" },
+      },
+      {
+        id: "bars",
+        sheetId: "show",
+        ref: "B3:B4",
+        kind: "dataBar",
+        scale: { kind: "auto" },
+        positive: "acc",
+        negative: "alert",
+      },
+    ],
     groups: [
       { id: "main", name: "Summary", kind: "summary", sheetIds: ["show"] },
     ],
@@ -30,6 +63,12 @@ export function formattingWorkbook() {
         cells: {
           A1: text("Quarterly review across all regions", {
             cellStyle: "title",
+            style: {
+              border: {
+                top: { style: "thin", color: "acc" },
+                left: { style: "thin", color: "acc" },
+              },
+            },
           }),
           A2: text("Region", { cellStyle: "header" }),
           B2: text("Revenue", {
@@ -90,6 +129,11 @@ export function formattingWorkbook() {
             style: { align: { horizontal: "right" } },
           }),
           A10: { input: { type: "boolean", value: true } },
+          D13: number(42, {
+            style: { align: { horizontal: "centerContinuous" } },
+          }),
+          E13: { style: { align: { horizontal: "centerContinuous" } } },
+          F13: { style: { align: { horizontal: "centerContinuous" } } },
         },
       },
     ],

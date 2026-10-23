@@ -38,10 +38,16 @@ export function createConditionalDecorator(
     const descriptions = [];
     if (highlight) {
       // Tokens render like html-slides c-* / bg-* (white text on dark fills).
+      // Property by property: the rule's fill replaces the fill; text keeps a
+      // chosen colour, otherwise it follows the final fill.
       if (highlight.fill) {
         element.style.backgroundColor = fillCSS(highlight.fill);
-        if (!highlight.color && DARK_FILLS.includes(highlight.fill))
-          element.style.color = colorCSS("bg");
+        if (!highlight.color && element.dataset.textColor !== "explicit") {
+          if (DARK_FILLS.includes(highlight.fill))
+            element.style.color = colorCSS("bg");
+          else if (element.dataset.textColor === "auto")
+            element.style.color = "";
+        }
       }
       if (highlight.color) element.style.color = colorCSS(highlight.color);
       if (highlight.bold !== undefined)
@@ -51,12 +57,14 @@ export function createConditionalDecorator(
       descriptions.push("Conditional highlight");
     }
     if (bar) {
+      // The grid's text span is kept, so wrap and ellipsis rules still apply.
       const fill = document.createElement("span"),
         axis = document.createElement("span"),
-        text = document.createElement("span");
+        text =
+          element.querySelector(".cell-text") ?? document.createElement("span");
       fill.className = "data-bar-fill";
       axis.className = "data-bar-axis";
-      text.className = "data-bar-text";
+      text.classList.add("data-bar-text");
       fill.setAttribute("aria-hidden", "true");
       axis.setAttribute("aria-hidden", "true");
       Object.assign(fill.style, {
@@ -65,7 +73,7 @@ export function createConditionalDecorator(
         backgroundColor: colorCSS(bar.color),
       });
       axis.style.left = `${bar.axis}%`;
-      text.textContent = element.textContent;
+      if (!text.textContent) text.textContent = element.textContent;
       element.replaceChildren(fill, axis, text);
       descriptions.push(
         `Data bar: ${bar.negative ? "negative" : "nonnegative"}, ${bar.width.toFixed(1)}% of scale; zero axis ${bar.axis.toFixed(1)}%.`,

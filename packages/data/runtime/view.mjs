@@ -42,7 +42,6 @@ export function display(cell, locale = "en-US") {
   if (f.kind === "currency" || f.kind === "accounting") {
     options.style = "currency";
     options.currency = f.currency ?? "EUR";
-    if (f.kind === "accounting") options.currencySign = "accounting";
   }
   const key = locale + JSON.stringify(options);
   let formatter = numberFormats.get(key);
@@ -50,12 +49,16 @@ export function display(cell, locale = "en-US") {
     formatter = new Intl.NumberFormat(locale, options);
     numberFormats.set(key, formatter);
   }
-  // Presets (ADR-010): scale with a k/M suffix, negatives in parentheses.
+  // Presets (ADR-010): scale with a k/M suffix and one sign policy;
+  // accounting shows negatives in parentheses unless told otherwise.
   const scale = SCALES[f.scale],
-    parentheses =
-      v.value < 0 && ["parentheses", "redParentheses"].includes(f.negative);
+    policy = f.negative ?? (f.kind === "accounting" ? "parentheses" : "minus"),
+    enclose = ["parentheses", "redParentheses"].includes(policy),
+    parentheses = enclose && v.value < 0;
   let value = scale ? v.value / scale.divisor : v.value;
   if (parentheses) value = -value;
+  // Signed zero has no sign under a parentheses policy.
+  if (enclose && Object.is(value, -0)) value = 0;
   let text = formatter.format(value);
   if (scale) text = text.replace(/(\d)(?!.*\d)/, `$1${scale.suffix}`);
   return parentheses ? `(${text})` : text;

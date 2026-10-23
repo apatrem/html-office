@@ -33,7 +33,7 @@
 .grid-cell[data-align=left]{justify-content:flex-start;text-align:left}.grid-cell:is([data-align=center],[data-align=centerContinuous]){justify-content:center;text-align:center}
 .cell-text{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:pre}
 .grid-cell.wrap .cell-text{white-space:pre-wrap;overflow-wrap:anywhere;text-overflow:clip;max-height:100%}
-.grid-cell.overflow{overflow:visible;z-index:1}.grid-cell.overflow .cell-text{position:absolute;bottom:0;max-width:none}
+.grid-cell.overflow{overflow:visible;z-index:1}.grid-cell.overflow .cell-text{position:absolute;bottom:0;max-width:none;pointer-events:none}
 .grid-edges{position:absolute;inset:0;pointer-events:none;z-index:1}.grid-edge{position:absolute;width:0;height:0}
 .grid-cell[aria-selected=true]{box-shadow:inset 0 0 0 999px color-mix(in srgb,var(--select) 10%,transparent)}
 .grid-cell[aria-pressed=true]{outline:2px solid var(--select);outline-offset:-2px;box-shadow:none}

@@ -110,3 +110,18 @@ test("presets show long dates, k/M scales and negatives in parentheses or red", 
   );
   assert.equal(red.input.value, -12);
 });
+test("one sign policy: accounting parentheses by default, explicit minus, unsigned zero in parentheses", () => {
+  const accounting = (value, extra = {}) =>
+    number(value, { kind: "accounting", currency: "USD", digits: 2, ...extra });
+  assert.equal(display(accounting(-1234.5)), "($1,234.50)");
+  assert.equal(
+    display(accounting(-1234.5, { negative: "minus" })),
+    "-$1,234.50",
+  );
+  assert.match(display(accounting(-1234.5), "fr-FR"), /^\(1\s234,50\s\$US\)$/);
+  assert.equal(
+    display(number(-0, { kind: "number", digits: 2, negative: "parentheses" })),
+    "0.00",
+  );
+  assert.equal(display(accounting(-0)), "$0.00");
+});

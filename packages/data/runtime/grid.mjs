@@ -40,8 +40,13 @@ function generalAlign(cell) {
 }
 // Direct formatting as inline styles; catalogue classes stay underneath and
 // conditional formatting is applied after, on top.
+// data-text-color tells conditional formatting whether the text colour was
+// chosen (explicit) or derived from a dark fill (auto).
 function paint(element, style, cell) {
-  if (negativeRed(cell)) element.style.color = colorCSS("alert");
+  if (negativeRed(cell)) {
+    element.style.color = colorCSS("alert");
+    element.dataset.textColor = "explicit";
+  }
   if (!style) return;
   if (style.bold !== undefined)
     element.style.fontWeight = style.bold ? "bold" : "normal";
@@ -51,12 +56,18 @@ function paint(element, style, cell) {
     element.style.backgroundColor = fillCSS(style.fill);
     // Text follows the fill unless a colour is given: white on dark fills;
     // ink when a light fill replaces the header style's dark one.
-    if (!style.color && DARK_FILLS.includes(style.fill))
+    if (!style.color && DARK_FILLS.includes(style.fill)) {
       element.style.color = colorCSS("bg");
-    else if (!style.color && cell.cellStyle === "header")
+      element.dataset.textColor ??= "auto";
+    } else if (!style.color && cell.cellStyle === "header") {
       element.style.color = colorCSS("ink");
+      element.dataset.textColor ??= "auto";
+    }
   }
-  if (style.color) element.style.color = colorCSS(style.color);
+  if (style.color) {
+    element.style.color = colorCSS(style.color);
+    element.dataset.textColor = "explicit";
+  }
 }
 // One focusable grid, a bounded DOM viewport, and a single rectangular selection.
 export function createGrid(
@@ -117,11 +128,12 @@ export function createGrid(
     }
     // Effective formatting of every cell in and around the viewport.
     const styles = new Map();
+    // Outside the sheet (row or column 0, or past Excel's bounds) is unstyled.
     function styleAt(row, col) {
+      if (row < 1 || col < 1 || row > ROWS || col > COLUMNS) return null;
       const key = row * 20000 + col;
       if (!styles.has(key)) {
-        const cell =
-          row < 1 || col < 1 ? undefined : sheet.cells[address(row, col)];
+        const cell = sheet.cells[address(row, col)];
         styles.set(
           key,
           effectiveStyle(
@@ -134,6 +146,12 @@ export function createGrid(
       }
       return styles.get(key);
     }
+    // Neighbours are read from the sheet, not the rendered columns, so the
+    // result does not depend on the viewport.
+    const filled = (row, col) =>
+      col >= 1 &&
+      col <= COLUMNS &&
+      !!display(sheet.cells[address(row, col)], locale);
     const x = (col) => L + columns.start(col),
       y = (row) => H + rows.start(row);
     for (let row = v.top; row <= v.bottom; row++) {
@@ -173,8 +191,11 @@ export function createGrid(
               : generalAlign(cell);
         b.dataset.align = horizontal;
         if (align.wrap) b.classList.add("wrap");
-        else if (text && generalAlign(cell) === "left")
-          overflow(b, span, cells, i, horizontal);
+        else if (
+          text &&
+          (horizontal === "centerContinuous" || generalAlign(cell) === "left")
+        )
+          overflow(b, span, row, col, horizontal);
         paint(b, style, cell);
         b.dataset.cell = ref;
         b.id = `grid-${ref}`;
@@ -202,35 +223,42 @@ export function createGrid(
     }
     // Text overflows into empty neighbours (left text to the right, right
     // text to the left, centred text both ways); centre across selection
-    // spans the following empty centerContinuous cells.
-    function overflow(b, span, cells, i, horizontal) {
-      const empty = (j) => cells[j] && !cells[j].text,
-        widthOf = (j) => columns.size(cells[j].col);
+    // spans the following empty centerContinuous cells, for any value.
+    function overflow(b, span, row, col, horizontal) {
       let before = 0,
         after = 0;
       if (horizontal === "centerContinuous") {
         for (
-          let j = i + 1;
-          j <= i + OVERFLOW &&
-          empty(j) &&
-          cells[j].style?.align?.horizontal === "centerContinuous";
-          j++
+          let c = col + 1;
+          c <= col + OVERFLOW &&
+          c <= COLUMNS &&
+          !filled(row, c) &&
+          styleAt(row, c)?.align?.horizontal === "centerContinuous";
+          c++
         )
-          after += widthOf(j);
+          after += columns.size(c);
       } else {
         if (horizontal !== "right")
-          for (let j = i + 1; j <= i + OVERFLOW && empty(j); j++)
-            after += widthOf(j);
+          for (
+            let c = col + 1;
+            c <= col + OVERFLOW && c <= COLUMNS && !filled(row, c);
+            c++
+          )
+            after += columns.size(c);
         if (horizontal !== "left")
-          for (let j = i - 1; j >= i - OVERFLOW && empty(j); j--)
-            before += widthOf(j);
+          for (
+            let c = col - 1;
+            c >= col - OVERFLOW && c >= 1 && !filled(row, c);
+            c--
+          )
+            before += columns.size(c);
         if (horizontal === "center") before = after = Math.min(before, after);
       }
       if (!before && !after) return;
       b.classList.add("overflow");
       Object.assign(span.style, {
         left: `${6 - before}px`,
-        width: `${columns.size(cells[i].col) + before + after - 12}px`,
+        width: `${columns.size(col) + before + after - 12}px`,
       });
     }
     // Borders: each shared edge drawn once, above the cells (ADR-010 rule).
@@ -254,7 +282,8 @@ export function createGrid(
     const side = (row, col, name) => styleAt(row, col)?.border?.[name];
     for (let row = v.top - 1; row <= v.bottom; row++)
       for (let col = v.left - 1; col <= v.right; col++) {
-        if (col >= v.left && row >= 1)
+        // Row 0 and column 0 give the sheet's top and left edges.
+        if (col >= v.left)
           edge(
             resolveEdge(side(row, col, "bottom"), side(row + 1, col, "top")),
             x(col),
@@ -262,7 +291,7 @@ export function createGrid(
             columns.size(col),
             false,
           );
-        if (row >= v.top && col >= 1)
+        if (row >= v.top)
           edge(
             resolveEdge(side(row, col, "right"), side(row, col + 1, "left")),
             x(col + 1),

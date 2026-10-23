@@ -39,11 +39,16 @@ try {
       probe.remove();
       return value;
     }, name);
-  // Layers: cell style, column, row, then the cell's own style.
+  // Layers: cell style, column, row, then the cell's own style; a
+  // conditional fill keeps a chosen text colour (A3) and drops the automatic
+  // white of a replaced dark fill (A4).
   assert.equal(await css("A3", "fontWeight"), "700");
+  assert.equal(await css("A3", "backgroundColor"), await token("ink"));
   assert.equal(await css("A3", "color"), await token("acc"));
-  assert.equal(await css("A4", "backgroundColor"), await token("ink"));
-  assert.equal(await css("A4", "color"), await token("bg"));
+  assert.equal(await css("A4", "backgroundColor"), await token("callout"));
+  assert.equal(await css("A4", "color"), await token("ink"));
+  // Data bars keep the grid's text span and its rules.
+  assert.equal(await cell("B3").locator(".cell-text.data-bar-text").count(), 1);
   // The tint fill is the charte callout colour, as bg-tint in html-slides.
   assert.equal(await css("C7", "backgroundColor"), await token("callout"));
   assert.equal(await css("C2", "color"), await token("ink"));
@@ -78,6 +83,17 @@ try {
   // Overflow into empty neighbours: rightwards, and leftwards when right-aligned.
   const a8 = await span("A8");
   assert.ok(a8.right > (await box("B8")).right, "A8 overflows right");
+  // Overflowing text does not take clicks meant for the cells under it.
+  const b8 = await box("B8");
+  await page.mouse.click(b8.left + 20, b8.top + 10);
+  assert.equal(
+    await page.getByLabel("Cell address", { exact: true }).inputValue(),
+    "B8",
+  );
+  // Centre across works for numbers and does not depend on the viewport.
+  const d13 = await span("D13"),
+    F13 = await box("F13");
+  assert.ok(Math.abs(d13.right - (F13.right - 6)) < 1.5, "D13 across D:F");
   const b9 = await span("B9");
   assert.ok(b9.left < (await box("B9")).left, "B9 overflows left");
   assert.equal(
@@ -117,6 +133,19 @@ try {
   assert.equal(under(A5).length, 1);
   const B4 = await box("B4");
   assert.match(under(B4)[0].style, /^2px solid/, "medium bottom on B4");
+  // The sheet's top and left edges draw too (A1 top and left borders).
+  const A1 = await box("A1");
+  assert.ok(
+    edges.some(
+      (e) =>
+        Math.abs(e.top - A1.top) < 3 && e.left <= A1.left + 1 && e.width > 50,
+    ),
+    "A1 top edge",
+  );
+  assert.ok(
+    edges.some((e) => Math.abs(e.left - A1.left) < 3 && e.height > 10),
+    "A1 left edge",
+  );
   // The workbook font applies to the whole grid.
   assert.match(
     await page
@@ -124,6 +153,12 @@ try {
       .evaluate((el) => getComputedStyle(el).fontFamily),
     /^Georgia/,
   );
+  // The last row and column render without reading past Excel's bounds.
+  for (const ref of ["A1048576", "XFD1", "XFD1048576"]) {
+    await page.getByLabel("Cell address", { exact: true }).fill(ref);
+    await page.getByLabel("Cell address", { exact: true }).press("Enter");
+    await cell(ref).waitFor();
+  }
   // Variable sizes keep a bounded viewport far down a sheet.
   await page.getByLabel("Cell address", { exact: true }).fill("D900000");
   await page.getByLabel("Cell address", { exact: true }).press("Enter");
