@@ -385,6 +385,8 @@ export function mountShell({ commands, state }) {
               ...(state().link ? [item("Open link", "open-link")] : []),
               "-",
               ...common,
+              "-",
+              item("Download as PNG", "download-png"),
             ];
     // Focus returns to the grid: the cell or header may be redrawn.
     openMenu(element, items, {
@@ -423,6 +425,7 @@ export function mountShell({ commands, state }) {
       items: () => [
         item("Save", "save", { shortcut: key("S") }),
         item("Save a copy", "save-copy"),
+        item("Download selection as PNG", "download-png"),
         "-",
         item("Document settings…", "theme", {
           onSelect: () => openPanel("settings"),

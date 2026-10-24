@@ -16,6 +16,7 @@ import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
+import { setupPicture } from "./picture.mjs";
 import { setupClipboard } from "./clipboard.mjs";
 import {
   validateStructure,
@@ -121,12 +122,13 @@ function cellEdits(refs) {
     cell: book.sheets.find((s) => s.id === sheetId)?.cells[ref] ?? null,
   }));
 }
+const decorateCell = createConditionalDecorator(
+  () => book,
+  () => !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  () => conditionalScales,
+);
 const grid = createGrid($("grid"), {
-  decorateCell: createConditionalDecorator(
-    () => book,
-    () => !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
-    () => conditionalScales,
-  ),
+  decorateCell,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getLocale: () => book.locale,
   busy: () => !!loading,
@@ -1079,6 +1081,20 @@ register("open-link", () => {
   ];
   if (link) formatting.openLink(link);
 });
+// Download PNG of the selection (F06): drawn from the model without the
+// engine; stale saved results or a pending edit add a warning band.
+const picture = setupPicture({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  getSelection: () => grid.selection,
+  decorate: decorateCell,
+  isStale: (formulas) =>
+    pendingEdits.length > 0 ||
+    (formulas &&
+      !(book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint))),
+  status,
+});
+register("download-png", () => picture.download());
 register("conditional-formatting", () => conditionalSettings.open());
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
