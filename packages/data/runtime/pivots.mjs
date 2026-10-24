@@ -18,6 +18,7 @@ import {
 } from "../model/pivot.mjs";
 import { address, parseAddress, parseRange } from "../model/workbook.mjs";
 import { display, usedBounds } from "./view.mjs";
+import { shiftRange } from "../model/structure.mjs";
 
 const AGGREGATE_NAMES = { sum: "Sum", count: "Count", average: "Average" };
 const STATE_TEXT = {
@@ -704,13 +705,17 @@ export function setupPivots({
       select(draft.id);
     // A full render reads the source (a scan for whole-sheet sources); busy
     // and freshness changes only update the state line and buttons.
-    const key = JSON.stringify([
-      pivotsOf().map((p) => p.id),
-      saved?.id,
-      getBook().sheets.map((x) => x.name),
-      fresh,
-      saved && pivotsOf().find((p) => p.id === saved.id),
-    ]);
+    // The refresh stamp alone does not change what the panel shows; result
+    // verification does (filter items wait for it).
+    const definition = saved && pivotsOf().find((p) => p.id === saved.id),
+      key = JSON.stringify([
+        pivotsOf().map((p) => p.id),
+        saved?.id,
+        getBook().sheets.map((x) => x.name),
+        fresh,
+        isSnapshotCurrent(),
+        definition && { ...definition, refreshed: undefined },
+      ]);
     if (key !== lastKey) {
       lastKey = key;
       return render();
@@ -725,7 +730,26 @@ export function setupPivots({
     for (const b of root.querySelectorAll("[data-busy]"))
       b.disabled = busy() || b.dataset.busy === "blocked";
   }
+  // Row/column operations (and their undo) move the draft's references as
+  // they move the committed definition's.
+  function structure(command) {
+    if (!draft) return;
+    if (
+      draft.source.sheetId === command.sheetId &&
+      draft.source.ref !== undefined
+    )
+      draft.source = {
+        ...draft.source,
+        ref: shiftRange(draft.source.ref, command),
+      };
+    if (draft.output.sheetId === command.sheetId)
+      draft.output = {
+        ...draft.output,
+        ref: shiftRange(draft.output.ref, command),
+      };
+  }
   return {
+    structure,
     body() {
       root = h("div", { class: "pv" });
       if (!draft || (saved && !pivotsOf().some((p) => p.id === saved.id)))

@@ -570,3 +570,30 @@ test("review: oversized cached bounds fall back to the exact used range", () => 
     right: 4,
   });
 });
+
+test("re-verification: unused-column formulas and unverified headers are not trusted", async () => {
+  const b = book(
+    [
+      ["K", "V", "Notes"],
+      ["a", 1],
+      [undefined, undefined, { formula: '="note"', result: { type: "blank" } }],
+    ],
+    { rows: ["K"], values: [{ field: "V", aggregate: "sum" }] },
+  );
+  const fingerprint = await pivotFingerprint(b, b.pivots[0]);
+  b.pivots[0].refreshed = { fingerprint, at: "2026-10-24T00:00:00.000Z" };
+  assert.equal((await pivotState(b, b.pivots[0])).state, "unverified");
+  assert.equal(
+    (await pivotState(b, b.pivots[0], { formulaResultsCurrent: true })).state,
+    "current",
+  );
+  b.sheets[0].cells.A1 = {
+    formula: '="K"',
+    result: { type: "text", value: "K" },
+  };
+  assert.equal(
+    fieldItems(b, b.pivots[0], "K", { formulaResultsCurrent: false })
+      .unresolved,
+    true,
+  );
+});

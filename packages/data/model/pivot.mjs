@@ -730,10 +730,13 @@ export async function pivotState(
     const source = resolveSource(book, pivot),
       columns = usedNames(pivot).map((name) => fieldColumn(source, name));
     if (!pivot.refreshed) return { state: "never" };
-    if (!formulaResultsCurrent) {
-      for (let row = source.rect.top; row <= source.rect.bottom; row++)
-        for (const column of columns)
-          if (source.sheet.cells[at(row, column)]?.formula)
+    // Any source formula counts, not only used fields: unused columns decide
+    // whether a row is a record.
+    if (!formulaResultsCurrent && columns.length) {
+      const { rect, sheet } = source;
+      for (let row = rect.top; row <= rect.bottom; row++)
+        for (let column = rect.left; column <= rect.right; column++)
+          if (sheet.cells[at(row, column)]?.formula)
             return { state: "unverified" };
     }
     return {
@@ -878,6 +881,9 @@ export function fieldItems(
     }),
     column = fieldColumn(source, name),
     items = new Map();
+  // Unverified header formulas may name a different column after recalculation.
+  if (source.unresolved)
+    return { items: [], truncated: false, unresolved: true };
   let truncated = false;
   for (let row = source.rect.top + 1; row <= source.rect.bottom; row++) {
     const cell = source.sheet.cells[at(row, column)];

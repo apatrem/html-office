@@ -325,6 +325,29 @@ try {
     G2: "East",
     H6: "39",
   });
+  // A dirty draft's edited source moves with a column insertion too.
+  await panel(page)
+    .getByLabel("Source range (header row first)", { exact: true })
+    .fill("A1:E10");
+  await panel(page)
+    .getByLabel("Source range (header row first)", { exact: true })
+    .press("Tab");
+  await page.locator("#cell-address").fill("A1");
+  await page.locator("#cell-address").press("Enter");
+  await command(page, "Insert columns");
+  await waitStatus(page, /references updated/);
+  assert.equal(
+    await panel(page)
+      .getByLabel("Source range (header row first)", { exact: true })
+      .inputValue(),
+    "B1:F10",
+  );
+  assert.equal(
+    await panel(page)
+      .getByLabel("Output top-left cell", { exact: true })
+      .inputValue(),
+    "H1",
+  );
   assert.deepEqual(errors, []);
   await context.close();
 
@@ -366,6 +389,18 @@ try {
       .getByRole("button", { name: "Update pivot table", exact: true })
       .isDisabled(),
     true,
+  );
+  // Recalculating verifies the results: the filter lists its items again.
+  await command(blank, "Recalculate");
+  await waitStatus(blank, /Calculated locally/);
+  await panel(blank)
+    .getByRole("group", { name: "Items kept by filter 1", exact: true })
+    .waitFor();
+  assert.equal(
+    await panel(blank)
+      .getByRole("button", { name: "Update pivot table", exact: true })
+      .isDisabled(),
+    false,
   );
   await panel(blank)
     .getByRole("button", { name: "Remove filter 1", exact: true })

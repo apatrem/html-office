@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T08:05:25.772Z",
+  "generatedAt": "2026-10-24T08:24:32.254Z",
   "hardware": {
     "platform": "darwin 27.0.0",
     "cpu": "Apple M5",
@@ -10,128 +10,223 @@
   "method": "Fictional Sales row table (Region, Quarter, Channel, Units, Revenue, Adjusted = Revenue × scenario factor). Pivot: rows Region, columns Quarter, Sum of Adjusted. Cold = first refresh, including engine load and model load; warm = refresh after one source edit, five runs.",
   "cases": [
     {
-      "id": "pivot-50000",
+      "id": "pivot-100000-input-source",
+      "rows": 100000,
+      "sourceFormulaCells": 0,
+      "size": {
+        "applicationCodeBytes": 498607,
+        "documentContentBytes": 21272901,
+        "totalHTMLBytes": 21771508
+      },
+      "openMS": 3470,
+      "cold": {
+        "wallMS": 4797,
+        "workerPivotMS": 1727,
+        "records": 100000,
+        "outputCells": 48,
+        "longestMainTaskMS": 92
+      },
+      "warm": [
+        {
+          "wallMS": 2328,
+          "workerPivotMS": 1377,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 0,
+          "sourceEditMS": 1218,
+          "sourceEditLongestMainTaskMS": 0,
+          "editToStaleMS": 2001
+        },
+        {
+          "wallMS": 2037,
+          "workerPivotMS": 1250,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 0,
+          "sourceEditMS": 1224,
+          "sourceEditLongestMainTaskMS": 0,
+          "editToStaleMS": 2008
+        },
+        {
+          "wallMS": 2094,
+          "workerPivotMS": 1237,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 0,
+          "sourceEditMS": 1042,
+          "sourceEditLongestMainTaskMS": 0,
+          "editToStaleMS": 1825
+        },
+        {
+          "wallMS": 2639,
+          "workerPivotMS": 1546,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 0,
+          "sourceEditMS": 1083,
+          "sourceEditLongestMainTaskMS": 0,
+          "editToStaleMS": 2870
+        },
+        {
+          "wallMS": 2794,
+          "workerPivotMS": 1638,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 0,
+          "sourceEditMS": 1610,
+          "sourceEditLongestMainTaskMS": 0,
+          "editToStaleMS": 2394
+        }
+      ],
+      "warmMaxWallMS": 2794,
+      "warmMaxLongTaskMS": 0,
+      "warmMaxSourceEditLongTaskMS": 0
+    },
+    {
+      "id": "pivot-50000-formula-source",
       "rows": 50000,
       "sourceFormulaCells": 50000,
       "size": {
-        "applicationCodeBytes": 495926,
+        "applicationCodeBytes": 498607,
         "documentContentBytes": 25300806,
-        "totalHTMLBytes": 25796732
+        "totalHTMLBytes": 25799413
       },
-      "openMS": 2270,
+      "openMS": 2307,
       "cold": {
-        "wallMS": 2901,
-        "workerPivotMS": 743,
+        "wallMS": 3928,
+        "workerPivotMS": 1085,
         "records": 50000,
         "outputCells": 48,
-        "longestMainTaskMS": 425
+        "longestMainTaskMS": 508
       },
       "warm": [
         {
-          "wallMS": 1682,
-          "workerPivotMS": 769,
+          "wallMS": 2496,
+          "workerPivotMS": 1076,
           "records": 50000,
           "outputCells": 48,
-          "longestMainTaskMS": 367,
-          "editToStaleMS": 1137
+          "longestMainTaskMS": 517,
+          "sourceEditMS": 1323,
+          "sourceEditLongestMainTaskMS": 518,
+          "editToStaleMS": 1604
         },
         {
-          "wallMS": 1627,
-          "workerPivotMS": 747,
+          "wallMS": 1920,
+          "workerPivotMS": 855,
           "records": 50000,
           "outputCells": 48,
-          "longestMainTaskMS": 344,
-          "editToStaleMS": 1000
+          "longestMainTaskMS": 471,
+          "sourceEditMS": 1255,
+          "sourceEditLongestMainTaskMS": 494,
+          "editToStaleMS": 1540
         },
         {
-          "wallMS": 1952,
-          "workerPivotMS": 867,
+          "wallMS": 1870,
+          "workerPivotMS": 877,
           "records": 50000,
           "outputCells": 48,
-          "longestMainTaskMS": 418,
-          "editToStaleMS": 1364
+          "longestMainTaskMS": 404,
+          "sourceEditMS": 1179,
+          "sourceEditLongestMainTaskMS": 451,
+          "editToStaleMS": 1478
         },
         {
-          "wallMS": 1757,
-          "workerPivotMS": 818,
+          "wallMS": 2150,
+          "workerPivotMS": 1057,
           "records": 50000,
           "outputCells": 48,
-          "longestMainTaskMS": 379,
-          "editToStaleMS": 1017
+          "longestMainTaskMS": 471,
+          "sourceEditMS": 1230,
+          "sourceEditLongestMainTaskMS": 508,
+          "editToStaleMS": 1310
         },
         {
-          "wallMS": 1650,
-          "workerPivotMS": 742,
+          "wallMS": 2205,
+          "workerPivotMS": 1042,
           "records": 50000,
           "outputCells": 48,
-          "longestMainTaskMS": 350,
-          "editToStaleMS": 1073
+          "longestMainTaskMS": 454,
+          "sourceEditMS": 1299,
+          "sourceEditLongestMainTaskMS": 463,
+          "editToStaleMS": 1385
         }
       ],
-      "warmMaxWallMS": 1952,
-      "warmMaxLongTaskMS": 418
+      "warmMaxWallMS": 2496,
+      "warmMaxLongTaskMS": 517,
+      "warmMaxSourceEditLongTaskMS": 518
     },
     {
-      "id": "pivot-100000",
+      "id": "pivot-100000-formula-source",
       "rows": 100000,
       "sourceFormulaCells": 100000,
       "size": {
-        "applicationCodeBytes": 495940,
+        "applicationCodeBytes": 498607,
         "documentContentBytes": 50614793,
-        "totalHTMLBytes": 51110733
+        "totalHTMLBytes": 51113400
       },
-      "openMS": 4095,
+      "openMS": 5720,
       "cold": {
-        "wallMS": 5994,
-        "workerPivotMS": 1715,
+        "wallMS": 7900,
+        "workerPivotMS": 2184,
         "records": 100000,
         "outputCells": 48,
-        "longestMainTaskMS": 806
+        "longestMainTaskMS": 993
       },
       "warm": [
         {
-          "wallMS": 4868,
-          "workerPivotMS": 2618,
+          "wallMS": 4892,
+          "workerPivotMS": 1918,
           "records": 100000,
           "outputCells": 48,
-          "longestMainTaskMS": 811,
-          "editToStaleMS": 3823
+          "longestMainTaskMS": 973,
+          "sourceEditMS": 2635,
+          "sourceEditLongestMainTaskMS": 1005,
+          "editToStaleMS": 3425
         },
         {
-          "wallMS": 3000,
-          "workerPivotMS": 1448,
+          "wallMS": 4284,
+          "workerPivotMS": 2150,
           "records": 100000,
           "outputCells": 48,
-          "longestMainTaskMS": 623,
-          "editToStaleMS": 2167
+          "longestMainTaskMS": 894,
+          "sourceEditMS": 2877,
+          "sourceEditLongestMainTaskMS": 1095,
+          "editToStaleMS": 3691
         },
         {
-          "wallMS": 3311,
-          "workerPivotMS": 1562,
+          "wallMS": 4104,
+          "workerPivotMS": 1917,
           "records": 100000,
           "outputCells": 48,
-          "longestMainTaskMS": 723,
-          "editToStaleMS": 2796
+          "longestMainTaskMS": 937,
+          "sourceEditMS": 2656,
+          "sourceEditLongestMainTaskMS": 963,
+          "editToStaleMS": 3458
         },
         {
-          "wallMS": 3698,
-          "workerPivotMS": 1687,
+          "wallMS": 4041,
+          "workerPivotMS": 1860,
           "records": 100000,
           "outputCells": 48,
-          "longestMainTaskMS": 840,
-          "editToStaleMS": 2368
+          "longestMainTaskMS": 910,
+          "sourceEditMS": 2537,
+          "sourceEditLongestMainTaskMS": 935,
+          "editToStaleMS": 2717
         },
         {
-          "wallMS": 3568,
-          "workerPivotMS": 1616,
+          "wallMS": 4224,
+          "workerPivotMS": 2016,
           "records": 100000,
           "outputCells": 48,
-          "longestMainTaskMS": 808,
-          "editToStaleMS": 2857
+          "longestMainTaskMS": 865,
+          "sourceEditMS": 2725,
+          "sourceEditLongestMainTaskMS": 951,
+          "editToStaleMS": 3509
         }
       ],
-      "warmMaxWallMS": 4868,
-      "warmMaxLongTaskMS": 840
+      "warmMaxWallMS": 4892,
+      "warmMaxLongTaskMS": 973,
+      "warmMaxSourceEditLongTaskMS": 1095
     }
   ]
 }
