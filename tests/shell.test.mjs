@@ -225,6 +225,14 @@ const listMenu = async (page, name) => {
   html = await page.locator('#s05 > .body').innerHTML();
   ok(/<i>/.test(html) && !/t-italic/.test(await page.locator('#s05 > .body').getAttribute('class')), 'after switching menus, Format › Italic still applies to the selected words');
   await page.keyboard.press('Escape');
+  // inline formatting in the selected words: Clear formatting stays available from the menu
+  await word();
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'Edit' }).click();
+  await choose('menuitem', 'Clear formatting');
+  html = await page.locator('#s05 > .body').innerHTML();
+  const para = await page.evaluate(() => document.querySelector('#s05 > .body p:nth-of-type(2)').innerHTML.slice(0, 120));
+  ok(!/<i>|<b>/.test(para), 'Edit › Clear formatting clears inline formatting in the selected words (' + para + ')');
+  await page.keyboard.press('Escape');
   // typing is committed before menus read their state
   await page.locator('#s02').scrollIntoViewIfNeeded();
   await page.locator('#s02 > .body').dblclick();
@@ -286,6 +294,16 @@ for (const width of [320, 375, 414, 719, 720, 768, 1024, 1280, 1440]) {
   ok(r.scroll <= 0 && e.scroll <= 0 && r.float && e.float && e.slide && e.tb && e.row && e.menubar === !e.burger && (!narrow || e.burger)
     && (width < 1024 || e.menubar) && e.strip === narrow && e.bar === 84,
     `${width} px: no page scroll, file bar and settings bar on screen, ${narrow ? '☰ menu and thumbnail strip' : 'thumbnail column'} (${JSON.stringify(e)})`);
+  if (width === 375) {
+    // the ☰ menu keeps the words being typed
+    await page.locator('#s05 > .body').dblclick();
+    await page.evaluate(() => { const t = document.createTreeWalker(document.querySelector('#s05 > .body p:nth-of-type(2)'), NodeFilter.SHOW_TEXT).nextNode(), r = document.createRange();
+      r.setStart(t, 0); r.setEnd(t, 8); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+    await page.locator('.hs-shell .sh-only-narrow button').click();
+    await page.locator('.sh-pop [role=menuitemcheckbox]').filter({ has: page.locator('.sh-mlabel').getByText('Bold', { exact: true }) }).click();
+    ok(/<b>A shared<\/b>/.test(await page.locator('#s05 > .body').innerHTML()), '375 px: ☰ › Bold applies to the selected words being typed');
+    await page.keyboard.press('Escape');
+  }
   if (e.burger) {
     await page.locator('.hs-shell .sh-only-narrow button').click();
     const heads = await page.locator('.sh-pop .sh-mhead').allTextContents();

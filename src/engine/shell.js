@@ -48,11 +48,20 @@ const leaveChrome = () => { const a = document.activeElement; if (a && a.closest
 
 export function mountShell(cmd) {
   const run = (id, ...a) => () => cmd.run(id, ...a);
-  // `typed`: the text being typed when the menu opened (by pointer); commands that act on a text
-  // selection or on the caret's table cell resume typing there first.
+  // `typed`: the text being typed when a menu first opened (by pointer). Opening a menu takes focus,
+  // which ends typing; commands that act on a text selection or on the caret's table cell resume
+  // typing there first, provided that element is still the selection.
   let typed = null;
-  const item = (label, id, x = {}) => ({ label, disabled: !cmd.enabled(id), ...x,
-    onSelect: () => { if (pointer) leaveChrome(); if (x.resume) resumeText(typed); (x.onSelect || run(id, ...(x.args || [])))(); } });
+  const current = () => { const els = context().els; return !!typed && els.length === 1 && els[0] === typed.el; };
+  const textRange = () => current() && !!typed.range && !typed.range.collapsed;
+  function menuOpens() {
+    if (!openPopoverState()?.pop.querySelector('[role=menu]')) typed = textContext(); // a new menu session
+    stopText(); // enabled states must see the typing just committed (Undo)
+  }
+  const resume = () => { if (current()) resumeText(typed); };
+  const item = (label, id, x = {}) => ({ label, ...x,
+    disabled: !cmd.enabled(id) && !(x.withText && textRange()), // inline formatting in the text range
+    onSelect: () => { if (pointer) leaveChrome(); if (x.resume) resume(); (x.onSelect || run(id, ...(x.args || [])))(); } });
   // A menu entry that opens a second menu, anchored where the first one was opened
   // (its menubar or toolbar trigger, which has focus back once the first menu closes).
   const sub = (label, id, list) => ({ label: label + '…', disabled: !cmd.enabled(id),
@@ -75,7 +84,7 @@ export function mountShell(cmd) {
     { name: 'File', items: () => [item('Save', 'save', { shortcut: key('S') }), item('Print / PDF', 'print'), ...(guide().length ? ['-', ...guide()] : [])] },
     { name: 'Edit', items: () => [item('Undo', 'undo', { shortcut: key('Z') }), item('Redo', 'redo', { shortcut: key('Shift+Z') }), '-',
       item('Duplicate', 'duplicate', { shortcut: key('D') }), item('Delete', 'delete', { shortcut: 'Del' }), '-',
-      item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format', { resume: true })] },
+      item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format', { resume: true, withText: true })] },
     { name: 'Insert', items: () => [item('Text box', 'insert', { args: ['text'] }), sub('Shape', 'insert-shape', shapeItems), sub('Block', 'insert', blockItems),
       item('Image…', 'insert-image'), item('Table', 'insert', { args: ['table'] }), sub('Chart', 'insert-chart', chartItems), '-', sub('New slide', 'new-slide', newSlideItems)] },
     { name: 'Format', items: () => {
@@ -83,8 +92,8 @@ export function mountShell(cmd) {
       return [item('Bold', 'bold', { shortcut: key('B'), checked: l.bold, resume: true }), item('Italic', 'italic', { shortcut: key('I'), checked: l.italic, resume: true }), '-',
         item('Smaller text', 'size', { args: [-1] }), item('Larger text', 'size', { args: [1] }), '-',
         ...ALIGN.map(([v, label]) => item(label, 'text-align', { args: [v], checked: l.align === v })), '-',
-        item('Text colour…', 'color', { resume: true, onSelect: () => pick('text', null, !!typed) }), item('Fill colour…', 'fill', { onSelect: () => pick('fill') }),
-        item('Clear formatting', 'clear-format', { resume: true })];
+        item('Text colour…', 'color', { resume: true, onSelect: () => pick('text', null, !!typed && context().typing) }), item('Fill colour…', 'fill', { onSelect: () => pick('fill') }),
+        item('Clear formatting', 'clear-format', { resume: true, withText: true })];
     } },
     { name: 'Slide', items: () => [{ heading: 'Layout' }, ...layoutItems(), '-', item('Reset layout', 'reset-layout'), item('Footer…', 'footer'), '-',
       item('Duplicate slide', 'duplicate-slide'), item('Delete slide', 'delete-slide')] },
@@ -92,13 +101,8 @@ export function mountShell(cmd) {
     { name: 'Table', items: tableItems },
     { name: 'View', items: () => [item('Edit mode', 'edit', { shortcut: 'E', checked: editingMode() }), item('Present', 'present', { shortcut: 'P' })] },
     { name: 'Help', items: () => [item('Keyboard shortcuts', 'help', { shortcut: '?' }), ...guide()] }
-  ].map(m => ({ name: m.name, items: () => {
-    // Switching menus keeps what the first one recorded; typing is committed before
-    // enabled states are read (Undo must see the new history record).
-    typed = textContext() || (openPopoverState()?.pop.querySelector('[role=menu]') ? typed : null);
-    stopText();
-    return m.items();
-  } }));
+  ];
+  const menubarMenus = menus.map(m => ({ name: m.name, items: () => { menuOpens(); return m.items(); } }));
 
   // ---- toolbar: history and insert, then the groups of the current selection ----
   const B = {}, binds = [];
@@ -175,13 +179,13 @@ export function mountShell(cmd) {
     h('div', { class: 'sh-row' },
       h('div', { class: 'sh-ident' }, h('span', { class: 'sh-mark', 'aria-hidden': 'true' }, 'S'),
         h('div', { class: 'sh-tt' }, h('span', { class: 'sh-title', title }, title), h('div', { class: 'sh-state' }, status))),
-      h('div', { class: 'sh-wide' }, menubar('Presentation menu', menus)),
+      h('div', { class: 'sh-wide' }, menubar('Presentation menu', menubarMenus)),
       h('span', { class: 'sh-spacer' }),
       add('present', 'present', { label: 'Present', ic: 'play', text: 'Present', cls: 'sh-ghost', title: 'Presentation mode (P)' }),
       B.save,
       add('done', 'edit', { label: 'Done', ic: 'check', text: 'Done', cls: 'sh-ghost', title: 'Exit edit mode (E)' }),
       h('span', { class: 'sh-only-narrow' }, menuButton(button({ label: 'Menu', ic: 'menu' }),
-        () => menus.flatMap((m, i) => [...(i ? ['-'] : []), { heading: m.name }, ...m.items()]), 'Menu'))),
+        () => { menuOpens(); return menus.flatMap((m, i) => [...(i ? ['-'] : []), { heading: m.name }, ...m.items()]); }, 'Menu'))),
     h('div', { class: 'sh-row sh-row2' }, bar));
 
   // ---- floating settings bar: file commands while reading, slide position while editing ----
