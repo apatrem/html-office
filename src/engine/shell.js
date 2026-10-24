@@ -9,7 +9,7 @@ import { openPopover, closePopover, openPopoverState } from '../../packages/shar
 import { swatchGroup, colourButton, TEXT_COLOURS, FILLS } from '../../packages/shared/shell/pickers.mjs';
 import { state, slides } from './model.js';
 import { LAYOUTS, CHART_TYPES, SHAPES, ELEMENTS } from './templates.js';
-import { context, editingMode, stopText } from './editor.js';
+import { context, editingMode, stopText, textContext, resumeText } from './editor.js';
 import { squeeze } from './view.js';
 
 // Menu icons (16 px strokes), as in the previous Slides menus
@@ -48,8 +48,11 @@ const leaveChrome = () => { const a = document.activeElement; if (a && a.closest
 
 export function mountShell(cmd) {
   const run = (id, ...a) => () => cmd.run(id, ...a);
+  // `typed`: the text being typed when the menu opened (by pointer); commands that act on a text
+  // selection or on the caret's table cell resume typing there first.
+  let typed = null;
   const item = (label, id, x = {}) => ({ label, disabled: !cmd.enabled(id), ...x,
-    onSelect: () => { if (pointer) leaveChrome(); (x.onSelect || run(id, ...(x.args || [])))(); } });
+    onSelect: () => { if (pointer) leaveChrome(); if (x.resume) resumeText(typed); (x.onSelect || run(id, ...(x.args || [])))(); } });
   // A menu entry that opens a second menu, anchored where the first one was opened
   // (its menubar or toolbar trigger, which has focus back once the first menu closes).
   const sub = (label, id, list) => ({ label: label + '…', disabled: !cmd.enabled(id),
@@ -62,26 +65,26 @@ export function mountShell(cmd) {
   const newSlideItems = () => LAYOUTS.map(([k, l]) => item(l, 'new-slide', { args: [k] }));
   const layoutItems = () => { const cur = currentLayout(); return LAYOUTS.map(([k, l]) => item(l, 'layout', { args: [k], checked: k === cur, radio: true })); };
   const arrangeItems = () => ARRANGE.map(a => (a === '-' ? a : item(a[0], a[1], { args: [a[2]], icon: svg(a[3]), shortcut: a[4] && key(a[4]) })));
-  const tableItems = () => [item('Insert row below', 'table', { args: ['row+'] }), item('Delete row', 'table', { args: ['row-'] }),
-    item('Insert column right', 'table', { args: ['col+'] }), item('Delete column', 'table', { args: ['col-'] })];
+  const tableItems = () => [item('Insert row below', 'tablerow+', { resume: true }), item('Delete row', 'tablerow-', { resume: true }),
+    item('Insert column right', 'tablecol+', { resume: true }), item('Delete column', 'tablecol-', { resume: true })];
   const guide = () => (cmd.enabled('guide') ? [item('File format guide', 'guide')] : []);
 
   // Every command has a home in the menus; the toolbar repeats the frequent ones.
-  // Opening a menu moves focus into it, which ends typing: compute its items afterwards.
+  // Opening a menu moves focus into it, which ends typing: record what was being typed.
   const menus = [
     { name: 'File', items: () => [item('Save', 'save', { shortcut: key('S') }), item('Print / PDF', 'print'), ...(guide().length ? ['-', ...guide()] : [])] },
     { name: 'Edit', items: () => [item('Undo', 'undo', { shortcut: key('Z') }), item('Redo', 'redo', { shortcut: key('Shift+Z') }), '-',
       item('Duplicate', 'duplicate', { shortcut: key('D') }), item('Delete', 'delete', { shortcut: 'Del' }), '-',
-      item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format')] },
+      item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format', { resume: true })] },
     { name: 'Insert', items: () => [item('Text box', 'insert', { args: ['text'] }), sub('Shape', 'insert-shape', shapeItems), sub('Block', 'insert', blockItems),
       item('Image…', 'insert-image'), item('Table', 'insert', { args: ['table'] }), sub('Chart', 'insert-chart', chartItems), '-', sub('New slide', 'new-slide', newSlideItems)] },
     { name: 'Format', items: () => {
       const l = look();
-      return [item('Bold', 'bold', { shortcut: key('B'), checked: l.bold }), item('Italic', 'italic', { shortcut: key('I'), checked: l.italic }), '-',
+      return [item('Bold', 'bold', { shortcut: key('B'), checked: l.bold, resume: true }), item('Italic', 'italic', { shortcut: key('I'), checked: l.italic, resume: true }), '-',
         item('Smaller text', 'size', { args: [-1] }), item('Larger text', 'size', { args: [1] }), '-',
         ...ALIGN.map(([v, label]) => item(label, 'text-align', { args: [v], checked: l.align === v })), '-',
-        item('Text colour…', 'color', { onSelect: () => pick('text') }), item('Fill colour…', 'fill', { onSelect: () => pick('fill') }),
-        item('Clear formatting', 'clear-format')];
+        item('Text colour…', 'color', { resume: true, onSelect: () => pick('text', null, !!typed) }), item('Fill colour…', 'fill', { onSelect: () => pick('fill') }),
+        item('Clear formatting', 'clear-format', { resume: true })];
     } },
     { name: 'Slide', items: () => [{ heading: 'Layout' }, ...layoutItems(), '-', item('Reset layout', 'reset-layout'), item('Footer…', 'footer'), '-',
       item('Duplicate slide', 'duplicate-slide'), item('Delete slide', 'delete-slide')] },
@@ -89,7 +92,7 @@ export function mountShell(cmd) {
     { name: 'Table', items: tableItems },
     { name: 'View', items: () => [item('Edit mode', 'edit', { shortcut: 'E', checked: editingMode() }), item('Present', 'present', { shortcut: 'P' })] },
     { name: 'Help', items: () => [item('Keyboard shortcuts', 'help', { shortcut: '?' }), ...guide()] }
-  ].map(m => ({ name: m.name, items: () => { stopText(); return m.items(); } }));
+  ].map(m => ({ name: m.name, items: () => { typed = textContext(); return m.items(); } }));
 
   // ---- toolbar: history and insert, then the groups of the current selection ----
   const B = {}, binds = [];
@@ -130,18 +133,19 @@ export function mountShell(cmd) {
     ctx('el', 'Arrange', dd('arrange', 'align', { label: 'Arrange', ic: 'arrange', text: 'Arrange', title: 'Align, distribute, and change stacking order' }, arrangeItems)),
     ctx('chart', 'Chart', add('chart-data', 'chart-data', { label: 'Edit data', ic: 'chart', text: 'Edit data', title: 'Edit the selected chart data' })),
     ctx('table', 'Table',
-      add('row+', 'table', { label: 'Insert row below', ic: 'rowAdd' }, 'row+'), add('row-', 'table', { label: 'Delete row', ic: 'rowDel' }, 'row-'),
-      add('col+', 'table', { label: 'Insert column right', ic: 'colAdd' }, 'col+'), add('col-', 'table', { label: 'Delete column', ic: 'colDel' }, 'col-')),
+      add('row+', 'tablerow+', { label: 'Insert row below', ic: 'rowAdd' }), add('row-', 'tablerow-', { label: 'Delete row', ic: 'rowDel' }),
+      add('col+', 'tablecol+', { label: 'Insert column right', ic: 'colAdd' }), add('col-', 'tablecol-', { label: 'Delete column', ic: 'colDel' })),
     ctx('el', 'Element',
       add('duplicate', 'duplicate', { label: 'Duplicate element', ic: 'copy', title: `Duplicate the element (${key('D')})` }),
       add('delete', 'delete', { label: 'Delete element', ic: 'trash', title: 'Delete the element (Delete)' })));
   bar.classList.add('hs-tb');
 
   // Colour pickers: a pointer click leaves focus (and the text selection) where it is.
-  function pick(kind, e) {
+  // keep: leave focus in the text being typed (the menu resumed it).
+  function pick(kind, e, keep) {
     const fill = kind === 'fill', b = fill ? B.fill : B.color, label = fill ? 'Fill colour' : 'Text colour';
     if (e && openPopoverState()?.trigger === b) return closePopover();
-    const pointer = !!(e && e.detail), l = look();
+    const pointer = !!(e && e.detail) || !!keep, l = look();
     b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const pop = openPopover(b, [h('p', { class: 'sh-pop-h' }, label + ' · charte tokens'),
       swatchGroup(label, fill ? FILLS : TEXT_COLOURS, fill ? l.fill : l.color, t => {

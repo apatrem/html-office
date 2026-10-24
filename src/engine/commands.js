@@ -45,6 +45,6 @@ export function slideCommands(save) {
   R('duplicate', onEls(E.duplicateSel), any);
   R('delete', onEls(E.removeSel), any);
   R('chart-data', E.dataPanel, () => edit() && E.context().chart);
-  R('table', E.tableOp, () => edit() && E.context().table);
+  for (const op of ['row+', 'row-', 'col+', 'col-']) R('table' + op, () => E.tableOp(op), () => edit() && E.context().table && E.tableCan(op));
   return c;
 }

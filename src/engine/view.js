@@ -4,6 +4,7 @@ import { state, slides } from './model.js';
 import { resizeCharts } from './charts.js';
 import { h, icon } from '../../packages/shared/shell/dom.mjs';
 import { menuButton } from '../../packages/shared/shell/menu.mjs';
+import { closePopover } from '../../packages/shared/shell/popover.mjs';
 import SHELL_CSS from '../../packages/shared/shell/shell.css';
 
 export const isStatic = () => !!window.__DECK_STATIC;
@@ -26,6 +27,8 @@ export function fit() {
   const strip = editing && narrow(), side = editing && !strip ? SIDE_W : 0;
   const tb = document.querySelector('.hs-tb');
   if (editing && tb) squeeze(tb);
+  const bar = document.querySelector('.hs-shell');
+  if (editing && bar) fold(bar);
   let s = 1;
   if (present) s = Math.min(innerWidth / 1280, innerHeight / 720);
   else if (!isStatic()) s = Math.min(1, (document.documentElement.clientWidth - side - 40) / 1280);
@@ -39,6 +42,13 @@ export function fit() {
   if (sb) sb.style.top = side ? y + 'px' : '';
 }
 
+// File bar wider than the window: the menus collapse into ☰ first, then button labels hide.
+function fold(bar) {
+  const row = bar.firstElementChild, over = () => row.scrollWidth > row.clientWidth + 1;
+  bar.classList.remove('fold', 'fold2');
+  if (over()) bar.classList.add('fold');
+  if (over()) bar.classList.add('fold2');
+}
 // Toolbar wider than the window: hide its text labels first (they stay the accessible
 // names), then let it scroll with its overflow arrows.
 export function squeeze(bar) {
@@ -68,6 +78,7 @@ let cur = 0;
 export function present(on) {
   const all = slides();
   if (on) {
+    closePopover({ restore: false }); // a hidden menu or picker would take the first Escape
     const vis = all.findIndex(s => s.getBoundingClientRect().bottom > 80);
     cur = Math.max(0, vis);
     document.body.classList.add('hs-present');
@@ -275,6 +286,8 @@ body.hs-editing .hs-shell{display:block}
 .hs-save.dirty,.hs-save.dirty:hover:not(:disabled){background:#C2521C;border-color:#C2521C;color:#fff}
 .hs-tb.compact .sh-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .hs-tb.compact .hs-hint{display:none}
+.hs-shell.fold .sh-wide{display:none!important}.hs-shell.fold .sh-only-narrow{display:inline-flex!important}
+.hs-shell.fold2 .sh-row .sh-t .sh-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .hs-hint{color:#6b7780;font-size:12px;margin-left:10px;white-space:nowrap}
 .hs-float{z-index:4000;user-select:none}
 body.hs-editing .hs-float{left:calc(196px + (100% - 196px) / 2)}

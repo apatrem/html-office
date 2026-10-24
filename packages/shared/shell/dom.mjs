@@ -107,12 +107,15 @@ export function roving(
     for (const el of container.querySelectorAll(selector))
       el.tabIndex = el === event.target ? 0 : -1;
   });
-  // Keeps exactly one tab stop, preferring the current one if still enabled.
+  // Keeps exactly one tab stop, preferring the current one if still enabled
+  // and shown (a product may hide groups of items as its context changes).
   const reset = () => {
-    const all = [...container.querySelectorAll(selector)].filter(command);
+    const all = [...container.querySelectorAll(selector)].filter(command),
+      usable = (el) => !el.disabled && el.offsetParent !== null;
     const first =
       all.find((el) => el.getAttribute("aria-checked") === "true") ??
-      all.find((el) => el.tabIndex === 0 && !el.disabled) ??
+      all.find((el) => el.tabIndex === 0 && usable(el)) ??
+      all.find(usable) ??
       all.find((el) => !el.disabled) ??
       all[0];
     for (const el of all) el.tabIndex = el === first ? 0 : -1;

@@ -193,6 +193,53 @@ const listMenu = async (page, name) => {
   await ctx.close();
 }
 
+// 3b. Review findings: menus keep the text being typed, tab stop after a context change,
+// table limits, and presentation Escape with a picker open.
+{
+  const { ctx, page, errs } = await setup('text');
+  const word = async () => {
+    await page.locator('#s05 > .body').dblclick();
+    await page.evaluate(() => { const t = document.createTreeWalker(document.querySelector('#s05 > .body p:nth-of-type(2)'), NodeFilter.SHOW_TEXT).nextNode(), r = document.createRange();
+      r.setStart(t, 0); r.setEnd(t, 8); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
+  };
+  const choose = (role, name) => page.locator(`.sh-pop [role=${role}]`).filter({ has: page.locator('.sh-mlabel').getByText(name, { exact: true }) }).click();
+  await word();
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'Format' }).click();
+  await choose('menuitemcheckbox', 'Bold');
+  let html = await page.locator('#s05 > .body').innerHTML();
+  ok(/<b>A shared<\/b>/.test(html) && !/t-bold/.test(await page.locator('#s05 > .body').getAttribute('class')), 'Format › Bold applies to the selected words being typed');
+  await page.keyboard.press('Escape');
+  await word();
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'Format' }).click();
+  await choose('menuitem', 'Text colour…');
+  await page.getByRole('radiogroup', { name: 'Text colour' }).getByRole('radio', { name: 'Alert', exact: true }).click();
+  html = await page.locator('#s05 > .body').innerHTML();
+  ok(/class="c-alert">A shared</.test(html), 'Format › Text colour… colours the selected words being typed');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  // tab stop follows the visible toolbar
+  await page.locator('#s06').scrollIntoViewIfNeeded();
+  await page.locator('#s06 > .sticker').click();
+  await page.keyboard.press('Escape');
+  await tool(page, 'Layout').focus();
+  await page.locator('#s06 > .sticker').click();
+  const stops = await toolbar(page).locator('button').evaluateAll(bs => bs.filter(b => b.tabIndex === 0).map(b => !!b.offsetParent));
+  ok(stops.length === 1 && stops[0], `after a context change the toolbar tab stop is a visible button (${JSON.stringify(stops)})`);
+  // table limits
+  await page.locator('#s08').scrollIntoViewIfNeeded();
+  await page.evaluate(() => { const t = document.querySelector('#s08 > table'); while (t.rows.length > 2) t.deleteRow(-1); });
+  await page.locator('#s08 > table').click({ position: { x: 30, y: 10 } });
+  ok(await tool(page, 'Delete row').isDisabled() && await tool(page, 'Insert row below').isEnabled(), 'Delete row is disabled when the table has two rows');
+  // presentation with a picker open
+  await tool(page, 'Fill colour').click();
+  await page.keyboard.press('p');
+  ok(await page.locator('.sh-pop').count() === 0, 'entering presentation closes the open picker');
+  await page.keyboard.press('Escape');
+  ok(await page.evaluate(() => !document.body.classList.contains('hs-present')), 'one Escape leaves presentation');
+  ok(errs.length === 0, 'no JavaScript error' + (errs.length ? ': ' + errs.join(' | ') : ''));
+  await ctx.close();
+}
+
 // 4. Widths: no page-level horizontal scroll, menus collapse into ☰ below 720 px, thumbnails become a strip.
 for (const width of [320, 375, 414, 719, 720, 768, 1024, 1280, 1440]) {
   const { ctx, page, errs } = await open({ width, height: 800 });
@@ -204,6 +251,7 @@ for (const width of [320, 375, 414, 719, 720, 768, 1024, 1280, 1440]) {
       burger: vis(document.querySelector('.hs-shell .sh-only-narrow')), float: f.left >= 0 && f.right <= innerWidth && f.bottom <= innerHeight,
       strip: side.width > side.height, slide: slide.left >= 0 && slide.right <= innerWidth + 0.5,
       bar: Math.round(document.querySelector('.hs-shell').getBoundingClientRect().height),
+      row: (r => r.scrollWidth <= r.clientWidth + 1 && [...r.querySelectorAll('button')].filter(b => b.offsetParent).every(b => b.getBoundingClientRect().right <= innerWidth))(document.querySelector('.hs-shell > .sh-row')),
       tb: document.querySelector('.hs-tb').scrollWidth <= document.querySelector('.hs-tb').clientWidth + 1 };
   });
   const r = await measure();
@@ -211,9 +259,10 @@ for (const width of [320, 375, 414, 719, 720, 768, 1024, 1280, 1440]) {
   await page.locator('#s05 > .body').click();
   const e = await measure();
   const narrow = width < 720;
-  ok(r.scroll <= 0 && e.scroll <= 0 && r.float && e.float && e.slide && e.tb && e.menubar === !narrow && e.burger === narrow && e.strip === narrow && e.bar === 84,
-    `${width} px: no page scroll, settings bar on screen, ${narrow ? '☰ menu and thumbnail strip' : 'menu bar and thumbnail column'} (${JSON.stringify(e)})`);
-  if (narrow) {
+  ok(r.scroll <= 0 && e.scroll <= 0 && r.float && e.float && e.slide && e.tb && e.row && e.menubar === !e.burger && (!narrow || e.burger)
+    && (width < 1024 || e.menubar) && e.strip === narrow && e.bar === 84,
+    `${width} px: no page scroll, file bar and settings bar on screen, ${narrow ? '☰ menu and thumbnail strip' : 'thumbnail column'} (${JSON.stringify(e)})`);
+  if (e.burger) {
     await page.locator('.hs-shell .sh-only-narrow button').click();
     const heads = await page.locator('.sh-pop .sh-mhead').allTextContents();
     ok(heads.filter(t => menuNames.includes(t)).join() === menuNames.join(), `${width} px: ☰ lists every menu (${heads.join(', ')})`);
