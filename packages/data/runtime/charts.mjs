@@ -5,11 +5,12 @@
 // change that leaves a chart on screen out of date. Offline builds embed it.
 import { h } from "../../shared/shell/dom.mjs";
 import { field } from "../../shared/shell/dialogs.mjs";
-import { registry, theme, loadECharts } from "../../shared/charts/index.mjs";
+import { theme, loadECharts } from "../../shared/charts/index.mjs";
 import { schemas, dataFields } from "../../shared/charts/schema.mjs";
 import {
   chartData,
   chartLabel,
+  chartOption,
   chartRevision,
   chartTypes,
   columnsHint,
@@ -20,6 +21,7 @@ import {
   validateCharts,
   DEFAULT_SIZE,
   HEIGHTS,
+  MAX_PREVIEW,
   WIDTHS,
 } from "../model/charts.mjs";
 import { address, parseAddress } from "../model/workbook.mjs";
@@ -75,6 +77,8 @@ export function setupCharts({
   getSheetId,
   getSelection,
   isSnapshotCurrent = () => false,
+  // Increases with every workbook change: derived chart data is cached by it.
+  getRevision = () => 0,
   edited = () => false,
   busy = () => false,
   publish,
@@ -88,6 +92,7 @@ export function setupCharts({
   // chart's sheet is shown, and its ECharts instance once live.
   const states = new Map(),
     revisions = new Map(),
+    derived = new WeakMap(),
     visible = new Set();
   // null until requested, then "loading", "ready" or "failed".
   let library = window.echarts ? "ready" : null,
@@ -118,14 +123,21 @@ export function setupCharts({
   const describe = (chart) =>
     `${chartLabel(chart)}. ${typeLabel(chart.type)} chart of ${sheetName(chart.source.sheetId)}!${chart.source.ref}.`;
 
-  // Data and revision of a chart from the committed workbook.
-  function derive(chart) {
+  // Data and revision of a chart from the committed workbook, cached per
+  // chart definition and workbook revision; a draft being edited is not.
+  function derive(chart, t = theme(), cache = true) {
+    const stamp = `${getRevision()} ${getBook().locale} ${JSON.stringify(t)}`,
+      hit = cache && derived.get(chart);
+    if (hit?.stamp === stamp) {
+      const revision = revisions.get(hit.value.key);
+      return revision ? { ...hit.value, revision } : hit.value;
+    }
     const result = chartData(getBook(), chart, label),
       key = JSON.stringify([
         chart.type,
         chart.width,
         chart.height,
-        getBook().theme ?? null,
+        t,
         result.data ?? null,
         result.errors,
       ]);
@@ -133,12 +145,24 @@ export function setupCharts({
     if (revision === undefined && !result.errors.length) {
       revision = null;
       revisions.set(key, null);
-      void chartRevision(chart, result.data, getBook().theme).then((value) => {
+      void chartRevision(chart, result.data, t).then((value) => {
         revisions.set(key, value);
-        draw();
+        scheduleDraw();
       });
     }
-    return { ...result, key, revision: revision ?? null };
+    const value = { ...result, key, revision: revision ?? null };
+    if (cache) derived.set(chart, { stamp, value });
+    return value;
+  }
+  // Revisions arrive one by one: one redraw follows them.
+  let pending = false;
+  function scheduleDraw() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      draw();
+    });
   }
   function previewState(chart, s) {
     if (s.errors.length) return "invalid";
@@ -338,7 +362,7 @@ export function setupCharts({
       });
       s.view = null;
     }
-    s.instance.setOption(registry[chart.type].toOption(s.data, theme()), true);
+    s.instance.setOption(chartOption(chart, s.data, theme()), true);
     s.liveKey = s.key;
     s.liveRevision = s.revision;
     s.captured = null;
@@ -373,12 +397,13 @@ export function setupCharts({
   function draw() {
     const sheetId = getSheetId(),
       sheet = getBook().sheets.find((x) => x.id === sheetId),
-      shown = new Set();
+      shown = new Set(),
+      t = theme();
     for (const chart of chartsOf()) {
       let s = states.get(chart.id);
       if (!s) states.set(chart.id, (s = {}));
       if (chart.sheetId !== sheetId) continue;
-      Object.assign(s, derive(chart));
+      Object.assign(s, derive(chart, t));
       shown.add(chart.id);
       if (!s.figure) {
         s.figure = figureFor(chart);
@@ -436,6 +461,14 @@ export function setupCharts({
         };
       // Only a drawing of the chart's current data replaces its preview.
       if (!preview || preview.revision !== derive(chart).revision) return chart;
+      // A drawing over the stored limit is not kept (ADR-013 §4): the chart
+      // reopens without a preview rather than making the file unsavable.
+      if (preview.svg.length > MAX_PREVIEW) {
+        if (!chart.preview) return chart;
+        replaced = true;
+        const { preview: _, ...rest } = chart;
+        return rest;
+      }
       if (
         chart.preview?.revision === preview.revision &&
         chart.preview.svg === preview.svg
@@ -645,7 +678,7 @@ export function setupCharts({
           ),
         ),
       );
-    const derived = derive(draft),
+    const derivedDraft = derive(draft, theme(), false),
       invalid = problems(),
       sheets = getBook().sheets,
       sourceRef = h("input", {
@@ -759,11 +792,11 @@ export function setupCharts({
           "Use selection as data",
         ),
       ),
-      !invalid.length && derived.errors.length
+      !invalid.length && derivedDraft.errors.length
         ? h(
             "p",
             { class: "sh-err", role: "alert" },
-            `Cannot be drawn yet: ${derived.errors.join(" ")}`,
+            `Cannot be drawn yet: ${derivedDraft.errors.join(" ")}`,
           )
         : null,
       h("h3", {}, "Options"),
@@ -878,7 +911,15 @@ export function setupCharts({
       if (current !== savedDraft) {
         if (!current) openDraft(selectedId);
         else if (!dirtyDraft) openDraft(current.id);
-        else savedDraft = current;
+        else {
+          // A dirty draft takes committed changes (structural moves, undo)
+          // of the fields it did not edit itself.
+          for (const key of Object.keys({ ...savedDraft, ...current }))
+            if (JSON.stringify(draft[key]) === JSON.stringify(savedDraft[key]))
+              if (current[key] === undefined) delete draft[key];
+              else draft[key] = structuredClone(current[key]);
+          savedDraft = current;
+        }
       }
     }
     const key = JSON.stringify([

@@ -127,9 +127,11 @@ function typedValue(cell) {
   return cell.input ?? null;
 }
 // Excel 1900 serial to ISO text; serial 60 is the fictitious 29 February
-// 1900, which the Gantt validator then rejects as a date.
+// 1900, which the Gantt validator then rejects as a date. Serials the grid
+// shows as #### (before 1900 or after 9999) have no ISO date: null.
 export function isoDate(serial) {
   const day = Math.floor(serial);
+  if (!(day >= 1 && day <= 2958465)) return null;
   if (day === 60) return "1900-02-29";
   return new Date(
     Date.UTC(1899, 11, 31) + (day > 59 ? day - 1 : day) * 86400000,
@@ -143,6 +145,7 @@ const ISSUE = {
   text: "text",
   boolean: "TRUE/FALSE",
   error: "error",
+  date: "date outside 1900–9999",
 };
 // Reads the block into adapter rows. Labels use the displayed text (label is
 // the editor's display function); numbers keep full precision; Gantt dates
@@ -191,17 +194,22 @@ export function chartTable(book, chart, label) {
     if (
       v.type === "date" ||
       (v.type === "number" && cell.format?.kind === "date")
-    )
-      return isoDate(v.value);
+    ) {
+      const iso = isoDate(v.value);
+      if (iso === null) issues.push({ ref, kind: "date" });
+      return iso ?? "";
+    }
     return v.type === "text" ? v.value : "";
   };
   const columns = layout.series ? width : layout.roles.length,
     headers = [],
     rows = [];
-  for (let c = 0; c < columns; c++)
-    headers.push(
-      c < width ? label(sheet.cells[address(r.top, r.left + c)]) : "",
-    );
+  // Series names come from the header row, formulas included.
+  for (let c = 0; c < columns; c++) {
+    const cell = c < width ? sheet.cells[address(r.top, r.left + c)] : null;
+    if (cell?.formula) formulas = true;
+    headers.push(cell ? label(cell) : "");
+  }
   for (let row = r.top + 1; row <= r.bottom; row++) {
     const values = [];
     for (let c = 0; c < columns; c++)
@@ -214,15 +222,24 @@ export function chartTable(book, chart, label) {
 // missing points (null) and report what became one; other types need every
 // value, and their problems name the offending cells.
 export function chartData(book, chart, label) {
-  const table = chartTable(book, chart, label);
-  if (table.problem) return { errors: [table.problem], issues: [] };
-  const def = registry[chart.type],
+  let table, data, errors;
+  const def = registry[chart.type];
+  // One unreadable chart never stops the others from drawing.
+  try {
+    table = chartTable(book, chart, label);
+    if (table.problem) return { errors: [table.problem], issues: [] };
     data = def.table.fromRows(
       table.rows,
       table.headers,
       structuredClone(chart.options),
-    ),
+    );
     errors = def.validate(data);
+  } catch (error) {
+    return {
+      errors: [`Its data cannot be read: ${error.message}`],
+      issues: [],
+    };
+  }
   if (errors.length && table.issues.length)
     errors.push(
       `Check ${table.issues
@@ -234,7 +251,16 @@ export function chartData(book, chart, label) {
     );
   return { data, errors, issues: table.issues, formulas: table.formulas };
 }
-// Identifies what a preview shows: type, chart JSON, size and built-in theme.
+// Data draws a chart as its contract says, without interactive state that a
+// saved preview could capture (legend toggles, hover emphasis).
+export function chartOption(chart, data, theme) {
+  const option = registry[chart.type].toOption(data, theme);
+  if (option.legend) option.legend = { ...option.legend, selectedMode: false };
+  option.series = option.series.map((series) => ({ ...series, silent: true }));
+  return option;
+}
+// Identifies what a preview shows: type, chart JSON, size and the effective
+// chart theme (the charte tokens the drawing used).
 export async function chartRevision(chart, data, theme) {
   const text = jsonStringify(
     {

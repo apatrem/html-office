@@ -13,6 +13,8 @@ import { salesWorkbook, manyCharts } from "../fixtures/charts.mjs";
 import { readHTML, replaceHTML } from "../bench/storage/html.mjs";
 import { chartData, chartRevision } from "../model/charts.mjs";
 import { display } from "../runtime/view.mjs";
+import { cssTheme } from "../tools/chart-previews.mjs";
+import { CHARTES } from "../../shared/themes/chartes.mjs";
 import { ECHARTS_URL } from "../../shared/charts/echarts.mjs";
 import { openMenu, menuItem } from "./shell.mjs";
 
@@ -126,8 +128,10 @@ async function saveCopy(page, name) {
   const html = await readFile(file, "utf8");
   return { file, html, book: readHTML(html).book };
 }
-// Every saved preview shows its chart's current data.
-async function assertPreviewsCurrent(book) {
+// Every saved preview shows its chart's current data, in the file's charte.
+async function assertPreviewsCurrent({ book, html }) {
+  const css = /<style id="charte">([\s\S]*?)<\/style>/.exec(html)[1],
+    theme = cssTheme(css, CHARTES[book.theme]);
   for (const chart of book.charts) {
     const { data, errors } = chartData(book, chart, (cell) =>
       display(cell, book.locale),
@@ -135,7 +139,7 @@ async function assertPreviewsCurrent(book) {
     assert.deepEqual(errors, [], chart.id);
     assert.equal(
       chart.preview?.revision,
-      await chartRevision(chart, data, book.theme),
+      await chartRevision(chart, data, theme),
       `${chart.id} preview is current`,
     );
   }
@@ -194,7 +198,7 @@ try {
     await enter(page, "B11", "0.05");
     await selectSheet(page, "Summary");
     const saved = await saveCopy(page, "charts-pnl-saved.html");
-    await assertPreviewsCurrent(saved.book);
+    await assertPreviewsCurrent(saved);
     const scenario = saved.book.charts.find(
       (c) => c.id === "scenarioComparison",
     );
@@ -306,6 +310,25 @@ try {
       await panel(page).getByLabel("Top-left cell").inputValue(),
       "E2",
     );
+    // A settings draft being edited takes a structural move of the fields
+    // it did not edit.
+    await panel(page).getByLabel("Title", { exact: true }).fill("Moved sales");
+    await panel(page).getByLabel("Title", { exact: true }).press("Tab");
+    await page.locator('#grid [data-cell="A1"]').click();
+    await menu(page, "Insert", "Insert rows");
+    await waitStatus(page, /references updated/);
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /"Moved sales" updated/);
+    assert.equal(
+      await panel(page)
+        .getByLabel("Data range (header row first)")
+        .inputValue(),
+      "A3:C6",
+    );
+    assert.equal(
+      await panel(page).getByLabel("Top-left cell").inputValue(),
+      "E3",
+    );
     // Deleting its columns leaves a "#REF!" range: the chart says why.
     await select(page, "A1", "C1");
     await menu(page, "Edit", "Delete columns");
@@ -321,10 +344,10 @@ try {
     const saved = await saveCopy(page, "charts-sales-saved.html");
     assert.deepEqual(saved.book.charts[0].source, {
       sheetId: "data",
-      ref: "A2:C5",
+      ref: "A3:C6",
     });
     assert.equal(saved.book.charts[0].type, "hbar");
-    await assertPreviewsCurrent(saved.book);
+    await assertPreviewsCurrent(saved);
     assert.deepEqual(errors, []);
     await context.close();
   }

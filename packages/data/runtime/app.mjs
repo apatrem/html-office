@@ -1241,6 +1241,7 @@ const charts = setupCharts({
   getSelection: () => grid.selection,
   isSnapshotCurrent: () =>
     !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  getRevision: () => persistence.revision,
   edited: () => history.canUndo || history.canRedo,
   busy: () => !!loading,
   publish: publishCharts,

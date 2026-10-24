@@ -3,9 +3,14 @@
 // without loading ECharts. Previews that already match their data are kept.
 import { readFile } from "node:fs/promises";
 import * as echarts from "echarts";
-import { registry } from "../../shared/charts/index.mjs";
 import { CHARTES } from "../../shared/themes/chartes.mjs";
-import { chartData, chartRevision, plotSize } from "../model/charts.mjs";
+import {
+  chartData,
+  chartOption,
+  chartRevision,
+  plotSize,
+  MAX_PREVIEW,
+} from "../model/charts.mjs";
 import { display } from "../runtime/view.mjs";
 import { inlineScript } from "../../../tools/inline-script.mjs";
 import { verifyECharts } from "../../../tools/echarts-integrity.mjs";
@@ -13,7 +18,8 @@ import { verifyECharts } from "../../../tools/echarts-integrity.mjs";
 const library = new URL("../../../node_modules/echarts/", import.meta.url);
 
 // The theme() of the shared chart module, read from charte CSS text: the
-// document's tokens, then a built-in charte's overlay.
+// document's tokens, then a built-in charte's overlay. Token values are read
+// as written; a token defined with var() would not match the editor's.
 export function cssTheme(css, overlay = {}) {
   const tokens = {};
   for (const m of css
@@ -45,7 +51,7 @@ export async function renderPreviews(book, css) {
       charts.push(chart);
       continue;
     }
-    const revision = await chartRevision(chart, data, book.theme);
+    const revision = await chartRevision(chart, data, theme);
     if (chart.preview?.revision === revision) {
       charts.push(chart);
       continue;
@@ -58,11 +64,15 @@ export async function renderPreviews(book, css) {
         height,
       });
     try {
-      instance.setOption(registry[chart.type].toOption(data, theme));
-      charts.push({
-        ...chart,
-        preview: { svg: instance.renderToSVGString(), revision },
-      });
+      instance.setOption(chartOption(chart, data, theme));
+      const svg = instance.renderToSVGString(),
+        { preview: _, ...rest } = chart;
+      // A drawing over the stored limit is not kept (ADR-013 §4).
+      charts.push(
+        svg.length > MAX_PREVIEW
+          ? rest
+          : { ...rest, preview: { svg, revision } },
+      );
     } finally {
       instance.dispose();
     }

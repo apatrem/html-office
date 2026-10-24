@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import {
   validateCharts,
   chartData,
+  chartOption,
   chartRevision,
+  MAX_PREVIEW,
   shiftAnchor,
   isoDate,
   plotSize,
@@ -299,7 +301,7 @@ test("revisions follow the drawn data, size and theme only", async () => {
   assert.match(base, /^[a-f0-9]{64}$/);
   assert.equal(await chartRevision({ ...c, anchor: "Z9" }, data), base);
   assert.notEqual(await chartRevision({ ...c, width: 561 }, data), base);
-  assert.notEqual(await chartRevision(c, data, "blue"), base);
+  assert.notEqual(await chartRevision(c, data, { acc: "#9E1B32" }), base);
   assert.notEqual(
     await chartRevision(c, { ...data, categories: ["Jan", "Mar"] }),
     base,
@@ -312,6 +314,9 @@ test("helpers: ISO dates, plot size and new IDs", () => {
   assert.equal(isoDate(60), "1900-02-29");
   assert.equal(isoDate(61), "1900-03-01");
   assert.equal(isoDate(46054.75), "2026-02-01");
+  assert.equal(isoDate(0), null);
+  assert.equal(isoDate(2958466), null);
+  assert.equal(isoDate(1e10), null);
   assert.deepEqual(plotSize(chart()), { width: 544, height: 262 });
   assert.deepEqual(plotSize(chart({ options: {} })), {
     width: 544,
@@ -319,4 +324,99 @@ test("helpers: ISO dates, plot size and new IDs", () => {
   });
   assert.equal(nextChartId(workbook([chart({ id: "chart2" })])), "chart3");
   assert.equal(nextChartId(workbook()), "chart1");
+});
+
+test("out-of-range dates and unreadable data are chart problems, not exceptions", () => {
+  const book = workbook(undefined, {
+    A1: t("Task"),
+    B1: t("Start"),
+    A2: t("Far"),
+    B2: { input: { type: "date", value: 1e10 } },
+  });
+  const g = chartData(
+    book,
+    chart({
+      type: "gantt",
+      options: {},
+      source: { sheetId: "data", ref: "A1:B2" },
+    }),
+    label,
+  );
+  assert.ok(g.errors.length);
+  assert.match(g.errors.at(-1), /B2 \(date outside 1900–9999\)/);
+  const broken = chartData(workbook(), chart(), () => {
+    throw new Error("no label");
+  });
+  assert.deepEqual(broken.errors, ["Its data cannot be read: no label"]);
+});
+
+test("formula headers count as formulas for freshness", () => {
+  const book = workbook(undefined, {
+    A1: t("K"),
+    B1: f("=X1", { type: "text", value: "Old name" }),
+    A2: t("x"),
+    B2: n(1),
+  });
+  const result = chartData(
+    book,
+    chart({ source: { sheetId: "data", ref: "A1:B2" } }),
+    label,
+  );
+  assert.equal(result.formulas, true);
+  assert.equal(result.data.series[0].name, "Old name");
+});
+
+test("Data options carry no interactive state a preview could capture", () => {
+  const c = chart(),
+    { data } = chartData(workbook(), c, label),
+    option = chartOption(c, data, {
+      ink: "#000",
+      acc: "#111",
+      mid: "#222",
+      lig: "#333",
+      alert: "#444",
+      t2: "#555",
+      bd: "#666",
+      w: "#fff",
+      font: "Arial",
+    });
+  assert.equal(option.legend.selectedMode, false);
+  assert.ok(option.series.every((s) => s.silent === true));
+});
+
+test("build previews follow the charte, and oversized drawings are not kept", async () => {
+  const { renderPreviews } = await import("../tools/chart-previews.mjs");
+  const css = (acc) =>
+    `:root{--ink:#000;--acc:${acc};--mid:#456;--lig:#789;--alert:#a00;--t2:#555;--bd:#ddd;--bg:#fff;--font:Arial}`;
+  const book = workbook([chart()]);
+  const first = await renderPreviews(book, css("#14517A"));
+  assert.ok(first.charts[0].preview.svg.includes("#14517A"));
+  const same = await renderPreviews(first, css("#14517A"));
+  assert.equal(same.charts[0].preview, first.charts[0].preview);
+  const rebranded = await renderPreviews(first, css("#9E1B32"));
+  assert.notEqual(
+    rebranded.charts[0].preview.revision,
+    first.charts[0].preview.revision,
+  );
+  assert.ok(rebranded.charts[0].preview.svg.includes("#9E1B32"));
+  // 9,999 columns of bars draw far more than the stored limit.
+  const cells = { A1: t("K"), B1: t("V") };
+  for (let r = 2; r <= 10000; r++) {
+    cells[`A${r}`] = t(`k${r}`);
+    cells[`B${r}`] = n(r);
+  }
+  const big = await renderPreviews(
+    workbook(
+      [
+        chart({
+          source: { sheetId: "data", ref: "A1:B10000" },
+          preview: first.charts[0].preview,
+        }),
+      ],
+      cells,
+    ),
+    css("#14517A"),
+  );
+  assert.equal(big.charts[0].preview, undefined, "no preview over the limit");
+  assert.ok(MAX_PREVIEW > 0);
 });
