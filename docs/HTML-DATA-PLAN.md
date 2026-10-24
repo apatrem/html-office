@@ -107,6 +107,7 @@ Dependencies: T08. Scope: M. Paths: clipboard/fill commands and reference tests.
 
 - Acceptance: rectangular internal copy/paste preserves supported formulas/formats and adjusts relative references; fill down/right respects absolute/mixed references. Normal text-selection copying remains available in cell editing.
 - Acceptance: Excel/Markdown table paste is values-first, with explicit handling of leading zeros and ambiguous date/number locale. Unsupported clipboard formats fail visibly without partial corruption.
+- Follow-up: the cross-product clipboard contract ([ADR-013](decisions/013-cross-product-clipboard.md), task X02a) replaces the bare `html-office-range/1` custom type with the `html-office-clip/1` envelope and adds a semantic `text/html` flavour.
 - Verification: mixed-reference/cross-sheet fixtures, quoted multiline tables and Markdown escaping; multi-cell undo plus save/reopen. No formula interpretation merely because imported text starts with `=`.
 
 ### T10 — Insert and delete rows/columns safely
@@ -182,6 +183,7 @@ Dependencies: T11, T12, T15. Scope: M. Paths: pivot definition/aggregation, cont
 
 Dependencies: T13. Scope: M. Paths: Data chart bindings, lazy ECharts loader and browser tests.
 
+- Acceptance: charts use the shared chart module (`packages/shared/charts/`, task X03 of the [cross-product plan](HTML-OFFICE-CROSS-PLAN.md)), so Data draws them with the same code and pinned ECharts as Slides. A chart is stored as the shared chart contract minus its data arrays, plus bindings to cells ([ADR-013](decisions/013-cross-product-clipboard.md) §4). Copying a chart produces a values snapshot; pasting a chart into Data follows ADR-013 decision 1.
 - Acceptance: charts reference typed cell/range data and recalculate from matching revisions; number formats do not round source values. The P&L demonstrates revenue, margins and scenario comparisons.
 - Acceptance: embed SVG snapshots; view/print without ECharts or network. Chart editing loads a pinned SRI-verified library, and an offline build edits without requests; preserve unrelated chart/model data.
 - Acceptance: in edit mode, a chart creates its ECharts instance only when it first scrolls into view (IntersectionObserver); the others keep showing their SVG snapshot. Opening a workbook with many charts does not initialise them all.

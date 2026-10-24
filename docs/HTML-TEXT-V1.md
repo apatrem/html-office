@@ -78,11 +78,11 @@ One **brand theme** (colours, fonts, chart palette, logo, footer conventions, lo
 
 **Images** reuse the Slides asset store (`<img data-asset="…">`, WebP where available) with mandatory `alt`. Images may be full-width blocks or **wrapped left/right** with rectangular wrapping, a width setting, gap, caption and anchoring to a paragraph. Contour wrapping is not supported.
 
-Values copied from a Data workbook arrive as an ordinary table or chart paste: a snapshot with no link to the source file.
+Values copied from a Data workbook arrive as an ordinary table or chart paste: a snapshot with no link to the source file. Copy and paste between Text, Slides and Data, and to and from other applications, follows the clipboard contract in [ADR-013](decisions/013-cross-product-clipboard.md): the `html-office-clip/1` envelope, the portable table model and its mapping rules, and chart snapshots. The shared chart module may be extracted before Text starts (task X03 of the [cross-product plan](HTML-OFFICE-CROSS-PLAN.md)).
 
 ## Tables
 
-Report tables with header rows (repeated on each printed page), body, optional total row and **merged cells** (`colspan`/`rowspan`). Styles are semantic: number alignment, total row, emphasis column, compact density; column widths are percentages. Editing covers row/column insertion and deletion, merge/split, Tab navigation and Excel/Word/Markdown paste. Each cell holds one paragraph of inline content: no lists, multiple paragraphs or nested tables. Tables have no formulas; calculations belong in Data. Rows do not split across pages in print.
+Report tables with header rows (repeated on each printed page), body, optional total row and **merged cells** (`colspan`/`rowspan`). Styles are semantic: number alignment, total row, emphasis column, compact density; column widths are percentages. Editing covers row/column insertion and deletion, merge/split, Tab navigation and Excel/Word/Markdown paste. Tables from Data and Slides paste through [ADR-013](decisions/013-cross-product-clipboard.md) §3. Each cell holds one paragraph of inline content: no lists, multiple paragraphs or nested tables. Tables have no formulas; calculations belong in Data. Rows do not split across pages in print.
 
 ## Comments
 

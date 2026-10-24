@@ -75,6 +75,7 @@ Dependencies: T06. Scope: M. Paths: clipboard mapping, Markdown import adapter a
 
 - Acceptance: paste from Word, web pages and Excel maps headings, inline formatting, lists, links and simple tables to destination styles and drops other formatting, Word-specific markup and comments. Images are embedded only through the asset path (T12). Plain-text paste inside a block stays available.
 - Acceptance: Markdown import (CommonMark plus tables) uses the same mapping and reports constructs it could not represent. Imported or pasted content is data: no script, style or link is activated.
+- Acceptance: html-office sources (Data ranges, Slides tables and charts) paste through the shared clipboard module and mapping of [ADR-013](decisions/013-cross-product-clipboard.md) (task X02e), and Text table or chart copies write its envelope.
 - Verification: captured clipboard fixtures from Word, Google Docs, Excel and web pages; Markdown fixtures with tables, nested lists and HTML fragments; save/reopen and undo of each paste.
 
 ### T08 — Generate numbering, contents and cross-reference labels
@@ -105,6 +106,7 @@ Dependencies: T06. Scope: M. Paths: table schema/commands (`prosemirror-tables`)
 
 Dependencies: T08, Slides PR #1 landed, **[Data]** T04 loader. Scope: M per part; separate the Slides extraction PR from the Text chart PR. Paths: `packages/shared/charts/`, Slides import updates, Text chart node and tests.
 
+- Note: [ADR-013](decisions/013-cross-product-clipboard.md) proposes doing the extraction earlier as cross-product task X03, before Data T18 (decision 2). If it is accepted, T11 keeps only the Text part and depends on X03.
 - Acceptance (extraction): chart types, JSON schemas, validation and SVG rendering move to `packages/shared/charts/`; Slides tests pass and regenerated example decks are byte-identical to the previous build.
 - Acceptance (Text): `figure.chart` with ID, numbered caption and `data-width="text|full"`; saved SVG previews display and print without ECharts or a network; chart editing loads pinned, SRI-verified ECharts through the shared loader, and the offline build embeds it. Charts do not wrap text.
 - Acceptance (Text): in edit mode, a chart creates its ECharts instance only when it first scrolls into view (IntersectionObserver); the others keep showing their SVG preview, so a long document with many figures stays responsive.

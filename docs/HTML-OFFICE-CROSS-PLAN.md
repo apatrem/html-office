@@ -1,6 +1,6 @@
 # html-office cross-product plan
 
-Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/011-html-office-shared-principles.md). Each task is a separate, reviewable increment. **Design comes before code**: no shared-shell implementation starts before U03 is accepted. U01–U03 were completed on 22 October 2026: the user chose variant A and native shared components (ADR-011 §7).
+Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/011-html-office-shared-principles.md); the clipboard contract is [ADR-013](decisions/013-cross-product-clipboard.md). Each task is a separate, reviewable increment. **Design comes before code**: no shared-shell implementation starts before U03 is accepted. U01–U03 were completed on 22 October 2026: the user chose variant A and native shared components (ADR-011 §7).
 
 ## U — Consistent editor shell (Slides, Data, Text)
 
@@ -56,15 +56,23 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 ## X — Cross-product copy and paste
 
-**X01 — Clipboard contract.** Scope M, research and ADR.
-- Define the clipboard MIME types and payloads for ranges and tables, and for charts:
-  - the html-office JSON payload, extending today's `html-office-range/1`;
-  - semantic `text/html` and `text/plain` fallbacks for other applications.
-- Chart payload: chart JSON plus its SVG preview.
-- Mapping rules: Data ranges to Text and Slides tables, including merged cells, which Data lacks; number formats; theme colours; links.
-- Tests: copy between products in separate tabs.
+**X01 — Clipboard contract — proposed 24 October 2026 in [ADR-013](decisions/013-cross-product-clipboard.md); four choices await the user (ADR-013, "Decisions for the user").** Scope M, research and ADR.
+- Carriers: one `html-office-clip/1` envelope written by the `copy` event in the custom type `application/x-html-office+json` and, for Safari and cross-browser paste, as JSON in a `data-html-office` attribute of the semantic `text/html` flavour; `text/plain` TSV for everything else. Chromium evidence is in the [proof of concept](research/x01-clipboard-poc/README.md); Safari's sanitiser was read in WebKit source.
+- Tables use one portable model (displayed text, optional Data typed value and format, merges, token names only). The ADR maps Data, Slides and Text in both directions, including merges, number formats, theme tokens, links and cell styles.
+- Charts travel as the Slides chart contract JSON plus the SVG preview and a PNG for other applications. A bound Data chart becomes a values snapshot; values only, never a live link.
+- Security rules, the X02 test plan and the X02 split below.
 
-**X02 — Implementation per product pair.** Scope M each. Values only, no live link, as already specified for Text.
+**X02 — Implementation per product pair.** Values only, no live link. Each increment is one PR, scope M; the test plan is in ADR-013 §6.
+- **X02a — Shared clipboard module; Data → Data and Data → other applications.** `packages/shared/clipboard/` (envelope, carriers, limits, table model, inert HTML reader, writers). Data writes the envelope and a semantic `text/html` table, and reads html-office and Excel/Sheets/Word/Docs HTML tables.
+- **X02b — Data ⇄ Slides tables.** Slides element copy and table paste; Data reads Slides tables; merged cells in Slides if the user chooses ADR-013 decision 3 A.
+- **X02c — Slides ⇄ Slides charts and charts → other applications.** Chart copy (envelope, PNG, async upgrade) and paste, with the SVG sanitiser. After X03.
+- **X02d — Data charts → Slides; any chart → Data.** Values snapshot from bindings; cells plus bound chart in Data (decision 1). After X02c and Data T18.
+- **X02e — Text ⇄ Data and Text ⇄ Slides.** Acceptance items of Text T07, T10 and T11 on the shared modules.
+
+**X03 — Extract the shared chart module.** Scope M. Proposed in ADR-013 §4, decision 2 A; it takes the extraction part of Text T11 forward.
+- Move the chart registry, types, validation, `theme()`, the pinned SRI ECharts loader and SVG preview capture from `src/engine/charts.js` and `src/charts/` to `packages/shared/charts/`, so Slides, Data (T18) and Text (T11) draw charts with the same code and the same pinned ECharts (embedded in offline builds).
+- Acceptance as Text T11's extraction: Slides tests pass and regenerated example decks are byte-identical.
+- Record the follow-up for a document `locale` in chart number formatting (today `en-US`).
 
 ## L — Third-party notices
 
