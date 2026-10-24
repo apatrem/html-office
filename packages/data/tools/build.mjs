@@ -1,6 +1,10 @@
 import { conditionalDialogHTML } from "./conditional-controls.mjs";
 import { charteCSS } from "../../shared/themes/chartes.mjs";
-import { bundledPackages, packageEntries } from "../../shared/notices.mjs";
+import {
+  bundledPackages,
+  packageAt,
+  packageEntries,
+} from "../../shared/notices.mjs";
 import { dataNotices } from "./notices.mjs";
 import {
   fileBarHTML,
@@ -48,6 +52,11 @@ Charts: optional workbook.charts holds up to 50 {id,sheetId,anchor,width,height,
 Structural editing: Insert/Delete rows or columns uses the current rectangular selection's row/column span. Formulas are rewritten by IronCalc and the resulting strings are saved in the model. Named ranges are {name,sheetId,ref}; ref is an A1 rectangle or "#REF!" if entirely removed. Broken names return typed reference errors, including after reopening. Stable sheet IDs and unrelated typed values/styles are preserved. The operation commits only after successful recalculation, is undoable, and moves recovery references atomically. Insertion that would push populated cells outside Excel's bounds fails unchanged.
 This implementation is not yet the complete V1. Its grid renders a bounded viewport across Excel-sized row/column bounds; all populated cells remain embedded. Arrow keys navigate, Shift selects a rectangle, F2 edits, Enter applies from the formula bar and Escape restores the form.
 Full source and format: https://github.com/apatrem/html-office/tree/main/packages/data . No installable Data skill is distributed yet. Compatible skill-download links will be supplied when Data is packaged; do not use the Slides skill as a Data editor.`;
+const echartsDir = new URL("../../../node_modules/echarts/", import.meta.url);
+export const echartsPackage = () =>
+  packageAt(echartsDir.pathname.replace(/\/$/, ""), [
+    new URL("dist/echarts.min.js", echartsDir).pathname,
+  ]);
 export function measureHTML(html) {
   const bytes = (s) => Buffer.byteLength(s, "utf8");
   let contentBytes = 0;
@@ -178,13 +187,15 @@ export async function buildWorkbook(
       (await readFile(new URL("../shared/shell/panels.css", root), "utf8")) +
       (await readFile(new URL("runtime/style.css", root), "utf8")) +
       charteCSS();
-  // Retained IronCalc/Rust texts plus any npm package esbuild bundled.
+  // Retained IronCalc/Rust texts, any npm package esbuild bundled, and
+  // ECharts, which offline builds embed and the editor may load (T18).
   const notices = dataNotices(
     await readFile(new URL("engine/THIRD-PARTY-NOTICES.txt", root), "utf8"),
     JSON.parse(await readFile(new URL("engine/dependency-audit.json", root))),
-    packageEntries(
-      bundledPackages([result.metafile, worker.metafile, recovery.metafile]),
-    ),
+    packageEntries([
+      ...bundledPackages([result.metafile, worker.metafile, recovery.metafile]),
+      echartsPackage(),
+    ]),
   );
   const initial = preview(book.sheets[0], book.locale);
   const rows = initial.rows
