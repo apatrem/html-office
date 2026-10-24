@@ -413,13 +413,13 @@ test("build previews follow the charte, and oversized drawings are not kept", as
   // Aliases resolve as the browser computes them.
   assert.deepEqual(
     cssTheme(
-      ":root{--brand:#14517A;--acc:var(--brand);--mid:var(--missing, #456 );--font:var(--face);--face:Arial}",
+      ":root{--brand:#14517A;--acc:var(--brand);--mid:var(--missing, #456 );--lig:var(--missing,var(--brand));--font:var(--face);--face:Arial}",
     ),
     {
       ink: undefined,
       acc: "#14517A",
       mid: "#456",
-      lig: undefined,
+      lig: "#14517A",
       alert: undefined,
       t2: undefined,
       bd: undefined,

@@ -923,7 +923,11 @@ export function setupCharts({
           rebase(draft.options, savedDraft.options, current.options);
           const options = draft.options;
           rebase(draft, savedDraft, current);
-          draft.options = options;
+          // Only options the draft's type accepts survive the merge.
+          const keep = optionKeys(draft.type);
+          draft.options = Object.fromEntries(
+            Object.entries(options).filter(([key]) => keep.includes(key)),
+          );
           savedDraft = current;
         }
       }

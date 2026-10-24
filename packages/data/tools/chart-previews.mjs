@@ -27,16 +27,33 @@ export function cssTheme(css, overlay = {}) {
     .matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g))
     tokens[m[1]] = m[2].trim();
   Object.assign(tokens, overlay);
-  const resolve = (value, depth = 0) =>
-    depth > 10
-      ? ""
-      : value.replace(
-          /var\(\s*--([\w-]+)\s*(?:,\s*([^()]*))?\)/g,
-          (_m, name, fallback) =>
-            tokens[name] !== undefined
-              ? resolve(tokens[name], depth + 1)
-              : (fallback ?? "").trim(),
-        );
+  // var(--name, fallback) with nested fallbacks, as CSS substitutes them.
+  function resolve(value, depth = 0) {
+    if (depth > 10) return "";
+    let out = "",
+      i = 0;
+    for (let start; (start = value.indexOf("var(", i)) >= 0; ) {
+      let level = 0,
+        end = start + 3;
+      for (; end < value.length; end++)
+        if (value[end] === "(") level++;
+        else if (value[end] === ")" && --level === 0) break;
+      const inner = value.slice(start + 4, end),
+        comma = inner.indexOf(","),
+        name = (comma < 0 ? inner : inner.slice(0, comma))
+          .trim()
+          .replace(/^--/, "");
+      out +=
+        value.slice(i, start) +
+        (tokens[name] !== undefined
+          ? resolve(tokens[name], depth + 1)
+          : comma < 0
+            ? ""
+            : resolve(inner.slice(comma + 1), depth + 1));
+      i = end + 1;
+    }
+    return (out + value.slice(i)).trim();
+  }
   for (const key of Object.keys(tokens)) tokens[key] = resolve(tokens[key]);
   return {
     ink: tokens.ink,

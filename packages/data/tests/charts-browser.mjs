@@ -346,6 +346,38 @@ try {
     await panel(page).getByRole("button", { name: "Update chart" }).click();
     await waitStatus(page, /"Draft title" updated/);
     assert.equal(await chart.locator(".data-chart-unit").textContent(), "kEUR");
+    // A rebased draft keeps only the options of its own type.
+    await panel(page).getByLabel("Chart type").selectOption("line");
+    await panel(page).getByLabel("Value labels").selectOption("all");
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /updated/);
+    await panel(page).getByLabel("Chart type").selectOption("column");
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /updated/);
+    await panel(page).getByLabel("Chart type").selectOption("stacked");
+    await panel(page)
+      .getByLabel("Title", { exact: true })
+      .fill("Stacked draft");
+    await panel(page).getByLabel("Title", { exact: true }).press("Tab");
+    await page.locator("#grid").focus();
+    await page.keyboard.press("ControlOrMeta+z");
+    await waitStatus(page, /Undo restored/);
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /"Stacked draft" updated/);
+    // Back to the horizontal bars titled "Draft title".
+    // Undo is ignored while the previous one is still applying.
+    const typeIs = (type) =>
+      page.waitForFunction(
+        (want) =>
+          document.querySelector('#shell-drawer [data-ck="type"]')?.value ===
+            want && !document.getElementById("apply").disabled,
+        type,
+      );
+    await page.locator("#grid").focus();
+    await page.keyboard.press("ControlOrMeta+z");
+    await typeIs("line");
+    await page.keyboard.press("ControlOrMeta+z");
+    await typeIs("hbar");
     // Deleting its columns leaves a "#REF!" range: the chart says why.
     await select(page, "A1", "C1");
     await menu(page, "Edit", "Delete columns");
