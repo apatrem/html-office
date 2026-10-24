@@ -23,4 +23,6 @@ ECharts loads from the CDN with SRI only when a chart must be drawn or edited. O
 
 Moving the module out of `src/` left the Slides engine byte-identical (first X03 commit). `src/engine/model.js` still re-exports the ECharts constants so the bundle keeps its module order.
 
+Used by: html-slides (`src/engine/`) and html-data (`packages/data/runtime/charts.mjs`, T18: bindings over typed ranges, saved previews, lazy instances). Text (T11) follows.
+
 Follow-up: chart numbers are formatted in `en-US` only (`types/common.mjs`); a document `locale` option is not implemented yet.

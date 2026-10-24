@@ -111,3 +111,13 @@ test('equivalent spellings of a missing total value normalise to absent and draw
     assert.equal(draw(back), draw(d));
   }
 });
+
+test('chart-level options exclude the fields the table adapter writes', async () => {
+  const { checkOptions, dataFields } = await import('../packages/shared/charts/schema.mjs');
+  assert.deepEqual(Object.keys(dataFields).sort(), Object.keys(registry).sort());
+  assert.deepEqual(checkOptions('stacked', { title: 'T', unit: '%', percent: true }), []);
+  assert.deepEqual(checkOptions('column', { categories: ['A'] }), ['categories: unknown field']);
+  assert.deepEqual(checkOptions('gantt', { tasks: [] }), ['tasks: unknown field']);
+  assert.deepEqual(checkOptions('line', 'x'), ['Options: object required']);
+  assert.deepEqual(checkOptions('constructor', {}), ['Unknown chart type "constructor"']);
+});

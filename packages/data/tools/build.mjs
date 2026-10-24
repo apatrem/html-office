@@ -22,6 +22,7 @@ import { cellClasses } from "../model/formatting.mjs";
 import { EngineSession } from "../engine/adapter.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
+import { renderPreviews, embeddedECharts } from "./chart-previews.mjs";
 // Standard-mode embedded application code ceiling for HTML Data (ADR-010).
 export const STANDARD_CODE_CEILING = 750000;
 const root = new URL("../", import.meta.url);
@@ -43,6 +44,7 @@ Scenario metadata: optional workbook.scenario={validationId} identifies one inpu
 Conditional formatting: optional conditionalFormats stores up to 100 ordered explicit {id,sheetId,ref,kind} rules. Format > Conditional formatting creates, edits, removes and reorders highlight and data-bar rules. Rule kind selects the presentation; data bars offer automatic or fixed bounds and positive/negative colour tokens. Fixed bounds must include zero. Formula highlights wait for verified current saved results; input highlights do not require the engine. Data bars render from explicit definitions. Automatic scale summaries run in the existing worker and are not saved. Stale/unverified formula values do not influence those bounds. Storage failure keeps derived analysis active; actual worker failure makes automatic bars unavailable until reopening while fixed bars and workbook editing remain usable. A highlight adds condition:{operator,values:[typedValue,...]} and style:{fill?,color?,bold?,italic?} using charte tokens (fill: none|tint|lig|mid|acc|alert|dark; color: ink|acc|mid|alert|t2|bg). Operators eq/ne, numeric/date gt/gte/lt/lte, inclusive between/notBetween, case-sensitive contains and isBlank/isError use 1, 1, 2, 1 and 0 typed values respectively. Missing formula results are unresolved, not blank; errors need explicit error predicates/comparisons. A dataBar adds scale:{kind:"auto"} or {kind:"fixed",min,max}, required positive and negative colour tokens (ink|acc|mid|alert|t2|bg; the dialog proposes acc and alert). Fixed finite bounds include zero and have nonzero span; automatic bounds include zero, ignore text/booleans/blanks/errors/missing results and use full-precision numeric/date values. The first matching highlight and first applicable bar independently win; reordered rules change priority. Structural edits preserve inactive #REF! tombstones. Do not duplicate cell values or persist derived per-cell flags.
 Formatting: cell styles, number formats, bold/italic, charte colours, borders, alignment, wrap and Clear formatting apply to the selected rectangle without changing typed values or formula precision. More than 50,000 cells is refused; whole rows or columns (header click, Shift+Space, Ctrl+Space) write row or column styles. Wrap and column-width commands store the automatic row heights. Copy style tiles the source formatting. Links are edited with Insert > Link (Ctrl/Cmd+K) and stored per sheet. The workbook locale controls number/date display only; formula names and decimal syntax remain English. Dates use the Excel 1900 calendar, including fictitious 29 February 1900 (serial 60); date formatting hides time fractions, and negative/out-of-range serials display #### without altering the value. Shared branding lives in style#charte (Slides-compatible CSS variables): --ink/--acc/--lig/--alert/--tint/--bg/--font and optional --header-bg/--header-ink/--row-label-bg/--row-label-ink/--assumption-bg/--assumption-ink/--calculation-bg. Build with --charte FILE to embed the same brand stylesheet as a deck.
 Pivot tables: optional workbook.pivots holds up to 50 {id,name?,source:{sheetId,ref?},output:{sheetId,ref},rows,columns,filters,values,refreshed?}. source.ref is an A1 range whose first row names the fields (header text, or the canonical string of a number/Boolean); without ref the source is the sheet's used range from A1 and the output must be on another sheet. rows (0–4), columns (0–2) and filters (0–4) list distinct field names; values lists 1–8 {field,aggregate:"sum"|"count"|"average"}; a filter is {field,values:[typedValue,...]} keeping records whose typed value is listed ({"type":"blank"} for blanks). output.ref is the rectangle the pivot owns, top-left cell = anchor; outputs never overlap each other or their own source. Output cells are ordinary typed inputs (header rows, Sum of X / Count of X / Average of X labels, one row per row item, Total row and columns), readable without the engine. Grouping is typed (no case folding or text/number coercion), missing/blank = "(blank)" item, items sorted numbers, dates, text, Booleans, errors, blank. SUM adds numbers/dates in source order, COUNT counts non-blank values, AVERAGE = sum/count of numbers (#DIV/0! without one); errors propagate into SUM/AVERAGE; empty combinations stay empty; totals aggregate records. refreshed.fingerprint is the SHA-256 source revision. Refresh is explicit (Data > Pivot tables, Refresh all pivot tables): it recalculates, aggregates in the calculation worker and writes the cells and definition as one undoable step. Do not edit owned output cells: change the definition and refresh, or the editor marks the pivot stale. Edits into owned cells and row/column operations that would split an output are refused. Calculated fields, slicers and subtotals are not supported.
+Charts: optional workbook.charts holds up to 50 {id,sheetId,anchor,width,height,type,options,source,preview?}. type is column|hbar|stacked|line|waterfall|bubble|gantt (the Slides chart types). options holds only the chart-level fields of the shared Slides chart contract (title, unit, decimals, prefix, suffix, highlight, and per type percent/horizontal/totals, labels/scale, increase, xLabel/yLabel/xUnit/yUnit/xRef/yRef); never data arrays. source {sheetId,ref} is one rectangular A1 block, header row first, whose columns follow the type's table: column/hbar/line/stacked = category then one column per series (series names in the header row); waterfall = label, value, total (TRUE or y); bubble = name, x, y, size; gantt = task, start, end, group, highlight. The chart's data is derived from the block's typed values on every change: labels use displayed text, numbers keep full precision (formats do not round them), Gantt dates become ISO text, and blanks/text in category charts become missing points. anchor is the top-left cell on sheetId; width 160–2000 and height 120–1600 px. preview {svg,revision} is a saved SVG drawing shown as an image without ECharts; revision is the SHA-256 of what it shows, so a preview whose data changed is out of date and redrawn when edited. Do not write previews by hand: omit preview, or keep the existing one; the repository build draws missing ones. Structural edits move anchors and data ranges (a deleted range becomes "#REF!"). ECharts loads (pinned version, SRI-checked) only to draw or edit charts; offline builds embed it.
 Structural editing: Insert/Delete rows or columns uses the current rectangular selection's row/column span. Formulas are rewritten by IronCalc and the resulting strings are saved in the model. Named ranges are {name,sheetId,ref}; ref is an A1 rectangle or "#REF!" if entirely removed. Broken names return typed reference errors, including after reopening. Stable sheet IDs and unrelated typed values/styles are preserved. The operation commits only after successful recalculation, is undoable, and moves recovery references atomically. Insertion that would push populated cells outside Excel's bounds fails unchanged.
 This implementation is not yet the complete V1. Its grid renders a bounded viewport across Excel-sized row/column bounds; all populated cells remain embedded. Arrow keys navigate, Shift selects a rectangle, F2 edits, Enter applies from the formula bar and Escape restores the form.
 Full source and format: https://github.com/apatrem/html-office/tree/main/packages/data . No installable Data skill is distributed yet. Compatible skill-download links will be supplied when Data is packaged; do not use the Slides skill as a Data editor.`;
@@ -71,9 +73,20 @@ export async function buildWorkbook(
     serializeModel = writeModel,
     formatGuide = guide,
     charte,
+    previews = true,
   } = {},
 ) {
   let book = parseWorkbook(stringifyWorkbook(input));
+  const brand = await readFile(
+    charte ??
+      new URL(
+        "../../../plugin/skills/html-slides/assets/default.css",
+        import.meta.url,
+      ),
+    "utf8",
+  );
+  if (/<\/style/i.test(brand))
+    throw new Error("Brand CSS cannot close its style element");
   if (calculate) {
     const module = await import("../engine/vendor/ironcalc.mjs");
     await module.default({
@@ -89,6 +102,8 @@ export async function buildWorkbook(
       session.dispose();
     }
   }
+  // Charts open with saved previews drawn from the saved results.
+  if (previews) book = await renderPreviews(book, brand);
   const config = JSON.parse(
     await readFile(new URL("engine/manifest.json", root)),
   );
@@ -171,16 +186,6 @@ export async function buildWorkbook(
       bundledPackages([result.metafile, worker.metafile, recovery.metafile]),
     ),
   );
-  const brand = await readFile(
-    charte ??
-      new URL(
-        "../../../plugin/skills/html-slides/assets/default.css",
-        import.meta.url,
-      ),
-    "utf8",
-  );
-  if (/<\/style/i.test(brand))
-    throw new Error("Brand CSS cannot close its style element");
   const initial = preview(book.sheets[0], book.locale);
   const rows = initial.rows
     .map(
@@ -220,7 +225,7 @@ ${helpDialogHTML(formatGuide, notices)}
 <div id="shell-layer" data-shell-mount></div>
 <script id="worker-source" type="text/plain">${workerText}</script>
 <script id="recovery-worker-source" type="text/plain">${recoveryText}</script>
-<script type="module">${js}</script></body></html>`;
+${offline ? `<script id="echarts">${await embeddedECharts()}</script>\n` : ""}<script type="module">${js}</script></body></html>`;
   const size = measureHTML(html);
   if (!offline && size.applicationCodeBytes >= STANDARD_CODE_CEILING)
     throw new Error(

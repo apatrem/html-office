@@ -1,0 +1,408 @@
+{
+  "environment": {
+    "date": "2026-10-24T11:59:39.662Z",
+    "node": "v26.0.0",
+    "browser": "151.0.7922.34",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "logicalCPUs": 10,
+    "memoryBytes": 25769803776
+  },
+  "method": "Standalone offline file://; same pinned IronCalc as standard. Warm edit-to-paint includes result snapshot and DOM refresh. Five input changes after one engine load. Long tasks only during warm edits. WASM memory is maximum sampled allocated linear memory. Browser-tree RSS is sampled every 200ms via ps, sums processes including shared pages, and may miss short peaks; it is not unique physical memory. Cold file opening and initial engine/model load reported separately. Network delivery assessed separately.",
+  "cases": [
+    {
+      "id": "pnl",
+      "workload": {
+        "kind": "pnl",
+        "months": 24,
+        "actualMonths": 12,
+        "forecastMonths": 12,
+        "expectedRevenue": 91261.28465042303,
+        "expectedNetIncome": 20846.13884983012,
+        "expectedNPV": 8437.718577841142
+      },
+      "size": {
+        "applicationCodeBytes": 2626665,
+        "documentContentBytes": 239985,
+        "totalHTMLBytes": 2866650
+      },
+      "standardSize": {
+        "applicationCodeBytes": 548492,
+        "documentContentBytes": 239985,
+        "totalHTMLBytes": 788477
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 157,
+        "dependencyLoadMS": 48.5,
+        "modelLoadMS": 108.5,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 44,
+          "importInstantiateMS": 4.5
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 1061076992,
+      "coldOpenMS": 268.815375,
+      "initialLoadEditToPaintMS": 230.89999997615814,
+      "maximumSampledWasmMemoryBytes": 1900544,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 2.5999999046325684,
+          "wasmMemoryBytes": 1900544,
+          "editToPaintMS": 47
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 3.700000047683716,
+          "wasmMemoryBytes": 1900544,
+          "editToPaintMS": 46.89999997615814
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1.600000023841858,
+          "wasmMemoryBytes": 1900544,
+          "editToPaintMS": 48.10000002384186
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1.4000000953674316,
+          "wasmMemoryBytes": 1900544,
+          "editToPaintMS": 47.39999997615814
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1.4000000953674316,
+          "wasmMemoryBytes": 1900544,
+          "editToPaintMS": 47.59999990463257
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 47901331,
+      "warmMaxMS": 48.10000002384186,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnderCeiling": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    },
+    {
+      "id": "100000x2-scans",
+      "workload": {
+        "kind": "large",
+        "rows": 100000,
+        "populatedColumns": 2,
+        "formulaCount": 1000,
+        "fullRangeScans": 1000,
+        "preaggregate": false,
+        "expectedTotal": 3750000,
+        "editedRawCell": "B1",
+        "editedInitialValue": 50
+      },
+      "size": {
+        "applicationCodeBytes": 2632086,
+        "documentContentBytes": 36039056,
+        "totalHTMLBytes": 38671142
+      },
+      "standardSize": {
+        "applicationCodeBytes": 553913,
+        "documentContentBytes": 36039056,
+        "totalHTMLBytes": 36592969
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 663.1999999284744,
+        "dependencyLoadMS": 39.5,
+        "modelLoadMS": 623.6999999284744,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 31.299999952316284,
+          "importInstantiateMS": 8
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 1838202880,
+      "coldOpenMS": 2264.4882910000015,
+      "initialLoadEditToPaintMS": 15881.399999976158,
+      "maximumSampledWasmMemoryBytes": 87162880,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 14582.600000023842,
+          "wasmMemoryBytes": 87162880,
+          "editToPaintMS": 14631.299999952316
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 14532.899999976158,
+          "wasmMemoryBytes": 87162880,
+          "editToPaintMS": 14581.600000023842
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 14563.700000047684,
+          "wasmMemoryBytes": 87162880,
+          "editToPaintMS": 14598.299999952316
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 14510.600000023842,
+          "wasmMemoryBytes": 87162880,
+          "editToPaintMS": 14551.299999952316
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 14510.399999976158,
+          "wasmMemoryBytes": 87162880,
+          "editToPaintMS": 14550.600000023842
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 57209378,
+      "warmMaxMS": 14631.299999952316,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnderCeiling": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    },
+    {
+      "id": "50000x8-scans",
+      "workload": {
+        "kind": "large",
+        "rows": 50000,
+        "populatedColumns": 8,
+        "formulaCount": 1000,
+        "fullRangeScans": 1000,
+        "preaggregate": false,
+        "expectedTotal": 1875000,
+        "editedRawCell": "F1",
+        "editedInitialValue": 50
+      },
+      "size": {
+        "applicationCodeBytes": 2641310,
+        "documentContentBytes": 70088293,
+        "totalHTMLBytes": 72729603
+      },
+      "standardSize": {
+        "applicationCodeBytes": 563137,
+        "documentContentBytes": 70088293,
+        "totalHTMLBytes": 70651430
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 1439.6000000238419,
+        "dependencyLoadMS": 47.5,
+        "modelLoadMS": 1392.1000000238419,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 36.299999952316284,
+          "importInstantiateMS": 11.200000047683716
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 2102984704,
+      "coldOpenMS": 3643.2982499999925,
+      "initialLoadEditToPaintMS": 10381.5,
+      "maximumSampledWasmMemoryBytes": 148701184,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 8443.5,
+          "wasmMemoryBytes": 148701184,
+          "editToPaintMS": 8481.300000071526
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 8458.699999928474,
+          "wasmMemoryBytes": 148701184,
+          "editToPaintMS": 8499
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 8492.600000023842,
+          "wasmMemoryBytes": 148701184,
+          "editToPaintMS": 8532.399999976158
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 8466.899999976158,
+          "wasmMemoryBytes": 148701184,
+          "editToPaintMS": 8514.5
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 8486.299999952316,
+          "wasmMemoryBytes": 148701184,
+          "editToPaintMS": 8534.5
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 105465761,
+      "warmMaxMS": 8534.5,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnderCeiling": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    },
+    {
+      "id": "50000x8-reused",
+      "workload": {
+        "kind": "large",
+        "rows": 50000,
+        "populatedColumns": 8,
+        "formulaCount": 1001,
+        "fullRangeScans": 1,
+        "preaggregate": true,
+        "expectedTotal": 1875000,
+        "editedRawCell": "F1",
+        "editedInitialValue": 50
+      },
+      "size": {
+        "applicationCodeBytes": 2641310,
+        "documentContentBytes": 70055614,
+        "totalHTMLBytes": 72696924
+      },
+      "standardSize": {
+        "applicationCodeBytes": 563137,
+        "documentContentBytes": 70055614,
+        "totalHTMLBytes": 70618751
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 1430.5,
+        "dependencyLoadMS": 53.89999997615814,
+        "modelLoadMS": 1376.6000000238419,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 49,
+          "importInstantiateMS": 4.799999952316284
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 2507194368,
+      "coldOpenMS": 3599.4767920000013,
+      "initialLoadEditToPaintMS": 2597.6999999284744,
+      "maximumSampledWasmMemoryBytes": 148111360,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 697,
+          "wasmMemoryBytes": 148111360,
+          "editToPaintMS": 732.7000000476837
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 783.1000000238419,
+          "wasmMemoryBytes": 148111360,
+          "editToPaintMS": 831.1000000238419
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 686.5,
+          "wasmMemoryBytes": 148111360,
+          "editToPaintMS": 730.5
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 805.8000000715256,
+          "wasmMemoryBytes": 148111360,
+          "editToPaintMS": 847.7999999523163
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 781.7999999523163,
+          "wasmMemoryBytes": 148111360,
+          "editToPaintMS": 831.3999999761581
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 307349488,
+      "warmMaxMS": 847.7999999523163,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnderCeiling": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    },
+    {
+      "id": "100000x8-reused",
+      "workload": {
+        "kind": "large",
+        "rows": 100000,
+        "populatedColumns": 8,
+        "formulaCount": 1001,
+        "fullRangeScans": 1,
+        "preaggregate": true,
+        "expectedTotal": 3750000,
+        "editedRawCell": "F1",
+        "editedInitialValue": 50
+      },
+      "size": {
+        "applicationCodeBytes": 2641313,
+        "documentContentBytes": 139904558,
+        "totalHTMLBytes": 142545871
+      },
+      "standardSize": {
+        "applicationCodeBytes": 563140,
+        "documentContentBytes": 139904558,
+        "totalHTMLBytes": 140467698
+      },
+      "initialEngineMetrics": {
+        "initialiseMS": 3175.7999999523163,
+        "dependencyLoadMS": 54.299999952316284,
+        "modelLoadMS": 3121.5,
+        "dependencyMetrics": {
+          "fetchDecompressVerifyMS": 36.299999952316284,
+          "importInstantiateMS": 4.399999976158142
+        }
+      },
+      "sampledPeakBrowserTreeRSSBytes": 3718299648,
+      "coldOpenMS": 8202.521500000003,
+      "initialLoadEditToPaintMS": 5581.399999976158,
+      "maximumSampledWasmMemoryBytes": 294191104,
+      "runs": [
+        {
+          "loadMetrics": null,
+          "calculateMS": 1651.3000000715256,
+          "wasmMemoryBytes": 294191104,
+          "editToPaintMS": 1724.5
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1715.2999999523163,
+          "wasmMemoryBytes": 294191104,
+          "editToPaintMS": 1764.2000000476837
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1755.6000000238419,
+          "wasmMemoryBytes": 294191104,
+          "editToPaintMS": 1798.4000000953674
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1638.2999999523163,
+          "wasmMemoryBytes": 294191104,
+          "editToPaintMS": 1681.2000000476837
+        },
+        {
+          "loadMetrics": null,
+          "calculateMS": 1788.3999999761581,
+          "wasmMemoryBytes": 294191104,
+          "editToPaintMS": 1829.5
+        }
+      ],
+      "longTasks": [],
+      "mainJSHeapBytes": 358612590,
+      "warmMaxMS": 1829.5,
+      "mainThreadMaxMS": 0,
+      "correctness": "All 1000 large-fixture result cells or the P&L revenue total verified after saving",
+      "targets": {
+        "standardCodeUnderCeiling": true,
+        "pnlWarmUnder250MS": true,
+        "warmCalculationMainTaskUnder100MS": true
+      }
+    }
+  ]
+}

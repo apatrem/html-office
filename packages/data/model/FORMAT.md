@@ -191,3 +191,34 @@ Optional `pivots` holds at most 50 definitions ([ADR-014](../../../docs/decision
 - The editor derives a state from the fingerprint, never saved: `current`, `stale` (source values or definition changed, including a scenario switch or an external edit), `unverified` (source formulas whose saved results are not verified), `never` or `error`. Owned cells of a pivot that is not current are hatched until it is refreshed.
 - Data › Pivot tables… and Insert › Pivot table… open the panel; Data › Refresh all pivot tables refreshes each in turn.
 - Calculated fields, slicers, subtotals, date grouping and "show values as" are not supported.
+
+## Charts
+
+Optional `charts` holds at most 50 charts (T18, [ADR-013](../../../docs/decisions/013-cross-product-clipboard.md) §4). A chart stores the chart-level options of the shared Slides chart contract (`packages/shared/charts/`) plus one binding:
+
+```json
+{
+  "id": "revenueTrend",
+  "sheetId": "summary",
+  "anchor": "D2",
+  "width": 600,
+  "height": 300,
+  "type": "line",
+  "options": { "title": "Monthly revenue and net income", "unit": "EUR", "decimals": 0 },
+  "source": { "sheetId": "chartdata", "ref": "A1:C25" },
+  "preview": { "svg": "<svg …>…</svg>", "revision": "<64 hex>" }
+}
+```
+
+- **Type and options.** `type` is one of the Slides chart types (`column`, `hbar`, `stacked`, `line`, `waterfall`, `bubble`, `gantt`). `options` holds only chart-level fields, checked by the shared strict schema: `title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, and per type `percent`/`horizontal`/`totals`, `labels`/`scale`, `increase`, `xLabel`/`yLabel`/`xUnit`/`yUnit`/`xRef`/`yRef`. Data arrays (`categories`, `series`, `items`, `points`, `tasks`) are refused: they come from the binding.
+- **Binding.** `source.ref` is one rectangular A1 block, header row first, whose columns follow the type's table adapter:
+  - `column`, `hbar`, `line`, `stacked`: a category column, then one column per series, named by the header row;
+  - `waterfall`: label, value, total (`TRUE`, or text such as `y`);
+  - `bubble`: name, x, y, size;
+  - `gantt`: task, start, end, group, highlight (fewer trailing columns are allowed).
+- **Derived data.** The chart JSON is the adapter's `fromRows` over the block's typed values, recomputed after every change and never saved. Labels use the displayed text. Numbers and dates keep full precision, so number formats never round what a chart draws. Gantt dates become ISO text. In category charts, blanks, text, errors and missing formula results become missing points (`null`). Other types need every value: the chart is shown as invalid, naming the offending cells. Formula values come from the saved results; while those are not verified, the chart says its values are not recalculated.
+- **Placement.** `anchor` is the top-left cell on `sheetId`. `width` is 160–2,000 px and `height` 120–1,600 px. The title and unit are drawn above the plot, as in Slides.
+- **Preview.** `preview.svg` is the plot drawn by ECharts' SVG renderer, at most 2 Mi UTF-16 code units, starting with `<svg`. It is shown as an image, so it never runs scripts or loads resources, and viewing or printing needs neither ECharts nor a network. `preview.revision` is the SHA-256 of what it shows: type, chart JSON, size and built-in theme. A preview whose revision no longer matches is out of date. Missing and out-of-date previews are marked in the editor. Saving writes the drawings of charts redrawn in this session; other previews are kept as they were. The repository build draws missing previews from the saved results. Never write a preview by hand.
+- **ECharts.** The editor loads the pinned, SRI-verified library only to draw or edit charts: after a chart command, after Redraw, or when a workbook change leaves a chart on screen out of date. A blocked or tampered library leaves the saved previews in place, marked out of date. Offline builds embed the same verified bytes (`script#echarts`). Once the library is available, a chart creates its ECharts instance only when it first scrolls into view.
+- **Structural edits.** A chart moves with its anchor cell (to the first surviving row or column when its own is deleted). Its data range shifts and shrinks like a dropdown source; a deleted range becomes `"#REF!"`, and the chart says its data range was deleted. Undo restores both. Charts own no cells and never block row or column operations; a chart may read a pivot table's output.
+- **Commands.** Insert › Chart… creates a chart from the selection, placed two columns to its right. Format › Chart settings… opens the selected chart in the side panel: type, data range, options and placement. Edit › Duplicate chart copies it with the same binding, and Edit › Delete chart (or Delete on the selected chart) removes it. Data › Redraw charts loads the library. Every change is one undoable step and needs no calculation engine. Chart copy and paste between documents are cross task X02d.
