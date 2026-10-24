@@ -41,6 +41,10 @@ self.onmessage = (event) => {
         value = await session.structure(args[0]);
       } else if (method === "organize") {
         value = await session.organize(args[0]);
+      } else if (method === "pivot") {
+        const start = performance.now();
+        value = await session.pivot(args[0]);
+        value.pivotMS = performance.now() - start;
       } else if (method === "calculate") {
         const start = performance.now();
         value = await session.calculateDelta();

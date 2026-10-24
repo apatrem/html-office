@@ -1,4 +1,5 @@
 import { address, parseAddress, parseRange } from "./workbook.mjs";
+import { assertPivotStructure } from "./pivot.mjs";
 export function validateStructure(command, book) {
   if (
     !command ||
@@ -21,6 +22,7 @@ export function validateStructure(command, book) {
     throw new Error("Structural index out of bounds");
   if (book && !book.sheets.some((s) => s.id === sheetId))
     throw new Error("Unknown sheet ID");
+  if (book) assertPivotStructure(book, command);
   return command;
 }
 export function inverseStructure(command) {
@@ -170,6 +172,30 @@ export function shiftWorkbook(book, command) {
               rule.sheetId === command.sheetId
                 ? shiftRange(rule.ref, command)
                 : rule.ref,
+          })),
+        }),
+    // Pivot outputs move whole (validateStructure refuses splits); sources
+    // shift and shrink like dropdown sources.
+    ...(book.pivots === undefined
+      ? {}
+      : {
+          pivots: book.pivots.map((pivot) => ({
+            ...pivot,
+            source:
+              pivot.source.sheetId === command.sheetId &&
+              pivot.source.ref !== undefined
+                ? {
+                    ...pivot.source,
+                    ref: shiftRange(pivot.source.ref, command),
+                  }
+                : pivot.source,
+            output:
+              pivot.output.sheetId === command.sheetId
+                ? {
+                    ...pivot.output,
+                    ref: shiftRange(pivot.output.ref, command),
+                  }
+                : pivot.output,
           })),
         }),
     names: book.names.map((name) =>

@@ -69,6 +69,10 @@ export class EngineClient {
     await this.ready;
     return this.request("organize", [command]);
   }
+  async pivot(definition) {
+    await this.ready;
+    return this.request("pivot", [definition]);
+  }
   async calculate() {
     await this.ready;
     return this.request("calculate", []);

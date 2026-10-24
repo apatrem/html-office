@@ -1,6 +1,7 @@
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
+import { computePivot, pivotFingerprint, validatePivots } from "../model/pivot.mjs";
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
@@ -90,6 +91,15 @@ export class EngineSession {
     }});
     this.load(next);
     return {...await this.calculateDelta(),beforeRefs,formulas};
+  }
+  // Pivot refresh (ADR-013): recalculates first, so source formula results are
+  // current, then aggregates the typed values this session holds. The caller
+  // writes the returned cells through editMany like any other edit.
+  async pivot(definition){
+    validatePivots({...this.book,pivots:[definition]});
+    await this.calculateDelta();
+    const computed=computePivot(this.book,definition);
+    return {...computed,fingerprint:await pivotFingerprint(this.book,definition)};
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);
