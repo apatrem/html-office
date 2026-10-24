@@ -1,6 +1,6 @@
 // Gantt: sequence of activities. tasks: [{name, start, end, group, highlight}]
 // Dates 'YYYY-MM' (whole month) or 'YYYY-MM-DD'. Without an end (or end = start): milestone.
-import { base, req, isObject, records } from './common.js';
+import { base, req, isObject, records } from './common.mjs';
 
 const MOIS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function parse(s, end) {

@@ -1,6 +1,6 @@
 // Waterfall : pont entre deux valeurs.
 // items: [{label, value, total}] — total:true = level bar (value optional), otherwise a change.
-import { base, axisCat, axisVal, fmt, req, num, isObject, records, finite } from './common.js';
+import { base, axisCat, axisVal, fmt, req, num, isObject, records, finite } from './common.mjs';
 
 function compute(items) {
   let level = 0;

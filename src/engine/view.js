@@ -1,7 +1,7 @@
 // Display: scaling, chrome (footer, frame), thumbnails,
 // presentation mode, banners, help. The editor shell is in shell.js.
 import { state, slides } from './model.js';
-import { resizeCharts } from './charts.js';
+import { resizeCharts } from '../../packages/shared/charts/index.mjs';
 import { h, icon } from '../../packages/shared/shell/dom.mjs';
 import { menuButton } from '../../packages/shared/shell/menu.mjs';
 import { closePopover } from '../../packages/shared/shell/popover.mjs';

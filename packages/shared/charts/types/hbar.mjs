@@ -1,5 +1,5 @@
 // Horizontal bars : classement.
-import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
+import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.mjs';
 
 export default {
   label: 'Horizontal bars',

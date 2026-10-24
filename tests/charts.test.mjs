@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { registry } from '../src/engine/charts.js';
+import { registry } from '../packages/shared/charts/index.mjs';
 import { chartHTML } from '../src/engine/templates.js';
 
 for (const [type, def] of Object.entries(registry)) {

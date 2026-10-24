@@ -1,5 +1,5 @@
 // Vertical columns: short time series (≤ 6 periods) or comparison.
-import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
+import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.mjs';
 
 export default {
   label: 'Columns',
