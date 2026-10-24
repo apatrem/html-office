@@ -95,10 +95,22 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 - Verify that every bundled package is still attributed.
 
 Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, [`packages/shared/notices.mjs`](../packages/shared/notices.mjs), serves both products:
-- Licence files are cut into sections at `=====`/`~~~~` lines and after the Apache-2.0 terms. Copyright lines are lifted out, and sections whose wording is identical apart from whitespace share one stored text, listed with its packages and copyright holders. Different wording is never merged (for example the `http`/`https` Apache variants, or MIT "(including the next paragraph)"). A file's other sections stay together and point to the texts lifted out of them.
-- Data: `engine/THIRD-PARTY-NOTICES.txt` is unchanged (so `rebuild.sh --check` still compares it); `tools/notices.mjs` reads it back, checked against `dependency-audit.json`, and the Help dialog embeds the grouped text. The 47 retained texts become 21 blocks: **197,573 → 52,638 bytes** of text, 201,131 → 53,594 once HTML-escaped. Standard P&L application code: **454,195 → 306,658 bytes** (−147,537); offline P&L 1,410,454 → 1,262,917.
-- Slides: the engine comment is now generated from each bundled package's LICENSE and NOTICE files, plus html-slides' own LICENSE. It previously held a truncated MIT text that referred to `THIRD_PARTY_NOTICES.md` and named Moveable and Selecto "and their dependencies". It now holds the full MIT text once, all 19 bundled packages by name with their copyright holders, and the `@egjs` subcomponent notices: **1,090 → 3,703 bytes** (+2,613 per deck). Example decks: catalogue 459,534 → 462,451 bytes, community garden 450,085 → 453,002 (each +2,613 engine, +304 from regenerating with the current `default.css`).
-- Tests (`tests/notices.test.mjs`, `packages/data/tests/notices.test.mjs`) use an independent checker, [`notices-check.mjs`](../packages/shared/notices-check.mjs). They fail if a bundled package (Cargo closure, Rust standard-library notices, npm packages from esbuild's metafile) is not listed, if any line of a licence file is missing, or if a licence text is stored twice. ECharts stays outside the engine with its pinned licence header and shipped licence.
+- **How texts are grouped.** Licence files are cut into sections at `=====`/`~~~~` lines, and Apache-2.0 texts into heading, terms and appendix. Copyright lines are lifted out, and sections whose wording is identical apart from whitespace share one stored text, listed with its packages and copyright holders. Different wording is never merged (for example MIT "(including the next paragraph)", or the http and https Apache headings). A file's other sections stay together, with pointers to the texts lifted out of them, including licence texts embedded in a larger notice (the Rust `AUTHORS-MIT:` sections).
+- **Data.** `engine/THIRD-PARTY-NOTICES.txt` is unchanged, so `rebuild.sh --check` still compares it. `tools/notices.mjs` reads it back, checks it against `dependency-audit.json` (file digest, and each package's own texts) and the Help dialog embeds the grouped text.
+  - The 47 retained texts become 22 blocks: **197,573 → 42,627 bytes** of text, 201,131 → 43,343 once HTML-escaped.
+  - Standard P&L application code: **454,195 → 296,407 bytes** (−157,788); offline P&L 1,410,454 → 1,252,666.
+- **Slides.** The engine comment previously held a truncated MIT text that referred to `THIRD_PARTY_NOTICES.md` and named Moveable and Selecto "and their dependencies". It is now generated, and attributes:
+  - the LICENSE and NOTICE files of each bundled package and of html-slides;
+  - code that published packages inline (keycode, `@egjs/component`, `@cfcs/core`, `react-moveable`, `react-css-styled`) and tslib legal comments, including one under Apache-2.0;
+  - ECharts, which `pack --offline` embeds unchanged beside the engine, with its NOTICE, zrender and d3.
+  
+  Packages without a licence file cite the canonical texts in [`packages/shared/licences/`](../packages/shared/licences/). The MIT and Apache texts are each stored once.
+  - Engine comment: **1,090 → 21,487 bytes** (+20,397 per deck, most of it the Apache-2.0 text).
+  - Example decks: catalogue 459,534 → 480,235 bytes, community garden 450,085 → 470,786 (each +20,397 engine, +304 from regenerating with the current `default.css`).
+- **Tests.** `tests/notices.test.mjs` and `packages/data/tests/notices.test.mjs` use an independent checker, [`notices-check.mjs`](../packages/shared/notices-check.mjs). They fail if:
+  - a package is not listed (Cargo closure, Rust standard-library notices, npm packages bundled or inlined, ECharts);
+  - a line of a package's licence file is missing from the blocks listing that package;
+  - a licence wording is stored twice.
 
 ## S — Styling scope in Data
 

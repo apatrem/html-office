@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { build } from "esbuild";
 import { buildWorkbook } from "../tools/build.mjs";
 import { retainedNotices } from "../tools/notices.mjs";
@@ -30,7 +31,20 @@ test("retained IronCalc notices are read back exactly as audit.py wrote them", (
   assert.throws(
     () =>
       retainedNotices(file.replace("Apache License", "Apache Licence"), audit),
-    /digest order|missing/,
+    /differs from the audited notices/,
+  );
+  // Swapping two packages' labels keeps every text but misattributes them.
+  const swapped = file
+    .replace("ironcalc_base@0.9.0/LICENSE-MIT", "\u0000")
+    .replace("bytemuck@1.25.2/LICENSE-MIT", "ironcalc_base@0.9.0/LICENSE-MIT")
+    .replace("\u0000", "bytemuck@1.25.2/LICENSE-MIT");
+  assert.throws(
+    () =>
+      retainedNotices(swapped, {
+        ...audit,
+        noticesSha256: createHash("sha256").update(swapped).digest("hex"),
+      }),
+    /is not an audited text of/,
   );
 });
 

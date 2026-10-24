@@ -47,12 +47,30 @@ export function retainedNotices(file, audit) {
         .join("");
   if (rebuilt !== file)
     throw new Error("Notices: parsing does not reproduce the file");
+  if (sha256(file) !== audit.noticesSha256)
+    throw new Error("Notices: the file differs from the audited notices");
   if (digests.some((digest, n) => n && digest <= digests[n - 1]))
     throw new Error("Notices: retained texts are not in digest order");
-  for (const { name, noticeHashes } of audit.packages)
-    for (const digest of noticeHashes)
-      if (!digests.includes(digest))
-        throw new Error(`Notices: ${name} text ${digest} is missing`);
+  // Each package's audited texts carry its own labels, and no other package's.
+  const crates = new Map(
+    audit.packages.map((p) => [
+      `${p.name}@${p.version}`,
+      new Set(p.noticeHashes),
+    ]),
+  );
+  for (const { label, text } of entries) {
+    const crate = /^([^\s/]+@[^\s/]+)\//.exec(label)?.[1];
+    if (crate && !crates.get(crate)?.has(sha256(text)))
+      throw new Error(`Notices: ${label} is not an audited text of ${crate}`);
+  }
+  for (const [crate, hashes] of crates)
+    for (const digest of hashes)
+      if (
+        !entries.some(
+          (e) => e.label.startsWith(crate + "/") && sha256(e.text) === digest,
+        )
+      )
+        throw new Error(`Notices: ${crate} text ${digest} is missing`);
   const [title, ...rest] = header.split("\n");
   return {
     title,

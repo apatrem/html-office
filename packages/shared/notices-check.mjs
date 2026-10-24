@@ -3,21 +3,41 @@
 // generator's grouping, so a grouping mistake cannot hide itself.
 const squash = (text) => text.replace(/\s+/g, " ").trim();
 const BLOCK = /^== \d+\. .+ ==$/m;
+const POINTER = /\[[^\]\n]+ text: see (\d+)\.\]/g;
+// The licence wordings that must never be stored twice, even inside a larger
+// notice: the opening and closing words of each.
+const LICENCES = [
+  ["Permission is hereby granted, free of charge", "DEALINGS IN THE SOFTWARE"],
+  [
+    "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+    "END OF TERMS AND CONDITIONS",
+  ],
+];
 
-// The blocks of a formatted notice: the packages listed in its header lines
-// (two-space indent) and its stored text (after the first blank line).
+// The blocks of a formatted notice: the packages listed in its header, each
+// with the copyright lines under it, and its stored text.
 export function noticeBlocks(notices) {
   return notices
     .split(BLOCK)
     .slice(1)
     .map((block) => {
       const lines = block.replace(/^\n/, "").split("\n"),
-        blank = lines.indexOf("");
-      const header = blank < 0 ? lines : lines.slice(0, blank);
+        blank = lines.indexOf(""),
+        header = blank < 0 ? lines : lines.slice(0, blank),
+        holders = new Map();
+      let names = [];
+      for (const [i, line] of header.entries())
+        if (/^ {2}\S/.test(line)) {
+          if (i && /^ {4}/.test(header[i - 1])) names = [];
+          for (const name of line.trim().split(", ")) {
+            names.push(name);
+            holders.set(name, []);
+          }
+        } else if (/^ {4}\S/.test(line))
+          for (const name of names) holders.get(name).push(line.trim());
       return {
-        packages: header
-          .filter((line) => /^ {2}\S/.test(line))
-          .flatMap((line) => line.trim().split(", ")),
+        packages: [...holders.keys()],
+        holders,
         text:
           blank < 0
             ? ""
@@ -29,23 +49,35 @@ export function noticeBlocks(notices) {
     });
 }
 
-// entries: [{ label, text }] as given to the generator. Returns problems:
-// a package that is not listed, a line of a licence file whose wording is
-// absent, or a licence text stored more than once.
+// entries: [{ label, text }] as given to the generator. Returns problems: a
+// package that is not listed, a line of a package's licence file that is in
+// none of the blocks listing that package (or the texts they point to), or a
+// licence text stored more than once.
 export function noticeProblems(entries, notices) {
   const problems = [],
-    blocks = noticeBlocks(notices),
-    listed = new Set(blocks.flatMap((block) => block.packages)),
-    all = squash(notices);
+    blocks = noticeBlocks(notices);
+  const corpus = new Map();
+  for (const block of blocks)
+    for (const name of block.packages) {
+      const parts = corpus.get(name) ?? [];
+      parts.push(block.holders.get(name).join("\n"), block.text);
+      for (const [, target] of block.text.matchAll(POINTER))
+        parts.push(blocks[+target - 1]?.text ?? "");
+      corpus.set(name, parts);
+    }
   for (const { label, text } of entries) {
     const name =
       /^((?:@[^\s/]+\/)?[^\s/@]+@[^\s/]+)\//.exec(label)?.[1] ?? label;
-    if (!listed.has(name)) problems.push(`${label}: package not listed`);
+    if (!corpus.has(name)) {
+      problems.push(`${label}: package not listed`);
+      continue;
+    }
+    const own = squash(corpus.get(name).join("\n"));
     for (const line of text.split("\n")) {
       // Section separators and the optional "MIT License" title are layout.
       if (/^\s*(?:={3,}|~{3,})\s*$/.test(line)) continue;
       if (/^\s*(?:the )?mit licen[cs]e(?: \(mit\))?\s*$/i.test(line)) continue;
-      if (line.trim() && !all.includes(squash(line)))
+      if (line.trim() && !own.includes(squash(line)))
         problems.push(`${label}: missing line: ${line.trim()}`);
     }
   }
@@ -55,6 +87,24 @@ export function noticeProblems(entries, notices) {
     if (key && seen.has(key))
       problems.push(`licence text stored twice: ${key.slice(0, 60)}`);
     seen.add(key);
+    for (const [start] of LICENCES) {
+      const at = key.indexOf(start);
+      if (at >= 0 && key.indexOf(start, at + start.length) >= 0)
+        problems.push(`a block stores "${start}" twice`);
+    }
+  }
+  // A licence wording found in two blocks must differ between them.
+  for (const [start, end] of LICENCES) {
+    const copies = blocks
+      .map(({ text }) => squash(text))
+      .flatMap((key) => {
+        const at = key.indexOf(start);
+        if (at < 0) return [];
+        const stop = key.indexOf(end, at);
+        return [key.slice(at, stop < 0 ? key.length : stop + end.length + 1)];
+      });
+    if (new Set(copies).size !== copies.length)
+      problems.push(`the "${start}" wording is stored twice`);
   }
   return problems;
 }

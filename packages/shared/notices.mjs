@@ -1,34 +1,59 @@
 // Third-party notices with each distinct licence text stored once (ADR-011 §9,
 // task L01). A retained licence file is cut into sections at "=====" or "~~~~"
-// lines and after an Apache-2.0 text's terms. Copyright lines are lifted out
-// of each recognised licence section; sections whose remaining wording is
+// lines, and an Apache-2.0 text into its heading, terms and appendix.
+// Copyright lines are lifted out of each recognised licence section; sections whose remaining wording is
 // identical apart from whitespace share one stored text, listed with the
 // packages and copyright holders it covers. A file's other sections stay
 // together, in order and with their copyright lines, as one notice in which
-// each lifted licence section is replaced by a pointer to its stored text.
-// Nothing else is dropped or reworded.
+// each recognised licence text (a whole section, or a run of lines inside
+// one) is replaced by a pointer to its stored text. Nothing else is dropped
+// or reworded.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 
 const SEPARATOR = /^[ \t]*(?:={3,}|~{3,})[ \t]*$/m;
 const APACHE_END = "END OF TERMS AND CONDITIONS";
 const COPYRIGHT = /^\s*(?:(?:Copyright|COPYRIGHT)\s+(?:\([cC]\)|©|\d)|©)/;
 const TITLE = /^\s*(?:the )?mit licen[cs]e(?: \(mit\))?\s*$/i;
 const NAMES = [
-  [/^Apache License Version 2\.0, January 2004/, "Apache License 2.0"],
+  [
+    /^Apache License Version 2\.0, January 2004 \S+$/,
+    "Apache License 2.0 heading",
+  ],
+  [
+    /^TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION/,
+    "Apache License 2.0",
+  ],
   [/^APPENDIX: How to apply the Apache License/, "Apache License 2.0 appendix"],
   [/^Permission is hereby granted, free of charge/, "MIT License"],
   [/^Boost Software License - Version 1\.0/, "Boost Software License 1.0"],
   [/^This software is provided 'as-is'/, "zlib License"],
   [/^UNICODE LICENSE V3/, "Unicode License v3"],
-  [/^Redistribution and use in source and binary forms/, "BSD-style licence"],
+  [
+    /^(?:BSD 3-Clause License )?(?:All rights reserved\. )?Redistribution and use in source and binary forms/,
+    "BSD-style licence",
+  ],
   [/LLVM Exceptions to the Apache 2\.0 License/, "LLVM exception"],
+  [
+    /^Permission to use, copy, modify, and\/or distribute this software for any purpose with or without fee is hereby granted\./,
+    "Zero-clause BSD licence",
+  ],
   [
     /^Licensed under the Apache License, Version 2\.0 \(the "License"\)/,
     "Apache License 2.0 notice",
   ],
 ];
+// Recognised licence texts shorter than this are not searched for inside
+// other notices.
+const EMBEDDED_MINIMUM = 200;
+// Canonical texts cited for a package published without a licence file.
+const TEMPLATES = Object.fromEntries(
+  ["MIT", "Apache-2.0"].map((id) => [
+    id,
+    readFileSync(new URL(`licences/${id}.txt`, import.meta.url), "utf8"),
+  ]),
+);
 const nameOf = (key) => NAMES.find(([pattern]) => pattern.test(key))?.[1];
 const squash = (text) => text.replace(/\s+/g, " ").trim();
 // The package a label names: "csv@1.4.0/LICENSE-MIT" → "csv@1.4.0".
@@ -38,14 +63,20 @@ const owner = (label) =>
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const REF = /\u0000(\d+)\u0000/g;
 
+// An Apache-2.0 text is cut into its heading, its terms and what follows
+// them, so copies whose heading or appendix differ still share the terms.
+const APACHE_TERMS = "TERMS AND CONDITIONS FOR USE";
 function sections(text) {
   return text
     .split(SEPARATOR)
     .flatMap((section) => {
-      const end = section.indexOf(APACHE_END);
-      if (end < 0 || !/^\s*Apache License\s/.test(section)) return [section];
+      const start = section.indexOf(APACHE_TERMS),
+        end = section.indexOf(APACHE_END);
+      if (start < 0 || end < start || !/^\s*Apache License\s/.test(section))
+        return [section];
       return [
-        section.slice(0, end + APACHE_END.length),
+        section.slice(0, start),
+        section.slice(start, end + APACHE_END.length),
         section.slice(end + APACHE_END.length),
       ];
     })
@@ -54,14 +85,14 @@ function sections(text) {
 
 // Splits a section into its copyright lines and its remaining text, without
 // the "MIT License" title line that some copies add and others omit. With
-// `keep`, the copyright lines stay in the text too.
+// `keep`, the copyright lines and title stay in the text too.
 function lift(section, keep = false) {
   const copyrights = [],
     body = [];
   for (const line of section.split("\n"))
     if (!COPYRIGHT.test(line)) body.push(line);
     else {
-      copyrights.push(line);
+      copyrights.push(line.trim());
       if (keep) body.push(line);
     }
   while (body.length && !body[0].trim()) body.shift();
@@ -71,27 +102,52 @@ function lift(section, keep = false) {
     .replace(/^\s*\n|\s+$/g, "")
     .replace(/[ \t]+$/gm, "")
     .replace(/\n{3,}/g, "\n\n");
-  return { copyrights: copyrights.map((line) => line.trim()), text };
+  return { copyrights, text };
 }
 
-const SPDX = {
-  MIT: "MIT License",
-  "Apache-2.0": "Apache License 2.0",
-  "BSL-1.0": "Boost Software License 1.0",
-  Zlib: "zlib License",
-};
+// Replaces each run of whole lines whose wording is a recognised licence text
+// with a pointer to it. Returns null when there is none.
+function embed(text, licences) {
+  const lines = text.split("\n"),
+    out = [];
+  let found = false;
+  for (let i = 0; i < lines.length; ) {
+    let end = 0;
+    const first = squash(lines[i]);
+    const match =
+      first &&
+      licences.find((group) => {
+        let words = "";
+        for (let j = i; j < lines.length; j++) {
+          words = squash(words + " " + lines[j]);
+          if (words === group.key) return (end = j + 1);
+          if (!group.key.startsWith(words)) return false;
+        }
+        return false;
+      });
+    if (!match) out.push(lines[i++]);
+    else {
+      out.push(/^\s*/.exec(lines[i])[0] + `\u0000${match.id}\u0000`);
+      i = end;
+      found = true;
+    }
+  }
+  return found ? out.join("\n") : null;
+}
 
 // entries: [{ label, text }], one per retained licence file. A label names the
-// package ("name@version/FILE" or a free description). An entry with a
-// `licence` (SPDX id) instead carries only copyright lines, for a package
-// published without a licence file. Returns the groups in a stable order:
-// most-shared texts first, then by wording.
+// package ("name@version/FILE" or a free description). Returns the groups in
+// a stable order: most-shared texts first, then by wording.
 export function groupNotices(entries) {
   const groups = new Map(),
+    byId = [],
     intern = (text, name) => {
       const key = squash(text);
-      if (!groups.has(key))
-        groups.set(key, { id: groups.size, name, text, packages: new Map() });
+      if (!groups.has(key)) {
+        const group = { id: byId.length, name, key, text, packages: new Map() };
+        groups.set(key, group);
+        byId.push(group);
+      }
       return groups.get(key);
     },
     add = (group, label, copyrights) => {
@@ -99,19 +155,18 @@ export function groupNotices(entries) {
       if (!group.packages.has(name)) group.packages.set(name, new Set());
       for (const line of copyrights) group.packages.get(name).add(line);
     };
-  for (const { label, text, licence } of entries) {
-    if (licence) continue;
+  const files = entries.map(({ label, text: raw }) => {
+    // HTML parsers turn CRLF into LF, which would change a script's digest.
+    const text = raw.replace(/\r\n?/g, "\n");
     if (text.includes("\u0000")) throw new Error(`${label}: NUL in notice`);
-    const parts = sections(text).map((section) => ({
-      section,
-      ...lift(section),
-    }));
-    for (const part of parts) part.name = nameOf(squash(part.text));
-    if (!parts.some((part) => part.name)) {
-      const { copyrights, text: body } = lift(text);
-      add(intern(body, "Notice"), label, copyrights);
-      continue;
-    }
+    const parts = sections(text).map((section) => {
+      const part = { section, ...lift(section) };
+      return { ...part, name: nameOf(squash(part.text)) };
+    });
+    return { label, text, parts };
+  });
+  // Recognised licence sections first, so that other notices can point to them.
+  for (const { label, parts } of files)
     for (const part of parts)
       if (part.name)
         add(
@@ -119,41 +174,46 @@ export function groupNotices(entries) {
           label,
           part.copyrights,
         );
+  const licences = byId
+    .filter((group) => group.key.length >= EMBEDDED_MINIMUM)
+    .sort((a, b) => b.key.length - a.key.length);
+  for (const { label, text, parts } of files) {
     if (parts.every((part) => part.name)) continue;
-    const rest = parts.map((part) =>
-      part.name
-        ? [part.copyrights.join("\n"), `\u0000${part.group.id}\u0000`]
-            .filter(Boolean)
-            .join("\n\n")
-        : lift(part.section, true).text,
-    );
-    add(
-      intern(rest.join("\n\n"), "Notice"),
-      label,
-      parts.flatMap((part) => part.copyrights),
-    );
-  }
-  const order = (list) =>
-    list.sort(
-      (a, b) => b.packages.size - a.packages.size || compare(a.text, b.text),
-    );
-  for (const { label, text, licence } of entries)
-    if (licence) {
-      const group = order([...groups.values()]).find(
-        (g) => g.name === SPDX[licence],
+    const rest = parts.map((part) => {
+      if (part.name)
+        return [part.copyrights.join("\n"), `\u0000${part.group.id}\u0000`]
+          .filter(Boolean)
+          .join("\n\n");
+      const kept = lift(part.section, true).text,
+        embedded = embed(kept, licences);
+      // An embedded licence text lists the package, with the section's holders.
+      for (const [, id] of (embedded ?? "").matchAll(REF))
+        add(byId[+id], label, part.copyrights);
+      return embedded ?? kept;
+    });
+    if (rest.every((part, i) => !parts[i].name && !part.includes("\u0000"))) {
+      const { copyrights, text: body } = lift(text);
+      add(intern(body, "Notice"), label, copyrights);
+    } else
+      add(
+        intern(rest.join("\n\n"), "Notice"),
+        label,
+        parts.flatMap((part) => part.copyrights),
       );
-      if (!group)
-        throw new Error(`${label}: no ${licence} licence text to cite`);
-      add(group, label, lift(text).copyrights);
-    }
-  return order([...groups.values()]).map(({ id, name, text, packages }) => ({
-    id,
-    name,
-    text,
-    packages: [...packages]
-      .map(([name, holders]) => ({ name, copyrights: [...holders] }))
-      .sort((a, b) => compare(a.name, b.name)),
-  }));
+  }
+  return byId
+    .slice()
+    .sort(
+      (a, b) => b.packages.size - a.packages.size || compare(a.text, b.text),
+    )
+    .map(({ id, name, text, packages }) => ({
+      id,
+      name,
+      text,
+      packages: [...packages]
+        .map(([name, holders]) => ({ name, copyrights: [...holders] }))
+        .sort((a, b) => compare(a.name, b.name)),
+    }));
 }
 
 // Package names on lines of at most 100 characters.
@@ -207,8 +267,20 @@ export function formatNotices(groups, { title, preamble = "" }) {
   );
 }
 
+function manifest(dir) {
+  const json = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+  return {
+    name: json.name,
+    version: json.version,
+    licence: json.license,
+    dependencies: Object.keys(json.dependencies ?? {}),
+    dir,
+  };
+}
+
 // The npm packages esbuild bundled, from its metafiles (input paths relative
-// to `cwd`, esbuild's working directory): [{ name, version, licence, dir, files }].
+// to `cwd`, esbuild's working directory):
+// [{ name, version, licence, dependencies, dir, files }].
 export function bundledPackages(metafiles, cwd = process.cwd()) {
   const packages = new Map();
   for (const metafile of metafiles)
@@ -216,54 +288,144 @@ export function bundledPackages(metafiles, cwd = process.cwd()) {
       const file = resolve(cwd, input),
         match = /^(.*\/node_modules\/(?:@[^/]+\/)?[^/]+)\//.exec(file);
       if (!match) continue;
-      if (!packages.has(match[1])) {
-        const manifest = JSON.parse(
-          readFileSync(join(match[1], "package.json"), "utf8"),
-        );
-        packages.set(match[1], {
-          name: manifest.name,
-          version: manifest.version,
-          licence: manifest.license,
-          dir: match[1],
-          files: [],
-        });
-      }
+      if (!packages.has(match[1]))
+        packages.set(match[1], { ...manifest(match[1]), files: [] });
       packages.get(match[1]).files.push(file);
     }
   return [...packages.values()].sort((a, b) => compare(a.name, b.name));
 }
 
-// Licence entries for bundled packages: their LICENSE, COPYING and NOTICE
-// files (the rule engine/audit.py applies to Rust crates). A package published
-// without one must declare its licence in package.json and carry a copyright
-// line in the leading comment of a bundled file; its entry then names that
-// licence, and groupNotices files it under the same licence's stored text.
+// A package that is shipped as files of its own rather than bundled by esbuild
+// (ECharts, which offline decks embed byte for byte).
+export const packageAt = (dir, files = []) => ({ ...manifest(dir), files });
+
+// The installed copy of `name` that a package in `dir` would load.
+function installed(dir, name) {
+  for (let d = dir; ; d = dirname(d)) {
+    const candidate = join(d, "node_modules", name);
+    if (existsSync(join(candidate, "package.json"))) return manifest(candidate);
+    if (dirname(d) === d) return null;
+  }
+}
+
+// Block comments of a file: the raw comment and its text without delimiters
+// and leading asterisks.
+function comments(file) {
+  return [...readFileSync(file, "utf8").matchAll(/\/\*([\s\S]*?)\*\//g)].map(
+    ([raw, body]) => ({
+      file,
+      raw,
+      text: body
+        .replace(/^!/, "")
+        .split("\n")
+        .map((line) => line.replace(/^\s*\*+ ?/, "").replace(/^\*+$/, ""))
+        .join("\n")
+        .replace(/^\s*\n|\s+$/g, ""),
+    }),
+  );
+}
+// "name: …, license: …, version: …" banners that the Daybrush and NAVER builds
+// write above their own package and each package they inline.
+function banner(text) {
+  const field = (key) =>
+    new RegExp(`^${key}:\\s*(\\S+)\\s*$`, "m").exec(text)?.[1];
+  return field("license")
+    ? {
+        name: field("name"),
+        licence: field("license"),
+        version: field("version"),
+      }
+    : null;
+}
+// esbuild's legal comments that carry a copyright or licence statement.
+const LEGAL = /^\/\*!|@license|@preserve/;
+const STATEMENT = /Copyright|licen[cs]e|Permission/i;
+const copyrightLines = (text) =>
+  text
+    .split("\n")
+    .filter((line) => COPYRIGHT.test(line))
+    .map((line) => line.trim());
+
+// Licence entries for bundled packages:
+// - their LICENSE, COPYING and NOTICE files and licenses/ folder (the rule
+//   engine/audit.py applies to Rust crates);
+// - the legal comments kept in their bundled files, and the canonical
+//   Apache-2.0 text when such a comment licenses code under it;
+// - the same for packages their published files inline: one named by a
+//   banner, or a declared dependency esbuild did not bundle separately.
+// A package published without a licence file must name its licence and
+// copyright in a banner; its entry cites the canonical text in licences/.
 export function packageEntries(packages) {
-  return packages.flatMap(({ name, version, licence, dir, files }) => {
-    const label = `${name}@${version}`,
-      found = readdirSync(dir)
-        .filter(
-          (file) =>
-            /^(licen[cs]e|copying|notice)/i.test(file) &&
-            statSync(join(dir, file)).isFile(),
-        )
-        .sort();
-    if (found.length)
-      return found.map((file) => ({
-        label: `${label}/${file}`,
-        text: readFileSync(join(dir, file), "utf8"),
-      }));
-    const header = files
-      .map((file) => /^\s*\/\*([\s\S]*?)\*\//.exec(readFileSync(file, "utf8")))
-      .find(
-        (comment) =>
-          comment && /\blicen[cs]e:\s*(\S+)/i.exec(comment[1])?.[1] === licence,
+  const entries = new Map(),
+    seen = new Set(),
+    bundled = new Set(packages.map((p) => p.name));
+  const visit = (pkg, files, banners = []) => {
+    const label = `${pkg.name}@${pkg.version}`;
+    if (seen.has(label)) return;
+    seen.add(label);
+    const found = (pkg.dir ? readdirSync(pkg.dir) : []).flatMap((file) => {
+      const path = join(pkg.dir, file);
+      if (/^(licen[cs]e|copying|notice)/i.test(file) && statSync(path).isFile())
+        return [file];
+      if (file === "licenses" && statSync(path).isDirectory())
+        return readdirSync(path).map((f) => join(file, f));
+      return [];
+    });
+    for (const file of found.sort())
+      entries.set(
+        `${label}/${file}`,
+        readFileSync(join(pkg.dir, file), "utf8"),
       );
-    const copyright = header?.[1]
-      .split("\n")
-      .find((line) => COPYRIGHT.test(line));
-    if (!licence || !copyright)
-      throw new Error(`${label}: no licence file, licence or copyright line`);
-    return [{ label, licence, text: copyright.trim() }];
-  });
+    const own = files.flatMap(comments);
+    if (!found.length) {
+      const holders = [
+        ...new Set(
+          [...banners, ...own.map((c) => c.text)]
+            .filter((text) => {
+              const b = banner(text);
+              return (
+                b?.licence === pkg.licence && (!b.name || b.name === pkg.name)
+              );
+            })
+            .flatMap(copyrightLines),
+        ),
+      ];
+      if (!TEMPLATES[pkg.licence] || !holders.length)
+        throw new Error(
+          `${label}: no licence file, and no licence template or copyright banner`,
+        );
+      entries.set(label, holders.join("\n") + "\n\n" + TEMPLATES[pkg.licence]);
+    }
+    for (const [i, { file, raw, text }] of own.entries()) {
+      const b = banner(text);
+      if (b?.name && b.name !== pkg.name && !bundled.has(b.name)) {
+        const dep = installed(pkg.dir, b.name);
+        visit(
+          {
+            ...(dep ?? { licence: b.licence }),
+            name: b.name,
+            version: b.version ?? dep?.version,
+            dependencies: [],
+          },
+          [],
+          [text],
+        );
+      } else if (!b && LEGAL.test(raw) && STATEMENT.test(text)) {
+        entries.set(`${label}/${relative(pkg.dir, file)}#${i + 1}`, text);
+        if (
+          /Licensed under the Apache License, Version 2\.0/.test(squash(text))
+        )
+          entries.set(`${label}/Apache-2.0`, TEMPLATES["Apache-2.0"]);
+      }
+    }
+    for (const name of pkg.dependencies)
+      if (!bundled.has(name)) {
+        const dep = installed(pkg.dir, name);
+        if (!dep)
+          throw new Error(`${label}: dependency ${name} is not installed`);
+        visit({ ...dep, dependencies: [] }, []);
+      }
+  };
+  for (const pkg of packages) visit(pkg, pkg.files);
+  return [...entries].map(([label, text]) => ({ label, text }));
 }

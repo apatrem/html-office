@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { documentation } from './guide.mjs';
 import { verifyECharts } from './echarts-integrity.mjs';
-import { bundledPackages, packageEntries, groupNotices, formatNotices } from '../packages/shared/notices.mjs';
+import { bundledPackages, packageAt, packageEntries, groupNotices, formatNotices } from '../packages/shared/notices.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const P = (...a) => path.join(root, ...a);
@@ -33,11 +33,13 @@ const res = await build({
   target: ['chrome110', 'edge110', 'safari16', 'firefox115'], write: false, legalComments: 'none', metafile: true
 });
 // Each deck embeds the engine, so the engine carries the notices of everything bundled in it (ADR-011 §9).
+// ECharts is not in the engine, but `deck.mjs pack --offline` embeds it next to the engine, unchanged.
 const notices = formatNotices(groupNotices([
   { label: `html-slides@${version}/LICENSE`, text: fs.readFileSync(P('LICENSE'), 'utf8') },
-  ...packageEntries(bundledPackages([res.metafile]))
-]), { title: 'Licence notices for the engine and the libraries bundled in it.' });
-if (notices.includes('*/')) throw new Error('Notices cannot close the engine comment');
+  ...packageEntries([...bundledPackages([res.metafile]), packageAt(P('node_modules/echarts'), [P('node_modules/echarts/dist/echarts.min.js')])])
+]), { title: 'Licence notices for the engine, the libraries bundled in it, and ECharts, which offline decks embed beside it.' });
+// A "*/" would close the comment; a CR would be changed by HTML parsing and break the engine digest.
+if (/\*\/|\r/.test(notices)) throw new Error('Notices cannot contain "*/" or a carriage return');
 const engine = inlineScript(`/*! html-slides ${version} — MIT — Copyright (c) 2026 Pierre Supau.\n${notices}*/\n${res.outputFiles[0].text}`, 'engine');
 if (process.argv.includes('--release')) {
   if (released[version] && released[version] !== sha256(engine))
