@@ -77,7 +77,9 @@ const ALIGN = [
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k, shift) => `${mac ? "⌘" : "Ctrl+"}${shift ? "Shift+" : ""}${k}`;
 
-export function mountShell({ commands, state }) {
+// `panels` adds product panels ({id: () => ({title, subtitle, body})}) that
+// runtime modules render themselves (pivot tables).
+export function mountShell({ commands, state, panels: extraPanels = {} }) {
   const $ = (id) => document.getElementById(id);
   const run =
     (id, ...args) =>
@@ -161,6 +163,7 @@ export function mountShell({ commands, state }) {
         }),
     }),
   };
+  Object.assign(panels, extraPanels);
   function openPanel(id, trigger) {
     closePopover({ restore: false });
     drawer.open(id, { ...panels[id](), trigger });
@@ -460,6 +463,8 @@ export function mountShell({ commands, state }) {
         "-",
         item("Link…", "link", { shortcut: key("K"), onSelect: editLink }),
         item("New sheet…", "new-sheet"),
+        "-",
+        item("Pivot table…", "insert-pivot"),
       ],
     },
     {
@@ -509,6 +514,9 @@ export function mountShell({ commands, state }) {
       name: "Data",
       items: () => [
         item("Recalculate", "recalculate"),
+        item("Pivot tables…", "pivot-tables"),
+        item("Refresh all pivot tables", "refresh-pivots"),
+        "-",
         item("Dropdown settings…", "dropdown-settings"),
         item("Manage sheets…", "manage-sheets"),
       ],
@@ -848,5 +856,11 @@ export function mountShell({ commands, state }) {
     }
   });
   sync();
-  return { showLink, contextMenu };
+  return {
+    showLink,
+    contextMenu,
+    // Opens a panel, or leaves it open when it already is.
+    openPanel: (id) => drawer.current() !== id && openPanel(id),
+    currentPanel: () => drawer.current(),
+  };
 }

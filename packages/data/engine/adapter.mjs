@@ -1,7 +1,7 @@
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
-import { computePivot, pivotFingerprint, validatePivots } from "../model/pivot.mjs";
+import { computePivot, pivotFingerprint, validatePivots, PIVOT_ERROR } from "../model/pivot.mjs";
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
@@ -98,7 +98,9 @@ export class EngineSession {
   async pivot(definition){
     validatePivots({...this.book,pivots:[definition]});
     await this.calculateDelta();
-    const computed=computePivot(this.book,definition);
+    // Definition and size errors are marked: they leave the session usable.
+    let computed;
+    try{computed=computePivot(this.book,definition);}catch(error){throw new Error(PIVOT_ERROR+error.message);}
     return {...computed,fingerprint:await pivotFingerprint(this.book,definition)};
   }
   result(sheetIndex,ref){

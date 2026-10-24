@@ -147,3 +147,47 @@ Optional `conditionalFormats` is an ordered array of at most 100 rules. Shared f
 A highlight adds `condition:{operator,values:[typedValue,...]}` and `style:{fill?,color?,bold?,italic?}` (at least one style field), using the same tokens as cell `style`. Operators `eq/ne` take one typed value; ordered `gt/gte/lt/lte` take one number/date; inclusive `between/notBetween` take two ordered same-type numbers/dates; `contains` takes one case-sensitive text value; `isBlank/isError` take an empty values array. Typed comparisons do not coerce. Empty text differs from blank; missing formula results do not satisfy blank tests. Error cells match explicit error predicates/comparisons rather than ordinary numeric/text conditions. Browser formula highlights require a verified current snapshot; raw input highlights are available before engine loading. Cached stale/unverified formulas retain their displayed value but receive no highlight. Format > Conditional formatting manages highlights without recalculation; priority changes require saving any rule edits first. Data bar rendering uses derived worker summaries. The same Conditional formatting manager creates, edits, removes and reorders both kinds, with automatic or fixed bounds and separate positive/negative colours. Changing kind explicitly preserves rule identity/order while replacing its kind-specific fields. Automatic bounds exclude stale/unverified formula results. Summary replies apply only to the current document revision; pending edits use the committed cells for scale analysis. Storage failure preserves analysis; an actual worker failure removes automatic bars until reopening, while fixed bars and editing remain available. No derived scale or geometry is persisted.
 
 A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus required `positive` and `negative` text-colour tokens (the dialog proposes `acc` and `alert`). Fixed finite bounds must satisfy `min <= 0 <= max` and `min < max`. Automatic bounds include zero and ignore text/booleans/blanks/errors/missing results. Numbers and dates, including saved formula results, supply full-precision values. Positive/negative bars share a zero axis; fixed-range overflow clips visually; constant nonzero data fills its side, and all-zero data produces zero width. Scale summaries are derived, not another saved source of cell values. Core definitions currently precede browser rendering/authoring under T14.
+
+## Pivot tables
+
+Optional `pivots` holds at most 50 definitions ([ADR-013](../../../docs/decisions/013-data-pivot-tables.md)):
+
+```json
+{
+  "id": "revenueByRegion",
+  "name": "Revenue by region",
+  "source": { "sheetId": "sales", "ref": "A1:F2001" },
+  "output": { "sheetId": "summary", "ref": "B3:E9" },
+  "rows": ["Region"],
+  "columns": ["Quarter"],
+  "filters": [{ "field": "Channel", "values": [{ "type": "text", "value": "Online" }] }],
+  "values": [{ "field": "Revenue", "aggregate": "sum" }],
+  "refreshed": { "fingerprint": "<64 hex>", "at": "2026-10-24T09:30:00.000Z" }
+}
+```
+
+- **Source.** `source.ref` is an A1 rectangle whose first row names the fields. Without `ref`, the source is the sheet's used range from A1, so rows appended to a `table` sheet are included at the next refresh; such a source must be on another sheet than the output. A field is named by its header cell's text (or the canonical string of a number or Boolean) and must match exactly one header cell.
+- **Fields.** `rows` (0–4), `columns` (0–2) and `filters` (0–4) use distinct fields. `values` holds 1–8 measures with `aggregate` `sum`, `count` or `average`. A filter keeps the records whose value is in its typed `values` list (`{"type":"blank"}` keeps blanks).
+- **Output.** `output.ref` is the rectangle the pivot owns; its top-left cell is the anchor. Before the first refresh it is the anchor alone. Outputs of different pivots never overlap, and an output never overlaps its own source.
+- **Refresh stamp.** `refreshed.fingerprint` is the source revision: a SHA-256 of the definition and the typed values of the used fields, independent of where the source sits on its sheet. It is absent until the first refresh.
+
+**Output cells are ordinary typed input cells**, so saved files show them without the engine, PNG downloads and print include them, and formulas may read them:
+- The table has one header row per column field, then a row with the row-field names and measure labels (`Sum of Revenue`, `Count of Units`, `Average of Price`), one body row per row item, and a `Total` row when there are row fields. Total columns follow when there are column fields.
+- Cell styles are `header`, `rowHeader` and `total`. SUM and AVERAGE values copy the number format of the field's first numeric source cell; labels copy the format of their item's first source cell.
+- A refresh writes every cell of its new rectangle and clears what it owned outside it, keeping direct `style` on cells it overwrites. It is refused, with nothing changed, if the rectangle would cover an input or formula it does not own, or another pivot's output.
+- Cell edits, pastes and fills into an owned rectangle are refused; formatting is allowed. Row and column insertions or deletions that would split or partly delete an output are refused; elsewhere they move the output whole and shift or shrink the source (a deleted source becomes `"#REF!"`).
+
+**Semantics.**
+- Records whose used fields are all blank are skipped.
+- Items group by typed value, without case folding or text/number coercion; signed zeros are equal. Missing and blank cells form one `(blank)` item; empty text is its own item.
+- Items sort numbers, dates, text (case-insensitive by code unit, then case-sensitive), Booleans, errors, then `(blank)`.
+- SUM adds numbers and dates in source order, as IronCalc's `SUM` does, and ignores text, Booleans and blanks. COUNT counts every non-blank value. AVERAGE divides the sum by the count of numbers and is `#DIV/0!` without one.
+- An error value makes SUM and AVERAGE that error (the first one in source order); COUNT still counts it.
+- A row and column combination without records stays empty. Totals aggregate the records themselves, so an average total is the average of all records.
+- Limits: 10,000 row items, 500 column items, 200,000 output cells and a 5,000,000-cell source.
+
+**Refresh and freshness.**
+- Nothing refreshes automatically. Refresh runs in the calculation worker: it recalculates (so formula sources and scenarios are current), aggregates the engine's typed values, and publishes the output cells, the definition and the snapshot as one undoable step.
+- The editor derives a state from the fingerprint, never saved: `current`, `stale` (source values or definition changed, including a scenario switch or an external edit), `unverified` (source formulas whose saved results are not verified), `never` or `error`. Owned cells of a pivot that is not current are hatched until it is refreshed.
+- Data › Pivot tables… and Insert › Pivot table… open the panel; Data › Refresh all pivot tables refreshes each in turn.
+- Calculated fields, slicers, subtotals, date grouping and "show values as" are not supported.

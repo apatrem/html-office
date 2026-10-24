@@ -1,4 +1,5 @@
 import { conditionalScales } from "../model/conditional.mjs";
+import { pivotState } from "../model/pivot.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { shiftWorkbook, restoreHead } from "../model/structure.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
@@ -16,6 +17,10 @@ let database,
   analysisTimer,
   canonicalOverrides = [],
   formulaResultsCurrent = false,
+  // Pivot freshness (ADR-013): recomputed for pivots whose source sheet a
+  // change touched; "all" after loads, structure, headers and verification.
+  pivotStates = {},
+  pivotsDirty = "all",
   queue = Promise.resolve();
 const report = (value) => self.postMessage(value);
 function storageError(error) {
@@ -32,7 +37,33 @@ async function storage(action) {
     return false;
   }
 }
-function analyse() {
+async function analysePivots() {
+  if (!book?.pivots?.length) {
+    pivotStates = {};
+    pivotsDirty = new Set();
+    return;
+  }
+  const dirty = pivotsDirty,
+    analysed = revision,
+    states = {};
+  pivotsDirty = new Set();
+  for (const pivot of book.pivots)
+    states[pivot.id] =
+      dirty === "all" ||
+      dirty.has(pivot.source.sheetId) ||
+      !pivotStates[pivot.id]
+        ? await pivotState(book, pivot, { formulaResultsCurrent })
+        : pivotStates[pivot.id];
+  pivotStates = states;
+  report({ kind: "pivot-states", revision: analysed, states });
+}
+function markPivots(sheetIds) {
+  if (pivotsDirty === "all") return;
+  if (sheetIds === "all") pivotsDirty = "all";
+  else for (const id of sheetIds) pivotsDirty.add(id);
+}
+async function analyse() {
+  await analysePivots();
   if (
     !book?.conditionalFormats?.some(
       (r) => r.kind === "dataBar" && r.scale.kind === "auto",
@@ -50,6 +81,7 @@ function analyse() {
 }
 function scheduleAnalysis(data) {
   canonicalOverrides = data.canonicalOverrides ?? [];
+  if (formulaResultsCurrent !== !!data.formulaResultsCurrent) markPivots("all");
   formulaResultsCurrent = !!data.formulaResultsCurrent;
   clearTimeout(analysisTimer);
   analysisTimer = setTimeout(() => {
@@ -84,7 +116,7 @@ self.onmessage = ({ data }) => {
         } catch (error) {
           report({ kind: "inspection-failed", message: error.message });
         }
-        analyse();
+        await analyse();
         database = draftDatabase();
         key = data.key;
         baseHash = data.baseHash;
@@ -98,6 +130,7 @@ self.onmessage = ({ data }) => {
       } else if (data.kind === "reset") {
         book = readModel(data.text);
         revision = data.revision;
+        markPivots("all");
         hasChanges = true;
         protectedSource = !!data.protectedSource;
         blocked = false;
@@ -133,6 +166,13 @@ self.onmessage = ({ data }) => {
         if (data.structure) book = shiftWorkbook(book, data.structure);
         if (data.head) restoreHead(book, data.head);
         patch(data.edits);
+        markPivots(
+          data.structure || data.head
+            ? "all"
+            : [...(data.beforeEdits ?? []), ...(data.edits ?? [])].map(
+                (edit) => edit.sheetId,
+              ),
+        );
         if (data.snapshot) book.snapshot = data.snapshot;
         else delete book.snapshot;
         revision = data.revision;

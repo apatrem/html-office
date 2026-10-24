@@ -20,6 +20,8 @@ export const MAX_COLUMN_ITEMS = 500;
 export const MAX_OUTPUT_CELLS = 200000;
 export const MAX_SOURCE_CELLS = 5000000;
 export const AGGREGATES = ["sum", "count", "average"];
+// Prefix of worker errors that concern the definition, not the engine.
+export const PIVOT_ERROR = "Pivot: ";
 const ROWS = 1048576,
   COLUMNS = 16384;
 const AGGREGATE_LABEL = { sum: "Sum", count: "Count", average: "Average" };
@@ -230,27 +232,39 @@ export function headerLabel(cell) {
   if (v.type === "boolean") return v.value ? "TRUE" : "FALSE";
   return String(v.value);
 }
+// Keys are validated A1 addresses; a character loop avoids a regular
+// expression per cell on large sheets.
 function usedRange(sheet) {
   let bottom = 0,
     right = 0;
-  for (const [ref, cell] of Object.entries(sheet.cells)) {
+  for (const ref in sheet.cells) {
+    const cell = sheet.cells[ref];
     if (!cell.input && !cell.formula) continue;
-    const p = parseAddress(ref);
-    if (p.row > bottom) bottom = p.row;
-    if (p.column > right) right = p.column;
+    let i = 0,
+      column = 0;
+    for (; ref.charCodeAt(i) >= 65; i++)
+      column = column * 26 + ref.charCodeAt(i) - 64;
+    const row = Number(ref.slice(i));
+    if (row > bottom) bottom = row;
+    if (column > right) right = column;
   }
   return bottom ? { top: 1, left: 1, bottom, right } : null;
 }
-// The source rectangle and its header fields, or an explanation.
-export function resolveSource(book, pivot) {
+// The source rectangle and its header fields, or an explanation. `bounds`
+// may supply a cached, possibly larger used range for whole-sheet sources
+// ({rows, columns}): empty records and blank headers are skipped anyway.
+export function resolveSource(book, pivot, { bounds } = {}) {
   const sheet = book.sheets.find((s) => s.id === pivot.source.sheetId);
   if (!sheet) fail("The pivot's source sheet no longer exists.");
   if (pivot.source.ref === "#REF!")
     fail("The pivot's source range was deleted. Choose a new source.");
-  const rect =
-    pivot.source.ref === undefined
-      ? usedRange(sheet)
-      : parseRange(pivot.source.ref);
+  const cached = pivot.source.ref === undefined && bounds?.(sheet),
+    rect =
+      pivot.source.ref !== undefined
+        ? parseRange(pivot.source.ref)
+        : cached
+          ? { top: 1, left: 1, bottom: cached.rows, right: cached.columns }
+          : usedRange(sheet);
   if (!rect) fail(`The source sheet "${sheet.name}" is empty.`);
   if (
     (rect.bottom - rect.top + 1) * (rect.right - rect.left + 1) >
@@ -663,6 +677,12 @@ export async function pivotFingerprint(book, pivot) {
     .join("");
 }
 
+// Engine-free check that a definition's source and fields resolve.
+export function checkPivot(book, pivot, options) {
+  const source = resolveSource(book, pivot, options);
+  for (const name of usedNames(pivot)) fieldColumn(source, name);
+  return source;
+}
 // Derived freshness (never saved): current, stale, unverified, never or error.
 export async function pivotState(
   book,
@@ -809,8 +829,13 @@ export function pivotRemovalEdits(book, pivot) {
   return edits;
 }
 // Distinct typed values of one field, sorted, for the filter editor.
-export function fieldItems(book, pivot, name, limit = MAX_FILTER_VALUES) {
-  const source = resolveSource(book, pivot),
+export function fieldItems(
+  book,
+  pivot,
+  name,
+  { limit = MAX_FILTER_VALUES, ...options } = {},
+) {
+  const source = resolveSource(book, pivot, options),
     column = fieldColumn(source, name),
     items = new Map();
   for (let row = source.rect.top + 1; row <= source.rect.bottom; row++) {
