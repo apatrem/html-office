@@ -329,6 +329,23 @@ try {
       await panel(page).getByLabel("Top-left cell").inputValue(),
       "E3",
     );
+    // Undo while a draft is dirty restores the options it did not edit.
+    await panel(page).getByLabel("Unit", { exact: true }).fill("USD");
+    await panel(page).getByLabel("Unit", { exact: true }).press("Tab");
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /updated/);
+    await panel(page).getByLabel("Title", { exact: true }).fill("Draft title");
+    await panel(page).getByLabel("Title", { exact: true }).press("Tab");
+    await page.locator("#grid").focus();
+    await page.keyboard.press("ControlOrMeta+z");
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-chart="chart1"] .data-chart-unit')
+          ?.textContent === "kEUR",
+    );
+    await panel(page).getByRole("button", { name: "Update chart" }).click();
+    await waitStatus(page, /"Draft title" updated/);
+    assert.equal(await chart.locator(".data-chart-unit").textContent(), "kEUR");
     // Deleting its columns leaves a "#REF!" range: the chart says why.
     await select(page, "A1", "C1");
     await menu(page, "Edit", "Delete columns");

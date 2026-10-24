@@ -913,11 +913,17 @@ export function setupCharts({
         else if (!dirtyDraft) openDraft(current.id);
         else {
           // A dirty draft takes committed changes (structural moves, undo)
-          // of the fields it did not edit itself.
-          for (const key of Object.keys({ ...savedDraft, ...current }))
-            if (JSON.stringify(draft[key]) === JSON.stringify(savedDraft[key]))
-              if (current[key] === undefined) delete draft[key];
-              else draft[key] = structuredClone(current[key]);
+          // of the fields, and of the options, it did not edit itself.
+          const rebase = (target, before, after) => {
+            for (const key of Object.keys({ ...before, ...after }))
+              if (JSON.stringify(target[key]) === JSON.stringify(before[key]))
+                if (after[key] === undefined) delete target[key];
+                else target[key] = structuredClone(after[key]);
+          };
+          rebase(draft.options, savedDraft.options, current.options);
+          const options = draft.options;
+          rebase(draft, savedDraft, current);
+          draft.options = options;
           savedDraft = current;
         }
       }

@@ -344,6 +344,27 @@ test("out-of-range dates and unreadable data are chart problems, not exceptions"
   );
   assert.ok(g.errors.length);
   assert.match(g.errors.at(-1), /B2 \(date outside 1900–9999\)/);
+  // An unsupported end would otherwise make the task a milestone.
+  const end = chartData(
+    workbook(undefined, {
+      A1: t("Task"),
+      B1: t("Start"),
+      C1: t("End"),
+      A2: t("Long"),
+      B2: { input: { type: "date", value: 46054 } },
+      C2: { input: { type: "date", value: 1e10 } },
+    }),
+    chart({
+      type: "gantt",
+      options: {},
+      source: { sheetId: "data", ref: "A1:C2" },
+    }),
+    label,
+  );
+  assert.deepEqual(end.errors, [
+    "Dates must be between 1900 and 9999.",
+    "Check C2 (date outside 1900–9999).",
+  ]);
   const broken = chartData(workbook(), chart(), () => {
     throw new Error("no label");
   });
@@ -388,6 +409,24 @@ test("build previews follow the charte, and oversized drawings are not kept", as
   const { renderPreviews } = await import("../tools/chart-previews.mjs");
   const css = (acc) =>
     `:root{--ink:#000;--acc:${acc};--mid:#456;--lig:#789;--alert:#a00;--t2:#555;--bd:#ddd;--bg:#fff;--font:Arial}`;
+  const { cssTheme } = await import("../tools/chart-previews.mjs");
+  // Aliases resolve as the browser computes them.
+  assert.deepEqual(
+    cssTheme(
+      ":root{--brand:#14517A;--acc:var(--brand);--mid:var(--missing, #456 );--font:var(--face);--face:Arial}",
+    ),
+    {
+      ink: undefined,
+      acc: "#14517A",
+      mid: "#456",
+      lig: undefined,
+      alert: undefined,
+      t2: undefined,
+      bd: undefined,
+      w: "#fff",
+      font: "Arial",
+    },
+  );
   const book = workbook([chart()]);
   const first = await renderPreviews(book, css("#14517A"));
   assert.ok(first.charts[0].preview.svg.includes("#14517A"));

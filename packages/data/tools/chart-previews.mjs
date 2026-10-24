@@ -18,8 +18,8 @@ import { verifyECharts } from "../../../tools/echarts-integrity.mjs";
 const library = new URL("../../../node_modules/echarts/", import.meta.url);
 
 // The theme() of the shared chart module, read from charte CSS text: the
-// document's tokens, then a built-in charte's overlay. Token values are read
-// as written; a token defined with var() would not match the editor's.
+// document's tokens, then a built-in charte's overlay, with var() references
+// resolved as the browser computes them.
 export function cssTheme(css, overlay = {}) {
   const tokens = {};
   for (const m of css
@@ -27,6 +27,17 @@ export function cssTheme(css, overlay = {}) {
     .matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g))
     tokens[m[1]] = m[2].trim();
   Object.assign(tokens, overlay);
+  const resolve = (value, depth = 0) =>
+    depth > 10
+      ? ""
+      : value.replace(
+          /var\(\s*--([\w-]+)\s*(?:,\s*([^()]*))?\)/g,
+          (_m, name, fallback) =>
+            tokens[name] !== undefined
+              ? resolve(tokens[name], depth + 1)
+              : (fallback ?? "").trim(),
+        );
+  for (const key of Object.keys(tokens)) tokens[key] = resolve(tokens[key]);
   return {
     ink: tokens.ink,
     acc: tokens.acc,

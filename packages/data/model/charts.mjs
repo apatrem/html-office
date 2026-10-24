@@ -234,6 +234,10 @@ export function chartData(book, chart, label) {
       structuredClone(chart.options),
     );
     errors = def.validate(data);
+    // An unsupported date is never dropped silently (an end would otherwise
+    // turn a task into a milestone).
+    if (table.issues.some((i) => i.kind === "date"))
+      errors.push("Dates must be between 1900 and 9999.");
   } catch (error) {
     return {
       errors: [`Its data cannot be read: ${error.message}`],
