@@ -93,7 +93,7 @@ test('a package without a licence file cites the canonical text with every holde
 });
 
 test('the engine embeds the notices of html-slides, every package bundled or inlined in it and ECharts, each text once', async () => {
-  const { metafile } = await build({ entryPoints: [path.join(root, 'src/engine/main.js')], bundle: true, write: false, metafile: true, format: 'iife', logLevel: 'silent' });
+  const { metafile } = await build({ entryPoints: [path.join(root, 'src/engine/main.js')], bundle: true, write: false, metafile: true, format: 'iife', loader: { '.css': 'text' }, logLevel: 'silent' });
   const packages = bundledPackages([metafile]);
   assert.ok(packages.length >= 19, 'Moveable, Selecto and their dependencies are bundled');
   const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;

@@ -98,7 +98,7 @@ Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, 
 - **How texts are grouped.** Licence files are cut into sections at `=====`/`~~~~` lines, and Apache-2.0 texts into heading, terms and appendix. Copyright lines are lifted out, and sections whose wording is identical apart from whitespace share one stored text, listed with its packages and copyright holders. Different wording is never merged (for example MIT "(including the next paragraph)", or the http and https Apache headings). A file's other sections stay together, with pointers to the texts lifted out of them, including licence texts embedded in a larger notice (the Rust `AUTHORS-MIT:` sections).
 - **Data.** `engine/THIRD-PARTY-NOTICES.txt` is unchanged, so `rebuild.sh --check` still compares it. `tools/notices.mjs` reads it back, checks it against `dependency-audit.json` (file digest, and each package's own texts) and the Help dialog embeds the grouped text.
   - The 47 retained texts become 22 blocks: **197,573 → 42,627 bytes** of text, 201,131 → 43,343 once HTML-escaped.
-  - Standard P&L application code: **454,195 → 296,407 bytes** (−157,788); offline P&L 1,410,454 → 1,252,666.
+  - Standard P&L application code: **503,157 → 345,369 bytes** (−157,788) on `main` after T17; offline P&L 1,459,416 → 1,301,628.
 - **Slides.** The engine comment previously held a truncated MIT text that referred to `THIRD_PARTY_NOTICES.md` and named Moveable and Selecto "and their dependencies". It is now generated, and attributes:
   - the LICENSE and NOTICE files of each bundled package and of html-slides;
   - code that published packages inline (keycode, `@egjs/component`, `@cfcs/core`, `react-moveable`, `react-css-styled`) and tslib legal comments, including one under Apache-2.0;
@@ -106,7 +106,7 @@ Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, 
   
   Packages without a licence file cite the canonical texts in [`packages/shared/licences/`](../packages/shared/licences/). The MIT and Apache texts are each stored once.
   - Engine comment: **1,090 → 21,487 bytes** (+20,397 per deck, most of it the Apache-2.0 text).
-  - Example decks: catalogue 459,534 → 480,235 bytes, community garden 450,085 → 470,786 (each +20,397 engine, +304 from regenerating with the current `default.css`).
+  - Example decks, on `main` after U04-Slides: catalogue 483,215 → 503,612 bytes, community garden 473,766 → 494,163. The catalogue's application code (engine, theme, charte and scaffold, without the embedded guide and slides) is about 437,700 bytes, under the 500,000 ceiling.
 - **Tests.** `tests/notices.test.mjs` and `packages/data/tests/notices.test.mjs` use an independent checker, [`notices-check.mjs`](../packages/shared/notices-check.mjs). They fail if:
   - a package is not listed (Cargo closure, Rust standard-library notices, npm packages bundled or inlined, ECharts);
   - a line of a package's licence file is missing from the blocks listing that package;
