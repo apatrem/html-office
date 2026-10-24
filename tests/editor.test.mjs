@@ -147,9 +147,10 @@ ok(after[0].y > before[0].y + 30 && after[1].y > before[1].y + 30, `group move (
 await page.keyboard.press('Escape');
 await page.locator('#s05').scrollIntoViewIfNeeded();
 await page.locator('#s05 > .body').click();
-const tb = sel => page.locator(`.hs-toolbar button[title^="${sel}"]`).first();
-await tb('Increase text size').click();
-await tb('Tinted fill').click();
+const tb = name => page.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name, exact: true });
+const swatch = async (picker, name) => { await tb(picker).click(); await page.getByRole('radiogroup', { name: picker }).getByRole('radio', { name, exact: true }).click(); };
+await tb('Larger text').click();
+await swatch('Fill colour', 'Tint');
 await tb('Bold').click();
 let cls = await attr(page, '#s05 > .body', 'class');
 ok(/fs-/.test(cls) && /bg-tint/.test(cls) && /t-bold/.test(cls), `size, fill and bold applied (${cls})`);
@@ -164,7 +165,7 @@ await page.evaluate(() => {
   const t = p.firstChild; const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 8);
   const s = getSelection(); s.removeAllRanges(); s.addRange(r);
 });
-await tb('Alert').click();
+await swatch('Text colour', 'Alert');
 await page.keyboard.press('Escape');
 const html = await page.evaluate(() => document.querySelector('#s05 > .body').innerHTML);
 ok(/<span class="c-alert">A shared<\/span>/.test(html), 'theme colour applied to a word');
@@ -180,7 +181,7 @@ ok((await page.locator('#s05 > .body').textContent()).includes('Added test.'), '
 // 10. Waterfall data panel
 await page.locator('#s04').scrollIntoViewIfNeeded();
 await page.locator('#s04 > figure.chart').click({ position: { x: 300, y: 200 } });
-await page.locator('.hs-toolbar button', { hasText: 'Data' }).click();
+await tb('Edit data').click();
 ok(await page.locator('.hs-panel').isVisible(), 'data panel open');
 await page.locator('.hs-panel table tr').nth(2).locator('input').nth(1).fill('40');
 await page.locator('.hs-panel button', { hasText: 'Apply' }).click();
@@ -193,9 +194,9 @@ const n0 = await nSlides();
 await page.locator('#s02').scrollIntoViewIfNeeded();
 await page.locator('#s02 > .body').click();
 await page.keyboard.press('Escape');
-ok((await page.locator('.hs-toolbar .hs-cur').textContent()) === 'Slide 2', 'current slide shown in the bar (Slide 2)');
+ok((await page.locator('.hs-shell .sh-chip').textContent()) === 'Slide 2', 'current slide shown in the bar (Slide 2)');
 await page.locator('.hs-side .hs-add').click();
-await page.locator('.hs-menu button', { hasText: 'Section divider' }).click();
+await page.getByRole('menuitem', { name: 'Section divider' }).click();
 let order = await page.evaluate(() => [...document.querySelectorAll('main#deck > section.slide')].map(s => s.id + ':' + (s.dataset.layout || '')));
 ok(await nSlides() === n0 + 1 && order[2].endsWith(':section'), `new section divider slide inserted after slide 2 (${order[2]})`);
 const newId = order[2].split(':')[0];
@@ -205,7 +206,7 @@ ok(await nSlides() === n0, 'undo: the new slide disappears');
 await page.locator('#s04').scrollIntoViewIfNeeded();
 await page.locator('#s04 > .stack').click({ position: { x: 5, y: 5 } });
 await page.keyboard.press('Escape');
-await page.locator('.hs-ctx button[title="Duplicate the current slide"]').click();
+await tb('Duplicate slide').click();
 await page.waitForTimeout(200);
 order = await page.evaluate(() => [...document.querySelectorAll('main#deck > section.slide')].map(s => s.id));
 const dup = order[order.indexOf('s04') + 1];
@@ -224,19 +225,19 @@ await page.keyboard.press('Control+z');
 order = await page.evaluate(() => [...document.querySelectorAll('main#deck > section.slide')].map(s => s.id));
 ok(order.indexOf(dup) === order.indexOf('s04') + 1, 'undo: original order');
 await page.locator('.hs-side .hs-thumb').nth(2).click();
-ok((await page.locator('.hs-ctx .hs-cur').textContent()) === 'Slide 3', 'thumbnail click: slide 3 current');
+ok((await page.locator('.hs-shell .sh-chip').textContent()) === 'Slide 3', 'thumbnail click: slide 3 current');
 await page.locator('.hs-side .hs-thumb').nth(order.indexOf(dup)).click();
-await page.locator('.hs-ctx button[title="Delete the current slide"]').click();
+await tb('Delete slide').click();
 ok(await nSlides() === n0, 'slide deleted');
 await page.locator('#s05').scrollIntoViewIfNeeded();
 await page.locator('#s05 > h1').click();
 await page.keyboard.press('Escape');
 await page.getByRole('button', { name: 'Layout', exact: true }).click();
-await page.locator('.hs-menu button', { hasText: 'Panel 1/3' }).click();
+await page.getByRole('menuitemradio', { name: 'Panel 1/3' }).click();
 ok(await attr(page, '#s05', 'data-layout') === 'panel-13', 'layout changed (panel 1/3)');
 await page.keyboard.press('Control+z');
 ok(await attr(page, '#s05', 'data-layout') === 'default', 'undo: original layout');
-await page.locator('.hs-ctx button', { hasText: 'Footer' }).click();
+await tb('Footer').click();
 await page.locator('.hs-panel input').first().fill('My footer');
 await page.locator('.hs-panel input[type=checkbox]').check();
 await page.locator('.hs-panel button', { hasText: 'Apply' }).click();
@@ -246,14 +247,14 @@ ok(await page.evaluate(() => document.getElementById('deck').dataset.footer) ===
 
 // 10c. Inserting elements
 const before5 = await page.evaluate(() => document.querySelectorAll('#s05 > [data-id]').length);
-await page.locator('.hs-top button', { hasText: 'Block' }).click();
-await page.locator('.hs-menu button', { hasText: 'Tinted box' }).click();
+await tb('Block').click();
+await page.getByRole('menuitem', { name: 'Tinted box' }).click();
 await page.keyboard.type('New box');
 await page.keyboard.press('Escape');
 const box = await page.evaluate(() => { const b = [...document.querySelectorAll('#s05 > .box')].pop(); return b && { t: b.textContent, d: document.querySelector('#s05').hasAttribute('data-detached'), st: b.getAttribute('style') }; });
 ok(box && box.t === 'New box' && box.d && /--x/.test(box.st), `box inserted, positioned and typed (${box && box.st})`);
-await page.locator('.hs-top button', { hasText: 'Chart' }).click();
-await page.locator('.hs-menu button', { hasText: 'Waterfall' }).click();
+await tb('Chart').click();
+await page.getByRole('menuitem', { name: 'Waterfall' }).click();
 ok(await page.locator('.hs-panel').isVisible(), 'chart inserted: data panel open');
 await page.locator('.hs-panel button', { hasText: 'Cancel' }).click();
 ok(await page.evaluate(() => !!document.querySelector('#s05 > figure.chart[data-type=waterfall].live')), 'waterfall inserted and drawn');
@@ -281,12 +282,12 @@ ok((await assetOf()) === aid && await page.evaluate(() => document.querySelector
 // 10e. Shapes
 await page.keyboard.press('Escape');
 const pad0 = await page.evaluate(() => document.getElementById('deck').style.paddingTop);
-await page.locator('.hs-top button', { hasText: 'Shape' }).click();
-await page.locator('.hs-menu button', { hasText: 'Chevron' }).click();
+await tb('Shape').click();
+await page.getByRole('menuitem', { name: 'Chevron' }).click();
 const shape = await page.evaluate(() => { const e = [...document.querySelectorAll('#s05 > .shape')].pop(); return e && { k: e.dataset.shape, st: e.getAttribute('style'), clip: getComputedStyle(e).clipPath, sel: window.deckEngine.selection().includes(e.dataset.id) }; });
 ok(shape && shape.k === 'chevron' && /--w:216/.test(shape.st) && shape.clip.startsWith('polygon') && shape.sel, `chevron inserted and selected (${shape && shape.st})`);
 ok(await page.evaluate(() => document.getElementById('deck').style.paddingTop) === pad0, 'the context bar does not shift the slides');
-await page.locator('.hs-ctx button[title="Mid blue fill"]').click();
+await swatch('Fill colour', 'Mid');
 await page.locator('#s05 > .shape').last().dblclick();
 await page.keyboard.type('Phase 1');
 await page.keyboard.press('Escape');
@@ -295,18 +296,18 @@ ok(/bg-mid/.test(sh2.c) && sh2.t === 'Phase 1', `shape filled and labelled (${sh
 
 // 10f. Table: rows and columns
 await page.keyboard.press('Escape');
-await page.locator('.hs-top button', { hasText: 'Table' }).click();
+await tb('Table').click();
 await page.keyboard.press('Escape');
 const tsel = '#s05 > table.t:last-of-type';
 const dims = () => page.evaluate(s => { const t = [...document.querySelectorAll('#s05 > table.t')].pop(); return [t.rows.length, t.rows[0].cells.length, t.rows[2].cells[0].textContent]; }, tsel);
 const d0 = await dims();
-ok(await page.evaluate(() => document.querySelector('.hs-ctx').classList.contains('has-table')), 'table selected: table tools shown');
+ok(await tb('Insert row below').isVisible(), 'table selected: table tools shown');
 await page.locator('#s05 > table.t').last().dblclick({ position: { x: 20, y: 40 } });
 await page.evaluate(() => { const t = [...document.querySelectorAll('#s05 > table.t')].pop(); const c = t.rows[1].cells[0]; const r = document.createRange(); r.selectNodeContents(c); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
-await page.locator('.hs-ctx button[title^="Insert a row"]').click();
+await tb('Insert row below').click();
 await page.keyboard.type('New row');
 const typed = (await dims())[2];
-await page.locator('.hs-ctx button[title="Delete the current column"]').click();
+await tb('Delete column').click();
 await page.keyboard.press('Escape');
 const d1 = await dims();
 ok(d1[0] === d0[0] + 1 && d1[1] === d0[1] - 1 && typed === 'New row', `row added below the current row and typed, column deleted (${d0.slice(0, 2)} → ${d1.slice(0, 2)}, "${typed}")`);
@@ -321,7 +322,7 @@ const mainZone = out.match(/<main[\s\S]*?<\/main>/)[0];
 // The guide may mention the interface: check saved elements, not the words of its documentation.
 const runtimeNodes = await page.evaluate(html => {
   const d = new DOMParser().parseFromString(html,'text/html');
-  return d.querySelectorAll('[data-ui],.hs-toolbar,.selecto-selection,[class*="moveable"],[class*="selecto"]').length;
+  return d.querySelectorAll('[data-ui],.sh-root,.sh-pop,.hs-side,.selecto-selection,[class*="moveable"],[class*="selecto"]').length;
 }, out);
 ok(runtimeNodes === 0, 'no Moveable, Selecto or interface in the saved file');
 ok(!/contenteditable|class="[^"]*\blive\b/.test(mainZone) && !/<main[^>]*style=/.test(mainZone), 'no editing state saved');

@@ -55,6 +55,6 @@ Deliver one `.html` file with semantic content, a theme, JSON chart data, cached
 
 ## Browser editing
 
-**Edit** or E enables editing. Top toolbar: insert, undo/redo, PDF, save. Context toolbar: layout, footer, slide duplication/deletion; selection formatting, arrangement, chart data, and table rows/columns. Left thumbnails navigate and reorder. Click, Shift-click, or drag a selection rectangle; drag/resize with snapping (Alt disables snapping; Shift preserves proportions); double-click to type. **?** opens help and the file guide. **Present** or P starts presentation mode.
+**Edit** (settings bar at the bottom) or E enables editing. The file bar has the menus, which hold every command, plus Present, Save and Done. The toolbar below has undo/redo and insert, then follows the selection: layout, footer, slide duplication/deletion; or formatting, colours, arrangement, chart data, and table rows/columns. Left thumbnails navigate and reorder (a strip at the bottom on narrow screens). Click, Shift-click, or drag a selection rectangle; drag/resize with snapping (Alt disables snapping; Shift preserves proportions); double-click to type. **?** opens help and the file guide. **Present** or P starts presentation mode.
 
 Direct saving requires selecting a target file on the first save in Chrome/Edge. Other browsers download a copy. Charts remain readable offline from their SVG cache; editing them requires the pinned ECharts CDN library unless bundled with `pack --offline`.

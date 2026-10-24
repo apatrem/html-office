@@ -1,7 +1,7 @@
 // Builds the engine (one script), the theme and the template, and copies them into the plugin.
 // Usage: node tools/build.mjs [--release]
 //   --release records this engine as the published engine of the package version.
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
 import { inlineScript } from './inline-script.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,8 +23,11 @@ const released = JSON.parse(fs.readFileSync(releasedPath, 'utf8'));
 const sha256 = source => createHash('sha256').update(source.trim()).digest('hex');
 
 const version = JSON.parse(fs.readFileSync(P('package.json'), 'utf8')).version;
+// The shared shell stylesheet is imported as minified text (packages/shared/shell/shell.css).
+const cssText = { name: 'css-text', setup: b => b.onLoad({ filter: /\.css$/ }, async a => ({ loader: 'text',
+  contents: (await transform(fs.readFileSync(a.path, 'utf8'), { loader: 'css', minify: true })).code })) };
 const res = await build({
-  entryPoints: [P('src/engine/main.js')], bundle: true, minify: true, format: 'iife',
+  entryPoints: [P('src/engine/main.js')], bundle: true, minify: true, format: 'iife', plugins: [cssText],
   define: { __ENGINE_VERSION__: JSON.stringify(version) },
   target: ['chrome110', 'edge110', 'safari16', 'firefox115'], write: false, legalComments: 'none',
   banner: { js: `/*! html-slides ${version} — MIT — Copyright (c) 2026 Pierre Supau.

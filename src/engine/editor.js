@@ -38,14 +38,15 @@ function setTargets(list) {
   notify();
 }
 // Toolbar context: slide only, or selected element(s) / element being typed in
-function notify() {
+export function context() {
   const els = editing ? [editing.el] : selection();
-  emit('selection', {
-    kind: els.length ? 'el' : 'slide',
+  return {
+    kind: els.length ? 'el' : 'slide', els, typing: !!editing,
     chart: els.length === 1 && els[0].matches('figure.chart'),
     table: els.length === 1 && !!tableOf(els[0])
-  });
+  };
 }
+const notify = () => emit('selection', context());
 const tableOf = el => (el.matches('table') ? el : el.querySelector(':scope > table'));
 export function clearSel() { if (moveable) setTargets([]); }
 
@@ -654,6 +655,10 @@ function onKey(e) {
     if (k === 'Escape') present(false);
     return;
   }
+  // Menus own every plain key (type-ahead); toolbars and buttons own arrows, Home, End,
+  // Enter and Space. Other shortcuts still act on the slides from the chrome.
+  if (!mod && e.target.closest && (e.target.closest('.sh-pop') ||
+      (e.target.closest('.sh-root, .hs-side') && /^(Arrow|Home$|End$|Enter$| $)/.test(k)))) return;
   if (!mod && k.toLowerCase() === 'e') { H.toggleEdit(); return; }
   if (!mod && k.toLowerCase() === 'p') { present(true); return; }
   if (k === '?') { H.help(); return; }

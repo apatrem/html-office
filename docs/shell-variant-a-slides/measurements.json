@@ -1,0 +1,56 @@
+{
+  "before": {
+    "375": {
+      "slideWidth": 139,
+      "chromeHeight": 88,
+      "pageScroll": false
+    },
+    "1440": {
+      "slideWidth": 1204,
+      "chromeHeight": 88,
+      "pageScroll": false
+    },
+    "slide-1440": {
+      "slideWidth": 1204,
+      "chromeHeight": 88,
+      "pageScroll": false
+    },
+    "reading-1440": {
+      "slideWidth": 1280,
+      "chromeHeight": 0,
+      "pageScroll": false
+    },
+    "reading-375": {
+      "slideWidth": 335,
+      "chromeHeight": 0,
+      "pageScroll": false
+    }
+  },
+  "current": {
+    "375": {
+      "slideWidth": 335,
+      "chromeHeight": 84,
+      "pageScroll": false
+    },
+    "1440": {
+      "slideWidth": 1204,
+      "chromeHeight": 84,
+      "pageScroll": false
+    },
+    "slide-1440": {
+      "slideWidth": 1204,
+      "chromeHeight": 84,
+      "pageScroll": false
+    },
+    "reading-1440": {
+      "slideWidth": 1280,
+      "chromeHeight": 0,
+      "pageScroll": false
+    },
+    "reading-375": {
+      "slideWidth": 335,
+      "chromeHeight": 0,
+      "pageScroll": false
+    }
+  }
+}

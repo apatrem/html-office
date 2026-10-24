@@ -1,6 +1,7 @@
-// Command/state API between the Data runtime and its editor shell (U04-Data).
-// Runtime modules register what they can do; the shell only runs commands and
-// reads their enabled state, so menus and toolbar share one entry point each.
+// Command/state API between a product runtime and its editor shell (U04-Data,
+// U04-Slides). Runtime modules register what they can do; the shell only runs
+// commands and reads their enabled state, so menus and toolbar share one entry
+// point each.
 export function createCommands() {
   const specs = new Map(),
     listeners = new Set();

@@ -50,7 +50,16 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
     - the keyboard hint line.
     
     U04-Data captures the same states at 1440 × 900 and 375 × 812 and compares them with the variant A screenshots. It must show at least the mock-up's grid rows (32 and 28, header included) with no page scroll.
-- **U04-Slides**: move the top bar, context bar and reading pill onto the module (variant A floating settings bar) with no visible regression.
+- **U04-Slides** — implemented 24 October 2026 on `claude/u04-slides-shell-da5e2d`, awaiting review. The side-by-side comparison (mock-up, before, after) is in [`docs/shell-variant-a-slides/`](shell-variant-a-slides/index.html). Screen-reader, Safari and Firefox passes are still open (see below).
+  - The top bar, context bar and reading pill are rebuilt from the shared module:
+    - a file bar with the product mark, title and save state, the menu bar (File, Edit, Insert, Format, Slide, Arrange, Table, View, Help), Present, Save and Done;
+    - one toolbar: history and insert, then the groups of the current selection, as the context bar did;
+    - the floating settings bar, which replaces the pill: Edit, Present, PDF and Save (when there are unsaved changes) while reading, the slide position while editing.
+  - Below 720 px the menus collapse into ☰, the toolbar scrolls and the thumbnails become a strip above the settings bar; the slide gets the full width (335 px at 375, against 139 before).
+  - Commands are registered on the shared command/state API, now [`packages/shared/shell/commands.mjs`](../packages/shared/shell/commands.mjs) (moved from Data). Every command has a home in the menus; disabled entries stay listed, inert ones never are. A browser check runs every menu entry and chrome button and fails if one changes nothing (`tests/shell.test.mjs`).
+  - Intentional changes from variant A: insert commands are icon buttons; colours open the shared swatch pickers instead of 13 inline swatches; the old pill's place moves from the bottom right to the bottom centre. Saved decks are byte-identical to those saved before (engine apart).
+  - The settings bar has no theme, font or zoom yet: theme and font come with TH02, and zoom is not a command Slides has.
+  - Size: the standard engine grows from 375,094 to 396,953 bytes (121,292 to 128,525 gzip). Data-only panel styles moved to [`panels.css`](../packages/shared/shell/panels.css) so Slides does not carry them; the Data P&L's application code grows by 2,879 bytes (the Slides icons in the shared set).
 - **U04-Text**: build the editor on the module when Text starts.
 - Gates as in each product plan: browser, keyboard, size and performance. Add a screen-reader pass (VoiceOver or NVDA) and Safari and Firefox runs, which R06 did not cover.
 

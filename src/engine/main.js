@@ -4,7 +4,8 @@ import * as M from './model.js';
 import * as C from './charts.js';
 import * as V from './view.js';
 import * as E from './editor.js';
-import { SHAPES, ELEMENTS } from './templates.js';
+import { slideCommands } from './commands.js';
+import { mountShell } from './shell.js';
 
 function boot() {
   const main = document.getElementById('deck');
@@ -73,29 +74,17 @@ function boot() {
   }
 
   if (!V.isStatic()) {
-    let btns, side;
-    const handlers = {
-      toggleEdit: () => E.toggleEdit(),
-      align: E.align, distribute: E.distribute, zorder: E.zorder, relayout: E.relayout,
-      bold: E.bold, italic: E.italic, size: E.size, textAlign: E.textAlign, color: E.color, fill: E.fill,
-      clearFormat: E.clearFormat, dupEl: E.duplicateSel, delEl: E.removeSel, table: E.tableOp,
-      insert: E.insertElement, insertShape: E.insertShape, insertChart: E.insertChart, insertImage: E.insertImage,
-      shapes: SHAPES, elements: ELEMENTS,
-      newSlide: E.newSlide, dupSlide: E.duplicateSlide, delSlide: E.deleteSlide, moveSlide: E.moveSlide,
-      moveSlideTo: E.moveSlideTo, goSlide: E.goSlide,
-      setLayout: E.setLayout, currentLayout: () => (E.currentSlide() || {}).dataset?.layout || 'default', footer: E.footerPanel,
-      data: E.dataPanel, undo: () => { E.clearSel(); M.undo(); }, redo: () => { E.clearSel(); M.redo(); }, save,
-      help: V.helpPanel, resizeCharts: C.resizeCharts
-    };
-    btns = V.toolbar(handlers);
-    side = V.sidebar(handlers);
+    const commands = slideCommands(save);
+    const shell = mountShell(commands);
+    const side = V.sidebar({ goSlide: E.goSlide, dupSlide: E.duplicateSlide, delSlide: E.deleteSlide, moveSlideTo: E.moveSlideTo,
+      newSlideItems: shell.newSlideItems });
     ready.then(() => side.rebuild()); // editing opened before the charts finished loading
     V.fit();
-    E.init(handlers);
-    M.on('dirty', d => btns.setDirty(d));
+    E.init({ save, toggleEdit: E.toggleEdit, help: V.helpPanel, resizeCharts: C.resizeCharts });
+    // The shell shows the selection, the current slide, history and the save state.
+    for (const ev of ['dirty', 'selection', 'editing', 'change', 'replaced', 'deck']) M.on(ev, () => commands.changed());
     M.on('draft-error', () => V.banner('The browser cannot store the draft. Save the file to keep your changes.', [], 6000));
-    M.on('current', sl => { btns.setLabel('Slide ' + (M.slides().indexOf(sl) + 1)); side.highlight(sl); });
-    M.on('selection', c => btns.setContext(c));
+    M.on('current', sl => { side.highlight(sl); commands.changed(); });
     M.on('editing', on => { if (on) side.rebuild(); });
     M.on('change', s => side.update(s));
     // Undo/redo replaces the slide: thumbnail links must also be

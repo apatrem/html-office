@@ -1,6 +1,6 @@
 import { setupConditionalSettings } from "./conditional-settings.mjs";
 import { createConditionalDecorator } from "./conditional.mjs";
-import { createCommands } from "./commands.mjs";
+import { createCommands } from "../../shared/shell/commands.mjs";
 import { mountShell } from "./shell.mjs";
 import { setupFormatting } from "./formatting.mjs";
 import { setupDropdownSettings } from "./dropdown-settings.mjs";

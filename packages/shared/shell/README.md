@@ -6,22 +6,24 @@ Started from the [R06 spike](../../../docs/HTML-DATA-NATIVE-SHELL-SPIKE.md). Onl
 
 | File | Contents |
 | --- | --- |
+| `commands.mjs` | Command/state API between a product runtime and its shell: register, run, enabled, subscribe, changed |
 | `dom.mjs` | Element helper, icons, labelled buttons and roving focus |
 | `popover.mjs` | Anchored popover: one at a time, closes on outside pointer, Escape and resize, returns focus to its trigger |
-| `menu.mjs` | ARIA menu, menu button and menu bar with type-ahead; checkbox and radio items |
+| `menu.mjs` | ARIA menu, menu button and menu bar with type-ahead; checkbox and radio items, optional item icons |
 | `toolbar.mjs` | ARIA toolbar: one tab stop, arrow keys, Home and End, pointer-only overflow arrows |
-| `pickers.mjs` | Charte-token colour swatches (keyboard radio groups) and the border picker (presets, line style, colour) |
+| `pickers.mjs` | Colour button, charte-token colour swatches (keyboard radio groups) and the border picker (presets, line style, colour) |
 | `dialogs.mjs` | Native modal dialog, form field with error line, and the link dialog (the product supplies its own validation) |
 | `drawer.mjs` | Side panel on the right, one at a time, a bottom sheet below 720 px; focus moves to its heading and back to the opening control |
 | `panels.mjs` | Panel bodies: cell-style catalogue, document settings (theme and font), regional settings with a live preview |
 | `icons.mjs` | Outline icons from the mock-ups, limited to shipped commands |
-| `shell.css` | Neutral chrome, `.sh-` classes only, narrow layout below 720 px and print rules |
+| `shell.css` | Neutral chrome, `.sh-` classes only: rows, buttons, toolbar, menus, swatches, context chip and floating settings bar; narrow layout below 720 px and print rules |
+| `panels.css` | Link card, border picker, dialogs, side panel and panel bodies; load after `shell.css` when the product uses them |
 
 Rules the components enforce:
 - A visible label is the accessible name, also when it is visually collapsed at narrow widths.
 - A menu never lists an inert command. Disabled items stay focusable; the first enabled item takes focus.
-- Popovers append to `#shell-layer` when present. Products mark mounted shell containers with `data-shell-mount` so saved copies can leave them empty.
+- Popovers append to `#shell-layer` when present. Products mark mounted shell containers with `data-shell-mount` so saved copies can leave them empty. Slides builds its whole shell at load and saves only the nodes the file had, so it needs no mount points.
 
 The built-in chartes the theme picker offers live in [`../themes/chartes.mjs`](../themes/chartes.mjs) (TH01): token sets applied as `:root[data-theme=…]` overlays, never rewriting a document's own charte.
 
-Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05). Slides (U04-Slides) and Text (U04-Text) follow.
+Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05) and [html-slides](../../../src/engine/shell.js) (U04-Slides; commands in [`commands.js`](../../../src/engine/commands.js)). Text (U04-Text) follows.
