@@ -55,11 +55,12 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
     - a file bar with the product mark, title and save state, the menu bar (File, Edit, Insert, Format, Slide, Arrange, Table, View, Help), Present, Save and Done;
     - one toolbar: history and insert, then the groups of the current selection, as the context bar did;
     - the floating settings bar, which replaces the pill: Edit, Present, PDF and Save (when there are unsaved changes) while reading, the slide position while editing.
-  - Below 720 px the menus collapse into ☰, the toolbar scrolls and the thumbnails become a strip above the settings bar; the slide gets the full width (335 px at 375, against 139 before).
+  - Below 720 px (or whenever the file bar would overflow) the menus collapse into ☰, the toolbar scrolls and the thumbnails become a strip above the settings bar; the slide gets the full width (335 px at 375, against 139 before).
   - Commands are registered on the shared command/state API, now [`packages/shared/shell/commands.mjs`](../packages/shared/shell/commands.mjs) (moved from Data). Every command has a home in the menus; disabled entries stay listed, inert ones never are. A browser check runs every menu entry and chrome button and fails if one changes nothing (`tests/shell.test.mjs`).
   - Intentional changes from variant A: insert commands are icon buttons; colours open the shared swatch pickers instead of 13 inline swatches; the old pill's place moves from the bottom right to the bottom centre. Saved decks are byte-identical to those saved before (engine apart).
   - The settings bar has no theme, font or zoom yet: theme and font come with TH02, and zoom is not a command Slides has.
-  - Size: the standard engine grows from 375,094 to 396,953 bytes (121,292 to 128,525 gzip). Data-only panel styles moved to [`panels.css`](../packages/shared/shell/panels.css) so Slides does not carry them; the Data P&L's application code grows by 2,879 bytes (the Slides icons in the shared set).
+  - Size: the standard engine grows from 375,094 to 398,252 bytes (121,292 to 128,949 gzip). Data-only panel styles moved to [`panels.css`](../packages/shared/shell/panels.css) so Slides does not carry them; the Data P&L's application code grows from 454,195 to 457,118 bytes (the Slides icons in the shared set).
+  - The version stays 0.7.1; the committed example decks are regenerated with this engine (the bump happens at release).
 - **U04-Text**: build the editor on the module when Text starts.
 - Gates as in each product plan: browser, keyboard, size and performance. Add a screen-reader pass (VoiceOver or NVDA) and Safari and Firefox runs, which R06 did not cover.
 
