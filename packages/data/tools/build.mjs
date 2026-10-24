@@ -1,5 +1,7 @@
 import { conditionalDialogHTML } from "./conditional-controls.mjs";
 import { charteCSS } from "../../shared/themes/chartes.mjs";
+import { bundledPackages, packageEntries } from "../../shared/notices.mjs";
+import { dataNotices } from "./notices.mjs";
 import {
   fileBarHTML,
   formulaBarHTML,
@@ -121,6 +123,7 @@ export async function buildWorkbook(
     platform: "browser",
     target: "es2022",
     write: false,
+    metafile: true,
     legalComments: "none",
   });
   const worker = await build({
@@ -131,6 +134,7 @@ export async function buildWorkbook(
     platform: "browser",
     target: "es2022",
     write: false,
+    metafile: true,
     legalComments: "none",
   });
   const recovery = await build({
@@ -142,6 +146,7 @@ export async function buildWorkbook(
     platform: "browser",
     target: "es2022",
     write: false,
+    metafile: true,
     legalComments: "none",
   });
   const recoveryText = recovery.outputFiles[0].text.replace(
@@ -158,9 +163,13 @@ export async function buildWorkbook(
       (await readFile(new URL("../shared/shell/panels.css", root), "utf8")) +
       (await readFile(new URL("runtime/style.css", root), "utf8")) +
       charteCSS();
-  const notices = await readFile(
-    new URL("engine/THIRD-PARTY-NOTICES.txt", root),
-    "utf8",
+  // Retained IronCalc/Rust texts plus any npm package esbuild bundled.
+  const notices = dataNotices(
+    await readFile(new URL("engine/THIRD-PARTY-NOTICES.txt", root), "utf8"),
+    JSON.parse(await readFile(new URL("engine/dependency-audit.json", root))),
+    packageEntries(
+      bundledPackages([result.metafile, worker.metafile, recovery.metafile]),
+    ),
   );
   const brand = await readFile(
     charte ??

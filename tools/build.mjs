@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { documentation } from './guide.mjs';
 import { verifyECharts } from './echarts-integrity.mjs';
+import { bundledPackages, packageAt, packageEntries, groupNotices, formatNotices } from '../packages/shared/notices.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const P = (...a) => path.join(root, ...a);
@@ -29,19 +30,17 @@ const cssText = { name: 'css-text', setup: b => b.onLoad({ filter: /\.css$/ }, a
 const res = await build({
   entryPoints: [P('src/engine/main.js')], bundle: true, minify: true, format: 'iife', plugins: [cssText],
   define: { __ENGINE_VERSION__: JSON.stringify(version) },
-  target: ['chrome110', 'edge110', 'safari16', 'firefox115'], write: false, legalComments: 'none',
-  banner: { js: `/*! html-slides ${version} — MIT — Copyright (c) 2026 Pierre Supau.
- * @csstools/css-tokenizer — MIT — Copyright 2022 Romain Menke, Antonio Laguna <antonio@laguna.es>.
- * Includes Moveable, Selecto and their dependencies — MIT — Copyright (c) 2018-2020 Daybrush ;
- * @egjs/agent, @egjs/children-differ, @egjs/list-differ — MIT — Copyright (c) 2015-present NAVER Corp.
- * MIT licence: Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom
- * the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice
- * shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
- * ANY KIND, EXPRESS OR IMPLIED. Details: THIRD_PARTY_NOTICES.md. */` }
+  target: ['chrome110', 'edge110', 'safari16', 'firefox115'], write: false, legalComments: 'none', metafile: true
 });
-const engine = inlineScript(res.outputFiles[0].text, 'engine');
+// Each deck embeds the engine, so the engine carries the notices of everything bundled in it (ADR-011 §9).
+// ECharts is not in the engine, but `deck.mjs pack --offline` embeds it next to the engine, unchanged.
+const notices = formatNotices(groupNotices([
+  { label: `html-slides@${version}/LICENSE`, text: fs.readFileSync(P('LICENSE'), 'utf8') },
+  ...packageEntries([...bundledPackages([res.metafile]), packageAt(P('node_modules/echarts'), [P('node_modules/echarts/dist/echarts.min.js')])])
+]), { title: 'Licence notices for the engine, the libraries bundled in it, and ECharts, which offline decks embed beside it.' });
+// A "*/" would close the comment; a CR would be changed by HTML parsing and break the engine digest.
+if (/\*\/|\r/.test(notices)) throw new Error('Notices cannot contain "*/" or a carriage return');
+const engine = inlineScript(`/*! html-slides ${version} — MIT — Copyright (c) 2026 Pierre Supau.\n${notices}*/\n${res.outputFiles[0].text}`, 'engine');
 if (process.argv.includes('--release')) {
   if (released[version] && released[version] !== sha256(engine))
     throw new Error(`Version ${version} was already released with a different engine: bump the version in package.json`);
