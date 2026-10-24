@@ -47,4 +47,39 @@ export const ICONS = {
   globe:
     '<circle cx="10" cy="10" r="7"/><path d="M3 10h14"/><path d="M10 3c2 2 2.8 4.4 2.8 7S12 15 10 17c-2-2-2.8-4.4-2.8-7S8 5 10 3z"/>',
   plus: '<path d="M10 4v12M4 10h12"/>',
+  // Slides (U04-Slides): insert, slide, element and mode commands.
+  textbox:
+    '<rect x="3" y="4" width="14" height="12" rx="1" stroke-dasharray="2 1.6"/><path d="M7 8h6M10 8v5"/>',
+  shape:
+    '<rect x="3" y="8" width="8" height="8" rx=".8"/><circle cx="13" cy="7" r="4"/>',
+  block:
+    '<rect x="3" y="5" width="14" height="10" rx="1.5"/><path d="M6 8.5h8M6 11.5h5"/>',
+  image:
+    '<rect x="3" y="4" width="14" height="12" rx="1.5"/><circle cx="7.3" cy="8" r="1.4"/><path d="m3.5 14.5 4-4 3.5 3.5 2-2 3.5 3.5"/>',
+  table:
+    '<rect x="3" y="4" width="14" height="12" rx="1"/><path d="M3 8h14M3 12h14M8 4v12"/>',
+  chart:
+    '<path d="M3 16.5h14"/><path d="M5 15V10M8.5 15V6M12 15v-4M15.5 15V7.5" stroke-width="2.2"/>',
+  layout:
+    '<rect x="3" y="4" width="14" height="12" rx="1"/><path d="M8.5 4v12M8.5 9h8.5"/>',
+  reset:
+    '<path d="M4.5 9.5A5.5 5.5 0 1 0 6.2 5.6"/><path d="M4.2 3.5v3.3h3.3"/>',
+  footer:
+    '<rect x="3" y="4" width="14" height="12" rx="1"/><path d="M5.5 13.5h6M14 13.5h.5"/>',
+  arrange:
+    '<path d="M12 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h4"/><rect x="8" y="8" width="9" height="9" rx="1"/>',
+  copy: '<rect x="6.5" y="6.5" width="10" height="10" rx="1.5"/><path d="M13.5 6.5V4.5a1 1 0 0 0-1-1h-8a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/>',
+  trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10.5h7.4L14.5 6"/>',
+  rowAdd:
+    '<rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M10 12.5v5M7.5 15h5"/>',
+  rowDel:
+    '<rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M7.5 15h5"/>',
+  colAdd:
+    '<rect x="3.5" y="3" width="6" height="14" rx="1"/><path d="M12.5 10h5M15 7.5v5"/>',
+  colDel:
+    '<rect x="3.5" y="3" width="6" height="14" rx="1"/><path d="M12.5 10h5"/>',
+  play: '<path d="M6.5 4.5 15.5 10l-9 5.5z"/>',
+  pen: '<path d="m13.5 3.5 3 3L8 15H5v-3z"/><path d="m11.5 5.5 3 3"/>',
+  print:
+    '<path d="M6 7.5V3.5h8v4"/><rect x="3" y="7.5" width="14" height="6.5" rx="1"/><path d="M6 11.5h8v5H6z"/>',
 };

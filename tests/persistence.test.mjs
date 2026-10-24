@@ -32,7 +32,7 @@ async function open(t, file = plain, options = {}) {
   return page;
 }
 async function footer(page, value) {
-  await page.locator('.hs-ctx button',{hasText:'Footer'}).click();
+  await page.getByRole('toolbar',{name:'Slide and selection'}).getByRole('button',{name:'Footer',exact:true}).click();
   await page.locator('.hs-panel input').first().fill(value);
   await page.locator('.hs-panel button',{hasText:'Apply'}).click();
 }
@@ -102,8 +102,8 @@ test('chart JSON with a closing script tag survives download and reopening', asy
 });
 test('a text-only deck can insert its first chart', async t => {
   const p=await open(t);
-  await p.locator('.hs-top button',{hasText:'Chart'}).click();
-  await p.locator('.hs-menu button',{hasText:'Columns'}).click();
+  await p.getByRole('toolbar',{name:'Slide and selection'}).getByRole('button',{name:'Chart',exact:true}).click();
+  await p.getByRole('menuitem',{name:'Columns'}).click();
   await p.locator('.hs-panel').waitFor({state:'visible'});
   assert.equal(await p.locator('#deck figure.chart.live').count(),1);
 });

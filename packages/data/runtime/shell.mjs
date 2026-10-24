@@ -18,7 +18,11 @@ import {
   regionalBody,
   LOCALES,
 } from "../../shared/shell/panels.mjs";
-import { openSwatches, openBorders } from "../../shared/shell/pickers.mjs";
+import {
+  openSwatches,
+  openBorders,
+  colourButton,
+} from "../../shared/shell/pickers.mjs";
 import {
   modal,
   field,
@@ -177,27 +181,6 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
   }
   // ---- pickers and dialogs the toolbar and menus share ----
   const ui = { border: { style: "thin", color: "ink" } };
-  function colourButton(kind) {
-    const fill = kind === "fill",
-      label = fill ? "Fill colour" : "Text colour",
-      bar = h("span", { class: "sh-swbar" }),
-      b = h(
-        "button",
-        {
-          type: "button",
-          class: "sh-b sh-colour",
-          "aria-label": label,
-          title: label,
-          "aria-haspopup": "dialog",
-          "aria-expanded": "false",
-          onclick: () => pickColour(kind),
-        },
-        fill ? icon("fill") : h("span", { class: "sh-g" }, h("b", {}, "A")),
-        bar,
-      );
-    b.bar = bar;
-    return b;
-  }
   // Menus open the same pickers, anchored to their toolbar button.
   function anchor(b) {
     b.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -630,8 +613,8 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
     ),
     group(
       "Colour",
-      (B.color = colourButton("text")),
-      (B.fill = colourButton("fill")),
+      (B.color = colourButton("text", () => pickColour("text"))),
+      (B.fill = colourButton("fill", () => pickColour("fill"))),
     ),
     group(
       "Borders",

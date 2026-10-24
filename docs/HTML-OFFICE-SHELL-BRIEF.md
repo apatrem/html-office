@@ -63,40 +63,42 @@ No interface exists. The specification implies: a block-style picker (title, sub
 
 ### 4.1 Slides (shipped)
 
+"Where" was updated by U04-Slides (24 October 2026), which moved Slides onto the variant A shell: the file bar holds the menus, Present, Save and Done; one toolbar follows the selection; the floating settings bar replaces the reading pill. Every command also has a menu home.
+
 | Group | Command | Where | Shortcut |
 | --- | --- | --- | --- |
-| Mode | Edit / Done | Pill (reading), top bar (editing) | E |
-| | Present | Pill | P; arrows, Space, PageUp/Down, Escape |
-| | Help and shortcuts; File format guide | Top bar → modal | ? |
-| File | Save (direct, or Save a copy fallback in Safari/Firefox) | Top bar, pill | Cmd+S |
-| | Print / PDF | Top bar, pill | — |
+| Mode | Edit / Done | Settings bar (reading), file bar (editing), View menu | E |
+| | Present | Settings bar (reading), file bar, View menu | P; arrows, Space, PageUp/Down, Escape |
+| | Help and shortcuts; File format guide | Help menu → modal (guide also in File) | ? |
+| File | Save (direct, or Save a copy fallback in Safari/Firefox) | File bar, settings bar when unsaved, File menu | Cmd+S |
+| | Print / PDF | Settings bar (reading), File menu | — |
 | | Draft recovery (restore / discard) | Banner on open | — |
-| History | Undo, Redo | Top bar | Cmd+Z, Cmd+Shift+Z, Cmd+Y |
-| Insert | Text box | Top bar | — |
-| | Shape ▾: rectangle, rounded rectangle, ellipse, triangle, diamond, hexagon, parallelogram, pentagon arrow, chevron, right/left/up/down arrow; thin arrow → and ↓; rule | Top bar menu | — |
-| | Block ▾: box, tinted box, callout, key figure | Top bar menu | — |
-| | Image (embedded) | Top bar | — |
-| | Table | Top bar | — |
-| | Chart ▾: columns, horizontal bars, stacked bars, lines, waterfall, bubbles, Gantt | Top bar menu | — |
-| Slide | New slide ▾ (12 layouts) | Sidebar | — |
-| | Layout ▾ (title only, impact title, left title, section divider, quote, panel 1/4, 1/3, 1/2, 2/3, three lines, cover, end) | Context bar, slide | — |
-| | Reset layout | Context bar, slide | — |
-| | Footer text and hide on this slide | Context bar → modal | — |
-| | Duplicate slide, delete slide | Context bar, slide | — |
-| | Go to / reorder slides | Sidebar thumbnails (drag) | — |
-| Text | Bold, italic | Context bar, element | Cmd+B, Cmd+I |
-| | Smaller / larger text (`fs-*` steps) | Context bar, element | — |
-| | Align left, centre, right | Context bar, element | — |
-| Colour | Text: ink, acc, mid, alert, t2, bg | Context bar swatches | — |
-| | Fill: none, tint, lig, mid, acc, alert, dark | Context bar swatches | — |
-| | Clear formatting | Context bar | — |
-| Arrange | Align left/centre/right/top/middle/bottom; distribute horizontally/vertically; bring forward, send backward | Context bar → Arrange ▾ | Cmd+], Cmd+[ |
-| Element | Duplicate, delete | Context bar | Cmd+D, Delete |
+| History | Undo, Redo | Toolbar, Edit menu | Cmd+Z, Cmd+Shift+Z, Cmd+Y |
+| Insert | Text box | Toolbar, Insert menu | — |
+| | Shape ▾: rectangle, rounded rectangle, ellipse, triangle, diamond, hexagon, parallelogram, pentagon arrow, chevron, right/left/up/down arrow; thin arrow → and ↓; rule | Toolbar menu, Insert → Shape… | — |
+| | Block ▾: box, tinted box, callout, key figure | Toolbar menu, Insert → Block… | — |
+| | Image (embedded) | Toolbar, Insert menu | — |
+| | Table | Toolbar, Insert menu | — |
+| | Chart ▾: columns, horizontal bars, stacked bars, lines, waterfall, bubbles, Gantt | Toolbar menu, Insert → Chart… | — |
+| Slide | New slide ▾ (12 layouts) | Thumbnails, Insert → New slide… | — |
+| | Layout ▾ (title only, impact title, left title, section divider, quote, panel 1/4, 1/3, 1/2, 2/3, three lines, cover, end) | Toolbar (slide), Slide menu | — |
+| | Reset layout | Toolbar (slide), Slide menu | — |
+| | Footer text and hide on this slide | Toolbar (slide), Slide → Footer… → modal | — |
+| | Duplicate slide, delete slide | Toolbar (slide), Slide menu, thumbnail buttons | — |
+| | Go to / reorder slides | Thumbnails (drag); a strip below 720 px | — |
+| Text | Bold, italic | Toolbar (element), Format menu | Cmd+B, Cmd+I |
+| | Smaller / larger text (`fs-*` steps) | Toolbar (element), Format menu | — |
+| | Align left, centre, right | Toolbar (element), Format menu | — |
+| Colour | Text: ink, acc, mid, alert, t2, bg | Toolbar colour picker, Format → Text colour… | — |
+| | Fill: none, tint, lig, mid, acc, alert, dark | Toolbar fill picker, Format → Fill colour… | — |
+| | Clear formatting | Toolbar (element), Edit and Format menus | — |
+| Arrange | Align left/centre/right/top/middle/bottom; distribute horizontally/vertically; bring forward, send backward | Toolbar → Arrange ▾, Arrange menu | Cmd+], Cmd+[ |
+| Element | Duplicate, delete | Toolbar (element), Edit menu | Cmd+D, Delete |
 | | Move, resize, nudge (8 px, Alt 1 px), free move, keep ratio | Canvas | Arrows, Alt, Shift |
 | | Type in element | Canvas | Double-click, Enter; Escape |
-| Chart | Edit data (title, unit, highlight, rows, series, advanced JSON) | Context bar → modal | — |
-| Table | Insert/delete row, insert/delete column | Context bar | — |
-| **Planned** | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, TH02; no place yet | — |
+| Chart | Edit data (title, unit, highlight, rows, series, advanced JSON) | Toolbar (chart), Edit → Edit chart data… → modal | — |
+| Table | Insert/delete row, insert/delete column | Toolbar (table), Table menu | — |
+| **Planned** | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, TH02: document settings in the settings bar | — |
 
 ### 4.2 Data (native ribbon today, plus planned)
 

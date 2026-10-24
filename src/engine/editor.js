@@ -38,14 +38,15 @@ function setTargets(list) {
   notify();
 }
 // Toolbar context: slide only, or selected element(s) / element being typed in
-function notify() {
+export function context() {
   const els = editing ? [editing.el] : selection();
-  emit('selection', {
-    kind: els.length ? 'el' : 'slide',
+  return {
+    kind: els.length ? 'el' : 'slide', els, typing: !!editing,
     chart: els.length === 1 && els[0].matches('figure.chart'),
     table: els.length === 1 && !!tableOf(els[0])
-  });
+  };
 }
+const notify = () => emit('selection', context());
 const tableOf = el => (el.matches('table') ? el : el.querySelector(':scope > table'));
 export function clearSel() { if (moveable) setTargets([]); }
 
@@ -152,6 +153,17 @@ function startText(el, e) {
   el.addEventListener('blur', stopText, { once: true });
   el.addEventListener('input', markDirty);
   notify();
+}
+// Typing context kept across a menu, which takes focus (and so ends typing) when it opens.
+export function textContext() {
+  if (!editing) return null;
+  const s = getSelection(), r = s.rangeCount ? s.getRangeAt(0) : null;
+  return { el: editing.el, range: r && editing.el.contains(r.commonAncestorContainer) ? r.cloneRange() : null };
+}
+export function resumeText(t) {
+  if (!t || editing || !t.el.isConnected) return;
+  startText(t.el);
+  if (t.range) try { const s = getSelection(); s.removeAllRanges(); s.addRange(t.range); } catch (e) { /* range no longer valid */ }
 }
 export function stopText() {
   if (!editing) return;
@@ -369,16 +381,27 @@ export function insertShape(key) {
 
 // ---------- tables: rows and columns ----------
 // Acts on the cell holding the caret (while typing), otherwise on the last row / column.
-export function tableOp(kind) {
+function tableAt() {
   const host = editing ? editing.el : selection()[0];
   const table = host && tableOf(host);
-  if (!table) return banner('Select a table.', [], 2500);
+  if (!table) return null;
   const sel = getSelection();
   const anchor = editing && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
   const cell = anchor && table.contains(anchor) ? (anchor.nodeType === 1 ? anchor : anchor.parentElement).closest('td, th') : null;
   const rows = [...table.rows];
   const row = cell ? cell.parentElement : rows[rows.length - 1];
-  const col = cell ? cell.cellIndex : row.cells.length - 1;
+  if (!row) return null; // empty table: nothing to act on
+  return { host, table, sel, cell, rows, row, col: cell ? cell.cellIndex : row.cells.length - 1 };
+}
+// A table keeps at least two rows and one column.
+export function tableCan(kind) {
+  const t = tableAt();
+  return !!t && (kind === 'row-' ? t.rows.length > 2 : kind === 'col-' ? t.row.cells.length > 1 : true);
+}
+export function tableOp(kind) {
+  const t = tableAt();
+  if (!t) return banner('Select a table.', [], 2500);
+  const { host, table, sel, cell, rows, row, col } = t;
   let focus = null;
   const fn = () => {
     if (kind === 'row+') {
@@ -654,6 +677,10 @@ function onKey(e) {
     if (k === 'Escape') present(false);
     return;
   }
+  // Menus own every plain key (type-ahead); toolbars and buttons own arrows, Home, End,
+  // Enter and Space. Other shortcuts still act on the slides from the chrome.
+  if (!mod && e.target.closest && (e.target.closest('.sh-pop') ||
+      (e.target.closest('.sh-root, .hs-side') && /^(Arrow|Home$|End$|Enter$| $)/.test(k)))) return;
   if (!mod && k.toLowerCase() === 'e') { H.toggleEdit(); return; }
   if (!mod && k.toLowerCase() === 'p') { present(true); return; }
   if (k === '?') { H.help(); return; }

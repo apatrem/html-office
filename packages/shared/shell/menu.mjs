@@ -1,5 +1,6 @@
-// ARIA menu and menubar. Items: { label, shortcut, onSelect, disabled, checked, radio },
-// { heading } or "-". A released shell never lists an inert command.
+// ARIA menu and menubar. Items: { label, shortcut, onSelect, disabled, checked,
+// radio, icon }, { heading } or "-". `icon` is a decorative element shown before
+// the label. A released shell never lists an inert command.
 import { h, roving, icon } from "./dom.mjs";
 import { openPopover, closePopover, openPopoverState } from "./popover.mjs";
 
@@ -34,6 +35,8 @@ function menuList(items, { label, onHorizontal } = {}) {
         { class: "sh-mcheck" },
         checkable && item.checked ? icon("check") : null,
       ),
+      item.icon &&
+        h("span", { class: "sh-mic", "aria-hidden": "true" }, item.icon),
       h("span", { class: "sh-mlabel" }, item.label),
       item.shortcut && h("kbd", {}, item.shortcut),
     );

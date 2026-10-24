@@ -35,6 +35,30 @@ const PRESETS = [
   ["none", "No borders", "bNone"],
 ];
 
+// Toolbar button that opens a colour picker; its bar shows the current colour
+// (set `button.bar.style.background`).
+export function colourButton(kind, onClick) {
+  const fill = kind === "fill",
+    label = fill ? "Fill colour" : "Text colour",
+    bar = h("span", { class: "sh-swbar" }),
+    b = h(
+      "button",
+      {
+        type: "button",
+        class: "sh-b sh-colour",
+        "aria-label": label,
+        title: label,
+        "aria-haspopup": "dialog",
+        "aria-expanded": "false",
+        onclick: onClick,
+      },
+      fill ? icon("fill") : h("span", { class: "sh-g" }, h("b", {}, "A")),
+      bar,
+    );
+  b.bar = bar;
+  return b;
+}
+
 // Radio group of swatches: arrows move, Enter/Space/click picks.
 export function swatchGroup(label, tokens, current, onPick) {
   const group = h("div", {
