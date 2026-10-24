@@ -106,7 +106,7 @@ Dependencies: T06. Scope: M. Paths: table schema/commands (`prosemirror-tables`)
 
 Dependencies: T08, Slides PR #1 landed, **[Data]** T04 loader. Scope: M per part; separate the Slides extraction PR from the Text chart PR. Paths: `packages/shared/charts/`, Slides import updates, Text chart node and tests.
 
-- Note: [ADR-013](decisions/013-cross-product-clipboard.md) proposes doing the extraction earlier as cross-product task X03, before Data T18 (decision 2). If it is accepted, T11 keeps only the Text part and depends on X03. Chart copy and paste with Slides (ADR-013 §4) are T11 acceptance items once X02c exists. Charts with Data follow in cross task X02f, after X02d and T11.
+- Note: per [ADR-013](decisions/013-cross-product-clipboard.md) decision 2, the extraction is done earlier as cross-product task X03, before Data T18. T11 keeps only the Text part and depends on X03. Chart copy and paste with Slides (ADR-013 §4) are T11 acceptance items once X02c exists. Charts with Data follow in cross task X02f, after X02d and T11.
 - Acceptance (extraction): chart types, JSON schemas, validation and SVG rendering move to `packages/shared/charts/`; Slides tests pass and regenerated example decks are byte-identical to the previous build.
 - Acceptance (Text): `figure.chart` with ID, numbered caption and `data-width="text|full"`; saved SVG previews display and print without ECharts or a network; chart editing loads pinned, SRI-verified ECharts through the shared loader, and the offline build embeds it. Charts do not wrap text.
 - Acceptance (Text): in edit mode, a chart creates its ECharts instance only when it first scrolls into view (IntersectionObserver); the others keep showing their SVG preview, so a long document with many figures stays responsive.

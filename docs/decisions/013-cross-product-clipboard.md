@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. Four choices need the user's decision; they are listed under [Decisions for the user](#decisions-for-the-user), each with a recommendation. The rest is proposed for acceptance as written. Nothing is implemented yet; the implementation is X02 (below) and X03.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). Nothing is implemented yet; the implementation is X02 (below) and X03.
 
 ## Context
 
@@ -148,7 +148,7 @@ Rules:
 | Row with `cellStyle: total` | `totalRows` | `tr.tot` | Total row |
 | Number and date cells, or `align.horizontal: right` | `columns[].align` or cell `align` | `td.n` / `th.n` | Right-aligned (`ta-r`) |
 | Explicit `left` or `center` alignment | `align` | `ta-l` / `ta-c` on the cell. The theme already applies these classes to any descendant; X02b documents them for cells in the format reference. | `ta-l` / `ta-c` |
-| A `centerContinuous` run over empty cells | `colspan` | `colspan` if Slides allows merges (decision 3), else the text stays in the anchor cell | `colspan` |
+| A `centerContinuous` run over empty cells | `colspan` | `colspan` (decision 3); with the fallback, the text stays in the anchor cell | `colspan` |
 | `bold`, `italic` | Same | `<b>`, `<i>` | Bold, italic marks |
 | `color` token | Same | `span.c-*` | Dropped (Text has no colour marks) |
 | `alert` / `note` cell styles | `cellStyle` | `neg` / `<i>` with `c-t2` | Bold / italic |
@@ -171,7 +171,7 @@ Rules:
 **Slides ↔ Text:**
 
 - Tables use the same model and are lossless except for what one side lacks:
-  - Slides has no links or caption, and no merges unless decision 3 adds them;
+  - Slides has no links or caption. It gains merges with decision 3, unless X02b falls back to splitting them;
   - Text has no colour marks.
 - Text's caption and figure ID are not copied into Slides. Pasting into Text creates a new ID and caption number. Slides `data-id` values are never copied; the destination assigns its own.
 
@@ -208,7 +208,9 @@ Beyond these limits, the paste is refused with a message and the document is unc
 - A version bump changes all three products in one change, with a new digest.
 - Number formatting in charts is `en-US` today (`src/charts/common.js`). The extraction keeps that byte-identical; a document `locale` option is a follow-up recorded in X03.
 
-**Sequencing.** The extraction is pulled out of Text T11 into its own cross-product task, **X03**, which runs before Data T18 and before the chart increments of X02. Text T11 keeps only the Text chart figures. This is decision 2.
+**Sequencing.** The extraction is pulled out of Text T11 into **X03**, which runs before Data T18 and before the chart increments of X02. Text T11 keeps only the Text chart figures (decision 2).
+
+X03 is not a separate effort. It is **PR 1 of the session already assigned to the shared chart module and Data T18**, whose PR 2 is T18. That session waits for this ADR before it changes code.
 
 - **X03** moves the contract to `packages/shared/charts/` with Slides output byte-identical (the T11 extraction acceptance, unchanged). Its prerequisites are already met: Slides PR #1 is merged and the Data loader exists. It does not depend on Text T08. X03 also adds two things the clipboard needs, outside the byte-identical rendering path:
   - **Strict per-type schemas.** Today's validators (`req` in `src/charts/common.js`) check required fields only: they accept unknown fields and wrongly typed titles or series names. X03 adds an allow-listed, recursive field and type check per chart type. Chart JSON from the clipboard must pass it as well as `validate`; unknown or wrongly typed fields reject the paste.
@@ -309,8 +311,8 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 | Increment | Pair | Content | Depends on |
 | --- | --- | --- | --- |
 | **X02a** | Data → Data, Data → other applications | `packages/shared/clipboard/`: envelope, carriers, reader precedence, size limits, table model and validator, inert HTML table reader, TSV writer, charte-resolved HTML writer. Data writes the envelope with `range` and the semantic `text/html`; Data reads envelopes and Excel/Sheets/Word/Docs HTML tables (values-first). | X01 |
-| **X02b** | Data ⇄ Slides tables | Slides element copy (a selected `table.t`) and paste of a table as a new element (also from Excel/Sheets/Docs); Data reads Slides tables. Adds `colspan`/`rowspan` to the Slides format and checker if decision 3 is A. | X02a |
-| **X03** | — | Shared chart module extraction, Slides byte-identical | — |
+| **X02b** | Data ⇄ Slides tables | Slides element copy (a selected `table.t`) and paste of a table as a new element (also from Excel/Sheets/Docs); Data reads Slides tables. Adds `colspan`/`rowspan` to the Slides format and checker (decision 3), or ships the documented fallback that splits merges on paste. | X02a |
+| **X03** | — | Shared chart module extraction, Slides byte-identical; then strict schemas and lossless adapters. PR 1 of the shared chart module / T18 session. | — |
 | **X02c** | Slides ⇄ Slides charts, charts → other applications | Chart copy (envelope, PNG, async upgrade) and paste in Slides; SVG sanitiser | X02a, X03 |
 | **X02d** | Data charts → Slides; Slides charts → Data | Snapshot from bindings; cells plus bound chart (decision 1). Data T18 delivers only the binding model; the clipboard behaviour is here. | X02c, Data T18 |
 | Text T07 / T10 | Text ⇄ Data, Text ⇄ Slides tables | Acceptance items of those Text tasks (copy writes the envelope; paste uses §3) | X02a, X02b |
@@ -361,21 +363,20 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
   - a `centerContinuous` header and a Text table with merged headers;
   - every chart type, including a stale Data chart.
 
-## Decisions for the user
+## Decisions taken by the user
 
-1. **What pasting a chart into Data creates.**
-   - **A (recommended):** data cells and a chart bound to them. Data's rule that charts reference typed cells holds, the values are editable in the grid, and Excel users expect it.
-   - B: a free-standing chart that holds literal values. This is simpler, but the data is invisible in the grid, and T18 needs a second chart kind.
-   - C: cells only, with no chart.
-2. **When to extract the shared chart module.**
-   - **A (recommended):** a new cross-product task, X03, now, before Data T18 and the chart increments of X02. Text T11 keeps only Text figures. This meets the requirement that all three products use the Slides ECharts code without waiting for Text T08.
-   - B: keep the extraction inside Text T11, as planned. Data T18 and chart paste then wait for Text, which starts after Data Checkpoint B.
-3. **Merged cells in Slides tables.**
-   - **A (recommended):** allow `colspan`/`rowspan` in `table.t` (format reference and checker, in X02b). Text and Slides tables then map one to one, and merged headers survive.
-   - B: keep Slides tables without merges. Pasted merges are split, with the text kept in the anchor cell.
-4. **Copying stale Data results.**
-   - **A (recommended):** allow the copy, mark it `stale`, and show a notice in the destination, consistent with Data's PNG download.
-   - B: refuse the copy until the workbook is recalculated, which may need the engine download in standard mode.
+The user took these on 24 October 2026; the options are kept for the record.
+
+1. **What pasting a chart into Data creates: A, data cells and a chart bound to them.** Data's rule that charts reference typed cells holds, the values are editable in the grid, and Excel users expect it.
+   - Not chosen: B, a free-standing chart holding literal values (simpler, but the data is invisible in the grid and T18 would need a second chart kind); C, cells only.
+2. **When to extract the shared chart module: before Data T18, as X03.** The user pointed out that the session already working on the shared chart module and Data T18 plans this extraction as its PR 1. X03 is therefore that PR, not a new task.
+   - X03 adds strict schemas and lossless table adapters (§4) to that session's scope. They come after the byte-identical move, in the same PR or a follow-up PR before T18, so the move stays a pure, checkable refactor.
+   - Text T11 keeps only Text figures.
+   - Not chosen: keeping the extraction inside Text T11, which would make Data charts wait for Text.
+3. **Merged cells in Slides tables: A, allow `colspan`/`rowspan` in `table.t`** (format reference and checker, in X02b). Text and Slides tables then map one to one, and merged headers survive.
+   - **Alternate option, kept open: split merges on paste.** Slides tables stay without merges, and a pasted merge keeps its text in the anchor cell and leaves the covered cells empty, with a notice. X02b may ship it instead of A only if merges prove incompatible with Slides table editing, the checker's geometry checks or print, and it must say so in its PR. The mapping rules above describe both.
+4. **Copying stale Data results: A, allow the copy, mark it `stale` and show a notice in the destination**, consistent with Data's PNG download.
+   - Not chosen: refusing the copy until recalculation, which may need the engine download in standard mode.
 
 ## Alternatives considered
 
@@ -389,7 +390,7 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 ## Consequences
 
 - Data's clipboard changes shape: the envelope replaces the bare `html-office-range/1` object as the custom type's content, but `range` keeps it byte for byte. Data gains a `text/html` flavour, so Excel and Sheets receive formatting and structure.
-- Slides gains element copy and paste for tables and charts. Its format reference may gain merged cells (decision 3).
+- Slides gains element copy and paste for tables and charts. Its format reference gains merged cells (decision 3), unless X02b uses the fallback.
 - Text T07, T10 and T11 inherit the mapping instead of defining their own for html-office sources.
 - A new shared module, `packages/shared/clipboard/`, is added, and the chart contract moves to `packages/shared/charts/` (X03). Both count toward each product's code ceiling: the clipboard module is expected to be well under 20 KB, and the chart module is moved code, not new code.
 - Safari, Firefox and native-application behaviour is documented from sources and WebKit code, not yet observed. X02 gates must observe it before any increment is accepted.

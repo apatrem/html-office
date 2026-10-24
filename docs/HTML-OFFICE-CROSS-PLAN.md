@@ -56,7 +56,7 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 ## X — Cross-product copy and paste
 
-**X01 — Clipboard contract — proposed 24 October 2026 in [ADR-013](decisions/013-cross-product-clipboard.md); four choices await the user (ADR-013, "Decisions for the user").** Scope M, research and ADR.
+**X01 — Clipboard contract — done 24 October 2026, see [ADR-013](decisions/013-cross-product-clipboard.md); the user took its four decisions the same day.** Scope M, research and ADR.
 - Carriers: one `html-office-clip/1` envelope written by the `copy` event in the custom type `application/x-html-office+json` and, for Safari and cross-browser paste, as JSON in a `data-html-office` attribute of the semantic `text/html` flavour; `text/plain` TSV for everything else. Chromium evidence is in the [proof of concept](research/x01-clipboard-poc/README.md); Safari's sanitiser was read in WebKit source.
 - Tables use one portable model (displayed text, optional Data typed value and format, merges, token names only). The ADR maps Data, Slides and Text in both directions, including merges, number formats, theme tokens, links and cell styles.
 - Charts travel as the Slides chart contract JSON plus the SVG preview and a PNG for other applications. A bound Data chart becomes a values snapshot; values only, never a live link.
@@ -64,13 +64,13 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 
 **X02 — Implementation per product pair.** Values only, no live link. Each increment is one PR, scope M; the test plan is in ADR-013 §6.
 - **X02a — Shared clipboard module; Data → Data and Data → other applications.** `packages/shared/clipboard/` (envelope, carriers, limits, table model, inert HTML reader, writers). Data writes the envelope and a semantic `text/html` table, and reads html-office and Excel/Sheets/Word/Docs HTML tables.
-- **X02b — Data ⇄ Slides tables.** Slides element copy and table paste; Data reads Slides tables; merged cells in Slides if the user chooses ADR-013 decision 3 A.
+- **X02b — Data ⇄ Slides tables.** Slides element copy and table paste; Data reads Slides tables. Slides tables gain merged cells (decision 3). The alternate option, splitting merges on paste, is allowed only if merges prove incompatible with Slides editing, checking or print.
 - **X02c — Slides ⇄ Slides charts and charts → other applications.** Chart copy (envelope, PNG, async upgrade) and paste, with the SVG sanitiser. After X03.
 - **X02d — Data charts → Slides; Slides charts → Data.** Values snapshot from bindings; cells plus a bound chart in Data (decision 1). After X02c and Data T18, which delivers only the binding model.
 - **Text pairs** need no separate increment for tables or Slides charts. They are acceptance items of Text T07/T10 for tables (after X02a and X02b) and of T11 for Slides charts (after X02c and X03).
 - **X02f — Text ⇄ Data charts.** After X02d and Text T11.
 
-**X03 — Extract the shared chart module.** Scope M. Proposed in ADR-013 §4, decision 2 A; it takes the extraction part of Text T11 forward.
+**X03 — Extract the shared chart module.** Scope M. ADR-013 §4 and decision 2; it takes the extraction part of Text T11 forward. **Delivered as PR 1 of the session working on the shared chart module and Data T18**, before its T18 PR. It is not a separate task.
 - Move the chart registry, types, validation, `theme()`, the pinned SRI ECharts loader and SVG preview capture from `src/engine/charts.js` and `src/charts/` to `packages/shared/charts/`, so Slides, Data (T18) and Text (T11) draw charts with the same code and the same pinned ECharts (embedded in offline builds).
 - Acceptance as Text T11's extraction: Slides tests pass and regenerated example decks are byte-identical.
 - Also add strict per-type chart schemas (allow-listed fields and types) and lossless table adapters (Gantt keeps task `highlight`), with tests, outside the byte-identical rendering path.
