@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8"><title>source</title>
+<button id="dt">copy via event</button><button id="async">copy via async</button>
+<div id="sel" contenteditable>select me</div>
+<script>
+const payload = { schema: "html-office-clip/1", kind: "range", note: "quote \" amp & lt < gt > é 😀", cells: [[1,2],[3,4]] };
+const json = JSON.stringify(payload);
+const esc = s => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const big = 'x'.repeat(2_000_000);
+window.html = `<table data-html-office="${esc(json)}" data-big="${big}"><tr><th>A</th><th>B</th></tr><tr><td data-v="1">1</td><td>2</td></tr></table><!--HO-COMMENT--><script type="application/json" id="hoscript">${json}<\/script><template id="hotpl">tpl</template><div style="display:none" data-hidden="yes">hidden</div>`;
+let mode = 'dt';
+document.addEventListener('copy', e => {
+  if (mode !== 'dt') return;
+  e.clipboardData.setData('application/x-html-office+json', json);
+  e.clipboardData.setData('text/html', window.html);
+  e.clipboardData.setData('text/plain', 'A\tB\n1\t2');
+  e.preventDefault();
+});
+document.getElementById('dt').onclick = () => { mode = 'dt'; window.r = document.execCommand('copy'); };
+document.getElementById('async').onclick = async () => {
+  mode = 'async';
+  const c = document.createElement('canvas'); c.width = c.height = 4;
+  const png = await new Promise(r => c.toBlob(r, 'image/png'));
+  const items = { 'text/html': new Blob([window.html], {type:'text/html'}), 'text/plain': new Blob(['A\tB\n1\t2'], {type:'text/plain'}), 'image/png': png,
+    'web application/x-html-office+json': new Blob([json], {type:'web application/x-html-office+json'}) };
+  try { await navigator.clipboard.write([new ClipboardItem(items)]); window.r = 'ok'; } catch (e) { window.r = 'ERR ' + e.message; }
+};
+</script>

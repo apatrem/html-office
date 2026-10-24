@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>target</title><div id="t" contenteditable>paste here</div>
+<script>
+const summarise = h => ({ len: h.length, attr: /data-html-office="/.test(h), attrIntact: h.includes('html-office-clip/1') && h.includes('&quot;quote \\&quot;'), big: /data-big="x{2000000}"/.test(h), comment: h.includes('HO-COMMENT'), script: h.includes('hoscript'), template: h.includes('hotpl'), hidden: h.includes('data-hidden'), dataV: h.includes('data-v="1"'), styleInlined: /<td[^>]*style=/.test(h), head: h.slice(0, 160) });
+window.got = null;
+document.addEventListener('paste', e => {
+  e.preventDefault();
+  const dt = e.clipboardData, types = Array.from(dt.types);
+  window.got = { types, custom: dt.getData('application/x-html-office+json').slice(0, 60), web: dt.getData('web application/x-html-office+json').slice(0,60), html: summarise(dt.getData('text/html')), plain: dt.getData('text/plain'), files: dt.files.length };
+});
+window.readAsync = async (unsanitized) => {
+  try {
+    const items = await navigator.clipboard.read(unsanitized ? { unsanitized: ['text/html'] } : undefined);
+    const out = [];
+    for (const it of items) {
+      const o = { types: it.types };
+      if (it.types.includes('text/html')) o.html = summarise(await (await it.getType('text/html')).text());
+      if (it.types.includes('web application/x-html-office+json')) o.web = (await (await it.getType('web application/x-html-office+json')).text()).slice(0, 60);
+      out.push(o);
+    }
+    return out;
+  } catch (e) { return 'ERR ' + e.message; }
+};
+</script>
