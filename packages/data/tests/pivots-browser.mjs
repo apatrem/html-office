@@ -348,6 +348,40 @@ try {
       .inputValue(),
     "H1",
   );
+  // Undoing a deletion restores the draft's own bounds; an invalid draft
+  // reference never blocks a structural edit.
+  await page.locator("#cell-address").fill("A10");
+  await page.locator("#cell-address").press("Enter");
+  await command(page, "Delete rows");
+  await waitStatus(page, /references updated/);
+  const sourceField = panel(page).getByLabel(
+    "Source range (header row first)",
+    { exact: true },
+  );
+  assert.equal(await sourceField.inputValue(), "B1:F9");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await waitStatus(page, /Undo restored/);
+  assert.equal(await sourceField.inputValue(), "B1:F10");
+  await sourceField.fill("NOPE");
+  await sourceField.press("Tab");
+  await page.locator("#cell-address").fill("A12");
+  await page.locator("#cell-address").press("Enter");
+  await command(page, "Insert rows");
+  await waitStatus(page, /references updated/);
+  assert.equal(await sourceField.inputValue(), "NOPE");
+
+  // Filter items follow source changes while the panel is open.
+  await panel(page)
+    .getByLabel("Pivot table", { exact: true })
+    .selectOption("byRegion");
+  await panel(page)
+    .getByRole("checkbox", { name: "Online", exact: true })
+    .waitFor();
+  await enter(page, "D9", "text", "Partner");
+  await waitStatus(page, /Calculated locally/);
+  await panel(page)
+    .getByRole("checkbox", { name: "Partner", exact: true })
+    .waitFor();
   assert.deepEqual(errors, []);
   await context.close();
 

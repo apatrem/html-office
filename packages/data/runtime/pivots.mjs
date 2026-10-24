@@ -41,6 +41,7 @@ export function setupPivots({
   getSelection,
   getStates,
   isSnapshotCurrent = () => false,
+  getRevision = () => 0,
   busy,
   refresh,
   remove,
@@ -60,8 +61,11 @@ export function setupPivots({
     lastKey = "",
     // Set while rendering filters whose items cannot be listed yet.
     filterProblem = null;
+  // Draft references before and after each structural shift, for undo.
+  const moves = [];
   const pivotsOf = () => getBook().pivots ?? [];
   function select(id) {
+    moves.length = 0;
     saved = pivotsOf().find((p) => p.id === id) ?? null;
     draft = saved ? structuredClone(saved) : null;
     fresh = true;
@@ -135,6 +139,7 @@ export function setupPivots({
     }
     saved = null;
     fresh = false;
+    moves.length = 0;
     render();
   }
   // Labels of the draft source, or the reason it cannot be read.
@@ -715,6 +720,8 @@ export function setupPivots({
         fresh,
         isSnapshotCurrent(),
         definition && { ...definition, refreshed: undefined },
+        // Filter item lists follow every workbook change while shown.
+        draft?.filters.length ? getRevision() : null,
       ]);
     if (key !== lastKey) {
       lastKey = key;
@@ -730,23 +737,37 @@ export function setupPivots({
     for (const b of root.querySelectorAll("[data-busy]"))
       b.disabled = busy() || b.dataset.busy === "blocked";
   }
-  // Row/column operations (and their undo) move the draft's references as
-  // they move the committed definition's.
-  function structure(command) {
+  // Row/column operations move the draft's references as they move the
+  // committed definition's. A deletion can shrink a draft range; undoing it
+  // restores the references the draft had before, rather than re-growing
+  // them. A reference the user is still typing (invalid) is left alone.
+  function structure(command, direction) {
     if (!draft) return;
+    const refs = () => JSON.stringify([draft.source, draft.output]),
+      undone = direction === "undo" && moves.at(-1);
+    lastKey = "";
+    if (undone && undone.after === refs()) {
+      moves.pop();
+      [draft.source, draft.output] = JSON.parse(undone.before);
+      return;
+    }
+    const before = refs(),
+      shift = (ref) => {
+        try {
+          return shiftRange(ref, command);
+        } catch {
+          return ref;
+        }
+      };
     if (
       draft.source.sheetId === command.sheetId &&
       draft.source.ref !== undefined
     )
-      draft.source = {
-        ...draft.source,
-        ref: shiftRange(draft.source.ref, command),
-      };
+      draft.source = { ...draft.source, ref: shift(draft.source.ref) };
     if (draft.output.sheetId === command.sheetId)
-      draft.output = {
-        ...draft.output,
-        ref: shiftRange(draft.output.ref, command),
-      };
+      draft.output = { ...draft.output, ref: shift(draft.output.ref) };
+    if (direction === "undo") moves.length = 0;
+    else moves.push({ before, after: refs() });
   }
   return {
     structure,

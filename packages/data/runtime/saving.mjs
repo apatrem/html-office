@@ -416,6 +416,10 @@ export function setupPersistence({
         protectedSource,
       });
     },
+    // Increases with every workbook change (pivot filter lists follow it).
+    get revision() {
+      return dirty.revision;
+    },
     get dirty() {
       return dirty.dirty;
     },

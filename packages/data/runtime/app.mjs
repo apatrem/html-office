@@ -594,7 +594,7 @@ async function applyLayout(command, structural = false) {
         r.result;
     next.snapshot = result.snapshot;
     book = next;
-    if (structural) pivots.structure(command);
+    if (structural) pivots.structure(command, "do");
     trustSnapshot();
     pendingEdits = [];
     const after = captureCells(book, result.formulas),
@@ -647,7 +647,7 @@ async function moveHistory(direction) {
   const priorRestoration = cellEdits(pendingEdits);
   const moved = history[direction](book);
   if (!moved) return;
-  if (moved.structure) pivots.structure(moved.structure);
+  if (moved.structure) pivots.structure(moved.structure, direction);
   const epoch = revisions.begin();
   pendingEdits = [];
   if (moved.selection) {
@@ -1192,6 +1192,7 @@ const pivots = setupPivots({
   getStates: () => pivotStates,
   isSnapshotCurrent: () =>
     !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  getRevision: () => persistence.revision,
   busy: () => !!loading,
   refresh: refreshPivot,
   remove: deletePivot,
