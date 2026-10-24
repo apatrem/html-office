@@ -94,6 +94,12 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 - Measure the saving in the Data P&L and the Slides example.
 - Verify that every bundled package is still attributed.
 
+Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, [`packages/shared/notices.mjs`](../packages/shared/notices.mjs), serves both products:
+- Licence files are cut into sections at `=====`/`~~~~` lines and after the Apache-2.0 terms. Copyright lines are lifted out, and sections whose wording is identical apart from whitespace share one stored text, listed with its packages and copyright holders. Different wording is never merged (for example the `http`/`https` Apache variants, or MIT "(including the next paragraph)"). A file's other sections stay together and point to the texts lifted out of them.
+- Data: `engine/THIRD-PARTY-NOTICES.txt` is unchanged (so `rebuild.sh --check` still compares it); `tools/notices.mjs` reads it back, checked against `dependency-audit.json`, and the Help dialog embeds the grouped text. The 47 retained texts become 21 blocks: **197,573 → 52,638 bytes** of text, 201,131 → 53,594 once HTML-escaped. Standard P&L application code: **454,195 → 306,658 bytes** (−147,537); offline P&L 1,410,454 → 1,262,917.
+- Slides: the engine comment is now generated from each bundled package's LICENSE and NOTICE files, plus html-slides' own LICENSE. It previously held a truncated MIT text that referred to `THIRD_PARTY_NOTICES.md` and named Moveable and Selecto "and their dependencies". It now holds the full MIT text once, all 19 bundled packages by name with their copyright holders, and the `@egjs` subcomponent notices: **1,090 → 3,703 bytes** (+2,613 per deck). Example decks: catalogue 459,534 → 462,451 bytes, community garden 450,085 → 453,002 (each +2,613 engine, +304 from regenerating with the current `default.css`).
+- Tests (`tests/notices.test.mjs`, `packages/data/tests/notices.test.mjs`) use an independent checker, [`notices-check.mjs`](../packages/shared/notices-check.mjs). They fail if a bundled package (Cargo closure, Rust standard-library notices, npm packages from esbuild's metafile) is not listed, if any line of a licence file is missing, or if a licence text is stored twice. ECharts stays outside the engine with its pinned licence header and shipped licence.
+
 ## S — Styling scope in Data
 
 **S01 — Design session on Data styling — done 22 October 2026, see [ADR-012](decisions/012-data-formatting-vocabulary.md).**
