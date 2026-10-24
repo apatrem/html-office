@@ -31,6 +31,7 @@ Not covered:
 
 - Firefox, Safari and native applications. Safari's cross-origin sanitiser was read in WebKit source instead (`Source/WebCore/editing/markup.cpp`, `StyledMarkupAccumulator::appendStartTag` and the renderer check in `traverseNodesForSerialization`). It keeps ordinary attributes and drops non-rendered nodes.
 - Headless Chromium may use an in-process clipboard instead of the macOS pasteboard.
+- The combined chart sequence of ADR-013 §4 (a `copy` event write followed by an async replacement in the same gesture) was not run. The two writes were separate, `toBlob()` was awaited before `write()`, and clipboard permissions were granted, which hides the activation rules. This is an X02c gate.
 
 ## Inert parsing: `parse.mjs`
 

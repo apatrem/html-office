@@ -66,8 +66,9 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
 - **X02a — Shared clipboard module; Data → Data and Data → other applications.** `packages/shared/clipboard/` (envelope, carriers, limits, table model, inert HTML reader, writers). Data writes the envelope and a semantic `text/html` table, and reads html-office and Excel/Sheets/Word/Docs HTML tables.
 - **X02b — Data ⇄ Slides tables.** Slides element copy and table paste; Data reads Slides tables; merged cells in Slides if the user chooses ADR-013 decision 3 A.
 - **X02c — Slides ⇄ Slides charts and charts → other applications.** Chart copy (envelope, PNG, async upgrade) and paste, with the SVG sanitiser. After X03.
-- **X02d — Data charts → Slides and Text; any chart → Data.** Values snapshot from bindings; cells plus bound chart in Data (decision 1). After X02c and Data T18, which delivers only the binding model.
-- **Text pairs** are not a separate increment. They are acceptance items of Text T07/T10 for tables (after X02a and X02b) and of T11 for charts (after X02c and X03).
+- **X02d — Data charts → Slides; Slides charts → Data.** Values snapshot from bindings; cells plus a bound chart in Data (decision 1). After X02c and Data T18, which delivers only the binding model.
+- **Text pairs** need no separate increment for tables or Slides charts. They are acceptance items of Text T07/T10 for tables (after X02a and X02b) and of T11 for Slides charts (after X02c and X03).
+- **X02f — Text ⇄ Data charts.** After X02d and Text T11.
 
 **X03 — Extract the shared chart module.** Scope M. Proposed in ADR-013 §4, decision 2 A; it takes the extraction part of Text T11 forward.
 - Move the chart registry, types, validation, `theme()`, the pinned SRI ECharts loader and SVG preview capture from `src/engine/charts.js` and `src/charts/` to `packages/shared/charts/`, so Slides, Data (T18) and Text (T11) draw charts with the same code and the same pinned ECharts (embedded in offline builds).

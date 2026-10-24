@@ -64,7 +64,9 @@ Rules:
   5. `text/plain`.
   
   **An absent carrier, or an envelope with an unknown `schema` string (a newer major version), is skipped** with a notice, and the reader continues down the list. **A recognised `html-office-clip/1` envelope that is malformed, over a limit or unsafe aborts the whole paste**, leaving the document unchanged. It never falls back to the semantic flavours: a broken Data range would otherwise paste rounded displayed values and silently lose its formulas.
-- **Parsing.** The `text/html` flavour is parsed into a document without a browsing context: a `<template>` element's content, or `DOMParser`. It is read as data, and clipboard nodes are never inserted into the live document. MDN warns that such a document "can download resources specified in `<iframe>` and `<img>` elements". Chromium 151 fetched nothing for `img`, `srcset`, `iframe`, `link`, `object`, `poster`, `@import` or `url()` with either method ([`parse.mjs`](../research/x01-clipboard-poc/parse.mjs)). X02a must repeat that zero-request test in Firefox and WebKit and use whichever method fetches nothing in all three engines; if none qualifies, it must strip resource-bearing elements and attributes with a string-level pre-pass before parsing.
+- **Parsing.** The `text/html` flavour is parsed by assigning it to a detached `<template>` element's `innerHTML` and reading `template.content`. That content belongs to the template's inert document, which has no browsing context. It is read as data, and clipboard nodes are never inserted into the live document. `DOMParser` is not used: MDN warns that its document "can download resources specified in `<iframe>` and `<img>` elements".
+  - Chromium 151 fetched nothing for `img`, `srcset`, `iframe`, `link`, `object`, `poster`, `@import` or `url()` with `<template>`, `DOMParser` or `createHTMLDocument` ([`parse.mjs`](../research/x01-clipboard-poc/parse.mjs)).
+  - **X02a gate:** the same zero-request test passes with `<template>` in Firefox and WebKit. If it fails in an engine, X02a first removes every resource-bearing element and attribute from the string with a tokeniser pre-pass, before any parsing in that engine, and the test is repeated.
 - **Size limits** (initial values, measured in X02). Writers and readers use the same limits, measured as JavaScript string length (UTF-16 code units) before any parsing. A writer never produces a flavour that a reader would refuse.
 
   | Flavour | Limit | Writer above the limit |
@@ -257,14 +259,21 @@ If the sequence is unreliable in a browser, that browser falls back to a separat
 | --- | --- |
 | Slides | A new `figure.chart` with `chart.data` (strict schema, then the destination registry's `validate`), placed like Insert › Chart |
 | Text | A new chart figure with a new ID and numbered caption; `caption` and `width` are used when present |
-| Data, from any source | **Decision 1, recommendation A**: Data writes the chart's data table (`toRows` with the adapter's header row) as cells at the selection, typed by §3's rules. The header row gets `cellStyle: header`. Data then creates a chart whose binding is that block, with the chart-level options from `chart.data`. It shows the target rectangle first and asks before overwriting non-empty cells. One undoable step. |
+| Data, from any source | **Decision 1, recommendation A**: Data writes the chart's data table (`toRows` with the adapter's header row) as cells at the selection, **typed by column role, not inferred**. The header row and the label, name, category, group, date and flag columns are text cells. This applies to Gantt dates (month-only `2027-02` is not a date) and waterfall `y`/`n`. Numeric columns are written as numbers straight from the JSON, and `null` gives an empty cell. A category called `true` therefore stays text, and Slides → Data → Slides returns identical JSON. The header row gets `cellStyle: header`. Data then creates a chart whose binding is that block, with the chart-level options from `chart.data`. It shows the target rectangle first and asks before overwriting non-empty cells. One undoable step. |
 
 **The pasted `chart.svg` is untrusted.**
 
 - When ECharts is available, the destination redraws from `chart.data` with its own charte and discards the pasted SVG.
 - When ECharts is unavailable (offline standard build), the SVG is shown only after a sanitiser rebuilds it from an allow-list in the SVG namespace:
   - elements: `svg`, `g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `tspan`, `defs`, `clipPath`, `linearGradient`, `radialGradient`, `stop`;
-  - attributes: geometry, `transform`, `fill`, `stroke` and their opacity, width, dash, `linecap` and `linejoin` variants, the `font-*` attributes, `text-anchor`, `dominant-baseline`, `clip-path`, `offset`, `stop-color`, `stop-opacity`, `id`, `viewBox`, `preserveAspectRatio`.
+  - attributes, exactly:
+    - `id`, `viewBox`, `preserveAspectRatio`, `transform`;
+    - `d`, `x`, `y`, `dx`, `dy`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry`, `x1`, `y1`, `x2`, `y2`, `points`;
+    - `fill`, `fill-opacity`, `fill-rule`, `stroke`, `stroke-opacity`, `stroke-width`, `stroke-dasharray`, `stroke-dashoffset`, `stroke-linecap`, `stroke-linejoin`, `stroke-miterlimit`, `opacity`, `paint-order`;
+    - `font-family`, `font-size`, `font-weight`, `font-style`, `text-anchor`, `dominant-baseline`;
+    - `clip-path`, `clipPathUnits`, `gradientUnits`, `gradientTransform`, `fx`, `fy`, `offset`, `stop-color`, `stop-opacity`.
+  
+  Values may not contain `url(` except `url(#id)` in `fill`, `stroke` and `clip-path`. X02c checks this list against recorded ECharts 6.1.0 output for every chart type; any change to the list is a reviewed edit of this ADR.
   
   Everything else is dropped, including `script`, `foreignObject`, `style`, `image`, `use`, `a`, every `href` and every event attribute.
 - **Fragment references are isolated.** ECharts emits IDs such as `zr0-c0`, so two pasted previews, or a preview and a live chart, can collide. Every pasted `id` gets a fresh per-paste prefix and every `url(#…)` is rewritten to match. A reference to an ID outside the pasted SVG, or any other `url()`, is removed. X02c tests two pastes of the same chart offline.
@@ -276,7 +285,7 @@ If the sequence is unreliable in a browser, that browser falls back to a separat
 
 Clipboard content is **untrusted**, including html-office envelopes. Any web page can write `text/html` with a `data-html-office` attribute, and in Chromium and Firefox it can also write the custom type.
 
-- **Size before parsing.** Every flavour's string length is checked against §1's limits before `JSON.parse`, HTML parsing or TSV parsing. Larger `text/html` falls through to `text/plain`. Cell, span and point counts are checked before a grid or a canvas is allocated.
+- **Size before parsing.** Every flavour's string length is checked against §1's limits before `JSON.parse`, HTML parsing or TSV parsing. `text/html` over its limit is treated as absent, since it cannot be inspected. Because html-office writers never produce `text/html` over that limit, such HTML comes from another application, and falling through to the custom type or `text/plain` loses nothing html-office wrote. Cell, span and point counts are checked before a grid or a canvas is allocated.
 - **Validation by the destination's own validators**, all or nothing:
   - Data `validateCell`, link and style validators;
   - the strict per-type chart schema (X03), then the chart registry's `validate`;
@@ -303,9 +312,10 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 | **X02b** | Data ⇄ Slides tables | Slides element copy (a selected `table.t`) and paste of a table as a new element (also from Excel/Sheets/Docs); Data reads Slides tables. Adds `colspan`/`rowspan` to the Slides format and checker if decision 3 is A. | X02a |
 | **X03** | — | Shared chart module extraction, Slides byte-identical | — |
 | **X02c** | Slides ⇄ Slides charts, charts → other applications | Chart copy (envelope, PNG, async upgrade) and paste in Slides; SVG sanitiser | X02a, X03 |
-| **X02d** | Data charts → Slides and Text; any chart → Data | Snapshot from bindings; cells plus bound chart (decision 1). Data T18 delivers only the binding model; the clipboard behaviour is here. | X02c, Data T18 |
+| **X02d** | Data charts → Slides; Slides charts → Data | Snapshot from bindings; cells plus bound chart (decision 1). Data T18 delivers only the binding model; the clipboard behaviour is here. | X02c, Data T18 |
 | Text T07 / T10 | Text ⇄ Data, Text ⇄ Slides tables | Acceptance items of those Text tasks (copy writes the envelope; paste uses §3) | X02a, X02b |
-| Text T11 | Text ⇄ Slides and Data charts | Acceptance item of T11 (Text part) | X02c, X03 |
+| Text T11 | Text ⇄ Slides charts | Acceptance item of T11 (Text part) | X02c, X03 |
+| **X02f** | Text ⇄ Data charts | Data chart snapshot into Text; Text chart into Data as cells plus a bound chart | X02d, Text T11 |
 
 **Automated tests (Playwright, in CI per increment):**
 
@@ -317,7 +327,8 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 - **Zero requests** while parsing and pasting resource-bearing HTML (`img`, `srcset`, `iframe`, `link`, `object`, `poster`, CSS `@import` and `url()`) in all three engines.
 - **Exact values.** Data → Excel and Sheets keep exact numbers, dates, percents, scaled values, parenthesised negatives and leading zeros (the X02a gate in §3). Pasted spreadsheet tables into Data give the same typed values as today's dialog, and ambiguous cells open it.
 - **Rich cell text.** `Revenue <b>growth</b>` survives Slides ↔ Text, and is flattened with a notice into Data.
-- **Charts per type.** Every chart type round-trips Slides → Data → Slides with identical JSON, including Gantt `highlight`. Two offline pastes of the same chart keep distinct, working SVG references.
+- **Chart pictures.** The PNG written for other applications shows the chart title and unit above the plot (pixel check on a fixture whose axes carry no unit).
+- **Charts per type.** Every chart type, including labels such as `true` or `0012`, round-trips Slides → Data → Slides with identical JSON, including Gantt `highlight`. Two offline pastes of the same chart keep distinct, working SVG references.
 - **Carrier fall-back tests:**
   - remove the custom type, so the envelope must come from `text/html`;
   - remove the attribute, so the semantic table must be used;
