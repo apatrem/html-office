@@ -1,5 +1,5 @@
 // Stacked bars (or 100 %): composition by category.
-import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
+import { base, axisCat, axisVal, seriesColor, fmt, validateCategory, categoryTable } from './common.mjs';
 
 export default {
   label: 'Stacked bars',

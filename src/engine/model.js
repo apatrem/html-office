@@ -2,7 +2,8 @@
 // V2 collaboration will need an independent model and serialisable operations.
 
 export const VERSION = typeof __ENGINE_VERSION__ === 'undefined' ? 'dev' : __ENGINE_VERSION__;
-export {ECHARTS_URL,ECHARTS_INTEGRITY} from '../echarts.js';
+// Imported here first so the bundled engine keeps its module order.
+export {ECHARTS_URL,ECHARTS_INTEGRITY} from '../../packages/shared/charts/echarts.mjs';
 import { ACTIVE_TAGS, attributeProblem, assetProblem } from '../format.js';
 
 export const state = {

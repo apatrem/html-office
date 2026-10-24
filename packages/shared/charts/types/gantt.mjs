@@ -1,6 +1,6 @@
 // Gantt: sequence of activities. tasks: [{name, start, end, group, highlight}]
 // Dates 'YYYY-MM' (whole month) or 'YYYY-MM-DD'. Without an end (or end = start): milestone.
-import { base, req, isObject, records } from './common.js';
+import { base, req, isObject, records, flag, flagOf } from './common.mjs';
 
 const MOIS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function parse(s, end) {
@@ -28,12 +28,14 @@ export default {
     return err;
   },
   table: {
-    columns: () => ['Task', 'Start', 'End', 'Group'],
-    toRows: d => (d.tasks || []).map(x => [x.name, x.start, x.end || '', x.group || '']),
+    columns: () => ['Task', 'Start', 'End', 'Group', 'Highlight (y/n)'],
+    toRows: d => (d.tasks || []).map(x => [x.name, x.start, x.end || '', x.group || '', flag(x.highlight)]),
     fromRows: (rows, _h, d) => ({ ...d, tasks: rows.map(r => {
       const x = { name: r[0], start: String(r[1]).trim() };
       if (String(r[2]).trim()) x.end = String(r[2]).trim();
-      if (String(r[3]).trim()) x.group = String(r[3]).trim();
+      if (r[3] != null && r[3] !== '') x.group = String(r[3]);
+      const highlight = flagOf(r[4]);
+      if (highlight !== undefined) x.highlight = highlight;
       return x;
     }) })
   },

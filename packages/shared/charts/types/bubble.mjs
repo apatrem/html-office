@@ -1,5 +1,5 @@
 // Bubbles: three-variable relationship (x, y, size).
-import { base, fmt, req, num, isObject, records, finite } from './common.js';
+import { base, fmt, req, num, isObject, records, finite } from './common.mjs';
 
 export default {
   label: 'Bubbles',
