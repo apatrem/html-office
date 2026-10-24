@@ -18,8 +18,6 @@ import {
 } from "../model/pivot.mjs";
 import { address, parseAddress, parseRange } from "../model/workbook.mjs";
 import { display, usedBounds } from "./view.mjs";
-// The grid's cached used bounds stand in for a whole-sheet scan.
-const cached = { bounds: usedBounds };
 
 const AGGREGATE_NAMES = { sum: "Sum", count: "Count", average: "Average" };
 const STATE_TEXT = {
@@ -30,6 +28,7 @@ const STATE_TEXT = {
     "The source holds formulas whose saved results are not verified. Refresh recalculates them.",
   never: "Not refreshed yet.",
 };
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const rangeText = (r) =>
   r.top === r.bottom && r.left === r.right
     ? address(r.top, r.left)
@@ -40,17 +39,26 @@ export function setupPivots({
   getSheetId,
   getSelection,
   getStates,
+  isSnapshotCurrent = () => false,
   busy,
   refresh,
   remove,
   status,
 }) {
+  // The grid's cached used bounds stand in for a whole-sheet scan; header
+  // and filter values that are formulas need verified results.
+  const sources = () => ({
+    bounds: usedBounds,
+    formulaResultsCurrent: isSnapshotCurrent(),
+  });
   let root = null,
     // The definition being edited; `fresh` until it differs from the saved one.
     draft = null,
     saved = null,
     fresh = true,
-    lastKey = "";
+    lastKey = "",
+    // Set while rendering filters whose items cannot be listed yet.
+    filterProblem = null;
   const pivotsOf = () => getBook().pivots ?? [];
   function select(id) {
     saved = pivotsOf().find((p) => p.id === id) ?? null;
@@ -102,7 +110,7 @@ export function setupPivots({
     };
     // Proposes the first text field as rows and the first number as a sum.
     try {
-      const resolved = resolveSource(book, draft, cached),
+      const resolved = resolveSource(book, draft, sources()),
         first = (column) => {
           const cell =
             resolved.sheet.cells[address(resolved.rect.top + 1, column)];
@@ -131,7 +139,7 @@ export function setupPivots({
   // Labels of the draft source, or the reason it cannot be read.
   function sourceFields() {
     try {
-      const source = resolveSource(getBook(), draft, cached);
+      const source = resolveSource(getBook(), draft, sources());
       return {
         names: [...source.labels.keys()].filter(
           (name) => !source.duplicates.has(name),
@@ -260,9 +268,14 @@ export function setupPivots({
       ...draft.filters.map((filter, i) => {
         let listing;
         try {
-          listing = fieldItems(getBook(), draft, filter.field, cached);
+          listing = fieldItems(getBook(), draft, filter.field, sources());
         } catch (error) {
           listing = { items: [], error: error.message };
+        }
+        if (listing.unresolved) {
+          listing.error =
+            "This column holds formulas whose results are not verified. Use Data › Recalculate, then choose the items to keep.";
+          filterProblem ??= `Filter ${i + 1} needs current results to list its items.`;
         }
         const kept = new Set(filter.values.map(itemKey)),
           set = (values) =>
@@ -286,7 +299,7 @@ export function setupPivots({
                       getBook(),
                       d,
                       value,
-                      cached,
+                      sources(),
                     ).items;
                   } catch {
                     // Shown with the item list.
@@ -361,7 +374,7 @@ export function setupPivots({
                 getBook(),
                 d,
                 name,
-                cached,
+                sources(),
               ).items;
             } catch {
               // Shown with the item list.
@@ -503,11 +516,18 @@ export function setupPivots({
                 event.target.value.trim().toUpperCase() || d.output.ref),
           ),
       });
-    let problem = error ?? null;
+    filterProblem = null;
+    const sections = [
+      ...axisSection("rows", "Rows", MAX_ROW_FIELDS, names),
+      ...axisSection("columns", "Columns", MAX_COLUMN_FIELDS, names),
+      ...filterSection(names),
+      ...valueSection(names),
+    ];
+    let problem = error ?? filterProblem;
     if (!problem)
       try {
         parseRange(draft.output.ref);
-        checkPivot(getBook(), draft, cached);
+        checkPivot(getBook(), draft, sources());
         if (!draft.values.length) problem = "Add at least one value.";
       } catch (e) {
         problem = e.message;
@@ -648,10 +668,7 @@ export function setupPivots({
           "output-use",
         ),
       ),
-      ...axisSection("rows", "Rows", MAX_ROW_FIELDS, names),
-      ...axisSection("columns", "Columns", MAX_COLUMN_FIELDS, names),
-      ...filterSection(names),
-      ...valueSection(names),
+      ...sections,
       problem && h("p", { class: "sh-err pv-problem", role: "alert" }, problem),
       actions,
       h(
@@ -672,6 +689,13 @@ export function setupPivots({
       if (current !== saved) {
         if (!current) select(pivotsOf()[0]?.id);
         else {
+          // A dirty draft takes committed changes (structural moves, a
+          // refresh) of the fields it did not edit itself.
+          if (!fresh)
+            for (const key of Object.keys({ ...saved, ...current }))
+              if (same(draft[key], saved[key]))
+                if (current[key] === undefined) delete draft[key];
+                else draft[key] = structuredClone(current[key]);
           saved = current;
           if (fresh) draft = structuredClone(current);
         }
@@ -713,6 +737,7 @@ export function setupPivots({
     draw,
     create,
     // Main-thread check before loading the engine (fields and source).
-    check: (pivot) => checkPivot(getBook(), pivot, cached),
+    check: (pivot, options) =>
+      checkPivot(getBook(), pivot, { ...sources(), ...options }),
   };
 }

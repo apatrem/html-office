@@ -192,3 +192,34 @@ test("refresh follows scenario formulas through the engine and feeds dependents"
     session.dispose();
   }
 });
+
+test("structural edits use the pivot definitions the editor sends", async () => {
+  const book = pivotWorkbook(),
+    session = new EngineSession({ Model });
+  book.pivots[0] = {
+    ...book.pivots[0],
+    output: { sheetId: "summary", ref: "B3:E9" },
+    refreshed: { fingerprint: "a".repeat(64), at: "2026-10-24T00:00:00.000Z" },
+  };
+  const deleteRow3 = {
+    sheetId: "summary",
+    axis: "row",
+    action: "delete",
+    index: 3,
+    count: 1,
+  };
+  try {
+    session.load(book);
+    await assert.rejects(session.structure(deleteRow3), /remove part of pivot/);
+    // The pivot moved away in the editor: the worker must not keep B3 owned.
+    session.configurePivots([
+      { ...book.pivots[0], output: { sheetId: "summary", ref: "H20:K26" } },
+    ]);
+    await session.structure(deleteRow3);
+    assert.equal(session.book.pivots[0].output.ref, "H19:K25");
+    session.configurePivots([]);
+    assert.equal(session.book.pivots, undefined);
+  } finally {
+    session.dispose();
+  }
+});

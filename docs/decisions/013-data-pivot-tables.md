@@ -36,7 +36,7 @@ Optional workbook `pivots`, an array of at most 50 definitions:
 
 ### Ownership of the output range
 
-`output.ref` is the rectangle the pivot owns. Its top-left cell is the anchor. Before the first refresh it is the anchor alone.
+`output.ref` is the rectangle the pivot owns. Its top-left cell is the anchor. Without `refreshed` it must be the anchor alone, and no stored output may exceed the 200,000-cell output limit, so an edited file cannot claim ordinary cells or an unbounded range.
 
 - A refresh computes the new rectangle from the anchor. It is refused, with nothing changed, when that rectangle would cover a cell holding an input or formula outside the pivot's current rectangle. It is also refused when it would overlap another pivot's output or its own source.
 - The refresh writes every cell of the new rectangle and clears the cells of the old one that fall outside. Direct formatting (`style`) on a cell it overwrites is kept. The pivot sets values, cell styles and number formats.
@@ -60,11 +60,11 @@ Aggregation is not a formula evaluator. It applies three fixed aggregations to t
 
 ### Semantics
 
-- **Records** are the rows below the header. Rows with no populated cell across the source width are skipped.
+- **Records** are the rows below the header. Rows with no populated cell across the source width are skipped; a row populated only in unused columns is still a record. Header formulas without verified results are resolved by the worker after recalculation, not rejected beforehand, and a filter's item list waits for verified results.
 - **Items** group by typed value, with no case folding or text-to-number coercion. Signed zeros are equal. Missing and blank cells form one `(blank)` item. Empty text is a separate text item.
 - **Order.** Items are sorted ascending: numbers, dates, text (case-insensitive, ties case-sensitive, by code unit, so the result does not depend on the browser's locale), Booleans (FALSE first), errors in the order of `ERRORS`, and `(blank)` last.
 - **Labels** are typed input cells holding the item value. They carry the format of the item's first source cell, so dates display as dates. Errors are typed error cells.
-- **SUM** adds numbers and dates, ignoring text, Booleans and blanks. A group with no numbers sums to 0. The first error in source order makes the result that error.
+- **SUM** adds numbers and dates, ignoring text, Booleans and blanks. A group with no numbers sums to 0; a sum that overflows is `#NUM!`, as with IronCalc's `SUM`. The first error in source order makes the result that error.
 - **COUNT** counts non-blank values of the field, including text, Booleans, errors and empty text (Excel's pivot "Count").
 - **AVERAGE** is SUM divided by the count of numbers and dates. With no number it is `#DIV/0!`; errors propagate as for SUM.
 - **Empty intersections.** A row and column combination with no record stays empty.

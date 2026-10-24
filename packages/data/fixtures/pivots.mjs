@@ -24,8 +24,9 @@ export const RECORDS = [
 const REGIONS = ["North", "South", "East", "West", "Central"],
   QUARTERS = ["Q1", "Q2", "Q3", "Q4"],
   CHANNELS = ["Online", "Store", "Partner"];
-// rows: generate that many deterministic records instead of RECORDS.
-export function pivotWorkbook({ rows } = {}) {
+// rows: generate that many deterministic records instead of RECORDS;
+// formulas: false omits the Adjusted formula column (the pivot sums Revenue).
+export function pivotWorkbook({ rows, formulas = true } = {}) {
   const records = rows
     ? Array.from({ length: rows }, (_, i) => [
         REGIONS[i % 5],
@@ -46,7 +47,7 @@ export function pivotWorkbook({ rows } = {}) {
   ["Region", "Quarter", "Channel", "Units", "Revenue"].forEach(
     (label, i) => (sales.cells[`${"ABCDE"[i]}1`] = text(label, "header")),
   );
-  sales.cells.F1 = text("Adjusted", "header");
+  if (formulas) sales.cells.F1 = text("Adjusted", "header");
   records.forEach(([region, quarter, channel, units, revenue], i) => {
     const row = i + 2;
     if (region !== null) sales.cells[`A${row}`] = text(region);
@@ -54,10 +55,11 @@ export function pivotWorkbook({ rows } = {}) {
     sales.cells[`C${row}`] = text(channel);
     sales.cells[`D${row}`] = number(units);
     sales.cells[`E${row}`] = number(revenue, money);
-    sales.cells[`F${row}`] = {
-      formula: `=E${row}*Inputs!$B$2`,
-      format: money,
-    };
+    if (formulas)
+      sales.cells[`F${row}`] = {
+        formula: `=E${row}*Inputs!$B$2`,
+        format: money,
+      };
   });
   inputs.cells.A1 = text("Scenario", "rowHeader");
   inputs.cells.B1 = text("Base");
@@ -106,7 +108,9 @@ export function pivotWorkbook({ rows } = {}) {
         rows: ["Region"],
         columns: ["Quarter"],
         filters: [],
-        values: [{ field: "Adjusted", aggregate: "sum" }],
+        values: [
+          { field: formulas ? "Adjusted" : "Revenue", aggregate: "sum" },
+        ],
       },
     ],
     metadata: { fictional: true },

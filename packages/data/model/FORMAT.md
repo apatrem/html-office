@@ -168,7 +168,7 @@ Optional `pivots` holds at most 50 definitions ([ADR-013](../../../docs/decision
 
 - **Source.** `source.ref` is an A1 rectangle whose first row names the fields. Without `ref`, the source is the sheet's used range from A1, so rows appended to a `table` sheet are included at the next refresh; such a source must be on another sheet than the output. A field is named by its header cell's text (or the canonical string of a number or Boolean) and must match exactly one header cell.
 - **Fields.** `rows` (0–4), `columns` (0–2) and `filters` (0–4) use distinct fields. `values` holds 1–8 measures with `aggregate` `sum`, `count` or `average`. A filter keeps the records whose value is in its typed `values` list (`{"type":"blank"}` keeps blanks).
-- **Output.** `output.ref` is the rectangle the pivot owns; its top-left cell is the anchor. Before the first refresh it is the anchor alone. Outputs of different pivots never overlap, and an output never overlaps its own source.
+- **Output.** `output.ref` is the rectangle the pivot owns; its top-left cell is the anchor. Without `refreshed` it must be the anchor alone, and it never exceeds 200,000 cells. Outputs of different pivots never overlap, and an output never overlaps its own source.
 - **Refresh stamp.** `refreshed.fingerprint` is the source revision: a SHA-256 of the definition and the typed values of the used fields, independent of where the source sits on its sheet. It is absent until the first refresh.
 
 **Output cells are ordinary typed input cells**, so saved files show them without the engine, PNG downloads and print include them, and formulas may read them:
@@ -178,10 +178,10 @@ Optional `pivots` holds at most 50 definitions ([ADR-013](../../../docs/decision
 - Cell edits, pastes and fills into an owned rectangle are refused; formatting is allowed. Row and column insertions or deletions that would split or partly delete an output are refused; elsewhere they move the output whole and shift or shrink the source (a deleted source becomes `"#REF!"`).
 
 **Semantics.**
-- Records whose used fields are all blank are skipped.
+- Rows with no populated cell across the source width are skipped; any other row is a record, even when its used fields are blank.
 - Items group by typed value, without case folding or text/number coercion; signed zeros are equal. Missing and blank cells form one `(blank)` item; empty text is its own item.
 - Items sort numbers, dates, text (case-insensitive by code unit, then case-sensitive), Booleans, errors, then `(blank)`.
-- SUM adds numbers and dates in source order, as IronCalc's `SUM` does, and ignores text, Booleans and blanks. COUNT counts every non-blank value. AVERAGE divides the sum by the count of numbers and is `#DIV/0!` without one.
+- SUM adds numbers and dates in source order, as IronCalc's `SUM` does, and ignores text, Booleans and blanks; an overflowing sum or average is `#NUM!`. COUNT counts every non-blank value. AVERAGE divides the sum by the count of numbers and is `#DIV/0!` without one.
 - An error value makes SUM and AVERAGE that error (the first one in source order); COUNT still counts it.
 - A row and column combination without records stays empty. Totals aggregate the records themselves, so an average total is the average of all records.
 - Limits: 10,000 row items, 500 column items, 200,000 output cells and a 5,000,000-cell source.

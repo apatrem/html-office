@@ -1,0 +1,137 @@
+{
+  "generatedAt": "2026-10-24T08:05:25.772Z",
+  "hardware": {
+    "platform": "darwin 27.0.0",
+    "cpu": "Apple M5",
+    "cores": 10,
+    "memoryGB": 24
+  },
+  "browser": "chromium 151.0.7922.34",
+  "method": "Fictional Sales row table (Region, Quarter, Channel, Units, Revenue, Adjusted = Revenue × scenario factor). Pivot: rows Region, columns Quarter, Sum of Adjusted. Cold = first refresh, including engine load and model load; warm = refresh after one source edit, five runs.",
+  "cases": [
+    {
+      "id": "pivot-50000",
+      "rows": 50000,
+      "sourceFormulaCells": 50000,
+      "size": {
+        "applicationCodeBytes": 495926,
+        "documentContentBytes": 25300806,
+        "totalHTMLBytes": 25796732
+      },
+      "openMS": 2270,
+      "cold": {
+        "wallMS": 2901,
+        "workerPivotMS": 743,
+        "records": 50000,
+        "outputCells": 48,
+        "longestMainTaskMS": 425
+      },
+      "warm": [
+        {
+          "wallMS": 1682,
+          "workerPivotMS": 769,
+          "records": 50000,
+          "outputCells": 48,
+          "longestMainTaskMS": 367,
+          "editToStaleMS": 1137
+        },
+        {
+          "wallMS": 1627,
+          "workerPivotMS": 747,
+          "records": 50000,
+          "outputCells": 48,
+          "longestMainTaskMS": 344,
+          "editToStaleMS": 1000
+        },
+        {
+          "wallMS": 1952,
+          "workerPivotMS": 867,
+          "records": 50000,
+          "outputCells": 48,
+          "longestMainTaskMS": 418,
+          "editToStaleMS": 1364
+        },
+        {
+          "wallMS": 1757,
+          "workerPivotMS": 818,
+          "records": 50000,
+          "outputCells": 48,
+          "longestMainTaskMS": 379,
+          "editToStaleMS": 1017
+        },
+        {
+          "wallMS": 1650,
+          "workerPivotMS": 742,
+          "records": 50000,
+          "outputCells": 48,
+          "longestMainTaskMS": 350,
+          "editToStaleMS": 1073
+        }
+      ],
+      "warmMaxWallMS": 1952,
+      "warmMaxLongTaskMS": 418
+    },
+    {
+      "id": "pivot-100000",
+      "rows": 100000,
+      "sourceFormulaCells": 100000,
+      "size": {
+        "applicationCodeBytes": 495940,
+        "documentContentBytes": 50614793,
+        "totalHTMLBytes": 51110733
+      },
+      "openMS": 4095,
+      "cold": {
+        "wallMS": 5994,
+        "workerPivotMS": 1715,
+        "records": 100000,
+        "outputCells": 48,
+        "longestMainTaskMS": 806
+      },
+      "warm": [
+        {
+          "wallMS": 4868,
+          "workerPivotMS": 2618,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 811,
+          "editToStaleMS": 3823
+        },
+        {
+          "wallMS": 3000,
+          "workerPivotMS": 1448,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 623,
+          "editToStaleMS": 2167
+        },
+        {
+          "wallMS": 3311,
+          "workerPivotMS": 1562,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 723,
+          "editToStaleMS": 2796
+        },
+        {
+          "wallMS": 3698,
+          "workerPivotMS": 1687,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 840,
+          "editToStaleMS": 2368
+        },
+        {
+          "wallMS": 3568,
+          "workerPivotMS": 1616,
+          "records": 100000,
+          "outputCells": 48,
+          "longestMainTaskMS": 808,
+          "editToStaleMS": 2857
+        }
+      ],
+      "warmMaxWallMS": 4868,
+      "warmMaxLongTaskMS": 840
+    }
+  ]
+}

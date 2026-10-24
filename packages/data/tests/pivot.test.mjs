@@ -11,6 +11,8 @@ import {
   pivotOwner,
   fieldItems,
   compareItems,
+  checkPivot,
+  resolveSource,
 } from "../model/pivot.mjs";
 import { validateWorkbook, VERSION } from "../model/workbook.mjs";
 import { shiftWorkbook, validateStructure } from "../model/structure.mjs";
@@ -486,4 +488,85 @@ test("definitions round-trip through the 0.2 document with a row-table source", 
     items.map((v) => v.value ?? "blank"),
     ["East", "North", "South", "blank"],
   );
+});
+
+test("review: stored outputs are bounded and unrefreshed pivots own only their anchor", () => {
+  const b = book(sales, { values: [{ field: "Revenue", aggregate: "sum" }] });
+  b.pivots[0].output.ref = "B3:C5";
+  assert.throws(() => validatePivots(b), /owns only its anchor/);
+  b.pivots[0].refreshed = {
+    fingerprint: "a".repeat(64),
+    at: "2026-10-24T00:00:00.000Z",
+  };
+  validatePivots(b);
+  b.pivots[0].output.ref = "A1:XFD1048576";
+  assert.throws(() => validatePivots(b), /cannot exceed 200000 cells/);
+});
+
+test("review: rows populated only in unused columns are records; overflow is #NUM!", () => {
+  const b = book(
+    [
+      ["K", "V", "Notes"],
+      ["a", 1e308],
+      ["a", 1e308],
+      [undefined, undefined, "existing record"],
+    ],
+    {
+      rows: ["K"],
+      values: [
+        { field: "V", aggregate: "sum" },
+        { field: "V", aggregate: "average" },
+        { field: "V", aggregate: "count" },
+      ],
+    },
+  );
+  assert.deepEqual(table(b).slice(1), [
+    ["a", "#NUM!", "#NUM!", 2],
+    ["(blank)", 0, "#DIV/0!", 0],
+    ["Total", "#NUM!", "#NUM!", 2],
+  ]);
+});
+
+test("review: unresolved header formulas and filter items wait for results", async () => {
+  const b = book(
+    [
+      [{ formula: '="K"' }, "V"],
+      ["a", 1],
+      [{ formula: '="b"' }, 2],
+    ],
+    { values: [{ field: "V", aggregate: "sum" }], rows: ["K"] },
+  );
+  // The header names no field yet; the worker recalculates before resolving it.
+  assert.equal(checkPivot(b, b.pivots[0]).unresolved, true);
+  assert.throws(() => computePivot(b, b.pivots[0]), /no column named "K"/);
+  b.sheets[0].cells.A1.result = { type: "text", value: "K" };
+  assert.equal(
+    checkPivot(b, b.pivots[0], { formulaResultsCurrent: false }).unresolved,
+    true,
+  );
+  assert.equal(fieldItems(b, b.pivots[0], "K").unresolved, true);
+  b.sheets[0].cells.A3.result = { type: "text", value: "b" };
+  assert.deepEqual(
+    fieldItems(b, b.pivots[0], "K", { formulaResultsCurrent: true }).items.map(
+      (v) => v.value,
+    ),
+    ["a", "b"],
+  );
+  assert.equal(
+    fieldItems(b, b.pivots[0], "K", { formulaResultsCurrent: false })
+      .unresolved,
+    true,
+  );
+});
+
+test("review: oversized cached bounds fall back to the exact used range", () => {
+  const b = book(sales, { values: [{ field: "Revenue", aggregate: "sum" }] });
+  b.sheets[0].cells.XFD1000 = { style: { bold: true } };
+  const bounds = () => ({ rows: 1000, columns: 16384 });
+  assert.deepEqual(resolveSource(b, b.pivots[0], { bounds }).rect, {
+    top: 1,
+    left: 1,
+    bottom: 6,
+    right: 4,
+  });
 });

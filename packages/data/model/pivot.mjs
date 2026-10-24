@@ -101,6 +101,18 @@ export function validatePivots(book) {
     fields(pivot.output, ["sheetId", "ref"], "pivot output");
     if (!sheetIds.has(pivot.output.sheetId)) fail("Unknown pivot output sheet");
     const output = parseRange(pivot.output.ref);
+    // Ownership is bounded: an unrefreshed pivot owns only its anchor, and no
+    // stored output can exceed the largest table a refresh may write.
+    if (
+      pivot.refreshed === undefined &&
+      (output.top !== output.bottom || output.left !== output.right)
+    )
+      fail("A pivot that was never refreshed owns only its anchor cell");
+    if (
+      (output.bottom - output.top + 1) * (output.right - output.left + 1) >
+      MAX_OUTPUT_CELLS
+    )
+      fail(`A pivot output cannot exceed ${MAX_OUTPUT_CELLS} cells`);
     for (const [key, max] of [
       ["rows", MAX_ROW_FIELDS],
       ["columns", MAX_COLUMN_FIELDS],
@@ -253,7 +265,11 @@ function usedRange(sheet) {
 // The source rectangle and its header fields, or an explanation. `bounds`
 // may supply a cached, possibly larger used range for whole-sheet sources
 // ({rows, columns}): empty records and blank headers are skipped anyway.
-export function resolveSource(book, pivot, { bounds } = {}) {
+export function resolveSource(
+  book,
+  pivot,
+  { bounds, formulaResultsCurrent } = {},
+) {
   const sheet = book.sheets.find((s) => s.id === pivot.source.sheetId);
   if (!sheet) fail("The pivot's source sheet no longer exists.");
   if (pivot.source.ref === "#REF!")
@@ -266,20 +282,30 @@ export function resolveSource(book, pivot, { bounds } = {}) {
           ? { top: 1, left: 1, bottom: cached.rows, right: cached.columns }
           : usedRange(sheet);
   if (!rect) fail(`The source sheet "${sheet.name}" is empty.`);
-  if (
-    (rect.bottom - rect.top + 1) * (rect.right - rect.left + 1) >
-    MAX_SOURCE_CELLS
-  )
+  const area = (r) => (r.bottom - r.top + 1) * (r.right - r.left + 1);
+  // Cached bounds may include formatting-only cells: measure exactly first.
+  if (cached && area(rect) > MAX_SOURCE_CELLS) {
+    const exact = usedRange(sheet);
+    if (!exact) fail(`The source sheet "${sheet.name}" is empty.`);
+    Object.assign(rect, exact);
+  }
+  if (area(rect) > MAX_SOURCE_CELLS)
     fail("The pivot source is larger than 5,000,000 cells.");
   const labels = new Map(),
     duplicates = new Set();
+  // Header formulas whose results are missing (or, when `formulaResultsCurrent`
+  // is false, unverified) cannot name fields yet: only a recalculation can.
+  let unresolved = false;
   for (let c = rect.left; c <= rect.right; c++) {
-    const label = headerLabel(sheet.cells[at(rect.top, c)]);
+    const cell = sheet.cells[at(rect.top, c)];
+    if (cell?.formula && (!cell.result || formulaResultsCurrent === false))
+      unresolved = true;
+    const label = headerLabel(cell);
     if (label === null) continue;
     if (labels.has(label)) duplicates.add(label);
     else labels.set(label, c);
   }
-  return { sheet, rect, labels, duplicates };
+  return { sheet, rect, labels, duplicates, unresolved };
 }
 function fieldColumn(source, name) {
   if (source.duplicates.has(name))
@@ -342,12 +368,28 @@ function accumulate(acc, v) {
 function result(acc, aggregate) {
   if (aggregate === "count") return { type: "number", value: acc.count };
   if (acc.error) return { type: "error", value: acc.error };
-  if (aggregate === "sum") return { type: "number", value: acc.sum };
-  return acc.numbers
-    ? { type: "number", value: acc.sum / acc.numbers }
-    : { type: "error", value: "#DIV/0!" };
+  if (aggregate === "average" && !acc.numbers)
+    return { type: "error", value: "#DIV/0!" };
+  const value = aggregate === "sum" ? acc.sum : acc.sum / acc.numbers;
+  // An overflowing sum is #NUM!, as IronCalc's SUM reports it.
+  return Number.isFinite(value)
+    ? { type: "number", value }
+    : { type: "error", value: "#NUM!" };
 }
 
+// A record is a row with a populated cell anywhere across the source width
+// (used columns are checked first). A missing formula result counts: the
+// record then fails with guidance.
+function present(cells, row, rect, used) {
+  const filled = (column) => {
+    const v = typedValue(cells[at(row, column)]);
+    return v === undefined || !isBlank(v);
+  };
+  if (used.some(filled)) return true;
+  for (let column = rect.left; column <= rect.right; column++)
+    if (filled(column)) return true;
+  return false;
+}
 // Groups and aggregates the source records. The result is relative to the
 // anchor: `cells` holds [row, column, cell] with 0-based offsets. Cells may name
 // `formatRef`, a source cell whose number format the output copies (resolved
@@ -413,17 +455,9 @@ export function computePivot(book, pivot) {
     return accs;
   };
   next: for (let row = rect.top + 1; row <= rect.bottom; row++) {
-    // Records whose used fields are all blank are skipped (pivotFingerprint
-    // skips the same rows).
-    let populated = false;
-    for (const column of used) {
-      const v = typedValue(cells[at(row, column)]);
-      // A missing formula result counts: the record fails below with guidance.
-      if (v === undefined || !isBlank(v)) {
-        populated = true;
-        break;
-      }
-    }
+    // Rows with no populated cell across the source width are skipped
+    // (pivotFingerprint skips the same rows).
+    const populated = present(cells, row, rect, used);
     if (!populated) continue;
     for (const filter of filters) {
       const ref = at(row, filter.column),
@@ -661,11 +695,11 @@ export async function pivotFingerprint(book, pivot) {
     ),
   ];
   for (let row = rect.top + 1; row <= rect.bottom; row++) {
+    if (!present(sheet.cells, row, rect, columns)) continue;
     const keys = columns.map((column) => {
       const v = typedValue(sheet.cells[at(row, column)]);
       return v === undefined ? "?" : itemKey(v);
     });
-    if (keys.every((key) => key === "_")) continue;
     parts.push(keys.map((key) => `${key.length}:${key}`).join(""));
   }
   const digest = await crypto.subtle.digest(
@@ -678,9 +712,12 @@ export async function pivotFingerprint(book, pivot) {
 }
 
 // Engine-free check that a definition's source and fields resolve.
+// With unresolved header formulas, field names are left to the worker, which
+// recalculates first.
 export function checkPivot(book, pivot, options) {
   const source = resolveSource(book, pivot, options);
-  for (const name of usedNames(pivot)) fieldColumn(source, name);
+  if (!source.unresolved)
+    for (const name of usedNames(pivot)) fieldColumn(source, name);
   return source;
 }
 // Derived freshness (never saved): current, stale, unverified, never or error.
@@ -833,24 +870,35 @@ export function fieldItems(
   book,
   pivot,
   name,
-  { limit = MAX_FILTER_VALUES, ...options } = {},
+  { limit = MAX_FILTER_VALUES, formulaResultsCurrent, ...options } = {},
 ) {
-  const source = resolveSource(book, pivot, options),
+  const source = resolveSource(book, pivot, {
+      ...options,
+      formulaResultsCurrent,
+    }),
     column = fieldColumn(source, name),
     items = new Map();
+  let truncated = false;
   for (let row = source.rect.top + 1; row <= source.rect.bottom; row++) {
-    const v = typedValue(source.sheet.cells[at(row, column)]) ?? {
-        type: "blank",
-      },
+    const cell = source.sheet.cells[at(row, column)];
+    // Unresolved formulas are not blanks: the list is withheld until the
+    // results are current.
+    if (cell?.formula && (!cell.result || formulaResultsCurrent === false))
+      return { items: [], truncated: false, unresolved: true };
+    if (truncated) continue;
+    const v = typedValue(cell) ?? { type: "blank" },
       key = itemKey(v);
     if (!items.has(key)) {
-      if (items.size >= limit)
-        return {
-          items: [...items.values()].sort(compareItems),
-          truncated: true,
-        };
+      if (items.size >= limit) {
+        truncated = true;
+        continue;
+      }
       items.set(key, isBlank(v) ? { type: "blank" } : v);
     }
   }
-  return { items: [...items.values()].sort(compareItems), truncated: false };
+  return {
+    items: [...items.values()].sort(compareItems),
+    truncated,
+    unresolved: false,
+  };
 }

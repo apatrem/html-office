@@ -200,7 +200,17 @@ try {
   await waitStatus(page, /refreshed from 5 records/);
   await state(page, "current");
 
-  // Structural edits move the output whole and refuse splits.
+  // A refresh with unchanged cells is still one undoable calculation.
+  await panel(page)
+    .getByRole("button", { name: "Refresh", exact: true })
+    .click();
+  await waitStatus(page, /refreshed from 5 records/);
+  assert.equal(await page.locator("#calc-state").textContent(), "Calculated");
+
+  // Structural edits move the output whole and refuse splits. An open draft
+  // with an unapplied rename follows the move instead of reverting it.
+  await panel(page).getByLabel("Name", { exact: true }).fill("Online revenue");
+  await panel(page).getByLabel("Name", { exact: true }).press("Tab");
   await selectSheet(page, "Summary");
   await page.locator("#cell-address").fill("A2");
   await page.locator("#cell-address").press("Enter");
@@ -208,10 +218,22 @@ try {
   await waitStatus(page, /references updated/);
   await state(page, "current");
   assert.equal(await text(page, "B4"), "Quarter");
+  assert.equal(
+    await panel(page)
+      .getByLabel("Output top-left cell", { exact: true })
+      .inputValue(),
+    "B4",
+  );
+  await panel(page)
+    .getByRole("button", { name: "Update pivot table", exact: true })
+    .click();
+  await waitStatus(page, /"Online revenue" refreshed from 5 records/);
+  assert.equal(await text(page, "B4"), "Quarter");
+  assert.equal(await text(page, "B3"), "");
   await page.locator("#cell-address").fill("B6");
   await page.locator("#cell-address").press("Enter");
   await command(page, "Delete rows");
-  await waitStatus(page, /would remove part of pivot "Revenue by region"/);
+  await waitStatus(page, /would remove part of pivot "Online revenue"/);
 
   // A wider definition that would cover data elsewhere is refused unchanged.
   await enter(page, "G6", "text", "keep me");
@@ -305,6 +327,57 @@ try {
   });
   assert.deepEqual(errors, []);
   await context.close();
+
+  // A file without saved results: the source is unverified until refresh
+  // recalculates it, and the published results become current.
+  const bare = resolve(out, "pivots-uncalculated.html");
+  await writeFile(
+    bare,
+    await buildWorkbook(pivotWorkbook(), { calculate: false }),
+  );
+  const fresh = await browser.newContext(),
+    blank = await fresh.newPage();
+  await fresh.route(/^https?:\/\//, async (route) =>
+    route.fulfill({
+      body: await readFile(
+        new URL(
+          `../engine/vendor/${route.request().url().endsWith(".wasm.gz") ? "ironcalc.wasm.gz" : "ironcalc.mjs"}`,
+          import.meta.url,
+        ),
+      ),
+    }),
+  );
+  await blank.goto(pathToFileURL(bare).href);
+  await blank.getByText(/Saved results are stale or missing/).waitFor();
+  await openMenu(blank, "Data");
+  await menuItem(blank, "Data", "Pivot tables…").click();
+  await state(blank, "never");
+  await panel(blank)
+    .getByRole("button", { name: "Add filter", exact: true })
+    .click();
+  await panel(blank)
+    .getByLabel("Filter field 1", { exact: true })
+    .selectOption("Adjusted");
+  await panel(blank)
+    .getByText(/Filter 1 needs current results/)
+    .waitFor();
+  assert.equal(
+    await panel(blank)
+      .getByRole("button", { name: "Update pivot table", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await panel(blank)
+    .getByRole("button", { name: "Remove filter 1", exact: true })
+    .click();
+  await panel(blank)
+    .getByRole("button", { name: "Refresh", exact: true })
+    .click();
+  await waitStatus(blank, /refreshed from 8 records/);
+  await state(blank, "current");
+  assert.equal(await blank.locator("#calc-state").textContent(), "Calculated");
+  assert.equal(await text(blank, "E9"), "€390.50");
+  await fresh.close();
   console.log("Pivot browser tests passed");
 } finally {
   await browser.close();

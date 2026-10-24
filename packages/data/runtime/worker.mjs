@@ -41,6 +41,9 @@ self.onmessage = (event) => {
         value = await session.structure(args[0]);
       } else if (method === "organize") {
         value = await session.organize(args[0]);
+      } else if (method === "configurePivots") {
+        session.configurePivots(args[0]);
+        value = null;
       } else if (method === "pivot") {
         const start = performance.now();
         value = await session.pivot(args[0]);

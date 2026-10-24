@@ -331,7 +331,9 @@ async function apply({
       }
       assertScenarioInputs(book, edits);
       if (!owner) assertUnowned(edits);
-      if (!edits.length) return;
+      // A pivot refresh with unchanged cells still publishes its stamp and the
+      // recalculated results.
+      if (!edits.length && pivots === undefined) return;
     } else edits = [];
     loading = controller;
     if (!recalculateOnly && !transient) {
@@ -568,6 +570,9 @@ async function applyLayout(command, structural = false) {
       session = new EngineClient(config, $("worker-source").textContent);
       await session.load(book);
     }
+    if (!revisions.current(epoch)) return;
+    // The worker validates and shifts pivots with the canonical definitions.
+    await session.configurePivots(book.pivots ?? []);
     if (!revisions.current(epoch)) return;
     const result =
       await session[structural ? "structure" : "organize"](command);
@@ -1068,7 +1073,10 @@ async function refreshPivot(id, definition) {
     }
     const others = (book.pivots ?? []).filter((p) => p.id !== id);
     validatePivots({ ...book, pivots: [...others, target] });
-    pivots.check(target);
+    pivots.check(target, {
+      formulaResultsCurrent:
+        !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+    });
     loading = new AbortController();
     loading.operation = "pivot";
     render();
@@ -1107,7 +1115,6 @@ async function refreshPivot(id, definition) {
       anchor = result.pivot.output.ref.split(":")[0],
       done = `Pivot table "${pivotLabel(result.pivot)}" refreshed from ${computed.records.toLocaleString("en-US")} records. Unsaved changes.`;
     loading = null;
-    if (!result.edits.length) return publishPivots(next, done);
     const applied = await apply({
       edits: result.edits,
       pivots: next,
@@ -1181,6 +1188,8 @@ const pivots = setupPivots({
   getSheetId: () => sheetId,
   getSelection: () => grid.selection,
   getStates: () => pivotStates,
+  isSnapshotCurrent: () =>
+    !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
   busy: () => !!loading,
   refresh: refreshPivot,
   remove: deletePivot,

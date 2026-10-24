@@ -92,6 +92,13 @@ export class EngineSession {
     this.load(next);
     return {...await this.calculateDelta(),beforeRefs,formulas};
   }
+  // Pivot definitions only matter here for structural validation and shifts;
+  // the editor sends the canonical list before those operations.
+  configurePivots(pivots){
+    const next={...this.book};
+    if(pivots?.length)next.pivots=structuredClone(pivots);else delete next.pivots;
+    validatePivots(next);this.book=next;
+  }
   // Pivot refresh (ADR-013): recalculates first, so source formula results are
   // current, then aggregates the typed values this session holds. The caller
   // writes the returned cells through editMany like any other edit.

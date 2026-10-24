@@ -57,9 +57,14 @@ async function refresh(page) {
   };
 }
 try {
-  for (const rows of [50000, 100000]) {
-    const file = resolve(out, `pivot-${rows}.html`),
-      html = await buildWorkbook(pivotWorkbook({ rows }));
+  for (const [rows, formulas] of [
+    [100000, false],
+    [50000, true],
+    [100000, true],
+  ]) {
+    const id = `pivot-${rows}-${formulas ? "formula-source" : "input-source"}`,
+      file = resolve(out, `${id}.html`),
+      html = await buildWorkbook(pivotWorkbook({ rows, formulas }));
     await writeFile(file, html);
     const context = await browser.newContext(),
       page = await context.newPage();
@@ -112,6 +117,7 @@ try {
       await page.locator("#cell-address").press("Enter");
       await page.locator("#cell-type").selectOption("number");
       await page.locator("#cell-value").fill(String(100 + run));
+      await page.evaluate(() => (window.__longTasks = []));
       const edited = Date.now();
       await page.locator("#cell-value").press("Enter");
       await page.waitForFunction(() =>
@@ -119,9 +125,19 @@ try {
           document.getElementById("status").textContent,
         ),
       );
+      // The ordinary source edit before each refresh, for comparison.
+      const sourceEditMS = Date.now() - edited;
       await page.locator('.pv-state[data-state="stale"]').waitFor();
-      const staleMS = Date.now() - edited;
-      warm.push({ ...(await refresh(page)), editToStaleMS: staleMS });
+      const editToStaleMS = Date.now() - edited,
+        sourceEditLongestMainTaskMS = Math.round(
+          Math.max(0, ...(await page.evaluate(() => window.__longTasks))),
+        );
+      warm.push({
+        ...(await refresh(page)),
+        sourceEditMS,
+        sourceEditLongestMainTaskMS,
+        editToStaleMS,
+      });
       await page.locator('.pv-state[data-state="current"]').waitFor();
     }
     // The grand total cell of the Region × Quarter table (B3:G10).
@@ -133,15 +149,18 @@ try {
     );
     assert.ok(grand > 0, "grand total rendered");
     report.cases.push({
-      id: `pivot-${rows}`,
+      id,
       rows,
-      sourceFormulaCells: rows,
+      sourceFormulaCells: formulas ? rows : 0,
       size: measureHTML(html),
       openMS,
       cold,
       warm,
       warmMaxWallMS: Math.max(...warm.map((w) => w.wallMS)),
       warmMaxLongTaskMS: Math.max(...warm.map((w) => w.longestMainTaskMS)),
+      warmMaxSourceEditLongTaskMS: Math.max(
+        ...warm.map((w) => w.sourceEditLongestMainTaskMS),
+      ),
     });
     await context.close();
   }
