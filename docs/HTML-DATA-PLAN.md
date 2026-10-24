@@ -10,7 +10,7 @@ Start Data in `packages/data/`, with its own model, runtime build, tests and fix
 
 Do not add IronCalc or import/chart dependencies to the Slides runtime. Separate generated runtime code from readable workbook content and cache data. Share modules only after both products have demonstrated a common requirement. Likely paths below are proposed, not files that already exist. S means about 1–2 implementation/test files; M means about 3–5. Split further if an increment exceeds that scope.
 
-Dependency order: T01 → T02 → T03 → T04 → T05 → T05b. Then T06 → T07 → T08 → T09 → T10 → T11. T12–T19 build on that model/editor foundation as identified below. T20–T22 integrate, measure and validate the whole product. Checkpoints are technical gates; an unmet gate stops dependent work until fixed or the tradeoff is recorded.
+Dependency order: T01 → T02 → T03 → T04 → T05 → T05b. Then T06 → T07 → T08 → T09 → T10 → T11. T12–T19 build on that model/editor foundation as identified below; T17 no longer waits for T15 (24 October 2026). T20–T22 integrate, measure and validate the whole product. Checkpoints are technical gates; an unmet gate stops dependent work until fixed or the tradeoff is recorded.
 
 ## Phase A: prove the model and engine before building the full editor
 
@@ -173,7 +173,9 @@ Dependencies: T15. Scope: M. Paths: source metadata/refresh command, preview and
 
 ### T17 — Build a basic editable pivot
 
-Dependencies: T11, T12, T15. Scope: M. Paths: pivot definition/aggregation, controls and fixtures.
+Dependencies: T11, T12. Scope: M. Paths: pivot definition/aggregation, controls and fixtures.
+
+Update, 24 October 2026: T15 is no longer a prerequisite. A pivot reads any in-workbook range or `sheet.table` (ADR-005), whether typed, pasted or written by an LLM; imported data later becomes one more source. The design is recorded in [ADR-014](decisions/014-data-pivot-tables.md).
 
 - Acceptance: choose rows, columns, filters and SUM/COUNT/AVERAGE measures with totals; store definition, source and result revision in canonical JSON.
 - Acceptance: explicit refresh follows changed source data, scenario/structural references and errors consistently; saved output is readable offline. Define collision-free ownership of the generated output range.

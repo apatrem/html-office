@@ -69,6 +69,16 @@ export class EngineClient {
     await this.ready;
     return this.request("organize", [command]);
   }
+  configurePivots(pivots) {
+    this.ready = this.ready.then(() =>
+      this.request("configurePivots", [pivots]),
+    );
+    return this.ready;
+  }
+  async pivot(definition) {
+    await this.ready;
+    return this.request("pivot", [definition]);
+  }
   async calculate() {
     await this.ready;
     return this.request("calculate", []);

@@ -30,6 +30,7 @@ export function setupPersistence({
   restore,
   isSnapshotCurrent = () => false,
   onConditionalScales = () => {},
+  onPivotStates = () => {},
 }) {
   const $ = (id) => document.getElementById(id),
     dirty = new DirtyState();
@@ -107,6 +108,7 @@ export function setupPersistence({
           : undefined;
     pendingLinks = linked;
     onConditionalScales(null);
+    if (getBook().pivots?.length) onPivotStates(null);
     send({
       kind: "change",
       ...analysisOptions(),
@@ -134,6 +136,9 @@ export function setupPersistence({
     if (message.kind === "conditional-scales") {
       if (!workerFailed && message.revision === dirty.revision)
         onConditionalScales(message.scales);
+    } else if (message.kind === "pivot-states") {
+      if (!workerFailed && message.revision === dirty.revision)
+        onPivotStates(message.states);
     } else if (message.kind === "inspected") {
       resolveInitialSnapshot(message.state);
     } else if (message.kind === "inspection-failed") {
@@ -169,6 +174,7 @@ export function setupPersistence({
       if (message.kind === "error") {
         workerFailed = true;
         onConditionalScales(null);
+        onPivotStates(null);
       }
       rejectInitialSnapshot(
         new Error(message.message || "Recovery worker unavailable"),
@@ -409,6 +415,10 @@ export function setupPersistence({
         revision: dirty.revision,
         protectedSource,
       });
+    },
+    // Increases with every workbook change (pivot filter lists follow it).
+    get revision() {
+      return dirty.revision;
     },
     get dirty() {
       return dirty.dirty;

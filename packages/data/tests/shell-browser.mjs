@@ -40,7 +40,13 @@ const MENUS = {
     "Delete columns",
     "Clear formatting",
   ],
-  Insert: ["Insert rows", "Insert columns", "Link…", "New sheet…"],
+  Insert: [
+    "Insert rows",
+    "Insert columns",
+    "Link…",
+    "New sheet…",
+    "Pivot table…",
+  ],
   Format: [
     "Bold",
     "Italic",
@@ -61,7 +67,13 @@ const MENUS = {
     "Conditional formatting…",
     "Clear formatting",
   ],
-  Data: ["Recalculate", "Dropdown settings…", "Manage sheets…"],
+  Data: [
+    "Recalculate",
+    "Pivot tables…",
+    "Refresh all pivot tables",
+    "Dropdown settings…",
+    "Manage sheets…",
+  ],
   View: ["Grid lines"],
   Help: ["Keyboard shortcuts", "File format guide", "Third-party notices"],
 };

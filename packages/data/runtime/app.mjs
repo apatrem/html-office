@@ -25,6 +25,16 @@ import {
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
 import {
+  ownerRects,
+  pivotOwner,
+  pivotLabel,
+  pivotEdits,
+  pivotRemovalEdits,
+  validatePivots,
+  PIVOT_ERROR,
+} from "../model/pivot.mjs";
+import { setupPivots } from "./pivots.mjs";
+import {
   applyLinkEdits,
   FONTS,
   THEMES,
@@ -60,6 +70,9 @@ let book = compactInputs(readModel($("workbook").textContent)),
   loading = null,
   pendingEdits = [];
 let conditionalScales = {};
+// Derived pivot freshness from the recovery worker (ADR-014); null while a
+// change is being analysed or when the worker is unavailable.
+let pivotStates = null;
 const revisions = new CalculationRevision();
 const history = new EditHistory();
 // Reuse verified fingerprints across formatting/history; recovery starts a new trust boundary.
@@ -83,6 +96,11 @@ const persistence = setupPersistence({
       Object.keys(conditionalScales).length || Object.keys(scales ?? {}).length;
     conditionalScales = scales ?? {};
     if (repaint) grid.draw();
+  },
+  onPivotStates: (states) => {
+    pivotStates = states;
+    grid.draw();
+    pivots.draw();
   },
   getPending: () => (pendingEdits.length ? pendingEdits : null),
   restore: (recovered) => {
@@ -122,11 +140,31 @@ function cellEdits(refs) {
     cell: book.sheets.find((s) => s.id === sheetId)?.cells[ref] ?? null,
   }));
 }
-const decorateCell = createConditionalDecorator(
+const decorateConditional = createConditionalDecorator(
   () => book,
   () => !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
   () => conditionalScales,
 );
+// Cells a pivot owns carry a marker, and a second one while it is out of date.
+let ownedBy = { pivots: undefined, rects: new Map() };
+function decorateCell(element, cellSheetId, ref, cell) {
+  decorateConditional(element, cellSheetId, ref, cell);
+  if (!book.pivots?.length) return;
+  if (ownedBy.pivots !== book.pivots)
+    ownedBy = { pivots: book.pivots, rects: ownerRects(book) };
+  const pivot = pivotOwner(ownedBy.rects, cellSheetId, ref);
+  if (!pivot) return;
+  const state = pivotStates?.[pivot.id]?.state,
+    stale = ["stale", "unverified", "error", "never"].includes(state);
+  element.classList.add("pivot-cell");
+  if (stale) element.classList.add("pivot-stale");
+  const note = `Pivot table ${pivotLabel(pivot)}${stale ? " (out of date: refresh it from Data › Pivot tables)" : ""}`;
+  const previous = element.getAttribute("aria-description");
+  element.setAttribute(
+    "aria-description",
+    previous ? `${previous}. ${note}` : note,
+  );
+}
 const grid = createGrid($("grid"), {
   decorateCell,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
@@ -206,6 +244,7 @@ function render() {
   dropdowns.draw();
   dropdownSettings.draw();
   conditionalSettings.draw();
+  pivots.draw();
   commands.changed();
 }
 // The formula bar's calculation-state chip; details stay in the status line.
@@ -251,7 +290,29 @@ function enteredCell() {
   } else cell.input = { type, value: text };
   return cell;
 }
-async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
+// Pivot outputs belong to their pivot (ADR-014): ordinary edits are refused.
+function assertUnowned(edits) {
+  if (!book.pivots?.length) return;
+  const rects = ownerRects(book);
+  for (const edit of edits) {
+    const pivot = pivotOwner(rects, edit.sheetId, edit.ref);
+    if (pivot)
+      throw new Error(
+        `${edit.ref} belongs to pivot table "${pivotLabel(pivot)}". Change the pivot with Data › Pivot tables, or delete it first.`,
+      );
+  }
+}
+// `pivots` publishes new pivot definitions with the edits, in one history
+// entry; `owner` names the pivot writing its own range; `transient` edits are
+// not retained as an attempted draft when calculation fails.
+async function apply({
+  recalculateOnly = false,
+  edits,
+  selectionAfter,
+  pivots,
+  owner,
+  transient = false,
+} = {}) {
   if (loading) return;
   const epoch = revisions.begin(),
     controller = new AbortController();
@@ -269,10 +330,13 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         if (edit.cell !== null) validateCell(edit.cell, book);
       }
       assertScenarioInputs(book, edits);
-      if (!edits.length) return;
+      if (!owner) assertUnowned(edits);
+      // A pivot refresh with unchanged cells still publishes its stamp and the
+      // recalculated results.
+      if (!edits.length && pivots === undefined) return;
     } else edits = [];
     loading = controller;
-    if (!recalculateOnly) {
+    if (!recalculateOnly && !transient) {
       const prior = pendingEdits;
       pendingEdits = edits;
       persistence.changed(cellEdits(prior));
@@ -302,7 +366,7 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         ...edits,
         ...result.results.map(({ sheetId, ref }) => ({ sheetId, ref })),
       ]),
-      headChange = linkEdits || wrapped.size > 0,
+      headChange = linkEdits || wrapped.size > 0 || pivots !== undefined,
       headBefore = headChange ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
@@ -324,6 +388,10 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
+    if (pivots !== undefined) {
+      if (pivots.length) book.pivots = pivots;
+      else delete book.pivots;
+    }
     // Wrapped cells resize their rows in the same history entry.
     if (wrapped.size) book = formatting.withRowHeights(book, wrapped);
     const headAfter = headChange ? captureHead(book) : undefined;
@@ -373,7 +441,9 @@ async function apply({ recalculateOnly = false, edits, selectionAfter } = {}) {
         session = null;
       }
       status(
-        `${error.message} ${pendingEdits.some((edit) => edit.range) ? "The attempted range is retained; use Retry pending range or Save a copy." : "Your attempted edit remains in the form; retry Apply edit."}`,
+        transient
+          ? `Pivot table not updated: ${error.message} Your previous work is retained.`
+          : `${error.message} ${pendingEdits.some((edit) => edit.range) ? "The attempted range is retained; use Retry pending range or Save a copy." : "Your attempted edit remains in the form; retry Apply edit."}`,
       );
     }
   } finally {
@@ -460,7 +530,7 @@ $("cancel").onclick = () => {
   render();
   status(
     operation
-      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : operation === "conditional" ? "Conditional formatting" : "Sheet"} operation cancelled. Your previous work is retained.`
+      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : operation === "conditional" ? "Conditional formatting" : operation === "pivot" ? "Pivot table" : "Sheet"} operation cancelled. Your previous work is retained.`
       : !pendingEdits.length
         ? "Calculation cancelled. Your workbook remains open."
         : pendingEdits.some((edit) => edit.range)
@@ -501,6 +571,9 @@ async function applyLayout(command, structural = false) {
       await session.load(book);
     }
     if (!revisions.current(epoch)) return;
+    // The worker validates and shifts pivots with the canonical definitions.
+    await session.configurePivots(book.pivots ?? []);
+    if (!revisions.current(epoch)) return;
     const result =
       await session[structural ? "structure" : "organize"](command);
     if (!revisions.current(epoch)) return;
@@ -521,6 +594,7 @@ async function applyLayout(command, structural = false) {
         r.result;
     next.snapshot = result.snapshot;
     book = next;
+    if (structural) pivots.structure(command, "do");
     trustSnapshot();
     pendingEdits = [];
     const after = captureCells(book, result.formulas),
@@ -573,6 +647,7 @@ async function moveHistory(direction) {
   const priorRestoration = cellEdits(pendingEdits);
   const moved = history[direction](book);
   if (!moved) return;
+  if (moved.structure) pivots.structure(moved.structure, direction);
   const epoch = revisions.begin();
   pendingEdits = [];
   if (moved.selection) {
@@ -945,6 +1020,184 @@ async function applyDefinitionHeader(next, label = "Dropdown settings") {
     }
   }
 }
+// ---- pivot tables (T17, ADR-014) ----
+// Definitions without cell changes (a refresh that changes no value) are a
+// header entry; everything else goes through apply() with the engine.
+function publishPivots(next, message) {
+  const headBefore = captureHead(book),
+    selection = { sheetId, ...grid.selection };
+  if (next.length) book.pivots = next;
+  else delete book.pivots;
+  const headAfter = captureHead(book);
+  history.record({
+    before: [],
+    after: [],
+    headBefore,
+    headAfter,
+    snapshotBefore: book.snapshot,
+    snapshotAfter: book.snapshot,
+    selectionBefore: selection,
+    selectionAfter: selection,
+    calculate: false,
+  });
+  persistence.changed([], { head: headAfter });
+  render();
+  status(message);
+  return true;
+}
+const pivotBusy = () =>
+  pendingEdits.length
+    ? "Apply or discard the attempted edit before changing a pivot table."
+    : null;
+// Refreshes one pivot, optionally with a new definition (also a new pivot).
+// The worker recalculates and aggregates; ownership is checked here against
+// the canonical workbook, then the cells and definition publish together.
+async function refreshPivot(id, definition) {
+  if (loading) return;
+  const blocked = pivotBusy();
+  if (blocked) return void status(blocked);
+  const previous = book.pivots?.find((p) => p.id === id),
+    target = structuredClone(definition ?? previous),
+    epoch = revisions.begin();
+  // Only failures after engine work discard the session.
+  let engineWork = false;
+  try {
+    if (!target) throw new Error("Unknown pivot table.");
+    // A moved anchor releases the old range; the new one starts at the anchor.
+    if (previous && definition) {
+      const anchor = (ref) => ref.split(":")[0];
+      if (
+        previous.output.sheetId !== target.output.sheetId ||
+        anchor(previous.output.ref) !== anchor(target.output.ref)
+      )
+        target.output = { ...target.output, ref: anchor(target.output.ref) };
+      else target.output = { ...previous.output };
+    }
+    const others = (book.pivots ?? []).filter((p) => p.id !== id);
+    validatePivots({ ...book, pivots: [...others, target] });
+    pivots.check(target, {
+      formulaResultsCurrent:
+        !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+    });
+    loading = new AbortController();
+    loading.operation = "pivot";
+    render();
+    status("Refreshing pivot table: recalculating its source…");
+    engineWork = true;
+    if (!session) {
+      session = new EngineClient(config, $("worker-source").textContent);
+      await session.load(book);
+    }
+    if (!revisions.current(epoch)) return;
+    let computed;
+    try {
+      computed = await session.pivot(target);
+    } catch (error) {
+      // Definition and size errors leave the engine usable.
+      if (!error.message.startsWith(PIVOT_ERROR)) throw error;
+      throw Object.assign(new Error(error.message.slice(PIVOT_ERROR.length)), {
+        keepSession: true,
+      });
+    }
+    if (!revisions.current(epoch)) return;
+    const result = (() => {
+      try {
+        return pivotEdits(book, target, computed, {
+          previous,
+          fingerprint: computed.fingerprint,
+          at: new Date().toISOString(),
+        });
+      } catch (error) {
+        throw Object.assign(error, { keepSession: true });
+      }
+    })();
+    const next = previous
+        ? book.pivots.map((p) => (p.id === id ? result.pivot : p))
+        : [...(book.pivots ?? []), result.pivot],
+      anchor = result.pivot.output.ref.split(":")[0],
+      done = `Pivot table "${pivotLabel(result.pivot)}" refreshed from ${computed.records.toLocaleString("en-US")} records. Unsaved changes.`;
+    loading = null;
+    const applied = await apply({
+      edits: result.edits,
+      pivots: next,
+      owner: id,
+      transient: true,
+      selectionAfter: {
+        sheetId: result.pivot.output.sheetId,
+        anchor,
+        focus: anchor,
+      },
+    });
+    if (applied) {
+      status(done);
+      dispatchEvent(
+        new CustomEvent("html-data:pivot", {
+          detail: {
+            pivotMS: computed.pivotMS,
+            records: computed.records,
+            outputCells: computed.width * computed.height,
+            edits: result.edits.length,
+          },
+        }),
+      );
+    }
+    return applied;
+  } catch (error) {
+    if (revisions.current(epoch)) {
+      if (engineWork && !error.keepSession) {
+        session?.dispose();
+        session = null;
+      }
+      status(
+        `Pivot table not refreshed: ${error.message} Your previous work is retained.`,
+      );
+    }
+  } finally {
+    if (revisions.current(epoch) && loading?.operation === "pivot") {
+      loading = null;
+      render();
+    }
+  }
+}
+async function refreshAllPivots() {
+  for (const { id } of [...(book.pivots ?? [])])
+    if (!(await refreshPivot(id))) return false;
+  return true;
+}
+// Removes a definition and the values it wrote; direct formatting stays.
+async function deletePivot(id) {
+  if (loading) return;
+  const blocked = pivotBusy();
+  if (blocked) return void status(blocked);
+  const pivot = book.pivots?.find((p) => p.id === id);
+  if (!pivot) return;
+  const next = book.pivots.filter((p) => p.id !== id),
+    edits = pivotRemovalEdits(book, pivot),
+    done = `Pivot table "${pivotLabel(pivot)}" deleted. Unsaved changes.`;
+  if (!edits.length) return publishPivots(next, done);
+  const applied = await apply({
+    edits,
+    pivots: next,
+    owner: id,
+    transient: true,
+    selectionAfter: { sheetId, ...grid.selection },
+  });
+  if (applied) status(done);
+  return applied;
+}
+const pivots = setupPivots({
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  getSelection: () => grid.selection,
+  getStates: () => pivotStates,
+  isSnapshotCurrent: () =>
+    !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  getRevision: () => persistence.revision,
+  busy: () => !!loading,
+  refresh: refreshPivot,
+  remove: deletePivot,
+  status,
+});
 const navigation = setupSheetNavigation($("sheet-tabs"), {
   getBook: () => book,
   getSheetId: () => sheetId,
@@ -1096,6 +1349,20 @@ const picture = setupPicture({
 });
 register("download-png", () => picture.download());
 register("conditional-formatting", () => conditionalSettings.open());
+register(
+  "pivot-tables",
+  () => shell.openPanel("pivot"),
+  () => true,
+);
+register("insert-pivot", () => {
+  pivots.create();
+  shell.openPanel("pivot");
+});
+register(
+  "refresh-pivots",
+  () => refreshAllPivots(),
+  () => idle() && !!book.pivots?.length,
+);
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
 register(
@@ -1148,6 +1415,13 @@ const documentColours = Object.fromEntries(
 // Mounted after persistence fingerprints the opened file's shell.
 const shell = mountShell({
   commands,
+  panels: {
+    pivot: () => ({
+      title: "Pivot tables",
+      subtitle: "Rows, columns, filters and totals from a source range",
+      body: () => pivots.body(),
+    }),
+  },
   state: () => {
     const cell = selectedCell(),
       currency = currencyOf(cell);

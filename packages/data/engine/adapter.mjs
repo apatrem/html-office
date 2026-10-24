@@ -1,6 +1,7 @@
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
+import { computePivot, pivotFingerprint, validatePivots, PIVOT_ERROR } from "../model/pivot.mjs";
 import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
@@ -90,6 +91,24 @@ export class EngineSession {
     }});
     this.load(next);
     return {...await this.calculateDelta(),beforeRefs,formulas};
+  }
+  // Pivot definitions only matter here for structural validation and shifts;
+  // the editor sends the canonical list before those operations.
+  configurePivots(pivots){
+    const next={...this.book};
+    if(pivots?.length)next.pivots=structuredClone(pivots);else delete next.pivots;
+    validatePivots(next);this.book=next;
+  }
+  // Pivot refresh (ADR-014): recalculates first, so source formula results are
+  // current, then aggregates the typed values this session holds. The caller
+  // writes the returned cells through editMany like any other edit.
+  async pivot(definition){
+    validatePivots({...this.book,pivots:[definition]});
+    await this.calculateDelta();
+    // Definition and size errors are marked: they leave the session usable.
+    let computed;
+    try{computed=computePivot(this.book,definition);}catch(error){throw new Error(PIVOT_ERROR+error.message);}
+    return {...computed,fingerprint:await pivotFingerprint(this.book,definition)};
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);
