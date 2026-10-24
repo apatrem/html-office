@@ -23,13 +23,14 @@ const bundled = await build({
   target: "es2022",
 });
 const html = await buildWorkbook(book, { offline: true });
-const file = resolve(out, "worker-probe.html");
+const file = resolve(out, "worker-probe.html"),
+  // The last </body>: embedded scripts (ECharts) may contain the text.
+  end = html.lastIndexOf("</body>");
 await writeFile(
   file,
-  html.replace(
-    "</body>",
-    `<script type="module">${bundled.outputFiles[0].text}\nglobalThis.Client=EngineClient;globalThis.readDocument=readModel;</script></body>`,
-  ),
+  html.slice(0, end) +
+    `<script type="module">${bundled.outputFiles[0].text}\nglobalThis.Client=EngineClient;globalThis.readDocument=readModel;</script>` +
+    html.slice(end),
 );
 const browser = await chromium.launch();
 try {

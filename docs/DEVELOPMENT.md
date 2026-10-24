@@ -71,11 +71,11 @@ The checker trusts the engines listed in `src/released-engines.json` plus the en
 
 | Folder | Purpose |
 | --- | --- |
-| `src/engine/` | DOM operations, history, serialisation, editor, thumbnails, and chart rendering |
-| `src/charts/` | One module per chart type |
+| `src/engine/` | DOM operations, history, serialisation, editor and thumbnails |
+| `packages/shared/charts/` | Chart contract shared by Slides, Data and Text: type registry, validation, ECharts options, the pinned ECharts loader and SVG preview capture |
 | `src/theme/` | Layouts and CSS theme variables |
 | `src/guide.md`, `src/format.js` | Embedded guide and shared format contract |
-| `src/echarts.js` | Approved ECharts version, URL, and SRI digest |
+| `packages/shared/charts/echarts.mjs` | Approved ECharts version, URL, and SRI digest |
 | `src/distribution.json` | HTTPS links to a compatible release |
 | `src/released-engines.json` | Digests of published engines accepted by the checker |
 | `tools/` | Build, documentation generation, validation, and packaging |
@@ -84,7 +84,7 @@ The checker trusts the engines listed in `src/released-engines.json` plus the en
 | `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
 | `docs/` | [Office V1 specification](HTML-OFFICE-V1.md), [Data implementation plan](HTML-DATA-PLAN.md), [Text V1 specification](HTML-TEXT-V1.md), [Text implementation plan](HTML-TEXT-PLAN.md), [engine stress test](ENGINE-STRESS-TEST.md), [Slides V1 plan](PLAN.md), decisions, and [Slides validation status](VALIDATION-V1.md) |
 
-Add a chart in `src/charts/<type>.js` with `label`, `validate`, `table`, and `toOption`; register it in `src/engine/charts.js`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
+Add a chart in `packages/shared/charts/types/<type>.mjs` with `label`, `validate`, `table`, and `toOption`; register it in `packages/shared/charts/index.mjs`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
 
 Distribution links are versioned in `src/distribution.json`; documentation and downloads must point to a compatible release. Format versioning is independent of engine versioning. Generated assets are committed so the downloaded skill can run without a build step.
 

@@ -1,7 +1,7 @@
 // Entry point of the html-slides engine (MIT). Bundled into one script by tools/build.mjs
 // and copied into every deck: <script id="engine" data-version="…">.
 import * as M from './model.js';
-import * as C from './charts.js';
+import * as C from '../../packages/shared/charts/index.mjs';
 import * as V from './view.js';
 import * as E from './editor.js';
 import { slideCommands } from './commands.js';

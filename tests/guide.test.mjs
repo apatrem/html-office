@@ -7,7 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {chromium} from 'playwright';
 import {zone, preflight} from '../plugin/skills/html-slides/tools/lib.mjs';
 import {LAYOUTS, SHAPES, CHART_TYPES} from '../src/engine/templates.js';
-import {registry} from '../src/engine/charts.js';
+import {registry} from '../packages/shared/charts/index.mjs';
 import {CONTENT_CLASSES} from '../src/format.js';
 import {documentation} from '../tools/guide.mjs';
 import {replaceDocumentation} from '../tools/validation.mjs';

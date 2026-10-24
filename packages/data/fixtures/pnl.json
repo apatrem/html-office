@@ -244,6 +244,50 @@
             "digits": 0
           }
         },
+        "A10": {
+          "input": {
+            "type": "text",
+            "value": "Low-growth scenario: monthly growth"
+          },
+          "cellStyle": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B10": {
+          "input": {
+            "type": "number",
+            "value": 0
+          },
+          "cellStyle": "assumption",
+          "format": {
+            "kind": "percent",
+            "digits": 1
+          }
+        },
+        "A11": {
+          "input": {
+            "type": "text",
+            "value": "High-growth scenario: monthly growth"
+          },
+          "cellStyle": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B11": {
+          "input": {
+            "type": "number",
+            "value": 0.04
+          },
+          "cellStyle": "assumption",
+          "format": {
+            "kind": "percent",
+            "digits": 1
+          }
+        },
         "A1": {
           "input": {
             "type": "text",
@@ -3326,6 +3370,2258 @@
           }
         }
       }
+    },
+    {
+      "id": "chartdata",
+      "name": "Chart data",
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Period"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Revenue"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "C1": {
+          "input": {
+            "type": "text",
+            "value": "Net income"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E1": {
+          "input": {
+            "type": "text",
+            "value": "Period"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "F1": {
+          "input": {
+            "type": "text",
+            "value": "Margin"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H1": {
+          "input": {
+            "type": "text",
+            "value": "Period"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "I1": {
+          "input": {
+            "type": "text",
+            "value": "Low-growth participants"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J1": {
+          "input": {
+            "type": "text",
+            "value": "High-growth participants"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K1": {
+          "input": {
+            "type": "text",
+            "value": "Low-growth net income"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "L1": {
+          "input": {
+            "type": "text",
+            "value": "High-growth net income"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "N1": {
+          "input": {
+            "type": "text",
+            "value": "Scenario"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "O1": {
+          "input": {
+            "type": "text",
+            "value": "Revenue"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "P1": {
+          "input": {
+            "type": "text",
+            "value": "Net income"
+          },
+          "cellStyle": "header",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "A2": {
+          "formula": "=Calculations!B2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E2": {
+          "formula": "=Calculations!B2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H2": {
+          "formula": "=Calculations!B2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B2": {
+          "formula": "=Calculations!B4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C2": {
+          "formula": "=Calculations!B10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F2": {
+          "formula": "=Calculations!B11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I2": {
+          "formula": "=Calculations!B3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J2": {
+          "formula": "=Calculations!B3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K2": {
+          "formula": "=(I2*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I2*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L2": {
+          "formula": "=(J2*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J2*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A3": {
+          "formula": "=Calculations!C2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E3": {
+          "formula": "=Calculations!C2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H3": {
+          "formula": "=Calculations!C2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B3": {
+          "formula": "=Calculations!C4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C3": {
+          "formula": "=Calculations!C10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F3": {
+          "formula": "=Calculations!C11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I3": {
+          "formula": "=Calculations!C3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J3": {
+          "formula": "=Calculations!C3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K3": {
+          "formula": "=(I3*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I3*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L3": {
+          "formula": "=(J3*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J3*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A4": {
+          "formula": "=Calculations!D2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E4": {
+          "formula": "=Calculations!D2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H4": {
+          "formula": "=Calculations!D2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B4": {
+          "formula": "=Calculations!D4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C4": {
+          "formula": "=Calculations!D10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F4": {
+          "formula": "=Calculations!D11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I4": {
+          "formula": "=Calculations!D3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J4": {
+          "formula": "=Calculations!D3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K4": {
+          "formula": "=(I4*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I4*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L4": {
+          "formula": "=(J4*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J4*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A5": {
+          "formula": "=Calculations!E2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E5": {
+          "formula": "=Calculations!E2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H5": {
+          "formula": "=Calculations!E2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B5": {
+          "formula": "=Calculations!E4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C5": {
+          "formula": "=Calculations!E10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F5": {
+          "formula": "=Calculations!E11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I5": {
+          "formula": "=Calculations!E3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J5": {
+          "formula": "=Calculations!E3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K5": {
+          "formula": "=(I5*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I5*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L5": {
+          "formula": "=(J5*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J5*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A6": {
+          "formula": "=Calculations!F2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E6": {
+          "formula": "=Calculations!F2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H6": {
+          "formula": "=Calculations!F2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B6": {
+          "formula": "=Calculations!F4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C6": {
+          "formula": "=Calculations!F10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F6": {
+          "formula": "=Calculations!F11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I6": {
+          "formula": "=Calculations!F3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J6": {
+          "formula": "=Calculations!F3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K6": {
+          "formula": "=(I6*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I6*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L6": {
+          "formula": "=(J6*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J6*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A7": {
+          "formula": "=Calculations!G2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E7": {
+          "formula": "=Calculations!G2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H7": {
+          "formula": "=Calculations!G2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B7": {
+          "formula": "=Calculations!G4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C7": {
+          "formula": "=Calculations!G10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F7": {
+          "formula": "=Calculations!G11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I7": {
+          "formula": "=Calculations!G3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J7": {
+          "formula": "=Calculations!G3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K7": {
+          "formula": "=(I7*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I7*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L7": {
+          "formula": "=(J7*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J7*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A8": {
+          "formula": "=Calculations!H2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E8": {
+          "formula": "=Calculations!H2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H8": {
+          "formula": "=Calculations!H2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B8": {
+          "formula": "=Calculations!H4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C8": {
+          "formula": "=Calculations!H10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F8": {
+          "formula": "=Calculations!H11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I8": {
+          "formula": "=Calculations!H3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J8": {
+          "formula": "=Calculations!H3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K8": {
+          "formula": "=(I8*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I8*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L8": {
+          "formula": "=(J8*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J8*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A9": {
+          "formula": "=Calculations!I2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E9": {
+          "formula": "=Calculations!I2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H9": {
+          "formula": "=Calculations!I2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B9": {
+          "formula": "=Calculations!I4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C9": {
+          "formula": "=Calculations!I10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F9": {
+          "formula": "=Calculations!I11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I9": {
+          "formula": "=Calculations!I3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J9": {
+          "formula": "=Calculations!I3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K9": {
+          "formula": "=(I9*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I9*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L9": {
+          "formula": "=(J9*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J9*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A10": {
+          "formula": "=Calculations!J2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E10": {
+          "formula": "=Calculations!J2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H10": {
+          "formula": "=Calculations!J2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B10": {
+          "formula": "=Calculations!J4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C10": {
+          "formula": "=Calculations!J10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F10": {
+          "formula": "=Calculations!J11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I10": {
+          "formula": "=Calculations!J3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J10": {
+          "formula": "=Calculations!J3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K10": {
+          "formula": "=(I10*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I10*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L10": {
+          "formula": "=(J10*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J10*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A11": {
+          "formula": "=Calculations!K2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E11": {
+          "formula": "=Calculations!K2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H11": {
+          "formula": "=Calculations!K2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B11": {
+          "formula": "=Calculations!K4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C11": {
+          "formula": "=Calculations!K10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F11": {
+          "formula": "=Calculations!K11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I11": {
+          "formula": "=Calculations!K3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J11": {
+          "formula": "=Calculations!K3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K11": {
+          "formula": "=(I11*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I11*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L11": {
+          "formula": "=(J11*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J11*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A12": {
+          "formula": "=Calculations!L2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E12": {
+          "formula": "=Calculations!L2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H12": {
+          "formula": "=Calculations!L2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B12": {
+          "formula": "=Calculations!L4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C12": {
+          "formula": "=Calculations!L10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F12": {
+          "formula": "=Calculations!L11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I12": {
+          "formula": "=Calculations!L3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J12": {
+          "formula": "=Calculations!L3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K12": {
+          "formula": "=(I12*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I12*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L12": {
+          "formula": "=(J12*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J12*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A13": {
+          "formula": "=Calculations!M2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E13": {
+          "formula": "=Calculations!M2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H13": {
+          "formula": "=Calculations!M2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B13": {
+          "formula": "=Calculations!M4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C13": {
+          "formula": "=Calculations!M10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F13": {
+          "formula": "=Calculations!M11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I13": {
+          "formula": "=Calculations!M3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J13": {
+          "formula": "=Calculations!M3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K13": {
+          "formula": "=(I13*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I13*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L13": {
+          "formula": "=(J13*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J13*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A14": {
+          "formula": "=Calculations!N2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E14": {
+          "formula": "=Calculations!N2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H14": {
+          "formula": "=Calculations!N2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B14": {
+          "formula": "=Calculations!N4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C14": {
+          "formula": "=Calculations!N10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F14": {
+          "formula": "=Calculations!N11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I14": {
+          "formula": "=I13*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J14": {
+          "formula": "=J13*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K14": {
+          "formula": "=(I14*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I14*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L14": {
+          "formula": "=(J14*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J14*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A15": {
+          "formula": "=Calculations!O2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E15": {
+          "formula": "=Calculations!O2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H15": {
+          "formula": "=Calculations!O2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B15": {
+          "formula": "=Calculations!O4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C15": {
+          "formula": "=Calculations!O10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F15": {
+          "formula": "=Calculations!O11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I15": {
+          "formula": "=I14*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J15": {
+          "formula": "=J14*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K15": {
+          "formula": "=(I15*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I15*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L15": {
+          "formula": "=(J15*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J15*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A16": {
+          "formula": "=Calculations!P2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E16": {
+          "formula": "=Calculations!P2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H16": {
+          "formula": "=Calculations!P2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B16": {
+          "formula": "=Calculations!P4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C16": {
+          "formula": "=Calculations!P10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F16": {
+          "formula": "=Calculations!P11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I16": {
+          "formula": "=I15*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J16": {
+          "formula": "=J15*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K16": {
+          "formula": "=(I16*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I16*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L16": {
+          "formula": "=(J16*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J16*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A17": {
+          "formula": "=Calculations!Q2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E17": {
+          "formula": "=Calculations!Q2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H17": {
+          "formula": "=Calculations!Q2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B17": {
+          "formula": "=Calculations!Q4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C17": {
+          "formula": "=Calculations!Q10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F17": {
+          "formula": "=Calculations!Q11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I17": {
+          "formula": "=I16*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J17": {
+          "formula": "=J16*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K17": {
+          "formula": "=(I17*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I17*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L17": {
+          "formula": "=(J17*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J17*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A18": {
+          "formula": "=Calculations!R2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E18": {
+          "formula": "=Calculations!R2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H18": {
+          "formula": "=Calculations!R2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B18": {
+          "formula": "=Calculations!R4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C18": {
+          "formula": "=Calculations!R10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F18": {
+          "formula": "=Calculations!R11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I18": {
+          "formula": "=I17*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J18": {
+          "formula": "=J17*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K18": {
+          "formula": "=(I18*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I18*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L18": {
+          "formula": "=(J18*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J18*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A19": {
+          "formula": "=Calculations!S2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E19": {
+          "formula": "=Calculations!S2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H19": {
+          "formula": "=Calculations!S2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B19": {
+          "formula": "=Calculations!S4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C19": {
+          "formula": "=Calculations!S10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F19": {
+          "formula": "=Calculations!S11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I19": {
+          "formula": "=I18*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J19": {
+          "formula": "=J18*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K19": {
+          "formula": "=(I19*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I19*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L19": {
+          "formula": "=(J19*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J19*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A20": {
+          "formula": "=Calculations!T2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E20": {
+          "formula": "=Calculations!T2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H20": {
+          "formula": "=Calculations!T2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B20": {
+          "formula": "=Calculations!T4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C20": {
+          "formula": "=Calculations!T10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F20": {
+          "formula": "=Calculations!T11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I20": {
+          "formula": "=I19*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J20": {
+          "formula": "=J19*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K20": {
+          "formula": "=(I20*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I20*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L20": {
+          "formula": "=(J20*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J20*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A21": {
+          "formula": "=Calculations!U2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E21": {
+          "formula": "=Calculations!U2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H21": {
+          "formula": "=Calculations!U2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B21": {
+          "formula": "=Calculations!U4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C21": {
+          "formula": "=Calculations!U10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F21": {
+          "formula": "=Calculations!U11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I21": {
+          "formula": "=I20*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J21": {
+          "formula": "=J20*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K21": {
+          "formula": "=(I21*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I21*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L21": {
+          "formula": "=(J21*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J21*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A22": {
+          "formula": "=Calculations!V2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E22": {
+          "formula": "=Calculations!V2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H22": {
+          "formula": "=Calculations!V2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B22": {
+          "formula": "=Calculations!V4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C22": {
+          "formula": "=Calculations!V10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F22": {
+          "formula": "=Calculations!V11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I22": {
+          "formula": "=I21*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J22": {
+          "formula": "=J21*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K22": {
+          "formula": "=(I22*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I22*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L22": {
+          "formula": "=(J22*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J22*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A23": {
+          "formula": "=Calculations!W2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E23": {
+          "formula": "=Calculations!W2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H23": {
+          "formula": "=Calculations!W2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B23": {
+          "formula": "=Calculations!W4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C23": {
+          "formula": "=Calculations!W10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F23": {
+          "formula": "=Calculations!W11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I23": {
+          "formula": "=I22*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J23": {
+          "formula": "=J22*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K23": {
+          "formula": "=(I23*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I23*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L23": {
+          "formula": "=(J23*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J23*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A24": {
+          "formula": "=Calculations!X2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E24": {
+          "formula": "=Calculations!X2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H24": {
+          "formula": "=Calculations!X2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B24": {
+          "formula": "=Calculations!X4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C24": {
+          "formula": "=Calculations!X10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F24": {
+          "formula": "=Calculations!X11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I24": {
+          "formula": "=I23*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J24": {
+          "formula": "=J23*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K24": {
+          "formula": "=(I24*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I24*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L24": {
+          "formula": "=(J24*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J24*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "A25": {
+          "formula": "=Calculations!Y2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "E25": {
+          "formula": "=Calculations!Y2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "H25": {
+          "formula": "=Calculations!Y2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "B25": {
+          "formula": "=Calculations!Y4",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C25": {
+          "formula": "=Calculations!Y10",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "F25": {
+          "formula": "=Calculations!Y11*100",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 1
+          }
+        },
+        "I25": {
+          "formula": "=I24*(1+Inputs!$B$10)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "J25": {
+          "formula": "=J24*(1+Inputs!$B$11)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "K25": {
+          "formula": "=(I25*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(I25*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "L25": {
+          "formula": "=(J25*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(J25*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "N2": {
+          "input": {
+            "type": "text",
+            "value": "Base"
+          },
+          "cellStyle": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "O2": {
+          "formula": "=Summary!B2",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "P2": {
+          "formula": "=Summary!B3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "N3": {
+          "input": {
+            "type": "text",
+            "value": "Low growth"
+          },
+          "cellStyle": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "O3": {
+          "formula": "=SUM(I2:I25)*Inputs!$B$3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "P3": {
+          "formula": "=SUM(K2:K25)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "N4": {
+          "input": {
+            "type": "text",
+            "value": "High growth"
+          },
+          "cellStyle": "rowHeader",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "O4": {
+          "formula": "=SUM(J2:J25)*Inputs!$B$3",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "P4": {
+          "formula": "=SUM(L2:L25)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        }
+      }
     }
   ],
   "groups": [
@@ -3354,7 +5650,8 @@
       "id": "calc-group",
       "name": "Calculations",
       "sheetIds": [
-        "calc"
+        "calc",
+        "chartdata"
       ]
     }
   ],
@@ -3370,5 +5667,59 @@
       "expectedNetIncome": 20846.13884983012,
       "expectedNPV": 8437.718577841142
     }
-  }
+  },
+  "charts": [
+    {
+      "id": "revenueTrend",
+      "sheetId": "summary",
+      "anchor": "D2",
+      "width": 600,
+      "height": 300,
+      "type": "line",
+      "options": {
+        "title": "Monthly revenue and net income",
+        "unit": "EUR",
+        "decimals": 0
+      },
+      "source": {
+        "sheetId": "chartdata",
+        "ref": "A1:C25"
+      }
+    },
+    {
+      "id": "marginTrend",
+      "sheetId": "summary",
+      "anchor": "D16",
+      "width": 600,
+      "height": 260,
+      "type": "line",
+      "options": {
+        "title": "Operating margin",
+        "unit": "% of revenue",
+        "decimals": 1,
+        "suffix": " %"
+      },
+      "source": {
+        "sheetId": "chartdata",
+        "ref": "E1:F25"
+      }
+    },
+    {
+      "id": "scenarioComparison",
+      "sheetId": "summary",
+      "anchor": "D29",
+      "width": 600,
+      "height": 300,
+      "type": "column",
+      "options": {
+        "title": "24-month totals by growth scenario",
+        "unit": "EUR",
+        "decimals": 0
+      },
+      "source": {
+        "sheetId": "chartdata",
+        "ref": "N1:P4"
+      }
+    }
+  ]
 }

@@ -78,4 +78,4 @@ Dates use `YYYY-MM` (whole month) or `YYYY-MM-DD`. Without `end`, a task is a di
 
 ## Add a type
 
-Create `src/charts/<type>.js` exporting `label`, `validate(data)`, `table`, and `toOption(data, theme)`. Register it in `src/engine/charts.js` and rebuild. Use `upgrade` then `pack` for existing decks. Validators must return diagnostics even for malformed JSON roots. Document an example here and test invalid data.
+Create `packages/shared/charts/types/<type>.mjs` exporting `label`, `validate(data)`, `table`, and `toOption(data, theme)`. Register it in `packages/shared/charts/index.mjs` and rebuild. Use `upgrade` then `pack` for existing decks. Validators must return diagnostics even for malformed JSON roots. Document an example here and test invalid data.
