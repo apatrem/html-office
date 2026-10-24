@@ -166,7 +166,7 @@ Optional `pivots` holds at most 50 definitions ([ADR-013](../../../docs/decision
 }
 ```
 
-- **Source.** `source.ref` is an A1 rectangle whose first row names the fields. Without `ref`, the source is the sheet's used range from A1, so rows appended to a `table` sheet are included at the next refresh; such a source must be on another sheet than the output. A field is named by its header cell's text (or the canonical string of a number or Boolean) and must match exactly one header cell.
+- **Source.** `source.ref` is an A1 rectangle whose first row names the fields. Without `ref`, the source is the sheet's used range from A1, leaving out other pivots' outputs on that sheet, so rows appended to a `table` sheet are included at the next refresh; such a source must be on another sheet than the output. A field is named by its header cell's text (or the canonical string of a number or Boolean) and must match exactly one header cell.
 - **Fields.** `rows` (0–4), `columns` (0–2) and `filters` (0–4) use distinct fields. `values` holds 1–8 measures with `aggregate` `sum`, `count` or `average`. A filter keeps the records whose value is in its typed `values` list (`{"type":"blank"}` keeps blanks).
 - **Output.** `output.ref` is the rectangle the pivot owns; its top-left cell is the anchor. Without `refreshed` it must be the anchor alone, and it never exceeds 200,000 cells. Outputs of different pivots never overlap, and an output never overlaps its own source.
 - **Refresh stamp.** `refreshed.fingerprint` is the source revision: a SHA-256 of the definition and the typed values of the used fields, independent of where the source sits on its sheet. It is absent until the first refresh.

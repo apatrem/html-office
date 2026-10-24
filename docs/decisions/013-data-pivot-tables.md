@@ -28,7 +28,7 @@ Optional workbook `pivots`, an array of at most 50 definitions:
 }
 ```
 
-- `source.ref` is an A1 rectangle whose first row holds field names. Without `ref`, the source is the sheet's used range from A1 to its last populated row and column, so records appended to a `sheet.table` are picked up at the next refresh. A source without `ref` must be on another sheet than the output.
+- `source.ref` is an A1 rectangle whose first row holds field names. Without `ref`, the source is the sheet's used range from A1 to its last populated row and column, leaving out other pivots' outputs on that sheet, so records appended to a `sheet.table` are picked up at the next refresh. A source without `ref` must be on another sheet than the output.
 - Fields are named by their header label: the header cell's text, or the canonical string of a number or Boolean. A field used in a definition must match exactly one header cell. Names keep the definition readable and survive column moves. A renamed or deleted header makes refresh fail with an explicit message.
 - `rows` (0–4), `columns` (0–2) and `filters` (0–4) use distinct fields. `values` holds 1–8 measures; `aggregate` is `sum`, `count` or `average`.
 - A filter keeps records whose value is in `values`, a list of typed values (`{"type":"blank"}` for blanks). Membership is typed, as for dropdowns.

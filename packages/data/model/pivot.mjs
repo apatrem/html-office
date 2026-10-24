@@ -246,7 +246,8 @@ export function headerLabel(cell) {
 }
 // Keys are validated A1 addresses; a character loop avoids a regular
 // expression per cell on large sheets.
-function usedRange(sheet) {
+// Cells inside `owned` rectangles (other pivots' outputs) are not data.
+function usedRange(sheet, owned = []) {
   let bottom = 0,
     right = 0;
   for (const ref in sheet.cells) {
@@ -257,6 +258,7 @@ function usedRange(sheet) {
     for (; ref.charCodeAt(i) >= 65; i++)
       column = column * 26 + ref.charCodeAt(i) - 64;
     const row = Number(ref.slice(i));
+    if (owned.some((r) => inside(r, row, column))) continue;
     if (row > bottom) bottom = row;
     if (column > right) right = column;
   }
@@ -274,13 +276,21 @@ export function resolveSource(
   if (!sheet) fail("The pivot's source sheet no longer exists.");
   if (pivot.source.ref === "#REF!")
     fail("The pivot's source range was deleted. Choose a new source.");
-  const cached = pivot.source.ref === undefined && bounds?.(sheet),
+  // A whole-sheet source leaves out pivot outputs on its sheet; the cached
+  // bounds cannot, so they are not used there.
+  const owned =
+      pivot.source.ref === undefined
+        ? (book.pivots ?? [])
+            .filter((p) => p.id !== pivot.id && p.output.sheetId === sheet.id)
+            .map((p) => parseRange(p.output.ref))
+        : [],
+    cached = pivot.source.ref === undefined && !owned.length && bounds?.(sheet),
     rect =
       pivot.source.ref !== undefined
         ? parseRange(pivot.source.ref)
         : cached
           ? { top: 1, left: 1, bottom: cached.rows, right: cached.columns }
-          : usedRange(sheet);
+          : usedRange(sheet, owned);
   if (!rect) fail(`The source sheet "${sheet.name}" is empty.`);
   const area = (r) => (r.bottom - r.top + 1) * (r.right - r.left + 1);
   // Cached bounds may include formatting-only cells: measure exactly first.

@@ -448,7 +448,13 @@ export function setupPivots({
   }
   function render() {
     if (!root?.isConnected) return;
-    const focused = document.activeElement?.dataset?.pk,
+    // Text typed but not yet committed (change fires on leaving the field)
+    // survives a rebuild of the panel.
+    const active = root.contains(document.activeElement)
+        ? document.activeElement
+        : null,
+      typing = active?.matches("input:not([type=checkbox])") && active.value,
+      focused = active?.dataset?.pk,
       pivots = pivotsOf(),
       sheetId = getSheetId(),
       s = getSelection();
@@ -683,8 +689,12 @@ export function setupPivots({
         "The pivot owns its output cells: edit it here, not in the grid. Refresh after source changes; nothing refreshes automatically.",
       ),
     );
-    if (focused)
-      root.querySelector(`[data-pk="${CSS.escape(focused)}"]`)?.focus();
+    if (focused) {
+      const next = root.querySelector(`[data-pk="${CSS.escape(focused)}"]`);
+      if (next && typeof typing === "string" && next.matches("input"))
+        next.value = typing;
+      next?.focus();
+    }
   }
   // Follows refreshes, undo and pivot states without discarding a draft
   // the user is editing.
@@ -743,31 +753,29 @@ export function setupPivots({
   // them. A reference the user is still typing (invalid) is left alone.
   function structure(command, direction) {
     if (!draft) return;
-    const refs = () => JSON.stringify([draft.source, draft.output]),
-      undone = direction === "undo" && moves.at(-1);
     lastKey = "";
-    if (undone && undone.after === refs()) {
-      moves.pop();
-      [draft.source, draft.output] = JSON.parse(undone.before);
-      return;
-    }
-    const before = refs(),
-      shift = (ref) => {
+    const shift = (ref) => {
         try {
           return shiftRange(ref, command);
         } catch {
           return ref;
         }
-      };
-    if (
-      draft.source.sheetId === command.sheetId &&
-      draft.source.ref !== undefined
-    )
-      draft.source = { ...draft.source, ref: shift(draft.source.ref) };
-    if (draft.output.sheetId === command.sheetId)
-      draft.output = { ...draft.output, ref: shift(draft.output.ref) };
-    if (direction === "undo") moves.length = 0;
-    else moves.push({ before, after: refs() });
+      },
+      undone = direction === "undo" ? moves.pop() : undefined,
+      before = {},
+      after = {};
+    // Each reference is restored on its own: one edited since the shift is
+    // moved by the inverse operation instead.
+    for (const key of ["source", "output"]) {
+      const value = draft[key];
+      before[key] = JSON.stringify(value);
+      if (undone && undone.after[key] === before[key])
+        draft[key] = JSON.parse(undone.before[key]);
+      else if (value.sheetId === command.sheetId && value.ref !== undefined)
+        draft[key] = { ...value, ref: shift(value.ref) };
+      after[key] = JSON.stringify(draft[key]);
+    }
+    if (direction !== "undo") moves.push({ before, after });
   }
   return {
     structure,

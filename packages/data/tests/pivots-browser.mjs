@@ -382,6 +382,17 @@ try {
   await panel(page)
     .getByRole("checkbox", { name: "Partner", exact: true })
     .waitFor();
+  // Text typed while a refresh runs survives the panel's rebuild.
+  await panel(page)
+    .getByRole("button", { name: "Refresh", exact: true })
+    .click();
+  await panel(page).getByLabel("Name", { exact: true }).fill("Typing");
+  await waitStatus(page, /refreshed from/);
+  await page.waitForTimeout(300);
+  assert.equal(
+    await panel(page).getByLabel("Name", { exact: true }).inputValue(),
+    "Typing",
+  );
   assert.deepEqual(errors, []);
   await context.close();
 

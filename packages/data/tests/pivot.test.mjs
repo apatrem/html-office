@@ -597,3 +597,30 @@ test("re-verification: unused-column formulas and unverified headers are not tru
     true,
   );
 });
+
+test("whole-sheet sources leave out other pivots' outputs on their sheet", () => {
+  const b = book(sales, {
+    rows: ["Region"],
+    values: [{ field: "Revenue", aggregate: "sum" }],
+  });
+  b.sheets[0].cells.G1 = t("Region");
+  b.sheets[0].cells.H1 = t("Sum of Revenue");
+  b.pivots.push({
+    id: "q",
+    source: { sheetId: "data", ref: "A1:D6" },
+    output: { sheetId: "data", ref: "G1:H4" },
+    rows: ["Region"],
+    columns: [],
+    filters: [],
+    values: [{ field: "Revenue", aggregate: "sum" }],
+    refreshed: { fingerprint: "a".repeat(64), at: "2026-10-24T00:00:00.000Z" },
+  });
+  validatePivots(b);
+  assert.deepEqual(resolveSource(b, b.pivots[0]).rect, {
+    top: 1,
+    left: 1,
+    bottom: 6,
+    right: 4,
+  });
+  assert.equal(table(b).at(-1)[1], 330);
+});
