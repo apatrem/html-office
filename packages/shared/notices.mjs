@@ -274,6 +274,11 @@ function manifest(dir) {
     version: json.version,
     licence: json.license,
     dependencies: Object.keys(json.dependencies ?? {}),
+    // Its published entry files, where a banner may name its licence.
+    entries: [json.module, json.main]
+      .filter((file) => typeof file === "string")
+      .map((file) => join(dir, file))
+      .filter((file) => existsSync(file) && statSync(file).isFile()),
     dir,
   };
 }
@@ -340,11 +345,20 @@ function banner(text) {
 // esbuild's legal comments that carry a copyright or licence statement.
 const LEGAL = /^\/\*!|@license|@preserve/;
 const STATEMENT = /Copyright|licen[cs]e|Permission/i;
-const copyrightLines = (text) =>
-  text
-    .split("\n")
-    .filter((line) => COPYRIGHT.test(line))
-    .map((line) => line.trim());
+// Copyright lines of a banner, each with the lines that continue it (a line
+// ending in "and", "&" or a comma goes on to the next one).
+function copyrightLines(text) {
+  const lines = text.split("\n"),
+    found = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!COPYRIGHT.test(lines[i])) continue;
+    const parts = [lines[i].trim()];
+    while (/(?:,|\band|&)$/.test(parts.at(-1)) && i + 1 < lines.length)
+      parts.push(lines[++i].trim());
+    found.push(parts.join(" "));
+  }
+  return found;
+}
 
 // Licence entries for bundled packages:
 // - their LICENSE, COPYING and NOTICE files and licenses/ folder (the rule
@@ -358,11 +372,15 @@ const copyrightLines = (text) =>
 export function packageEntries(packages) {
   const entries = new Map(),
     seen = new Set(),
-    bundled = new Set(packages.map((p) => p.name));
+    names = new Set(packages.map((p) => p.name)),
+    versions = new Set(packages.map((p) => `${p.name}@${p.version}`)),
+    add = (label, text) =>
+      entries.set(`${label}\u0001${text}`, { label, text });
   const visit = (pkg, files, banners = []) => {
-    const label = `${pkg.name}@${pkg.version}`;
-    if (seen.has(label)) return;
-    seen.add(label);
+    const label = `${pkg.name}@${pkg.version}`,
+      key = [label, pkg.dir ?? "", ...banners].join("\u0001");
+    if (seen.has(key)) return;
+    seen.add(key);
     const found = (pkg.dir ? readdirSync(pkg.dir) : []).flatMap((file) => {
       const path = join(pkg.dir, file);
       if (/^(licen[cs]e|copying|notice)/i.test(file) && statSync(path).isFile())
@@ -372,10 +390,7 @@ export function packageEntries(packages) {
       return [];
     });
     for (const file of found.sort())
-      entries.set(
-        `${label}/${file}`,
-        readFileSync(join(pkg.dir, file), "utf8"),
-      );
+      add(`${label}/${file}`, readFileSync(join(pkg.dir, file), "utf8"));
     const own = files.flatMap(comments);
     if (!found.length) {
       const holders = [
@@ -394,12 +409,20 @@ export function packageEntries(packages) {
         throw new Error(
           `${label}: no licence file, and no licence template or copyright banner`,
         );
-      entries.set(label, holders.join("\n") + "\n\n" + TEMPLATES[pkg.licence]);
+      add(label, holders.join("\n") + "\n\n" + TEMPLATES[pkg.licence]);
     }
     for (const [i, { file, raw, text }] of own.entries()) {
       const b = banner(text);
-      if (b?.name && b.name !== pkg.name && !bundled.has(b.name)) {
-        const dep = installed(pkg.dir, b.name);
+      if (
+        b?.name &&
+        b.name !== pkg.name &&
+        !(b.version
+          ? versions.has(`${b.name}@${b.version}`)
+          : names.has(b.name))
+      ) {
+        // The installed copy's licence files count only for the same version.
+        let dep = installed(pkg.dir, b.name);
+        if (dep && b.version && dep.version !== b.version) dep = null;
         visit(
           {
             ...(dep ?? { licence: b.licence }),
@@ -411,21 +434,27 @@ export function packageEntries(packages) {
           [text],
         );
       } else if (!b && LEGAL.test(raw) && STATEMENT.test(text)) {
-        entries.set(`${label}/${relative(pkg.dir, file)}#${i + 1}`, text);
+        add(`${label}/${relative(pkg.dir, file)}#${i + 1}`, text);
         if (
           /Licensed under the Apache License, Version 2\.0/.test(squash(text))
         )
-          entries.set(`${label}/Apache-2.0`, TEMPLATES["Apache-2.0"]);
+          add(`${label}/Apache-2.0`, TEMPLATES["Apache-2.0"]);
       }
     }
+    // A declared dependency esbuild did not bundle may be inlined in this
+    // package's published files: attribute it conservatively.
     for (const name of pkg.dependencies)
-      if (!bundled.has(name)) {
+      if (!names.has(name)) {
         const dep = installed(pkg.dir, name);
         if (!dep)
           throw new Error(`${label}: dependency ${name} is not installed`);
-        visit({ ...dep, dependencies: [] }, []);
+        visit(
+          { ...dep, dependencies: [] },
+          [],
+          dep.entries.flatMap(comments).map((c) => c.text),
+        );
       }
   };
   for (const pkg of packages) visit(pkg, pkg.files);
-  return [...entries].map(([label, text]) => ({ label, text }));
+  return [...entries.values()];
 }

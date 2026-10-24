@@ -51,6 +51,10 @@ test('other sections stay together and point to the licence texts lifted out of 
   assert.deepEqual(noticeProblems(entries, notices), []);
   assert.match(noticeProblems([{ label: 'x@1.0.0/LICENSE', text: 'Unlisted words.' }], notices)[0], /not listed/);
   assert.match(noticeProblems(entries, notices.replace('Includes sub.', ''))[0], /missing line: Includes sub\./);
+  // Two different MIT wordings in one composite notice are not a duplicate.
+  const variant = body.replace('shall be included', 'shall be included (including the next paragraph)');
+  const composite = [{ label: 'e@1.0.0/NOTICE', text: `e\n\n=====\n\n${body}\n\n=====\n\n${variant}` }];
+  assert.deepEqual(noticeProblems(composite, format(composite)), []);
   const twice = notices + `\n== 9. Notice ==\n  z@1.0.0\n\nPreamble.\n\n${body}\n`;
   assert.ok(noticeProblems(entries, twice).some(p => /stored twice/.test(p)));
 });
@@ -64,15 +68,21 @@ test('a package without a licence file cites the canonical text with every holde
     for (const [file, text] of Object.entries(files)) fs.writeFileSync(path.join(d, file), text);
     return d;
   };
-  const host = pkg('host', { dependencies: { vendored: '1.0.0' } }, {
-    'dist/host.js': '/*\nCopyright (c) 2020 Host\nCopyright (c) 2021 Helper\nname: host\nlicense: MIT\n*/\n' +
+  const host = pkg('host', { dependencies: { vendored: '1.0.0', unused: '1.0.0' } }, {
+    'dist/host.js': '/*\nCopyright (c) 2020 Host\nCopyright (c) 2021 Helper and\n  2022 Other\nname: host\nlicense: MIT\n*/\n' +
       '/*\nCopyright (c) NAVER\nname: inlined\nlicense: MIT\nversion: 2.0.0\n*/\n' +
       '/*! Copyright (c) Microsoft Corporation.\nLicensed under the Apache License, Version 2.0 (the "License"); */\nx();'
   });
   pkg('vendored', {}, { LICENSE: `Copyright (c) Vendor\n\n${body}` });
+  // An installed copy of another version does not lend its licence file.
+  pkg('inlined', { version: '3.0.0' }, { LICENSE: `Copyright (c) Someone else\n\n${body}` });
+  // A dependency without a licence file is attributed from its own banner.
+  pkg('unused', { main: 'dist/unused.js' }, { 'dist/unused.js': '/*\nCopyright (c) Unused\nname: unused\nlicense: MIT\n*/' });
   const entries = packageEntries([{ ...packageAt(host), files: [path.join(host, 'dist/host.js')] }]);
   const text = label => entries.find(e => e.label === label)?.text ?? '';
-  assert.match(text('host@1.0.0'), /^Copyright \(c\) 2020 Host\nCopyright \(c\) 2021 Helper\n\nPermission is hereby granted/);
+  assert.match(text('host@1.0.0'), /^Copyright \(c\) 2020 Host\nCopyright \(c\) 2021 Helper and 2022 Other\n\nPermission is hereby granted/);
+  assert.ok(!entries.some(e => /Someone else/.test(e.text)));
+  assert.match(text('unused@1.0.0'), /^Copyright \(c\) Unused\n\nPermission/);
   assert.match(text('inlined@2.0.0'), /^Copyright \(c\) NAVER\n\nPermission/);
   assert.match(text('vendored@1.0.0/LICENSE'), /Copyright \(c\) Vendor/);
   assert.match(text('host@1.0.0/dist/host.js#3'), /Microsoft Corporation/);

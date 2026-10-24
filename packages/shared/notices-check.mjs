@@ -81,30 +81,29 @@ export function noticeProblems(entries, notices) {
         problems.push(`${label}: missing line: ${line.trim()}`);
     }
   }
-  const seen = new Set();
+  const seen = new Set(),
+    wordings = new Set();
   for (const { text } of blocks) {
     const key = squash(text);
     if (key && seen.has(key))
       problems.push(`licence text stored twice: ${key.slice(0, 60)}`);
     seen.add(key);
-    for (const [start] of LICENCES) {
-      const at = key.indexOf(start);
-      if (at >= 0 && key.indexOf(start, at + start.length) >= 0)
-        problems.push(`a block stores "${start}" twice`);
-    }
-  }
-  // A licence wording found in two blocks must differ between them.
-  for (const [start, end] of LICENCES) {
-    const copies = blocks
-      .map(({ text }) => squash(text))
-      .flatMap((key) => {
-        const at = key.indexOf(start);
-        if (at < 0) return [];
-        const stop = key.indexOf(end, at);
-        return [key.slice(at, stop < 0 ? key.length : stop + end.length + 1)];
-      });
-    if (new Set(copies).size !== copies.length)
-      problems.push(`the "${start}" wording is stored twice`);
+    // Every complete licence wording, inside any block, must be unique.
+    for (const [start, end] of LICENCES)
+      for (
+        let at = key.indexOf(start);
+        at >= 0;
+        at = key.indexOf(start, at + 1)
+      ) {
+        const stop = key.indexOf(end, at),
+          wording = key.slice(
+            at,
+            stop < 0 ? key.length : stop + end.length + 1,
+          );
+        if (wordings.has(wording))
+          problems.push(`the "${start}" wording is stored twice`);
+        wordings.add(wording);
+      }
   }
   return problems;
 }
