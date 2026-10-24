@@ -34,14 +34,17 @@ test('strict schemas reject unknown fields and wrong types at every depth', () =
     ['line', { ...cat, labels: 'some' }, 'labels: "last" | "all" | "none" required'],
     ['stacked', { ...cat, percent: 'yes' }, 'percent: boolean required'],
     ['hbar', { ...cat, percent: true }, 'percent: unknown field'],
-    ['waterfall', { unit: 'h', items: [{ label: 'A', value: '3', total: true }] }, 'items[0].value: finite number or null required'],
+    ['waterfall', { unit: 'h', items: [{ label: 'A', value: '3', total: true }] }, 'items[0].value: finite number or null or "" required'],
     ['waterfall', { unit: 'h', increase: 'up', items: [{ label: 'A', total: true }] }, 'increase: "good" | "bad" required'],
     ['bubble', { unit: 'h', xLabel: 'X', yLabel: 'Y', highlight: {}, points: [{ name: 'P', x: 1, y: 1, size: 1 }] }, 'highlight: integer or string or array required'],
     ['bubble', { unit: 'h', xLabel: 'X', yLabel: 'Y', highlight: [true], points: [{ name: 'P', x: 1, y: 1, size: 1 }] }, 'highlight[0]: integer or string required'],
     ['gantt', { tasks: [{ name: 'T', start: '2027-01', highlight: 'y' }] }, 'tasks[0].highlight: boolean required'],
     ['gantt', { tasks: [{ name: 'T', start: '2027-01', owner: 'Ann' }] }, 'tasks[0].owner: unknown field'],
     ['gantt', [], 'Data: object required'],
-    ['pie', {}, 'Unknown chart type "pie"']
+    ['pie', {}, 'Unknown chart type "pie"'],
+    ['constructor', {}, 'Unknown chart type "constructor"'],
+    ['__proto__', {}, 'Unknown chart type "__proto__"'],
+    ['toString', {}, 'Unknown chart type "toString"']
   ]) assert.ok(strictValidate(type, d).includes(msg), `${type} ${JSON.stringify(d)} → ${JSON.stringify(strictValidate(type, d))}`);
   assert.deepEqual(checkSchema('column', { ...cat, title: undefined }), [], 'an undefined field is absent');
 });
@@ -53,11 +56,12 @@ const full = {
   hbar: { unit: '%', categories: ['A', 'B'], series: [{ name: 'S', values: [0.125, 1e-7] }], highlight: 'B' },
   stacked: { unit: 'h', percent: true, horizontal: true, totals: false, categories: ['A'], series: [{ name: 'S1', values: [1] }, { name: 'S2', values: [null] }] },
   line: { unit: 'h', labels: 'all', scale: true, categories: ['Jan', 'Feb'], series: [{ name: 'S', values: [1, 2] }] },
-  waterfall: { unit: 'h', increase: 'good', items: [{ label: 'Start', value: 20, total: true }, { label: 'Up', value: 6 }, { label: 'Down', value: -2.25 }, { label: 'End', total: true }] },
+  waterfall: { unit: 'h', increase: 'good', items: [{ label: 'Start', value: 20, total: true }, { label: 'Up', value: 6, total: false },
+    { label: 'Down', value: -2.25 }, { label: 'End', total: true }] },
   bubble: { unit: 'h', xLabel: 'X', yLabel: 'Y', xUnit: 'd', yUnit: 'p', xRef: 3, yRef: 15, highlight: ['P1', 1],
     points: [{ name: 'P1', x: 2, y: 24, size: 12 }, { name: 'P2', x: -1, y: 0.5, size: 0 }] },
   gantt: { title: 'Plan', tasks: [{ name: 'Prepare', start: '2027-02', end: '2027-03-15', group: 'G1', highlight: true },
-    { name: 'Milestone', start: '2027-06' }, { name: 'Plant', start: '2027-04-01', end: '2027-05', group: 'G2' }] }
+    { name: 'Milestone', start: '2027-06', highlight: false }, { name: 'Plant', start: '2027-04-01', end: '2027-05', group: ' G1 ' }] }
 };
 
 test('table adapters round-trip every per-item field, from typed cells and from text cells', () => {
@@ -79,14 +83,31 @@ test('table adapters round-trip every per-item field, from typed cells and from 
 test('Gantt keeps a task highlight through its table', () => {
   const { table } = registry.gantt;
   assert.deepEqual(table.columns(full.gantt), ['Task', 'Start', 'End', 'Group', 'Highlight (y/n)']);
-  assert.deepEqual(table.toRows(full.gantt)[0], ['Prepare', '2027-02', '2027-03-15', 'G1', 'y']);
-  const back = table.fromRows([['Prepare', '2027-02', '', '', 'yes'], ['Other', '2027-03', '', '', 'n']], [], {});
-  assert.deepEqual(back.tasks, [{ name: 'Prepare', start: '2027-02', highlight: true }, { name: 'Other', start: '2027-03' }]);
+  assert.deepEqual(table.toRows(full.gantt).map(r => r[4]), ['y', 'n', '']);
+  const back = table.fromRows([['Prepare', '2027-02', '', '', 'yes'], ['Other', '2027-03', '', '', 'n'], ['Last', '2027-04', '', '', '']], [], {});
+  assert.deepEqual(back.tasks, [{ name: 'Prepare', start: '2027-02', highlight: true }, { name: 'Other', start: '2027-03', highlight: false },
+    { name: 'Last', start: '2027-04' }]);
+  // Typed Boolean cells (Data bindings) read like y/n.
+  assert.deepEqual(table.fromRows([['T', '2027-01', '', '', true], ['U', '2027-01', '', '', false]], [], {}).tasks.map(t => t.highlight), [true, false]);
+  // The Slides data panel drops rows whose cells are all blank: an absent highlight adds no cell.
+  assert.ok(table.toRows({ tasks: [{ name: 'T', start: '2027-01' }] })[0].slice(2).every(v => v === ''));
 });
 
 test('waterfall keeps a total without value absent instead of null', () => {
   const { table } = registry.waterfall;
-  const back = table.fromRows([['End', '', 'y'], ['Gap', '', 'n']], [], {});
-  assert.deepEqual(back.items, [{ label: 'End', total: true }, { label: 'Gap' }]);
+  const back = table.fromRows([['End', '', 'y'], ['Gap', '', 'n'], ['Other', '', '']], [], {});
+  assert.deepEqual(back.items, [{ label: 'End', total: true }, { label: 'Gap', total: false }, { label: 'Other' }]);
   assert.ok(registry.waterfall.validate({ unit: 'h', ...back }).includes('bar 2: finite numeric value required'));
+});
+
+test('equivalent spellings of a missing total value normalise to absent and draw the same chart', () => {
+  const { table, toOption } = registry.waterfall, t = { ink: '#000', acc: '#f00', mid: '#0f0', lig: '#00f', alert: '#f0f', t2: '#666', bd: '#ccc', w: '#fff', font: 'Arial' };
+  const draw = d => JSON.stringify(toOption(d, t));
+  for (const value of [null, '']) {
+    const d = { unit: 'h', items: [{ label: 'Start', value: 2, total: true }, { label: 'Up', value: 1 }, { label: 'End', value, total: true }] };
+    assert.deepEqual(strictValidate('waterfall', d), []);
+    const back = table.fromRows(table.toRows(d), table.columns(d), d);
+    assert.deepEqual(back.items[2], { label: 'End', total: true });
+    assert.equal(draw(back), draw(d));
+  }
 });

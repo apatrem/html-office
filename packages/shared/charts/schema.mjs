@@ -14,7 +14,7 @@ export const schemas = {
   stacked: { object: { ...category, percent: 'boolean', horizontal: 'boolean', totals: 'boolean' } },
   line: { object: { ...category, labels: { enum: ['last', 'all', 'none'] }, scale: 'boolean' } },
   waterfall: { object: { ...shared, increase: { enum: ['good', 'bad'] },
-    items: { array: { object: { label: 'string', value: { any: ['number', 'null'] }, total: 'boolean' } } } } },
+    items: { array: { object: { label: 'string', value: { any: ['number', 'null', { enum: [''] }] }, total: 'boolean' } } } } },
   bubble: { object: { ...shared, xLabel: 'string', yLabel: 'string', xUnit: 'string', yUnit: 'string', xRef: 'number', yRef: 'number',
     highlight: { any: ['integer', 'string', { array: { any: ['integer', 'string'] } }] },
     points: { array: { object: { name: 'string', x: 'number', y: 'number', size: 'number' } } } } },
@@ -61,8 +61,8 @@ function check(v, spec, path, err) {
 }
 
 export function checkSchema(type, data) {
+  if (!Object.hasOwn(schemas, type)) return [`Unknown chart type "${type}"`];
   const spec = schemas[type];
-  if (!spec) return [`Unknown chart type "${type}"`];
   const err = [];
   check(data, spec, '', err);
   return err.map(e => (e.startsWith(':') ? 'Data' + e : e));

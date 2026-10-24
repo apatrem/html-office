@@ -10,7 +10,7 @@ The chart contract of html-office, extracted from Slides ([ADR-013 §4](../../..
 | `types/common.mjs` | Helpers shared by the types: number formatting, axes, series colours, required-field checks, the categories × series table adapter |
 | `types/<type>.mjs` | One chart type: `label`, `validate(data)`, `table` adapter and `toOption(data, theme)` |
 
-Table adapters are lossless: `fromRows(toRows(d))` returns every per-item field, from typed cells (Data bindings) or text cells (the Slides data panel). Chart-level options (`title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, `percent`, …) are not part of the table. Columns per type:
+Table adapters are lossless: `fromRows(toRows(d))` returns every per-item field, from typed cells (Data bindings) or text cells (the Slides data panel). Yes/no columns write `y`, `n`, or a blank cell when the field is absent, so an explicit `false` survives. The only normalisation is a waterfall total's missing value: `null` and `""` come back absent, which draws the same chart. Chart-level options (`title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, `percent`, …) are not part of the table. Columns per type:
 
 | Types | Columns |
 | --- | --- |

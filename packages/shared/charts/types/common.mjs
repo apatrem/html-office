@@ -85,8 +85,14 @@ export function validateCategory(d) {
   return err;
 }
 
-// Yes/no table cells (waterfall totals, Gantt highlights).
-export const yes = v => /^(o|oui|y|yes|1|x|true)$/i.test(String(v ?? '').trim());
+// Yes/no table cells (waterfall totals, Gantt highlights): y, n, or blank when the field is absent.
+export const flag = v => (v === true ? 'y' : v === false ? 'n' : '');
+export function flagOf(v) {
+  const s = String(v ?? '').trim();
+  if (/^(o|oui|y|yes|1|x|true)$/i.test(s)) return true;
+  if (/^(n|no|non|0|false)$/i.test(s)) return false;
+  return undefined;
+}
 
 export function num(v) {
   if (v === '' || v === null || v === undefined) return null;

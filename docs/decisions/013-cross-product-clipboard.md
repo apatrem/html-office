@@ -13,7 +13,7 @@ What exists today:
   - `text/plain` holds TSV of raw values.
   
   Paste reads the custom type first; otherwise it opens the values-first paste dialog (TSV, CSV, Markdown, with explicit locale typing). There is no `text/html` flavour, so Excel and Sheets receive plain text only.
-- **Slides** pastes plain text into the text box being edited (`src/engine/editor.js`) and has no element copy. Charts are `figure.chart[data-type]` with a JSON `script` and a saved `svg.render` preview. The chart contract is the registry in `src/engine/charts.js` with one module per type in `src/charts/`: `validate`, `toOption` and a `table` adapter (`columns`, `toRows`, `fromRows`) used by the chart data editor. ECharts 6.1.0 is pinned in `src/echarts.js`. Tables are `table.t` with `th`, `td.n` for numbers and `tr.tot` for a total row; text colours are `span.c-*` tokens, plus `hl` and `neg`; there are no links and no merged cells in the format reference.
+- **Slides** pastes plain text into the text box being edited (`src/engine/editor.js`) and has no element copy. Charts are `figure.chart[data-type]` with a JSON `script` and a saved `svg.render` preview. The chart contract is the registry in `src/engine/charts.js` with one module per type in `src/charts/`: `validate`, `toOption` and a `table` adapter (`columns`, `toRows`, `fromRows`) used by the chart data editor. ECharts 6.1.0 is pinned in `src/echarts.js`. (X03 has since moved these to `packages/shared/charts/`.) Tables are `table.t` with `th`, `td.n` for numbers and `tr.tot` for a total row; text colours are `span.c-*` tokens, plus `hl` and `neg`; there are no links and no merged cells in the format reference.
 - **Text** is specified only ([Text V1](../HTML-TEXT-V1.md), [ADR-004](004-html-text-format-and-editor.md)). It plans report tables with header rows, total row and merged cells, charts that reuse the Slides contract, and paste from Word, web pages and Excel (Text T07). Text T11 plans to extract the chart contract to `packages/shared/charts/`.
 - **Data charts** are planned as T18 in the [Data plan](../HTML-DATA-PLAN.md) (paused): charts bound to typed ranges, with saved SVG previews.
 
@@ -201,20 +201,20 @@ Beyond these limits, the paste is refused with a message and the document is unc
 - All three products use one shared module, `packages/shared/charts/`, extracted unchanged from Slides. It holds:
   - the type registry with `validate`, `toOption` and the `table` adapter;
   - `theme()` from charte tokens;
-  - the ECharts loader with the **one** pinned version, URL and SRI digest (today `src/echarts.js`, ECharts 6.1.0 from jsDelivr);
+  - the ECharts loader with the **one** pinned version, URL and SRI digest (`packages/shared/charts/echarts.mjs`, ECharts 6.1.0 from jsDelivr);
   - SVG preview capture (`refreshCaches`);
   - the chart (de)serialisers for the clipboard.
 - Each product builds the module into its runtime. ECharts loads from the CDN with SHA-384 SRI only when a chart must be drawn or edited. Offline builds embed the same verified bytes (`script#echarts`).
 - A version bump changes all three products in one change, with a new digest.
-- Number formatting in charts is `en-US` today (`src/charts/common.js`). The extraction keeps that byte-identical; a document `locale` option is a follow-up recorded in X03.
+- Number formatting in charts is `en-US` today (`packages/shared/charts/types/common.mjs`). The extraction keeps that byte-identical; a document `locale` option is a follow-up recorded in X03.
 
 **Sequencing.** The extraction is pulled out of Text T11 into **X03**, which runs before Data T18 and before the chart increments of X02. Text T11 keeps only the Text chart figures (decision 2).
 
 X03 is not a separate effort. It is **PR 1 of the session already assigned to the shared chart module and Data T18**, whose PR 2 is T18. That session waits for this ADR before it changes code.
 
 - **X03** moves the contract to `packages/shared/charts/` with Slides output byte-identical (the T11 extraction acceptance, unchanged). Its prerequisites are already met: Slides PR #1 is merged and the Data loader exists. It does not depend on Text T08. X03 also adds two things the clipboard needs, outside the byte-identical rendering path:
-  - **Strict per-type schemas.** Today's validators (`req` in `src/charts/common.js`) check required fields only: they accept unknown fields and wrongly typed titles or series names. X03 adds an allow-listed, recursive field and type check per chart type. Chart JSON from the clipboard must pass it as well as `validate`; unknown or wrongly typed fields reject the paste.
-  - **Lossless table adapters.** Each type's `table` adapter must round-trip every per-item field, with tests. Today Gantt's adapter drops a task's `highlight`, so X03 adds a column for it. Chart-level options (`title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, `percent`, …) are not part of the table.
+  - **Strict per-type schemas.** Before X03, the validators (`req`, now in `packages/shared/charts/types/common.mjs`) checked required fields only: they accepted unknown fields and wrongly typed titles or series names. X03 adds an allow-listed, recursive field and type check per chart type. Chart JSON from the clipboard must pass it as well as `validate`; unknown or wrongly typed fields reject the paste.
+  - **Lossless table adapters.** Each type's `table` adapter must round-trip every per-item field, with tests. Gantt's adapter dropped a task's `highlight`, so X03 added a column for it. Chart-level options (`title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, `percent`, …) are not part of the table.
 - **Data T18** (when resumed) builds Data charts on the shared module. A Data chart stores **the chart-level options of the shared contract plus one binding**: a rectangular A1 block whose columns follow the type's table adapter.
   - `column`, `hbar`, `line`, `stacked`: category, then one column per series, with the series names in the header row;
   - `waterfall`: label, value, total flag;
