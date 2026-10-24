@@ -70,7 +70,7 @@ let book = compactInputs(readModel($("workbook").textContent)),
   loading = null,
   pendingEdits = [];
 let conditionalScales = {};
-// Derived pivot freshness from the recovery worker (ADR-013); null while a
+// Derived pivot freshness from the recovery worker (ADR-014); null while a
 // change is being analysed or when the worker is unavailable.
 let pivotStates = null;
 const revisions = new CalculationRevision();
@@ -290,7 +290,7 @@ function enteredCell() {
   } else cell.input = { type, value: text };
   return cell;
 }
-// Pivot outputs belong to their pivot (ADR-013): ordinary edits are refused.
+// Pivot outputs belong to their pivot (ADR-014): ordinary edits are refused.
 function assertUnowned(edits) {
   if (!book.pivots?.length) return;
   const rects = ownerRects(book);
@@ -1020,7 +1020,7 @@ async function applyDefinitionHeader(next, label = "Dropdown settings") {
     }
   }
 }
-// ---- pivot tables (T17, ADR-013) ----
+// ---- pivot tables (T17, ADR-014) ----
 // Definitions without cell changes (a refresh that changes no value) are a
 // header entry; everything else goes through apply() with the engine.
 function publishPivots(next, message) {

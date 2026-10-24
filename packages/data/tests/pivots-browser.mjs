@@ -1,4 +1,4 @@
-// Pivot tables end to end (T17, ADR-013): panel, refresh through the engine,
+// Pivot tables end to end (T17, ADR-014): panel, refresh through the engine,
 // ownership, scenario and source staleness, structural moves, undo/redo,
 // save/reopen without the engine, delete and create from a selection.
 import assert from "node:assert/strict";

@@ -17,7 +17,7 @@ let database,
   analysisTimer,
   canonicalOverrides = [],
   formulaResultsCurrent = false,
-  // Pivot freshness (ADR-013): recomputed for pivots whose source sheet a
+  // Pivot freshness (ADR-014): recomputed for pivots whose source sheet a
   // change touched; "all" after loads, structure, headers and verification.
   pivotStates = {},
   pivotsDirty = "all",

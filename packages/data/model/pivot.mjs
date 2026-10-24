@@ -1,4 +1,4 @@
-// Basic pivot tables (T17, ADR-013): readable definitions, typed grouping of
+// Basic pivot tables (T17, ADR-014): readable definitions, typed grouping of
 // in-workbook records, SUM/COUNT/AVERAGE with totals, and the output range a
 // pivot owns. Aggregation runs over typed values; it is not a formula evaluator.
 import {

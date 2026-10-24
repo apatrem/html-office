@@ -1,4 +1,4 @@
-// Pivot table panel (T17, ADR-013): edits one definition at a time as a draft.
+// Pivot table panel (T17, ADR-014): edits one definition at a time as a draft.
 // Update applies it and refreshes in one undoable step; Refresh follows the
 // source; Delete removes the pivot and its values. The panel lives in the
 // shell's side drawer and renders itself.

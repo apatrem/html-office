@@ -99,7 +99,7 @@ export class EngineSession {
     if(pivots?.length)next.pivots=structuredClone(pivots);else delete next.pivots;
     validatePivots(next);this.book=next;
   }
-  // Pivot refresh (ADR-013): recalculates first, so source formula results are
+  // Pivot refresh (ADR-014): recalculates first, so source formula results are
   // current, then aggregates the typed values this session holds. The caller
   // writes the returned cells through editMany like any other edit.
   async pivot(definition){

@@ -174,7 +174,7 @@ Dependencies: T15. Scope: M. Paths: source metadata/refresh command, preview and
 
 Dependencies: T11, T12. Scope: M. Paths: pivot definition/aggregation, controls and fixtures.
 
-Update, 24 October 2026: T15 is no longer a prerequisite. A pivot reads any in-workbook range or `sheet.table` (ADR-005), whether typed, pasted or written by an LLM; imported data later becomes one more source. The design is recorded in [ADR-013](decisions/013-data-pivot-tables.md).
+Update, 24 October 2026: T15 is no longer a prerequisite. A pivot reads any in-workbook range or `sheet.table` (ADR-005), whether typed, pasted or written by an LLM; imported data later becomes one more source. The design is recorded in [ADR-014](decisions/014-data-pivot-tables.md).
 
 - Acceptance: choose rows, columns, filters and SUM/COUNT/AVERAGE measures with totals; store definition, source and result revision in canonical JSON.
 - Acceptance: explicit refresh follows changed source data, scenario/structural references and errors consistently; saved output is readable offline. Define collision-free ownership of the generated output range.

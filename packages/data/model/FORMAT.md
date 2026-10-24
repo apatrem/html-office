@@ -150,7 +150,7 @@ A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus re
 
 ## Pivot tables
 
-Optional `pivots` holds at most 50 definitions ([ADR-013](../../../docs/decisions/013-data-pivot-tables.md)):
+Optional `pivots` holds at most 50 definitions ([ADR-014](../../../docs/decisions/014-data-pivot-tables.md)):
 
 ```json
 {
