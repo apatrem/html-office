@@ -85,6 +85,9 @@ export function validateCategory(d) {
   return err;
 }
 
+// Yes/no table cells (waterfall totals, Gantt highlights).
+export const yes = v => /^(o|oui|y|yes|1|x|true)$/i.test(String(v ?? '').trim());
+
 export function num(v) {
   if (v === '' || v === null || v === undefined) return null;
   const n = Number(String(v).replace(/\s/g, '').replace(',', '.'));

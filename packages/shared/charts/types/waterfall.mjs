@@ -1,6 +1,6 @@
 // Waterfall : pont entre deux valeurs.
 // items: [{label, value, total}] — total:true = level bar (value optional), otherwise a change.
-import { base, axisCat, axisVal, fmt, req, num, isObject, records, finite } from './common.mjs';
+import { base, axisCat, axisVal, fmt, req, num, isObject, records, finite, yes } from './common.mjs';
 
 function compute(items) {
   let level = 0;
@@ -34,9 +34,10 @@ export default {
     columns: () => ['Label', 'Value', 'Total (y/n)'],
     toRows: d => (d.items || []).map(x => [x.label, x.value ?? '', x.total ? 'y' : 'n']),
     fromRows: (rows, _h, d) => ({ ...d, items: rows.map(r => {
-      const total = /^(o|oui|y|yes|1|x)$/i.test(String(r[2]).trim());
-      const it = { label: r[0], value: num(r[1]) };
-      if (total) it.total = true;
+      const it = { label: r[0] };
+      const v = num(r[1]);
+      if (v !== null) it.value = v;
+      if (yes(r[2])) it.total = true;
       return it;
     }) })
   },
