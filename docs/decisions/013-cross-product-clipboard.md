@@ -34,7 +34,7 @@ Findings that decide the design:
 | Web custom format visible to a `paste` event | **No. Verified**: written by `clipboard.write()`, it appears only to `clipboard.read()`. | Not supported. | Not supported. |
 | `image/png` | Async write only. Verified: it then appears as a `Files` entry on paste. | Async write from Firefox 127. | Async write. |
 
-**Proof of concept.** Two `file://` pages ran in Playwright Chromium 151 (headless) in one context. The source wrote the custom type, `text/html` and `text/plain` from a `copy` event, then wrote `text/html`, `text/plain`, `image/png` and a web custom format with `clipboard.write()`. The target read each through the `paste` event and through `clipboard.read()` (sanitised and unsanitised). The script and results are in [`docs/research/x01-clipboard-poc/`](../research/x01-clipboard-poc/README.md). Limits: headless Chromium may use an in-process clipboard rather than the macOS pasteboard. Safari, Firefox and native applications were not driven; they are X02 gates.
+**Proof of concept.** Two `file://` pages ran in Playwright Chromium 151 (headless) in one context. The source wrote the custom type, `text/html` and `text/plain` from a `copy` event, then wrote `text/html`, `text/plain`, `image/png` and a web custom format with `clipboard.write()`. The target read each through the `paste` event and through `clipboard.read()` (sanitised and unsanitised). The script and results are in [`docs/research/x01-clipboard-poc/`](../research/x01-clipboard-poc/README.md), together with a second script that checks whether inert HTML parsing fetches resources (§1, "Parsing"). Limits: headless Chromium may use an in-process clipboard rather than the macOS pasteboard. Safari, Firefox and native applications were not driven; they are X02 gates.
 
 **Precedent.** Google Sheets carries cell types and formulas in `data-sheets-value` and `data-sheets-formula` attributes on the `td` elements of its `text/html` flavour ([analysis](https://iter.ca/post/docs-html/)). Google Docs keeps only a GUID in the HTML and the data in the browser's local storage, which works in one browser profile only.
 
@@ -63,10 +63,17 @@ Rules:
   4. semantic `text/html` tables (Excel, Sheets, Word, Docs, web pages);
   5. `text/plain`.
   
-  An envelope that is absent, invalid or of an unknown major version is skipped with a notice, and the reader continues down the list. The `text/html` flavour is parsed with `DOMParser` into an inert document and read as data. Clipboard nodes are never inserted into the live document.
-- **Size thresholds for writers** (initial values, measured in X02):
-  - `text/html` and its embedded envelope are written only up to 20,000 cells and 8 MiB of HTML.
-  - Above that, only the custom type (Data's existing limit of 2,000,000 cells) and `text/plain` are written. A very large Data range therefore pastes richly into another Data file in Chromium and Firefox, and as values through the paste dialog in Safari across files.
+  **An absent carrier, or an envelope with an unknown `schema` string (a newer major version), is skipped** with a notice, and the reader continues down the list. **A recognised `html-office-clip/1` envelope that is malformed, over a limit or unsafe aborts the whole paste**, leaving the document unchanged. It never falls back to the semantic flavours: a broken Data range would otherwise paste rounded displayed values and silently lose its formulas.
+- **Parsing.** The `text/html` flavour is parsed into a document without a browsing context: a `<template>` element's content, or `DOMParser`. It is read as data, and clipboard nodes are never inserted into the live document. MDN warns that such a document "can download resources specified in `<iframe>` and `<img>` elements". Chromium 151 fetched nothing for `img`, `srcset`, `iframe`, `link`, `object`, `poster`, `@import` or `url()` with either method ([`parse.mjs`](../research/x01-clipboard-poc/parse.mjs)). X02a must repeat that zero-request test in Firefox and WebKit and use whichever method fetches nothing in all three engines; if none qualifies, it must strip resource-bearing elements and attributes with a string-level pre-pass before parsing.
+- **Size limits** (initial values, measured in X02). Writers and readers use the same limits, measured as JavaScript string length (UTF-16 code units) before any parsing. A writer never produces a flavour that a reader would refuse.
+
+  | Flavour | Limit | Writer above the limit |
+  | --- | --- | --- |
+  | `application/x-html-office+json` | 64 Mi code units | Copy fails with a message (with Data's 2,000,000-cell limit, as today) |
+  | `text/html` with the embedded envelope | 20,000 cells and 8 Mi code units | Omits `text/html` |
+  | `text/plain` | 64 Mi code units | Copy fails with a message |
+
+  A very large Data range therefore pastes richly into another Data file in Chromium and Firefox, and as values through the paste dialog in Safari across files.
 
 ### 2. Envelope `html-office-clip/1`
 
@@ -84,7 +91,7 @@ Rules:
 {
   "schema": "html-office-clip/1",
   "kind": "chart",
-  "source": { "product": "slides", "format": "1", "locale": "en-US" },
+  "source": { "product": "slides", "format": "1" },
   "chart": {
     "type": "column",
     "data": { "title": "Weekly volunteer time", "unit": "hours", "categories": ["Watering", "Planting"], "series": [{ "name": "Week 1", "values": [12, 8] }] },
@@ -99,12 +106,12 @@ Rules:
 - `kind` is `table` (a Data range, or a Slides or Text table) or `chart`. One object per copy in V1. A mixed Text selection uses Text's own HTML, and other targets get its semantic HTML.
 - `source` is informative only and is never trusted:
   - `product` and `format` identify the writer;
-  - `locale` is the locale the displayed text was formatted in (Data `locale`, Text `lang`, Slides `en-US` until Slides has a locale);
+  - `locale` is present only when the writer itself formatted the displayed text in that locale: Data's `locale`. Slides and Text table text is typed by authors, so they omit it. Text's `lang` is a language, not a number format;
   - `stale: true` when copied Data results are not current.
   
   The envelope **never** contains the document URL, file path, title, author, comments or anything outside the copied selection.
 - `range` appears only in Data copies. It is today's `html-office-range/1` unchanged, so Data-to-Data paste keeps formulas, formats, styles and links exactly as now.
-- `chart.data` is exactly the JSON of the chart contract (the Slides `figure.chart` script). `chart.svg` is the source's saved preview. Neither carries a binding to the source document (§4).
+- `chart.data` is exactly the JSON of the chart contract (the Slides `figure.chart` script). `chart.svg` is the source's saved preview. Neither carries a binding to the source document (§4), and the envelope has no workbook or document identifier.
 - Unknown envelope members are ignored, for forward compatibility. Inside `range`, `table` and `chart.data`, the destination's own validators apply strictly. A new major version gets a new `schema` string.
 
 ### 3. Portable table model and mapping rules
@@ -122,8 +129,9 @@ Rules:
 }
 ```
 
-- The grid is rectangular. Each slot is a cell, `null` (empty), or `{covered: true}` inside a `colspan`/`rowspan` anchor.
+- The grid is rectangular. Each slot is a cell, `null` (empty), or `{covered: true}` inside a `colspan`/`rowspan` anchor. Spans follow the HTML limits (`colspan` ≤ 1,000, `rowspan` ≤ 65,534). Readers check the expanded grid size against the destination limit **before** allocating it.
 - `text` is required and is **the value as displayed in the source**. `value` (Data typed value: `number`, `text`, `boolean`, `date`, `error`) and `format` (a Data preset) are optional and only meaningful to Data.
+- `runs` is optional and carries mixed inline formatting: `[{ "text": "Revenue " }, { "text": "growth", "bold": true }]`. Each run may have `bold`, `italic`, `color` and `link`, and the run texts concatenate to `text`. Slides and Text cells such as `Revenue <b>growth</b>` therefore survive Slides ↔ Text. They are flattened only for a destination without rich cell text (Data), and the paste notice counts it.
 - Appearance uses **names only**: `bold`, `italic`, `color` (Slides and Data text-colour tokens `ink`, `acc`, `mid`, `alert`, `t2`, `bg`), `fill` (Data fill tokens), `cellStyle` (the ADR-012 catalogue), `link` (`{url}` with `https:`, `http:` or `mailto:`) and `align`. **No literal colours, fonts or sizes**: pasted content takes the destination's charte, as everything else in html-office does.
 - `columns[].width` is a percentage of the table width.
 
@@ -137,7 +145,7 @@ Rules:
 | Leading rows whose cells all have `cellStyle: header` | `header`, `headerRows` | `th` row | Header row (repeats in print) |
 | Row with `cellStyle: total` | `totalRows` | `tr.tot` | Total row |
 | Number and date cells, or `align.horizontal: right` | `columns[].align` or cell `align` | `td.n` / `th.n` | Right-aligned (`ta-r`) |
-| Explicit `left` or `center` alignment | `align` | Dropped (Slides cells have no alignment class) | `ta-l` / `ta-c` |
+| Explicit `left` or `center` alignment | `align` | `ta-l` / `ta-c` on the cell. The theme already applies these classes to any descendant; X02b documents them for cells in the format reference. | `ta-l` / `ta-c` |
 | A `centerContinuous` run over empty cells | `colspan` | `colspan` if Slides allows merges (decision 3), else the text stays in the anchor cell | `colspan` |
 | `bold`, `italic` | Same | `<b>`, `<i>` | Bold, italic marks |
 | `color` token | Same | `span.c-*` | Dropped (Text has no colour marks) |
@@ -151,16 +159,17 @@ Rules:
 **Slides or Text table → Data:**
 
 - `th` rows become `cellStyle: header`; total rows become `cellStyle: total`.
-- `text` is typed with the values-first rules of Data's paste dialog, using `source.locale` instead of asking. A trailing `%` gives a number divided by 100 with a percent format. Other units and currency symbols stay text unless the whole string parses under the source locale. Leading zeros stay text.
-- If any cell is still ambiguous, Data's existing paste dialog opens with the source locale preselected.
+- A cell with a typed `value` (a table that came from Data) keeps it, and its `format`, without asking.
+- Untyped `text` follows the values-first rules of Data's paste dialog unchanged. Unambiguous numbers, `TRUE`/`FALSE` and ISO dates are typed; leading zeros stay text. **Any ambiguous cell** (for example `01/02/2026`, or `1,234` without a known locale) opens the existing paste dialog. Nothing is retyped silently. `source.locale` only preselects the dialog's choice, because a table typed by an author has no reliable locale.
+- A trailing `%` on an otherwise unambiguous number gives the number divided by 100 with a percent format. Other units and currency symbols stay text.
 - **Merged cells** (Data has none): a horizontal merge in a header row becomes the anchor value with `align.horizontal: centerContinuous` on the anchor and the covered cells, which is Excel's "centre across selection". Any other merge keeps the value in the top-left cell and leaves the covered cells empty. The paste notice counts them.
-- Whole-cell `<b>`, `<i>` and `span.c-*` become `bold`, `italic` and `color`. Partial rich text inside a cell is flattened (Data has no rich text) and counted.
+- Whole-cell `<b>`, `<i>` and `span.c-*` become `bold`, `italic` and `color`. Mixed `runs` are flattened (Data has no rich text) and counted.
 - One URL link covering the cell becomes a Data link; a cell with several links keeps its text, and the dropped links are counted.
 
 **Slides ↔ Text:**
 
 - Tables use the same model and are lossless except for what one side lacks:
-  - Slides has no links, alignment classes or caption, and no merges unless decision 3 adds them;
+  - Slides has no links or caption, and no merges unless decision 3 adds them;
   - Text has no colour marks.
 - Text's caption and figure ID are not copied into Slides. Pasting into Text creates a new ID and caption number. Slides `data-id` values are never copied; the destination assigns its own.
 
@@ -176,7 +185,12 @@ Beyond these limits, the paste is refused with a message and the document is unc
 
 - `text/html` is a plain `<table>` with `th`/`td`, `colspan`/`rowspan` and **inline literal styles resolved from the source's charte**: font weight, italic, colour, fill, borders and alignment. That is the one place where token names become literal colours, because Word and Excel cannot read the charte.
 - `text/plain` keeps today's Data behaviour: full-precision values with `.` as the decimal separator, TRUE/FALSE and error codes. Dates are written as ISO `YYYY-MM-DD` instead of serial numbers.
-- Excel and Sheets prefer `text/html`, so they receive the displayed text. X02 measures whether that loses types. If it does, X02 adds the hints those applications emit themselves (Excel's `x:num` and `mso-number-format`, Sheets' `data-sheets-value`). They are compatibility hints only, never read by html-office.
+- Excel and Sheets prefer `text/html` over `text/plain`. Displayed text alone would **regress today's exact values**: `1234.567` displayed with no decimals becomes `1,235`, and `12.3 k` or `(5)` are not numbers. Data's `text/html` therefore carries, on every typed cell, the exact-value hints those applications emit themselves:
+  - Excel's `x:num` (number or date serial) and `x:str`, and `mso-number-format` derived from the Data preset;
+  - Sheets' `data-sheets-value`.
+  
+  These are compatibility hints only, never read by html-office.
+- **X02a gate.** In Excel (macOS and Windows) and Google Sheets, pasted numbers, dates, percents, scaled formats, negatives in parentheses and leading-zero text keep their exact values. If an application cannot be made exact this way, X02a does not ship the Data `text/html` table, and the choice returns to the user. In that case Safari cross-file paste falls back to the values dialog.
 
 ### 4. Charts across the three products
 
@@ -194,8 +208,16 @@ Beyond these limits, the paste is refused with a message and the document is unc
 
 **Sequencing.** The extraction is pulled out of Text T11 into its own cross-product task, **X03**, which runs before Data T18 and before the chart increments of X02. Text T11 keeps only the Text chart figures. This is decision 2.
 
-- **X03** moves the contract to `packages/shared/charts/` with Slides output byte-identical (the T11 extraction acceptance, unchanged). Its prerequisites are already met: Slides PR #1 is merged and the Data loader exists. It does not depend on Text T08.
-- **Data T18** (when resumed) builds Data charts on the shared module. It stores the chart **as the shared contract minus the data arrays**, plus bindings: categories, series names and values as A1 references to typed cells. It renders and caches SVG previews with the same functions as Slides.
+- **X03** moves the contract to `packages/shared/charts/` with Slides output byte-identical (the T11 extraction acceptance, unchanged). Its prerequisites are already met: Slides PR #1 is merged and the Data loader exists. It does not depend on Text T08. X03 also adds two things the clipboard needs, outside the byte-identical rendering path:
+  - **Strict per-type schemas.** Today's validators (`req` in `src/charts/common.js`) check required fields only: they accept unknown fields and wrongly typed titles or series names. X03 adds an allow-listed, recursive field and type check per chart type. Chart JSON from the clipboard must pass it as well as `validate`; unknown or wrongly typed fields reject the paste.
+  - **Lossless table adapters.** Each type's `table` adapter must round-trip every per-item field, with tests. Today Gantt's adapter drops a task's `highlight`, so X03 adds a column for it. Chart-level options (`title`, `unit`, `decimals`, `prefix`, `suffix`, `highlight`, `percent`, …) are not part of the table.
+- **Data T18** (when resumed) builds Data charts on the shared module. A Data chart stores **the chart-level options of the shared contract plus one binding**: a rectangular A1 block whose columns follow the type's table adapter.
+  - `column`, `hbar`, `line`, `stacked`: category, then one column per series, with the series names in the header row;
+  - `waterfall`: label, value, total flag;
+  - `bubble`: name, x, y, size;
+  - `gantt`: task, start, end, group, highlight.
+  
+  The chart JSON is the adapter's `fromRows` over the block's typed results. Data renders and caches SVG previews with the same functions as Slides. This one binding shape also makes the snapshot (below) and pasting a chart into Data (decision 1) the same operation in two directions.
 - **Text T11** adds `figure.chart` with ID, caption and width on the shared module.
 
 **Copying a chart.** The `copy` event writes:
@@ -204,62 +226,76 @@ Beyond these limits, the paste is refused with a message and the document is unc
 - `text/html` as `<figure data-html-office="…"><img alt="{title}" src="data:image/png;base64,…"><figcaption>…</figcaption></figure>`;
 - `text/plain` as the title and the chart's data table as TSV.
 
-The PNG is rasterised from the SVG preview at 2× when the chart is selected or redrawn, because the `copy` handler is synchronous. The same handler then calls `navigator.clipboard.write()` with `text/html`, `text/plain` and `image/png`. `ClipboardItem` receives promises, which Safari requires within the gesture. When that succeeds, PowerPoint, Keynote, Word and Docs receive a picture. html-office targets still read the envelope from `text/html`, which the PoC showed is visible to `paste` after an async write.
+The **picture** must show what the reader sees. The saved preview (`refreshCaches`) captures only the plot's `svg`, while the title and unit are drawn separately in `.hs-chart-head`. The picture therefore draws the title and unit (from `chart.data`, in the charte font and colours) above the plot SVG. It is rasterised at 2× when the chart is selected or redrawn, because the `copy` handler is synchronous; sides are capped at 4,096 px, falling back to 1×.
+
+**Upgrade to a native picture (to be proven in X02c).** The same handler then calls `navigator.clipboard.write()` with `text/html`, `text/plain` and `image/png`, passing `ClipboardItem` promises. Safari requires `write()` to be called within the gesture. When the call succeeds, PowerPoint, Keynote, Word and Docs receive a picture. When it is rejected, the strings already written by the `copy` event remain. html-office targets keep reading the envelope from `text/html`.
+
+The PoC verified each half separately: the `text/html` of an async write is visible to `paste`. It did not run the combined sequence, and Chromium's granted permissions hide activation rules. X02c must test it in all three browsers:
+
+- the `copy` write followed by the async replacement, in one gesture;
+- a rejected promise;
+- a paste before the promise resolves;
+- two copies in quick succession, where the later copy must win.
+
+If the sequence is unreliable in a browser, that browser falls back to a separate Edit › Copy as picture command, using the async API only.
 
 **A Data chart becomes a values snapshot.**
 
-- Copying a bound Data chart resolves its references against the **saved typed results**:
-  - categories use the displayed text of their cells;
-  - series names use cell text;
-  - values use full-precision numbers, never rounded display.
-  
-  Blanks, text, booleans and errors in value ranges become `null` (missing point), and the copy reports how many there were.
+- Copying a Data chart runs `fromRows` over the **saved typed results** of its binding:
+  - category, label and name columns use the displayed text;
+  - numeric columns use full-precision numbers, never rounded display;
+  - Gantt dates use ISO text.
+- Missing values follow the type:
+  - category-series charts accept `null` (a missing point), and the copy reports how many blanks, texts and errors it turned into `null`;
+  - every other type (`waterfall` values on non-total rows, `bubble` x/y/size, `gantt` start) needs a valid value. A chart that does not pass the shared `validate` cannot be copied, and the message lists the offending cells. Data already shows such a chart as invalid.
 - If results are stale, the copy proceeds with `source.stale: true`. The destination says that the values were not recalculated, as Data's PNG download does with its warning band (decision 4).
-- The envelope holds no references. A chart pasted into Slides or Text is an ordinary Slides-contract chart with literal values: **a snapshot with no link to the workbook**, as Text V1 already specifies. Refreshing from the workbook stays on the Text roadmap.
+- The envelope holds no references. A chart pasted anywhere, including back into Data, is an ordinary Slides-contract chart with literal values: **a snapshot with no link to the workbook**, as Text V1 already specifies. Refreshing from the workbook stays on the Text roadmap. Duplicating a chart inside one workbook with the same bindings is a T18 command (Duplicate chart), not a paste.
 
 **Pasting a chart.**
 
 | Into | Result |
 | --- | --- |
-| Slides | A new `figure.chart` with `chart.data` (validated by the destination registry), placed like Insert › Chart |
+| Slides | A new `figure.chart` with `chart.data` (strict schema, then the destination registry's `validate`), placed like Insert › Chart |
 | Text | A new chart figure with a new ID and numbered caption; `caption` and `width` are used when present |
-| Data, from Slides, Text or another workbook | **Decision 1, recommendation A**: Data writes the chart's data table (from the type's `table` adapter: header row plus rows) as typed cells at the selection. The header row gets `cellStyle: header`. Data then creates a chart bound to that block. It shows the target rectangle first and asks before overwriting non-empty cells. One undoable step. |
-| Data, from the same workbook | Data keeps the bindings, as Excel does within a workbook. This needs a workbook identity check (a random workbook ID in the envelope, never a path), defined in T18. |
+| Data, from any source | **Decision 1, recommendation A**: Data writes the chart's data table (`toRows` with the adapter's header row) as cells at the selection, typed by §3's rules. The header row gets `cellStyle: header`. Data then creates a chart whose binding is that block, with the chart-level options from `chart.data`. It shows the target rectangle first and asks before overwriting non-empty cells. One undoable step. |
 
-- The pasted `chart.svg` is untrusted. When ECharts is available, the destination redraws from `chart.data` with its own charte and discards the pasted SVG.
-- When ECharts is unavailable (offline standard build), the SVG is shown only after a strict allow-list sanitiser keeps the ECharts SVG renderer's geometry and text elements and presentation attributes. It removes `script`, `foreignObject`, `style`, event attributes, links, `href` other than `#id`, and `url()` other than `url(#id)`.
-  - It is marked as a preview in the source document's colours until the chart can be redrawn.
-  - If it is over 2 MiB, it is dropped, and the usual "Chart unavailable" message shows until ECharts loads.
+**The pasted `chart.svg` is untrusted.**
 
-**Chart limits** (initial): chart JSON 1 MiB and 10,000 data points per chart.
+- When ECharts is available, the destination redraws from `chart.data` with its own charte and discards the pasted SVG.
+- When ECharts is unavailable (offline standard build), the SVG is shown only after a sanitiser rebuilds it from an allow-list in the SVG namespace:
+  - elements: `svg`, `g`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `tspan`, `defs`, `clipPath`, `linearGradient`, `radialGradient`, `stop`;
+  - attributes: geometry, `transform`, `fill`, `stroke` and their opacity, width, dash, `linecap` and `linejoin` variants, the `font-*` attributes, `text-anchor`, `dominant-baseline`, `clip-path`, `offset`, `stop-color`, `stop-opacity`, `id`, `viewBox`, `preserveAspectRatio`.
+  
+  Everything else is dropped, including `script`, `foreignObject`, `style`, `image`, `use`, `a`, every `href` and every event attribute.
+- **Fragment references are isolated.** ECharts emits IDs such as `zr0-c0`, so two pasted previews, or a preview and a live chart, can collide. Every pasted `id` gets a fresh per-paste prefix and every `url(#…)` is rewritten to match. A reference to an ID outside the pasted SVG, or any other `url()`, is removed. X02c tests two pastes of the same chart offline.
+- The sanitised preview is marked as a preview in the source document's colours until the chart can be redrawn. If it is over 2 Mi code units, it is dropped, and the usual "Chart unavailable" message shows until ECharts loads.
+
+**Chart limits** (initial): chart JSON 1 Mi code units and 10,000 data points per chart.
 
 ### 5. Security
 
 Clipboard content is **untrusted**, including html-office envelopes. Any web page can write `text/html` with a `data-html-office` attribute, and in Chromium and Firefox it can also write the custom type.
 
-- **Size before parsing.** Strings are checked before `JSON.parse` or `DOMParser`:
-  - custom type: 64 MiB;
-  - `text/html`: 8 MiB (larger HTML falls through to `text/plain`);
-  - then the cell and point limits above.
+- **Size before parsing.** Every flavour's string length is checked against §1's limits before `JSON.parse`, HTML parsing or TSV parsing. Larger `text/html` falls through to `text/plain`. Cell, span and point counts are checked before a grid or a canvas is allocated.
 - **Validation by the destination's own validators**, all or nothing:
   - Data `validateCell`, link and style validators;
-  - the chart registry's `validate`;
+  - the strict per-type chart schema (X03), then the chart registry's `validate`;
   - a table-model validator in the shared clipboard module.
   
   JSON is validated by allow-listed fields, so keys such as `__proto__` are rejected rather than merged. Failure leaves the document unchanged and shows a message (Data's existing "Paste failed: … Workbook unchanged." pattern).
 - **No markup is adopted.**
   - Destinations build their own canonical nodes from the validated model; they never copy clipboard nodes.
-  - `DOMParser` documents run no scripts and load no images.
+  - HTML is parsed into a document without a browsing context, which runs no scripts. Fetching nothing is required and tested in every engine (§1, "Parsing").
   - No `style`, class outside the destination vocabulary, event attribute or external resource reaches the content. Slides' checker and Text's schema already reject them.
 - **Links.** Only `https:`, `http:` and `mailto:` are accepted, up to 2,048 characters. Data's rule that an unsafe scheme rejects the paste applies to Data envelopes.
-- **No network on paste.** Pasting a table makes no request. Pasting a chart may trigger the ordinary pinned ECharts load where the destination would load it anyway to draw a chart.
+- **No network on paste.** Pasting a table makes no request, and X02a's tests record requests during paste in all three engines. Pasting a chart may trigger the ordinary pinned ECharts load where the destination would load it anyway to draw a chart.
 - **Values only, no live link** (X02 scope). Nothing in a destination refers back to the source file. Formulas cross only Data → Data.
 - **Formula-like text.** Text that starts with `=`, `+`, `-` or `@` is copied verbatim to other applications, as Excel does between workbooks. The CSV-injection policy of Data T19 is applied to the clipboard too if it adopts escaping.
 - **The clipboard is not a confidentiality boundary.** Any page the user pastes into can read every flavour, including formulas and links in Data's `range` member. The envelope therefore carries only the copied selection and no document metadata; product guides say so.
 
 ### 6. X02 increments and test plan
 
-Each increment is one PR (scope M), values only, and keeps every existing clipboard test green.
+Each increment is one PR (scope M), values only, and keeps every existing clipboard test green. Text has no editor yet, so its pairs are not a separate increment: they are acceptance items of the Text tasks that build tables and charts, on the shared modules delivered here. This avoids a circular dependency.
 
 | Increment | Pair | Content | Depends on |
 | --- | --- | --- | --- |
@@ -267,8 +303,9 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 | **X02b** | Data ⇄ Slides tables | Slides element copy (a selected `table.t`) and paste of a table as a new element (also from Excel/Sheets/Docs); Data reads Slides tables. Adds `colspan`/`rowspan` to the Slides format and checker if decision 3 is A. | X02a |
 | **X03** | — | Shared chart module extraction, Slides byte-identical | — |
 | **X02c** | Slides ⇄ Slides charts, charts → other applications | Chart copy (envelope, PNG, async upgrade) and paste in Slides; SVG sanitiser | X02a, X03 |
-| **X02d** | Data charts → Slides; any chart → Data | Snapshot from bindings, cells plus bound chart (decision 1) | X02c, Data T18 |
-| **X02e** | Text ⇄ Data, Text ⇄ Slides (tables and charts) | Acceptance items of Text T07 (paste), T10 (tables) and T11 (charts), using the shared modules | Text T07, T10, T11 |
+| **X02d** | Data charts → Slides and Text; any chart → Data | Snapshot from bindings; cells plus bound chart (decision 1). Data T18 delivers only the binding model; the clipboard behaviour is here. | X02c, Data T18 |
+| Text T07 / T10 | Text ⇄ Data, Text ⇄ Slides tables | Acceptance items of those Text tasks (copy writes the envelope; paste uses §3) | X02a, X02b |
+| Text T11 | Text ⇄ Slides and Data charts | Acceptance item of T11 (Text part) | X02c, X03 |
 
 **Automated tests (Playwright, in CI per increment):**
 
@@ -276,7 +313,11 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 - Copy and paste with the keyboard (Ctrl/Cmd+C, Ctrl/Cmd+V) and with the menu commands.
 - Assert the destination's canonical content (Data JSON, Slides or Text HTML), the paste notice, a single undo entry, and save, reopen and validate.
 - Run the event path in Chromium, Firefox and WebKit engines. The PoC harness in `docs/research/x01-clipboard-poc/` is the starting point. Playwright's WebKit is not Safari's pasteboard security, so the Safari manual pass below stays mandatory.
-- Run the async chart path in Chromium with clipboard permissions granted.
+- Run the async chart path in Chromium with clipboard permissions granted. Also run it **without** granted permissions, relying on user activation alone. Cover the combined sequence cases of §4: event write then async replacement, a rejected promise, a paste before resolution, and successive copies.
+- **Zero requests** while parsing and pasting resource-bearing HTML (`img`, `srcset`, `iframe`, `link`, `object`, `poster`, CSS `@import` and `url()`) in all three engines.
+- **Exact values.** Data → Excel and Sheets keep exact numbers, dates, percents, scaled values, parenthesised negatives and leading zeros (the X02a gate in §3). Pasted spreadsheet tables into Data give the same typed values as today's dialog, and ambiguous cells open it.
+- **Rich cell text.** `Revenue <b>growth</b>` survives Slides ↔ Text, and is flattened with a notice into Data.
+- **Charts per type.** Every chart type round-trips Slides → Data → Slides with identical JSON, including Gantt `highlight`. Two offline pastes of the same chart keep distinct, working SVG references.
 - **Carrier fall-back tests:**
   - remove the custom type, so the envelope must come from `text/html`;
   - remove the attribute, so the semantic table must be used;
@@ -290,7 +331,10 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
   - invalid chart JSON;
   - SVG with `script`, `foreignObject` or an external `href`;
   - deeply nested HTML;
-  - an envelope of an unknown major version.
+  - an envelope of an unknown major version, which falls through to the semantic flavours;
+  - a malformed `html-office-clip/1` envelope with a valid HTML table beside it, which must abort, not fall through;
+  - unknown or wrongly typed chart fields;
+  - `colspan`/`rowspan` expanding past the destination limit.
 - **No network on table paste.** Record requests during the paste.
 
 **Manual matrix (each increment, recorded in its PR):**

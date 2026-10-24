@@ -32,4 +32,12 @@ Not covered:
 - Firefox, Safari and native applications. Safari's cross-origin sanitiser was read in WebKit source instead (`Source/WebCore/editing/markup.cpp`, `StyledMarkupAccumulator::appendStartTag` and the renderer check in `traverseNodesForSerialization`). It keeps ordinary attributes and drops non-rendered nodes.
 - Headless Chromium may use an in-process clipboard instead of the macOS pasteboard.
 
-X02 extends this harness to the Firefox and WebKit engines and to the real product files.
+## Inert parsing: `parse.mjs`
+
+```bash
+node docs/research/x01-clipboard-poc/parse.mjs
+```
+
+The script parses HTML that references a local server through `img`, `srcset`, `iframe`, `link`, `object`, `poster`, CSS `@import` and `url()`. It uses three methods: `DOMParser`, `document.implementation.createHTMLDocument()` with `innerHTML`, and a `<template>` element. With Chromium 151 it made **no request** with any of them. MDN warns that a `DOMParser` document "can download resources specified in `<iframe>` and `<img>` elements", so X02a must repeat this test in Firefox and WebKit.
+
+X02 extends both harnesses to the Firefox and WebKit engines and to the real product files.
