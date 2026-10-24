@@ -217,6 +217,30 @@ const listMenu = async (page, name) => {
   ok(/class="c-alert">A shared</.test(html), 'Format › Text colour… colours the selected words being typed');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
+  // switching menus by hovering keeps the recorded selection
+  await word();
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'File' }).click();
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'Format' }).hover();
+  await choose('menuitemcheckbox', 'Italic');
+  html = await page.locator('#s05 > .body').innerHTML();
+  ok(/<i>/.test(html) && !/t-italic/.test(await page.locator('#s05 > .body').getAttribute('class')), 'after switching menus, Format › Italic still applies to the selected words');
+  await page.keyboard.press('Escape');
+  // typing is committed before menus read their state
+  await page.locator('#s02').scrollIntoViewIfNeeded();
+  await page.locator('#s02 > .body').dblclick();
+  await page.keyboard.type(' x');
+  await page.getByRole('menubar').getByRole('menuitem', { name: 'Edit' }).click();
+  ok(await page.locator('.sh-pop [role=menuitem]').filter({ has: page.locator('.sh-mlabel').getByText('Undo', { exact: true }) }).getAttribute('aria-disabled') !== 'true',
+    'Edit › Undo is enabled right after typing');
+  await page.keyboard.press('Escape');
+  // an empty table can be selected
+  await page.locator('#s08').scrollIntoViewIfNeeded();
+  await page.locator('#s08 > table').click({ position: { x: 30, y: 10 } });
+  await page.evaluate(() => { const t = document.querySelector('#s08 > table'); while (t.rows.length) t.deleteRow(-1); });
+  await page.keyboard.press('Control+b'); // a change makes the toolbar read the table's state
+  ok(errs.length === 0, 'selecting an empty table raises no error' + (errs.length ? ': ' + errs.join(' | ') : ''));
+  await page.keyboard.press('Control+z');
+  await page.reload(); await page.waitForFunction(() => window.deckEngine); await STATES.text(page);
   // tab stop follows the visible toolbar
   await page.locator('#s06').scrollIntoViewIfNeeded();
   await page.locator('#s06 > .sticker').click();

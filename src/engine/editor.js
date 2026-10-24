@@ -390,6 +390,7 @@ function tableAt() {
   const cell = anchor && table.contains(anchor) ? (anchor.nodeType === 1 ? anchor : anchor.parentElement).closest('td, th') : null;
   const rows = [...table.rows];
   const row = cell ? cell.parentElement : rows[rows.length - 1];
+  if (!row) return null; // empty table: nothing to act on
   return { host, table, sel, cell, rows, row, col: cell ? cell.cellIndex : row.cells.length - 1 };
 }
 // A table keeps at least two rows and one column.

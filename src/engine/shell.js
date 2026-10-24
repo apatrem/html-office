@@ -92,7 +92,13 @@ export function mountShell(cmd) {
     { name: 'Table', items: tableItems },
     { name: 'View', items: () => [item('Edit mode', 'edit', { shortcut: 'E', checked: editingMode() }), item('Present', 'present', { shortcut: 'P' })] },
     { name: 'Help', items: () => [item('Keyboard shortcuts', 'help', { shortcut: '?' }), ...guide()] }
-  ].map(m => ({ name: m.name, items: () => { typed = textContext(); return m.items(); } }));
+  ].map(m => ({ name: m.name, items: () => {
+    // Switching menus keeps what the first one recorded; typing is committed before
+    // enabled states are read (Undo must see the new history record).
+    typed = textContext() || (openPopoverState()?.pop.querySelector('[role=menu]') ? typed : null);
+    stopText();
+    return m.items();
+  } }));
 
   // ---- toolbar: history and insert, then the groups of the current selection ----
   const B = {}, binds = [];
