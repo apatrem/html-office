@@ -33,7 +33,7 @@ export default {
     fromRows: (rows, _h, d) => ({ ...d, tasks: rows.map(r => {
       const x = { name: r[0], start: String(r[1]).trim() };
       if (String(r[2]).trim()) x.end = String(r[2]).trim();
-      if (String(r[3]).trim()) x.group = String(r[3]);
+      if (r[3] != null && r[3] !== '') x.group = String(r[3]);
       const highlight = flagOf(r[4]);
       if (highlight !== undefined) x.highlight = highlight;
       return x;

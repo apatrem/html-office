@@ -61,7 +61,7 @@ const full = {
   bubble: { unit: 'h', xLabel: 'X', yLabel: 'Y', xUnit: 'd', yUnit: 'p', xRef: 3, yRef: 15, highlight: ['P1', 1],
     points: [{ name: 'P1', x: 2, y: 24, size: 12 }, { name: 'P2', x: -1, y: 0.5, size: 0 }] },
   gantt: { title: 'Plan', tasks: [{ name: 'Prepare', start: '2027-02', end: '2027-03-15', group: 'G1', highlight: true },
-    { name: 'Milestone', start: '2027-06', highlight: false }, { name: 'Plant', start: '2027-04-01', end: '2027-05', group: ' G1 ' }] }
+    { name: 'Milestone', start: '2027-06', highlight: false }, { name: 'Plant', start: '2027-04-01', end: '2027-05', group: ' G1 ' }, { name: 'Gap', start: '2027-07', group: ' ' }] }
 };
 
 test('table adapters round-trip every per-item field, from typed cells and from text cells', () => {
@@ -83,7 +83,7 @@ test('table adapters round-trip every per-item field, from typed cells and from 
 test('Gantt keeps a task highlight through its table', () => {
   const { table } = registry.gantt;
   assert.deepEqual(table.columns(full.gantt), ['Task', 'Start', 'End', 'Group', 'Highlight (y/n)']);
-  assert.deepEqual(table.toRows(full.gantt).map(r => r[4]), ['y', 'n', '']);
+  assert.deepEqual(table.toRows(full.gantt).map(r => r[4]), ['y', 'n', '', '']);
   const back = table.fromRows([['Prepare', '2027-02', '', '', 'yes'], ['Other', '2027-03', '', '', 'n'], ['Last', '2027-04', '', '', '']], [], {});
   assert.deepEqual(back.tasks, [{ name: 'Prepare', start: '2027-02', highlight: true }, { name: 'Other', start: '2027-03', highlight: false },
     { name: 'Last', start: '2027-04' }]);
