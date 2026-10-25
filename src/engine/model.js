@@ -187,9 +187,9 @@ export function commitDeck(tok) {
   return true;
 }
 export function applyDeck(fn) { const tok = beginDeck(); const r = fn(); commitDeck(tok); return r; }
-function restoreDeck(d) {
-  // An attribute-only entry (theme, font, footer text) keeps the slides and the current slide.
-  if (cleanMainHTML() !== d.html) state.main.innerHTML = d.html;
+// An attribute-only entry (theme, font, footer text) keeps the slides and the current slide.
+function restoreDeck(d, attributesOnly) {
+  if (!attributesOnly) state.main.innerHTML = d.html;
   for (const k of DECK_DATA) setDeckData(k, d[k]);
   emit('deck');
 }
@@ -228,7 +228,7 @@ function step(from, to, key) {
   const rec = from.pop();
   if (!rec) return;
   to.push(rec);
-  if (rec.deck) restoreDeck(rec[key]); else replaceSlide(rec.id, rec[key]);
+  if (rec.deck) restoreDeck(rec[key], rec.before.html === rec.after.html); else replaceSlide(rec.id, rec[key]);
   markDirty();
 }
 export function replaceSlide(id, html) {

@@ -121,6 +121,7 @@ test('undoing a theme keeps the slides and the current slide', async t => {
   await p.evaluate(() => { window.__s04 = document.getElementById('s04'); });
   await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).click();
   await choose(p, 'Theme', 'Red');
+  await p.evaluate(() => window.deckEngine.serialize()); // saving refreshes the chart previews in the page
   await p.keyboard.press('Control+z');
   await p.keyboard.press('Control+Shift+z');
   await p.keyboard.press('Control+z');
@@ -131,6 +132,17 @@ test('undoing a theme keeps the slides and the current slide', async t => {
   await p.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name: 'Duplicate slide', exact: true }).click();
   assert.equal(await p.evaluate(() => document.getElementById('s04').nextElementSibling.querySelector('h1').textContent === document.querySelector('#s04 > h1').textContent), true,
     'slide commands still act on the current slide');
+  await p.keyboard.press('Control+z');
+  // a structural deck change (the footer hidden on slide 4) replaces the slides on undo
+  await p.locator('#s04 > h1').click();
+  await p.keyboard.press('Escape');
+  await p.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name: 'Footer', exact: true }).click();
+  await p.locator('.hs-panel input[type=checkbox]').check();
+  await p.locator('.hs-panel button', { hasText: 'Apply' }).click();
+  await p.keyboard.press('Control+z');
+  assert.equal(await p.evaluate(() => window.__s04 !== document.getElementById('s04') && !document.getElementById('s04').hasAttribute('data-nofoot')), true);
+  assert.equal(await p.locator('.hs-float .sh-finfo').textContent(), 'Slide 4 of 9', 'undoing a structural change finds the current slide again');
+  assert.equal(await p.locator('.hs-thumb.on .hs-num').textContent(), '4');
 });
 
 test('a charte title font stays on titles whatever the body font', async t => {
