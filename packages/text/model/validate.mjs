@@ -111,7 +111,11 @@ function registerId(ctx, node, path, id) {
 
 const HEADINGS = ["h1", "h2", "h3", "h4"];
 // Attributes browsers never read as URLs: their text is document data, whatever it says.
-const inert = (name) => name.startsWith("data-") || name === "alt";
+const TEXT_ATTRIBUTES = ["alt", "title", "lang", "dir", "class", "id"];
+const inert = (name) =>
+  name.startsWith("data-") ||
+  name.startsWith("aria-") ||
+  TEXT_ATTRIBUTES.includes(name);
 
 // Walks the whole article, protected blocks included. `scope.top` marks a top-level block;
 // `scope.chart` is the top-level figure.chart whose data and preview are being walked.
@@ -161,12 +165,9 @@ function safety(node, parent, path, ctx, scope) {
     if (n === "id" && preview) ctx.previewIds.push({ id: v, node, path });
     else if (n === "id") registerId(ctx, node, path, v);
   }
-  // Every heading of the article has a stable ID, also inside a protected block; the cover title has none.
-  if (
-    node.ns === "html" &&
-    HEADINGS.includes(name) &&
-    !classes(node).includes("title")
-  ) {
+  // Every heading of the article has a stable ID, also inside a protected block; the title of a
+  // top-level cover (its first element) has none.
+  if (node.ns === "html" && HEADINGS.includes(name) && node !== scope.title) {
     const id = attr(node, "id");
     if (id === null)
       ctx.error("missing-id", `<${node.name}> needs a stable id`, node, path);
@@ -183,8 +184,21 @@ function safety(node, parent, path, ctx, scope) {
     scope.top && isElement(node, "figure") && classes(node)[0] === "chart"
       ? node
       : null;
+  const first = elements(node)[0];
+  const title =
+    scope.top &&
+    isElement(node, "header") &&
+    classes(node).includes("cover") &&
+    isElement(first, "h1") &&
+    classes(first).includes("title")
+      ? first
+      : null;
   for (const child of node.children)
-    safety(child, node, childPath(path, node, child), ctx, { preview, chart });
+    safety(child, node, childPath(path, node, child), ctx, {
+      preview,
+      chart,
+      title,
+    });
 }
 
 // ---------- inline content ----------
@@ -567,10 +581,10 @@ function chart(node, ctx, path) {
       path,
     );
     if (data) kids.unshift(data);
-  } else if (/<\/script|<!-{2}/i.test(textOf(data)))
+  } else if (!onlyText(data) || /<\/script|<!-{2}/i.test(textOf(data)))
     ctx.error(
       "chart-data",
-      'Chart JSON cannot contain "</script" or a comment opener: write < as \\u003c',
+      'Chart JSON is plain text without "</script" or a comment opener: write < as \\u003c',
       data,
       path,
     );
@@ -847,7 +861,8 @@ function validDate(text) {
   const m = F.COMMENT_DATE.exec(text);
   if (!m) return false;
   const [y, mo, d, h, mi, se = 0] = m.slice(1).map((v) => Number(v ?? 0));
-  const t = new Date(Date.UTC(y, mo - 1, d));
+  const t = new Date(0);
+  t.setUTCFullYear(y, mo - 1, d);
   return (
     t.getUTCFullYear() === y &&
     t.getUTCMonth() === mo - 1 &&
@@ -1133,7 +1148,17 @@ export function validateFile(file) {
   // IDs outside the content: article#doc cannot repeat them. Template contents are not in the document.
   const envelopeIds = (node) => {
     for (const child of elements(node)) {
-      if (child.name === "article" && attr(child, "id") === "doc") continue;
+      if (child.name === "article" && attr(child, "id") === "doc") {
+        if (ctx.ids.has("doc"))
+          ctx.error(
+            "duplicate-id",
+            'Duplicate ID "doc"',
+            ctx.ids.get("doc"),
+            "head",
+          );
+        ctx.ids.set("doc", child);
+        continue;
+      }
       const id = attr(child, "id");
       if (id !== null && ctx.ids.has(id))
         ctx.error(
@@ -1148,6 +1173,20 @@ export function validateFile(file) {
     }
   };
   envelopeIds(html);
+  // Truncated trees cannot be saved faithfully, wherever they are (the guide included).
+  const deep = (node) => {
+    if (node.type !== "element") return false;
+    if (node.truncated) return true;
+    return node.children.some(deep);
+  };
+  for (const zone of [...elements(head), ...elements(body)])
+    if (zone.name !== "article" && deep(zone))
+      ctx.error(
+        "too-deep",
+        `Elements nested deeper than ${MAX_DEPTH} levels in ${label(zone)}`,
+        zone,
+        label(zone),
+      );
   for (const node of head.children) {
     if (isBlank(node)) continue;
     const p = childPath("head", head, node);

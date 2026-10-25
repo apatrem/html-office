@@ -154,7 +154,7 @@ test("chart JSON that would end its script element is rejected", () => {
     [chart],
   );
   assert.deepEqual(codes(validateArticle(article).errors), ["chart-data"]);
-  assert.throws(() => serialize(article), /cannot contain/);
+  assert.throws(() => serialize(article), /holds only text/);
 });
 
 test("data attributes are text, never URLs", () => {
@@ -176,4 +176,80 @@ test("findings inside nested marks carry the full path", () => {
     report.errors[0].path,
     "article#doc > p[2] > strong[1] > mark.comment[1]",
   );
+});
+
+test("re-verification cases: titles, deep guides, dates, the doc ID and text attributes", () => {
+  const codesOf = (source) => codes(validateFile(parseFile(source)).errors);
+  const base = (body, head = "") =>
+    `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n${head}<title>T</title>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en">\n${body}\n</article>\n</body>\n</html>\n`;
+  assert.deepEqual(codesOf(base('<h2 class="title">H</h2>')), ["missing-id"]);
+  assert.deepEqual(
+    codesOf(
+      base('<header class="cover">\n<h1 class="title">T</h1>\n</header>'),
+    ),
+    [],
+  );
+  const deep = "<div>".repeat(300) + "x" + "</div>".repeat(300);
+  assert.deepEqual(
+    codesOf(
+      base("<p>x</p>", `<template id="html-text-guide">${deep}</template>\n`),
+    ),
+    ["too-deep"],
+  );
+  assert.deepEqual(
+    codesOf(base("<p>x</p>").replace("<title>", '<title id="doc">')),
+    ["duplicate-id"],
+  );
+  assert.deepEqual(
+    codesOf(base('<p>x <abbr title="javascript:alert(1)">y</abbr></p>')),
+    [],
+  );
+  const thread = (date) =>
+    `<p><mark class="comment" data-ref="c1">x</mark></p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="q">\n<p class="comment" data-author="A" data-date="${date}">c</p>\n</aside>\n</section>`;
+  assert.deepEqual(codesOf(base(thread("0099-01-01T00:00Z"))), []);
+  assert.deepEqual(codesOf(base(thread("2027-02-29T00:00Z"))), [
+    "malformed-thread",
+  ]);
+});
+
+test("a chart's JSON script holds text only, and a style end tag in it is harmless", () => {
+  const data = (children) =>
+    element(
+      "article",
+      [
+        ["id", "doc"],
+        ["data-format", "1"],
+        ["lang", "en"],
+      ],
+      [
+        element(
+          "figure",
+          [
+            ["class", "chart"],
+            ["id", "f"],
+            ["data-type", "column"],
+            ["data-width", "text"],
+          ],
+          [element("script", [["type", "application/json"]], children)],
+        ),
+      ],
+    );
+  const json = (title) =>
+    text(
+      JSON.stringify({
+        title,
+        unit: "u",
+        categories: ["a"],
+        series: [{ name: "s", values: [1] }],
+      }),
+    );
+  const hidden = data([
+    json("t"),
+    { type: "comment", value: "--></script><script>alert(1)</script>" },
+  ]);
+  assert.deepEqual(codes(validateArticle(hidden).errors), ["chart-data"]);
+  assert.throws(() => serialize(hidden), /holds only text/);
+  const style = data([json("</style>")]);
+  assert.deepEqual(validateArticle(style).errors, []);
+  assert.match(serialize(style), /<\/style>/);
 });

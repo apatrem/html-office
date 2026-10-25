@@ -100,18 +100,27 @@ const OPEN_COMMENT = String.fromCharCode(60) + "!--";
 // The HTML fragment serialisation algorithm with fixed escaping: & < > and no-break spaces in text;
 // also " in attribute values. Every other character is written as itself. Stable under reparsing.
 export function serialize(node, parent = null) {
-  if (node.type === "text") {
-    if (parent?.ns !== "html" || !RAW_TEXT.has(parent.name))
-      return escapeText(node.value);
-    // Raw text cannot be escaped: refuse what would end the element or change its parsing.
-    if (/<\/(script|style)|<!-{2}/i.test(node.value))
-      throw new Error(
-        `<${parent.name}> text cannot contain "</${parent.name}" or a comment opener`,
-      );
-    return node.value;
-  }
+  if (node.type === "text")
+    return parent?.ns === "html" && RAW_TEXT.has(parent.name)
+      ? node.value
+      : escapeText(node.value);
   // Written so that the editor's own script never contains a literal comment opener.
   if (node.type === "comment") return `${OPEN_COMMENT}${node.value}-->`;
+  if (node.truncated)
+    throw new Error(`<${node.name}> is nested too deep to be saved`);
+  if (node.ns === "html" && RAW_TEXT.has(node.name)) {
+    // Raw text cannot be escaped: refuse what would end the element or change its parsing.
+    const raw = node.children.map((c) => (c.type === "text" ? c.value : null));
+    const text = raw.join("");
+    if (
+      raw.includes(null) ||
+      new RegExp(`</${node.name}`, "i").test(text) ||
+      (node.name === "script" && /<!-{2}/.test(text))
+    )
+      throw new Error(
+        `<${node.name}> holds only text, without its end tag or a comment opener`,
+      );
+  }
   const start = `<${node.name}${node.attrs
     .map(([n, v]) => ` ${n}="${escapeAttribute(v)}"`)
     .join("")}>`;
