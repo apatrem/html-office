@@ -133,6 +133,7 @@ test('undoing a theme keeps the slides and the current slide', async t => {
   assert.equal(await p.evaluate(() => document.getElementById('s04').nextElementSibling.querySelector('h1').textContent === document.querySelector('#s04 > h1').textContent), true,
     'slide commands still act on the current slide');
   await p.keyboard.press('Control+z');
+  assert.match(await p.locator('.hs-float .sh-finfo').textContent(), /^Slide \d of 9$/, 'undoing the duplicate (the current slide) makes a remaining slide current');
   // a structural deck change (the footer hidden on slide 4) replaces the slides on undo
   await p.locator('#s04 > h1').click();
   await p.keyboard.press('Escape');
@@ -143,6 +144,22 @@ test('undoing a theme keeps the slides and the current slide', async t => {
   assert.equal(await p.evaluate(() => window.__s04 !== document.getElementById('s04') && !document.getElementById('s04').hasAttribute('data-nofoot')), true);
   assert.equal(await p.locator('.hs-float .sh-finfo').textContent(), 'Slide 4 of 9', 'undoing a structural change finds the current slide again');
   assert.equal(await p.locator('.hs-thumb.on .hs-num').textContent(), '4');
+});
+
+test('toolbar Undo after a theme change first commits the text being typed', async t => {
+  const p = await open(t);
+  await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).click();
+  await choose(p, 'Theme', 'Green');
+  await p.keyboard.press('Escape');
+  await p.locator('#s02').scrollIntoViewIfNeeded();
+  await p.locator('#s02 > .body').dblclick();
+  await p.keyboard.type('XYZ');
+  await p.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name: 'Undo', exact: true }).click();
+  const now = await looks(p);
+  assert.equal(now.theme, 'green', 'the theme is kept');
+  assert.equal(await p.locator('#s02 > .body').textContent().then(x => x.includes('XYZ')), false, 'the typing is undone');
+  await p.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name: 'Undo', exact: true }).click();
+  assert.equal((await looks(p)).theme, null, 'the next undo removes the theme');
 });
 
 test('a charte title font stays on titles whatever the body font', async t => {

@@ -132,10 +132,13 @@ function boot() {
     V.chromeAll();
     charts().filter(f => !f.classList.contains('live')).forEach(C.renderChart);
     E.clearSel();
-    // A restored structure has new slide elements: the current slide is found again by its id.
+    // A restored structure has new slide elements: the current slide is found again by its id,
+    // otherwise (it was removed) the slide at the centre of the screen becomes current.
     const cur = M.state.current;
-    if (cur && !cur.isConnected && document.getElementById(cur.id)?.matches('section.slide')) E.setCurrent(document.getElementById(cur.id));
-    else if (cur && cur.isConnected) M.emit('current', cur);
+    if (cur && !cur.isConnected) {
+      const again = document.getElementById(cur.id);
+      if (again?.matches('main#deck > section.slide')) E.setCurrent(again); else E.currentSlide();
+    } else if (cur) M.emit('current', cur);
   });
   addEventListener('resize', () => { V.fit(); });
 

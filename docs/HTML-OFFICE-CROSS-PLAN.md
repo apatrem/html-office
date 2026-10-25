@@ -132,7 +132,7 @@ Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, 
   - The settings bar gains **Theme & font** while editing, and File › Document settings… opens the same shared side panel (`documentBody`), with the footer as the Slides extra. Each choice is one undoable deck change and redraws every chart; `pack` refreshes the saved previews in the theme colours.
   - The checker rejects unknown values; the inert validator accepts both attributes. FORMAT.md › Theme and font, the embedded guide and SKILL.md document them.
   - Shared changes: the six fonts moved to `packages/shared/themes/fonts.mjs`; the side-panel and document-settings rules moved from `panels.css` to `drawer.css`, which Data loads before `panels.css`; the chart `theme()` reads `--body-font` before `--font`.
-  - Size: the standard engine grows from 419,095 to 428,218 bytes (135,172 to 138,153 gzip): the overlays, the side panel and its styles. Data's application code is unchanged in size (its stylesheets are only reordered).
+  - Size: the standard engine grows from 419,095 to 428,218 bytes (135,172 to 138,166 gzip): the overlays, the side panel and its styles. Data's application code is unchanged in size (its stylesheets are only reordered).
   - The committed example decks are regenerated: only the engine and the embedded guide change; content, chartes, themes, assets and chart previews are byte-identical. The version stays 0.7.1.
 - Text: the same as Slides, when its editor exists.
 

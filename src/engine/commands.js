@@ -19,8 +19,9 @@ export function slideCommands(save) {
   R('save', save);
   R('help', helpPanel);
   R('guide', formatPanel, () => !!document.getElementById('html-slides-guide'));
-  R('undo', () => { E.clearSel(); undo(); }, () => edit() && state.undo.length > 0);
-  R('redo', () => { E.clearSel(); redo(); }, () => edit() && state.redo.length > 0);
+  // Text being typed is committed first, so history steps over it in order.
+  R('undo', () => { E.stopText(); E.clearSel(); undo(); }, () => edit() && state.undo.length > 0);
+  R('redo', () => { E.stopText(); E.clearSel(); redo(); }, () => edit() && state.redo.length > 0);
 
   R('insert', E.insertElement, edit);
   R('insert-shape', E.insertShape, edit);
