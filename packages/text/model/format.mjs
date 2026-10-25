@@ -53,7 +53,8 @@ export const IMAGE_WIDTHS = ["text", "full"];
 export const WRAP_WIDTHS = ["25", "33", "40", "50"];
 export const WRAPS = ["left", "right"];
 export const THREAD_STATUS = ["open", "resolved"];
-export const COMMENT_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$/;
+export const COMMENT_DATE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z$/;
 export const LINK_URL = /^(https?:\/\/|mailto:)\S/i;
 // Inline marks without attributes, outermost first. mark.comment and links have attributes.
 export const MARKS = ["strong", "em", "u", "mark", "sub", "sup", "code"];
@@ -81,6 +82,10 @@ export const PREVIEW_ELEMENTS = new Set([
 // Never allowed in content: they run code, load resources, take input or play media.
 export const FORBIDDEN_ELEMENTS = new Set([
   "script",
+  "plaintext",
+  "xmp",
+  "noembed",
+  "noframes",
   "style",
   "noscript",
   "template",

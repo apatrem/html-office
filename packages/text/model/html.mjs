@@ -43,7 +43,7 @@ export const element = (name, attrs = [], children = [], ns = "html") => ({
 export const text = (value) => ({ type: "text", value });
 
 export const attr = (node, name) =>
-  node.attrs.find(([n]) => n === name)?.[1] ?? null;
+  node.attrs?.find(([n]) => n === name)?.[1] ?? null;
 export const classes = (node) =>
   (attr(node, "class") ?? "").split(/[\t\n\f\r ]+/).filter(Boolean);
 export const elements = (node) =>
@@ -51,20 +51,28 @@ export const elements = (node) =>
 export const isBlank = (node) =>
   node.type === "text" && !/[^\t\n\f\r ]/.test(node.value);
 
-// Browser DOM node to plain tree. Template contents are read from `content`.
-export function fromDom(node) {
+// Elements deeper than this are kept without their children and marked `truncated`; the
+// validator rejects them. It bounds every recursive walk over the tree.
+export const MAX_DEPTH = 256;
+
+// Browser DOM node to plain tree. HTML template contents are read from `content`.
+export function fromDom(node, depth = 0) {
   if (node.nodeType === 3) return text(node.data);
   if (node.nodeType === 8) return { type: "comment", value: node.data };
   const ns = NAMESPACES[node.namespaceURI] ?? "html";
-  const source = node.localName === "template" ? node.content : node;
-  return element(
+  const source =
+    ns === "html" && node.localName === "template" ? node.content : node;
+  const children = [...source.childNodes].filter((child) =>
+    [1, 3, 8].includes(child.nodeType),
+  );
+  const result = element(
     node.localName,
     [...node.attributes].map((a) => [a.name, a.value]),
-    [...source.childNodes]
-      .filter((child) => [1, 3, 8].includes(child.nodeType))
-      .map(fromDom),
+    depth < MAX_DEPTH ? children.map((child) => fromDom(child, depth + 1)) : [],
     ns,
   );
+  if (depth >= MAX_DEPTH && children.length) result.truncated = true;
+  return result;
 }
 
 // The browser's parsed document in the shape of parse.mjs's parseFile.
@@ -87,14 +95,23 @@ export const escapeAttribute = (s) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
+const OPEN_COMMENT = String.fromCharCode(60) + "!--";
+
 // The HTML fragment serialisation algorithm with fixed escaping: & < > and no-break spaces in text;
 // also " in attribute values. Every other character is written as itself. Stable under reparsing.
 export function serialize(node, parent = null) {
-  if (node.type === "text")
-    return parent?.ns === "html" && RAW_TEXT.has(parent.name)
-      ? node.value
-      : escapeText(node.value);
-  if (node.type === "comment") return `<!--${node.value}-->`;
+  if (node.type === "text") {
+    if (parent?.ns !== "html" || !RAW_TEXT.has(parent.name))
+      return escapeText(node.value);
+    // Raw text cannot be escaped: refuse what would end the element or change its parsing.
+    if (/<\/(script|style)|<!-{2}/i.test(node.value))
+      throw new Error(
+        `<${parent.name}> text cannot contain "</${parent.name}" or a comment opener`,
+      );
+    return node.value;
+  }
+  // Written so that the editor's own script never contains a literal comment opener.
+  if (node.type === "comment") return `${OPEN_COMMENT}${node.value}-->`;
   const start = `<${node.name}${node.attrs
     .map(([n, v]) => ` ${n}="${escapeAttribute(v)}"`)
     .join("")}>`;

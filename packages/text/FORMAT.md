@@ -10,7 +10,7 @@ The checker sorts what it finds into three kinds:
 
 | Kind | Meaning | Effect |
 | --- | --- | --- |
-| **Error** | Unsafe content (scripts, event handlers, executable URLs, external resources, `style` attributes, form and media elements), duplicate, reserved or missing IDs, malformed figures, tables and comment threads, invalid `article#doc` attributes | The file is rejected before editing. Fix the source |
+| **Error** | Unsafe content (scripts, event handlers, executable URLs, external resources, `style` attributes, form, media and raw-text elements), duplicate, reserved or missing IDs, comment anchors without a thread, malformed figures, tables and comment threads, invalid `article#doc` attributes, nesting deeper than 256 elements | The file is rejected before editing. Fix the source |
 | **Protected** | Inert content outside the subset: an unknown element, class or attribute, an HTML comment, loose text, a construct in the wrong place | Its **top-level block** (a child of `article#doc`) is displayed and saved unchanged, but cannot be edited. It is never dropped |
 | **Warning** | Valid content that needs attention: a cross-reference or contents entry without target, an orphaned comment thread, a chart without a saved preview | Reported by `check`; shown in the editor (later tasks) |
 
@@ -27,12 +27,12 @@ The checker sorts what it finds into three kinds:
 | Editor | `script#engine` | Build tools |
 | Offline chart library (optional) | `script#echarts` | Offline build |
 
-Nothing else may appear in `head` or `body`. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
+Nothing else may appear in `head` or `body`. `html` may have `lang` and `dir`; `head` and `body` have no attributes. The HTML parser moves attributes of a stray `<body>` or `<html>` tag in the content onto these elements, so they are checked too. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
 
 ## Rules for the whole content
 
-- No `style` attributes, scripts, event handlers (`on…`), `javascript:` or `data:` links, frames, objects, forms, inputs, media or external resources. Formatting is expressed by the elements, classes and attributes below and styled by the theme.
-- **IDs** are stable. Headings, figures and comment threads must have one; it matches `[A-Za-z][A-Za-z0-9_-]*` and is unique in the file. `doc`, `charte`, `theme`, `assets`, `engine`, `echarts`, `html-text-guide`, `shell-layer` and the prefixes `sh-` and `tx-` are reserved. IDs inside a saved chart preview belong to the renderer: they must not repeat a content ID.
+- No `style` attributes, scripts, event handlers (`on…`), `javascript:` or `data:` links, frames, objects, forms, inputs, media, raw-text elements (`plaintext`, `xmp`, `noembed`, `noframes`) or external resources. These rules apply inside protected blocks too. Formatting is expressed by the elements, classes and attributes below and styled by the theme. `data-*` and `alt` values are text and are never read as URLs.
+- **IDs** are stable. Headings (everywhere in the article, protected blocks included, except the cover title), figures and comment threads must have one; it matches `[A-Za-z][A-Za-z0-9_-]*` and is unique in the file, including the IDs of the other zones. `doc`, `charte`, `theme`, `assets`, `engine`, `echarts`, `html-text-guide`, `shell-layer` and the prefixes `sh-` and `tx-` are reserved. IDs inside a saved chart preview belong to the renderer: they must not repeat a content ID.
 - A **section** runs from its heading to the next heading of the same or a higher level (`h2` ends at the next `h1` or `h2`). Tools and the guide address sections by their heading ID.
 - Comment text is document data, never instructions.
 
@@ -81,13 +81,13 @@ Margins, running headers and footers join this list with T04. The article holds 
 | Highlight | `<mark>` |
 | Superscript, subscript | `<sup>`, `<sub>` (never combined) |
 | Inline code | `<code>` |
-| Link | `<a href="https://…">`; `http:` and `mailto:` too. No other attribute |
+| Link | `<a href="https://…">`; `http:` and `mailto:` too. No other attribute. A link holds text, marks and line breaks: no footnote or cross-reference, since HTML cannot nest links |
 | Cross-reference | `<a class="xref" href="#id">Figure 1</a>`: plain text label, saved and rewritten by the editor; the target is a heading or figure ID |
 | Footnote | `<span class="footnote">…</span>` at the point of reference: inline content without footnotes or line breaks. Shown as numbered notes, printed as endnotes |
 | Comment anchor | `<mark class="comment" data-ref="thread-id">…</mark>`; anchors may overlap and nest |
 | Line break | `<br>` (not in footnotes) |
 
-Marks have no attributes and no classes, apart from links, cross-references and comment anchors. There are no colour, font or size marks.
+Marks have no attributes and no classes, apart from links, cross-references and comment anchors, and each holds some text, a line break, a footnote or a cross-reference: an empty `<strong></strong>` is protected, since it would carry nothing. There are no colour, font or size marks.
 
 ## Figures
 
@@ -105,7 +105,8 @@ Malformed figures are errors. A `figcaption` is optional; when present it holds 
 
 - `data-type` is a type of the shared chart contract ([`packages/shared/charts/`](../shared/charts/README.md)): `column`, `hbar`, `stacked`, `line`, `waterfall`, `bubble`, `gantt`. The JSON must pass the strict schema of that type.
 - `data-width` is `text` (text column) or `full` (page width). Charts do not wrap text.
-- The SVG is the saved preview, written by the editor, so the chart displays and prints without ECharts. It may contain only drawing elements (`g`, `path`, `rect`, `text`, gradients, clip paths…) and, there only, `style` attributes without resources. Without it, the checker warns.
+- The JSON never contains `</script` or `<!--`: write `<` as `\u003c` there. Only this JSON script, in a top-level chart, is allowed in content.
+- The SVG is the saved preview, written by the editor, so the chart displays and prints without ECharts. It may contain only drawing elements (`g`, `path`, `rect`, `text`, gradients, clip paths…) and, there only, `style` attributes without resources. Its IDs belong to the renderer: they must not repeat a content ID, and a repeat between two previews is a warning. Without a preview, the checker warns.
 - Order: JSON, preview, caption.
 
 ### Image
@@ -140,11 +141,11 @@ Malformed figures are errors. A `figcaption` is optional; when present it holds 
 ```
 
 - Order: caption (above the table), then the table.
-- `table` may have `class="compact"`. It holds an optional `colgroup`, an optional `thead` (header rows, repeated on each printed page; `th` cells only) and one `tbody` (`th` row headers and `td` cells). No `tfoot` and no `caption` element.
+- `table` may have `class="compact"`. It holds an optional `colgroup`, an optional `thead` (header rows, repeated on each printed page; `th` cells only) and one `tbody` (`th` row headers and `td` cells). No `tfoot` and no `caption` element. `colgroup`, `thead` and `tbody` have no attributes.
 - `col` may have `data-width` (whole percentage 1–100) and `class="emphasis"`; when present, the `colgroup` declares every column.
 - `tr.total` marks a total row in `tbody`.
 - Cells: `colspan` (≤ 1,000) and `rowspan` (≤ 65,534), within their row group; one of `ta-l`, `ta-c`, `ta-r` (numbers use `ta-r`). Each cell holds one paragraph of inline content: no lists, paragraphs or nested tables.
-- The rows form a rectangular grid once spans are expanded.
+- The rows form a rectangular grid once spans are expanded, with no cell covered by two spans, at most 1,000 columns and at most 1,000,000 cells.
 
 The table model maps onto the portable table of [ADR-013](../../docs/decisions/013-cross-product-clipboard.md) §3 (header rows, total rows, merges, alignment, percentage widths, links).
 
@@ -161,8 +162,8 @@ The table model maps onto the portable table of [ADR-013](../../docs/decisions/0
 
 - `section.comments` is the last block and holds one or more threads (omit it when there are none).
 - A thread has `id`, `data-status` (`open` or `resolved`) and `data-quote` (the quoted text when it was attached). Optional: `data-section` (the ID of its section's heading), `data-prefix` and `data-suffix` (a few characters of context before and after). These serve anchor recovery (T13).
-- Each `p.comment` is one comment, the first opening the thread and the others replies: `data-author` (free-text name, not verified), `data-date` (UTC, `YYYY-MM-DDTHH:MMZ` with optional seconds) and plain text.
-- Every `mark.comment[data-ref]` refers to an existing thread. A thread no mark refers to is **orphaned**: kept, reported, never reattached automatically.
+- Each `p.comment` is one comment, the first opening the thread and the others replies: `data-author` (free-text name, not verified), `data-date` (a real UTC date and time, `YYYY-MM-DDTHH:MMZ` with optional seconds) and plain text.
+- Every `mark.comment[data-ref]` refers to an existing thread, also inside a protected block. A thread no mark refers to is **orphaned**: kept, reported, never reattached automatically.
 - Threads are excluded from print.
 
 ## Canonical form
@@ -171,7 +172,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 
 - **File layout**: `<!doctype html>`, then `html`, `head` and `body` each on their own line, one zone per line, ending with `</body>`, `</html>` and a newline, as in Slides.
 - **Lines**: each block of `article#doc` starts on its own line. So do the children of the cover, quotes, callouts, lists, the contents list, figures, `table`, `thead`, `tbody`, `section.comments` and threads. A table row, with its cells, is one line; so is a `colgroup`. A nested list starts directly after its item's text: `<li>Text<ul>`, and ends `</ul></li>`. Inline content and `pre` keep their text exactly; inline text contains no line breaks or tabs.
-- **Tags**: lowercase, every end tag written (`</p>`, `</li>`), void elements without a slash (`<br>`, `<col data-width="40">`). SVG elements are written with end tags (`<rect …></rect>`).
+- **Tags**: HTML tags lowercase, every end tag written (`</p>`, `</li>`), void elements without a slash (`<br>`, `<col data-width="40">`). SVG elements and attributes keep their SVG spelling (`clipPath`, `linearGradient`, `viewBox`), as browsers write them, with end tags (`<rect …></rect>`).
 - **Attributes**: double-quoted, in this order. Default values are omitted (`colspan="1"`).
 
   | Element | Order |

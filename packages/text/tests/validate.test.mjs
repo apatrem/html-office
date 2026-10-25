@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateArticle, validateFile } from "../model/validate.mjs";
 import { FONTS } from "../model/format.mjs";
+import { element, text, serialize } from "../model/html.mjs";
 
 const fixtures = new URL("../fixtures/", import.meta.url);
 const list = async (dir) =>
@@ -18,7 +19,7 @@ const codes = (findings) => findings.map((f) => f.code);
 const VALID = {
   "comments.html": { warnings: ["orphaned-thread"] },
   "figures.html": { warnings: ["preview-id", "preview-id"] },
-  "protected.html": { protected: 12 },
+  "protected.html": { protected: 14 },
 };
 
 test("every valid fixture passes with only its expected findings", async () => {
@@ -52,7 +53,7 @@ test("every invalid fixture is rejected at the expected locations", async () => 
 test("protected blocks are listed in order with their reasons", async () => {
   const report = validateFile(await open("valid/protected.html"));
   const flags = report.blocks.map((b) => b.protected);
-  assert.deepEqual(flags, [false, false, ...Array(12).fill(true), false]);
+  assert.deepEqual(flags, [false, false, ...Array(14).fill(true), false]);
   assert.match(report.protected[0].reasons[0], /details/);
   assert.equal(report.protected[0].line, 11);
 });
@@ -68,7 +69,8 @@ test("validation without locations (the browser) finds the same problems", async
     const article = file.html.children
       .find((n) => n.name === "body")
       .children.find((n) => n.name === "article");
-    if (!article) continue;
+    // envelope-id repeats an ID of <head>, which the article alone cannot know.
+    if (!article || name === "envelope-id.html") continue;
     const located = validateFile(file);
     const plain = validateArticle(strip(article), {
       assets: name.startsWith("image-") ? new Set(["a1"]) : null,
@@ -106,4 +108,72 @@ test("the font list matches the shared document settings", async () => {
     ...block.slice(0, block.indexOf("];")).matchAll(/\["([a-z]+)"/g),
   ].map((m) => m[1]);
   assert.deepEqual(FONTS, ids);
+});
+
+const page = (body) =>
+  parseFile(
+    `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>T</title>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en">\n<h1 id="sec-a">H</h1>\n${body}\n</article>\n</body>\n</html>\n`,
+  );
+
+test("unusual structures are protected instead of crashing", () => {
+  for (const body of [
+    "<svg><g><template></template></g></svg>",
+    '<header class="cover"><h1 class="title">Title</h1>loose text</header>',
+    '<header class="cover"><h1 class="title">Title</h1><!-- note --></header>',
+    "<p><strong></strong></p>",
+  ]) {
+    const report = validateFile(page(body));
+    assert.equal(report.protected.length, 1, body);
+  }
+});
+
+test("chart JSON that would end its script element is rejected", () => {
+  const json = JSON.stringify({
+    title: "</script><script>alert(1)</script>",
+    unit: "u",
+    categories: ["a"],
+    series: [{ name: "s", values: [1] }],
+  });
+  const chart = element(
+    "figure",
+    [
+      ["class", "chart"],
+      ["id", "fig-a"],
+      ["data-type", "column"],
+      ["data-width", "text"],
+    ],
+    [element("script", [["type", "application/json"]], [text(json)])],
+  );
+  const article = element(
+    "article",
+    [
+      ["id", "doc"],
+      ["data-format", "1"],
+      ["lang", "en"],
+    ],
+    [chart],
+  );
+  assert.deepEqual(codes(validateArticle(article).errors), ["chart-data"]);
+  assert.throws(() => serialize(article), /cannot contain/);
+});
+
+test("data attributes are text, never URLs", () => {
+  const report = validateFile(
+    page(
+      '<p><mark class="comment" data-ref="c1">x</mark></p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="javascript:alert(1)">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02:59Z">c</p>\n</aside>\n</section>',
+    ),
+  );
+  assert.deepEqual(report.errors, []);
+});
+
+test("findings inside nested marks carry the full path", () => {
+  const report = validateFile(
+    page(
+      '<p><strong><mark class="comment" data-ref="nope">x</mark></strong></p>',
+    ),
+  );
+  assert.equal(
+    report.errors[0].path,
+    "article#doc > p[2] > strong[1] > mark.comment[1]",
+  );
 });

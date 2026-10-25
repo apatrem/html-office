@@ -12,7 +12,7 @@ import {
 } from "../../../src/format.js";
 import { registry } from "../../shared/charts/index.mjs";
 import { strictValidate } from "../../shared/charts/schema.mjs";
-import { attr, classes, elements, isBlank } from "./html.mjs";
+import { attr, classes, elements, isBlank, MAX_DEPTH } from "./html.mjs";
 import * as F from "./format.mjs";
 
 class Context {
@@ -36,7 +36,9 @@ class Context {
     list.push({
       code,
       message,
-      path,
+      // Deeply nested paths keep their start and end.
+      path:
+        path.length > 240 ? `${path.slice(0, 80)} … ${path.slice(-140)}` : path,
       ...(at ? { line: at.line, col: at.col } : {}),
     });
   }
@@ -107,13 +109,28 @@ function registerId(ctx, node, path, id) {
   else ctx.ids.set(id, node);
 }
 
-function safety(node, parent, path, ctx, preview) {
+const HEADINGS = ["h1", "h2", "h3", "h4"];
+// Attributes browsers never read as URLs: their text is document data, whatever it says.
+const inert = (name) => name.startsWith("data-") || name === "alt";
+
+// Walks the whole article, protected blocks included. `scope.top` marks a top-level block;
+// `scope.chart` is the top-level figure.chart whose data and preview are being walked.
+function safety(node, parent, path, ctx, scope) {
   if (node.type !== "element") return;
   const name = node.name.toLowerCase();
+  if (node.truncated)
+    ctx.error(
+      "too-deep",
+      `Elements nested deeper than ${MAX_DEPTH} levels`,
+      node,
+      path,
+    );
+  const inChart = scope.chart && scope.chart === parent;
   const chartData =
-    name === "script" &&
-    isElement(parent, "figure") &&
-    classes(parent).includes("chart");
+    inChart &&
+    isElement(node, "script") &&
+    node.attrs.length === 1 &&
+    attr(node, "type") === "application/json";
   if (
     F.FORBIDDEN_ELEMENTS.has(name) &&
     !chartData &&
@@ -125,14 +142,10 @@ function safety(node, parent, path, ctx, preview) {
       node,
       path,
     );
-  const inPreview =
-    preview ||
-    (node.ns === "svg" &&
-      name === "svg" &&
-      isElement(parent, "figure") &&
-      classes(parent).includes("chart"));
+  const preview =
+    scope.preview || (inChart && node.ns === "svg" && name === "svg");
   for (const [n, v] of node.attrs) {
-    if (n.toLowerCase() === "style" && !inPreview) {
+    if (n.toLowerCase() === "style" && !preview) {
       ctx.error(
         "style-attribute",
         "style attributes are not allowed: use the classes of the format",
@@ -142,46 +155,84 @@ function safety(node, parent, path, ctx, preview) {
       );
       continue;
     }
-    const problem = attributeProblem(n, v, node.ns === "html");
+    const problem = !inert(n) && attributeProblem(n, v, node.ns === "html");
     if (problem) ctx.error("unsafe-attribute", problem, node, path, n);
     // IDs inside a saved chart preview are the renderer's (clip paths, gradients): see articleChecks.
-    if (n === "id" && inPreview) ctx.previewIds.push({ id: v, node, path });
+    if (n === "id" && preview) ctx.previewIds.push({ id: v, node, path });
     else if (n === "id") registerId(ctx, node, path, v);
   }
+  // Every heading of the article has a stable ID, also inside a protected block; the cover title has none.
+  if (
+    node.ns === "html" &&
+    HEADINGS.includes(name) &&
+    !classes(node).includes("title")
+  ) {
+    const id = attr(node, "id");
+    if (id === null)
+      ctx.error("missing-id", `<${node.name}> needs a stable id`, node, path);
+    else if (!F.ID.test(id))
+      ctx.error("invalid-id", `Invalid ID "${id}"`, node, path, "id");
+    else ctx.headings.add(id);
+  }
+  // Comment anchors count wherever they are, so a thread is never reported orphaned by mistake.
+  if (isElement(node, "mark") && classes(node).includes("comment")) {
+    const ref = attr(node, "data-ref");
+    if (ref !== null) ctx.refs.push({ ref, node, path });
+  }
+  const chart =
+    scope.top && isElement(node, "figure") && classes(node)[0] === "chart"
+      ? node
+      : null;
   for (const child of node.children)
-    safety(child, node, childPath(path, node, child), ctx, inPreview);
+    safety(child, node, childPath(path, node, child), ctx, { preview, chart });
 }
 
 // ---------- inline content ----------
-const INLINE = { footnote: false, br: true, marks: [] };
+const INLINE = { footnote: false, link: false, br: true, marks: [] };
+// A mark element must hold something its mark can apply to, or it would vanish from the document.
+const carries = (node) =>
+  node.children.some(
+    (c) =>
+      c.type === "text" ||
+      (c.type === "element" &&
+        (["br", "span"].includes(c.name) ||
+          classes(c).includes("xref") ||
+          carries(c))),
+  );
 
 function inline(children, ctx, path, options = INLINE) {
   const reasons = [];
+  let index = 0;
   for (const node of children) {
     if (node.type === "text") continue;
     if (node.type === "comment") {
       reasons.push("HTML comment inside text");
       continue;
     }
+    index++;
     const n = node.name,
       cls = classes(node),
-      p = `${path} > ${label(node)}`;
+      p = `${path} > ${label(node)}${attr(node, "id") ? "" : `[${index}]`}`;
     if (node.ns !== "html") reasons.push(`<${n}> inside text`);
+    else if (
+      (F.MARKS.includes(n) || (n === "a" && !cls.includes("xref"))) &&
+      !carries(node)
+    )
+      reasons.push(`Empty <${n}>`);
     else if (n === "mark" && cls.length) {
       if (cls.join(" ") !== "comment")
         reasons.push(`Class "${cls.join(" ")}" on <mark>`);
       reasons.push(...unknownAttributes(node, ["class", "data-ref"]));
-      const ref = attr(node, "data-ref");
-      if (ref === null) reasons.push("Comment mark without data-ref");
-      else ctx.refs.push({ ref, node, path: p });
-      reasons.push(...inline(node.children, ctx, path, options));
+      if (attr(node, "data-ref") === null)
+        reasons.push("Comment mark without data-ref");
+      reasons.push(...inline(node.children, ctx, p, options));
     } else if (F.MARKS.includes(n)) {
       const other = { sub: "sup", sup: "sub" }[n];
       if (node.attrs.length) reasons.push(`Attributes on <${n}>`);
       else if (other && options.marks.includes(other))
         reasons.push("Superscript and subscript combined");
       reasons.push(
-        ...inline(node.children, ctx, path, {
+        ...inline(node.children, ctx, p, {
           ...options,
           marks: [...options.marks, n],
         }),
@@ -194,6 +245,7 @@ function inline(children, ctx, path, options = INLINE) {
         reasons.push("A cross-reference links to #id");
       else ctx.xrefs.push({ target: href.slice(1), node, path: p });
       if (!onlyText(node)) reasons.push("Markup inside a cross-reference");
+      if (options.link) reasons.push("Cross-reference inside a link");
     } else if (n === "a") {
       const href = attr(node, "href");
       reasons.push(...unknownAttributes(node, ["href"]));
@@ -202,13 +254,17 @@ function inline(children, ctx, path, options = INLINE) {
         reasons.push("An internal link is a cross-reference (class xref)");
       else if (!F.LINK_URL.test(href))
         reasons.push("Link URL outside https:, http: and mailto:");
-      reasons.push(...inline(node.children, ctx, path, options));
+      reasons.push(
+        ...inline(node.children, ctx, p, { ...options, link: true }),
+      );
     } else if (n === "span" && cls.join(" ") === "footnote") {
       reasons.push(...unknownAttributes(node, ["class"]));
       if (options.footnote) reasons.push("Footnote inside a footnote");
+      if (options.link) reasons.push("Footnote inside a link");
       reasons.push(
-        ...inline(node.children, ctx, path, {
+        ...inline(node.children, ctx, p, {
           footnote: true,
+          link: false,
           br: false,
           marks: [],
         }),
@@ -281,13 +337,8 @@ function cover(node, ctx, path, first) {
   return reasons;
 }
 
+// IDs of headings are checked by safety(), for every heading of the article.
 function heading(node, ctx, path) {
-  const id = attr(node, "id");
-  if (id === null)
-    ctx.error("missing-id", `<${node.name}> needs a stable id`, node, path);
-  else if (!F.ID.test(id))
-    ctx.error("invalid-id", `Invalid ID "${id}"`, node, path, "id");
-  else ctx.headings.add(id);
   if (classes(node).includes("title")) return ["h1.title belongs in the cover"];
   return [
     ...unknownAttributes(node, ["id", "class"]),
@@ -516,7 +567,14 @@ function chart(node, ctx, path) {
       path,
     );
     if (data) kids.unshift(data);
-  } else if (Object.hasOwn(registry, type ?? "")) {
+  } else if (/<\/script|<!-{2}/i.test(textOf(data)))
+    ctx.error(
+      "chart-data",
+      'Chart JSON cannot contain "</script" or a comment opener: write < as \\u003c',
+      data,
+      path,
+    );
+  else if (Object.hasOwn(registry, type ?? "")) {
     let json;
     try {
       json = JSON.parse(textOf(data));
@@ -598,96 +656,94 @@ function image(node, ctx, path) {
 }
 
 const SPAN = /^[1-9][0-9]*$/;
+const SPAN_LIMIT = { colspan: 1000, rowspan: 65534 };
+// Expanded grids are bounded before allocation: the paste limit of Text is far below (ADR-013 §3).
+const MAX_COLUMNS = 1000;
+const MAX_CELLS = 1000000;
 
-function rows(section, ctx, path, head) {
+// Lays out one row group; returns each row's width, or null once the grid is too large.
+function rows(section, ctx, path, head, budget) {
+  const fail = (message, node, p, attribute) =>
+    ctx.error("malformed-table", message, node, p, attribute);
   const grid = [];
   const body = nonBlank(section);
-  if (!body.length)
-    ctx.error("malformed-table", `Empty <${section.name}>`, section, path);
-  body.forEach((tr, r) => {
+  for (const [n] of section.attrs)
+    fail(`Attribute "${n}" on <${section.name}>`, section, path, n);
+  if (!body.length) fail(`Empty <${section.name}>`, section, path);
+  for (const [r, tr] of body.entries()) {
     if (!isElement(tr, "tr")) {
-      ctx.error(
-        "malformed-table",
-        `${label(tr)} in <${section.name}>`,
-        tr,
-        path,
-      );
-      return;
+      fail(`${label(tr)} in <${section.name}>`, tr, path);
+      continue;
     }
     const p = childPath(path, section, tr);
     for (const [n] of tr.attrs)
-      if (n !== "class" || head)
-        ctx.error("malformed-table", `Attribute "${n}" on <tr>`, tr, p, n);
+      if (n !== "class" || head) fail(`Attribute "${n}" on <tr>`, tr, p, n);
     if (
       !head &&
       attr(tr, "class") !== null &&
       classes(tr).join(" ") !== "total"
     )
-      ctx.error("malformed-table", 'A row class is "total"', tr, p, "class");
+      fail('A row class is "total"', tr, p, "class");
     grid[r] ??= [];
     let col = 0;
     for (const cell of nonBlank(tr)) {
       const cp = childPath(p, tr, cell);
       if (!(isElement(cell, "td") && !head) && !isElement(cell, "th")) {
-        ctx.error(
-          "malformed-table",
-          `${label(cell)} in a ${head ? "header" : "body"} row`,
-          cell,
-          cp,
-        );
+        fail(`${label(cell)} in a ${head ? "header" : "body"} row`, cell, cp);
         continue;
       }
+      const span = { colspan: 1, rowspan: 1 };
       for (const [n, v] of cell.attrs) {
-        if (n === "colspan" || n === "rowspan") {
-          const limit = n === "colspan" ? 1000 : 65534;
-          if (!SPAN.test(v) || Number(v) > limit)
-            ctx.error("malformed-table", `Invalid ${n} "${v}"`, cell, cp, n);
+        if (n in span) {
+          if (SPAN.test(v) && Number(v) <= SPAN_LIMIT[n]) span[n] = Number(v);
+          else fail(`Invalid ${n} "${v}"`, cell, cp, n);
         } else if (n !== "class")
-          ctx.error(
-            "malformed-table",
-            `Attribute "${n}" on <${cell.name}>`,
-            cell,
-            cp,
-            n,
-          );
+          fail(`Attribute "${n}" on <${cell.name}>`, cell, cp, n);
       }
       const cls = classes(cell);
       if (cls.length > 1 || (cls.length && !F.CELL_ALIGN.includes(cls[0])))
-        ctx.error(
-          "malformed-table",
+        fail(
           `Cell class is one of ${F.CELL_ALIGN.join(", ")}`,
           cell,
           cp,
           "class",
         );
       for (const reason of inline(cell.children, ctx, cp))
-        ctx.error("malformed-table", `Cell: ${reason}`, cell, cp);
-      const span = (n) =>
-        SPAN.test(attr(cell, n) ?? "") ? Number(attr(cell, n)) : 1;
-      const colspan = span("colspan"),
-        rowspan = span("rowspan");
+        fail(`Cell: ${reason}`, cell, cp);
       while (grid[r][col]) col++;
-      for (let dr = 0; dr < rowspan; dr++) {
-        if (r + dr >= body.length) {
-          ctx.error(
-            "malformed-table",
-            "rowspan runs past its row group",
-            cell,
-            cp,
-            "rowspan",
-          );
-          break;
-        }
-        grid[r + dr] ??= [];
-        for (let dc = 0; dc < colspan; dc++) grid[r + dr][col + dc] = true;
+      if (span.rowspan > body.length - r) {
+        fail("rowspan runs past its row group", cell, cp, "rowspan");
+        span.rowspan = body.length - r;
       }
-      col += colspan;
+      if (col + span.colspan > MAX_COLUMNS) {
+        fail(`More than ${MAX_COLUMNS} columns`, cell, cp);
+        return null;
+      }
+      budget.cells += span.colspan * span.rowspan;
+      if (budget.cells > MAX_CELLS) {
+        fail(
+          `More than ${MAX_CELLS.toLocaleString("en")} cells once spans are expanded`,
+          cell,
+          cp,
+        );
+        return null;
+      }
+      let overlap = false;
+      for (let dr = 0; dr < span.rowspan; dr++)
+        for (let dc = 0; dc < span.colspan; dc++)
+          overlap ||= !!grid[r + dr]?.[col + dc];
+      if (overlap) fail("Cells overlap: a span covers this cell", cell, cp);
+      else
+        for (let dr = 0; dr < span.rowspan; dr++) {
+          grid[r + dr] ??= [];
+          for (let dc = 0; dc < span.colspan; dc++)
+            grid[r + dr][col + dc] = true;
+        }
+      col += span.colspan;
     }
-  });
+  }
   return grid.map((row) =>
-    row.length && row.every(Boolean) && row.length === Object.keys(row).length
-      ? row.length
-      : -1,
+    row.length && row.length === Object.keys(row).length ? row.length : -1,
   );
 }
 
@@ -730,10 +786,14 @@ function tableFigure(node, ctx, path) {
     ctx.error("malformed-table", "A table has one <tbody>", table, p);
     return;
   }
-  const widths = [
-    ...(thead ? rows(thead, ctx, childPath(p, table, thead), true) : []),
-    ...rows(tbody, ctx, childPath(p, table, tbody), false),
-  ];
+  const budget = { cells: 0 };
+  const head = thead
+    ? rows(thead, ctx, childPath(p, table, thead), true, budget)
+    : [];
+  const body =
+    head && rows(tbody, ctx, childPath(p, table, tbody), false, budget);
+  if (!head || !body) return;
+  const widths = [...head, ...body];
   const width = widths[0];
   if (widths.some((w) => w !== width || w < 0))
     ctx.error(
@@ -782,6 +842,21 @@ function tableFigure(node, ctx, path) {
 }
 
 // ---------- comment threads: malformed threads are errors ----------
+// A real UTC date and time: 2026-10-15T14:02Z, seconds optional.
+function validDate(text) {
+  const m = F.COMMENT_DATE.exec(text);
+  if (!m) return false;
+  const [y, mo, d, h, mi, se = 0] = m.slice(1).map((v) => Number(v ?? 0));
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return (
+    t.getUTCFullYear() === y &&
+    t.getUTCMonth() === mo - 1 &&
+    t.getUTCDate() === d &&
+    h < 24 &&
+    mi < 60 &&
+    se < 60
+  );
+}
 function comments(node, ctx, path, last) {
   const fail = (message, n = node, p = path, a) =>
     ctx.error("malformed-thread", message, n, p, a);
@@ -840,7 +915,7 @@ function comments(node, ctx, path, last) {
           fail(`Attribute "${n}" on a comment`, entry, ep, n);
       if (!attr(entry, "data-author")?.trim())
         fail("A comment needs data-author", entry, ep);
-      if (!F.COMMENT_DATE.test(attr(entry, "data-date") ?? ""))
+      if (!validDate(attr(entry, "data-date") ?? ""))
         fail(
           "data-date is UTC ISO 8601, for example 2026-10-15T14:02Z",
           entry,
@@ -919,7 +994,7 @@ function articleChecks(article, ctx) {
   const path = "article#doc";
   articleAttributes(article, ctx, path);
   for (const child of article.children)
-    safety(child, article, childPath(path, article, child), ctx, false);
+    safety(child, article, childPath(path, article, child), ctx, { top: true });
   const nodes = nonBlank(article);
   if (!nodes.length)
     ctx.error("empty-document", "article#doc has no content", article, path);
@@ -1035,6 +1110,44 @@ export function validateFile(file) {
     ctx.error("structure", "The file needs <head> and <body>", html, "html");
     return result(ctx, []);
   }
+  // Attributes set from anywhere in the source (a stray <body onload> merges into body) end up here.
+  for (const [node, allowed] of [
+    [html, ["lang", "dir"]],
+    [head, []],
+    [body, []],
+  ])
+    for (const [n, v] of node.attrs) {
+      const problem =
+        n.toLowerCase() === "style"
+          ? "style attributes are not allowed"
+          : attributeProblem(n, v, true);
+      if (problem || !allowed.includes(n))
+        ctx.error(
+          "root-attribute",
+          problem || `Attribute "${n}" on <${node.name}>`,
+          node,
+          node.name,
+          n,
+        );
+    }
+  // IDs outside the content: article#doc cannot repeat them. Template contents are not in the document.
+  const envelopeIds = (node) => {
+    for (const child of elements(node)) {
+      if (child.name === "article" && attr(child, "id") === "doc") continue;
+      const id = attr(child, "id");
+      if (id !== null && ctx.ids.has(id))
+        ctx.error(
+          "duplicate-id",
+          `Duplicate ID "${id}"`,
+          child,
+          child.name,
+          "id",
+        );
+      else if (id !== null) ctx.ids.set(id, child);
+      if (child.name !== "template") envelopeIds(child);
+    }
+  };
+  envelopeIds(html);
   for (const node of head.children) {
     if (isBlank(node)) continue;
     const p = childPath("head", head, node);

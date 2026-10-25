@@ -8,6 +8,12 @@
   "article-lang.html": [
     "article-attribute 8:35"
   ],
+  "body-attribute.html": [
+    "root-attribute 7:1"
+  ],
+  "chart-in-protected.html": [
+    "forbidden-element 10:28"
+  ],
   "chart-json.html": [
     "chart-data 11:1"
   ],
@@ -32,6 +38,9 @@
   ],
   "empty-document.html": [
     "empty-document 8:1"
+  ],
+  "envelope-id.html": [
+    "duplicate-id 10:5"
   ],
   "event-handler.html": [
     "unsafe-attribute 10:4"
@@ -70,6 +79,13 @@
   "missing-heading-id.html": [
     "missing-id 9:1"
   ],
+  "plaintext.html": [
+    "forbidden-element 10:1"
+  ],
+  "protected-heading.html": [
+    "missing-id 10:6",
+    "unknown-thread 10:45"
+  ],
   "reserved-id.html": [
     "reserved-id 9:5"
   ],
@@ -95,12 +111,25 @@
   "table-grid.html": [
     "malformed-table 11:1"
   ],
+  "table-group-attribute.html": [
+    "malformed-table 12:8"
+  ],
   "table-head-cell.html": [
     "malformed-table 13:5",
     "malformed-table 11:1"
   ],
+  "table-overlap.html": [
+    "malformed-table 14:5",
+    "malformed-table 11:1"
+  ],
   "table-rowspan.html": [
     "malformed-table 13:9"
+  ],
+  "table-span-size.html": [
+    "malformed-table 13:9"
+  ],
+  "thread-date-range.html": [
+    "malformed-thread 13:39"
   ],
   "thread-date.html": [
     "malformed-thread 13:39"
@@ -116,6 +145,9 @@
   ],
   "thread-status.html": [
     "malformed-thread 12:39"
+  ],
+  "too-deep.html": [
+    "too-deep 10:1266"
   ],
   "unknown-body.html": [
     "body 11:1"

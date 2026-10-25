@@ -1,6 +1,7 @@
 // Node only: parses a complete file with parse5 into the plain tree of html.mjs, with source locations.
 // parse5 follows the HTML parsing algorithm, so the tree matches what a browser builds from the same bytes.
 import { parse } from "parse5";
+import { MAX_DEPTH } from "./html.mjs";
 
 const NAMESPACES = {
   "http://www.w3.org/1999/xhtml": "html",
@@ -22,24 +23,31 @@ function location(l) {
   };
 }
 
-function convert(node) {
+function convert(node, depth = 0) {
   const loc = location(node.sourceCodeLocation);
   if (node.nodeName === "#text")
     return { type: "text", value: node.value, loc };
   if (node.nodeName === "#comment")
     return { type: "comment", value: node.data, loc };
-  const source = node.nodeName === "template" ? node.content : node;
+  const ns = NAMESPACES[node.namespaceURI] ?? "html";
+  const source =
+    ns === "html" && node.nodeName === "template" ? node.content : node;
+  const children = source.childNodes.filter(
+    (child) => child.nodeName !== "#documentType",
+  );
   return {
     type: "element",
     name: node.tagName,
-    ns: NAMESPACES[node.namespaceURI] ?? "html",
+    ns,
     attrs: node.attrs.map((a) => [
       a.prefix ? `${a.prefix}:${a.name}` : a.name,
       a.value,
     ]),
-    children: source.childNodes
-      .filter((child) => child.nodeName !== "#documentType")
-      .map(convert),
+    children:
+      depth < MAX_DEPTH
+        ? children.map((child) => convert(child, depth + 1))
+        : [],
+    ...(depth >= MAX_DEPTH && children.length ? { truncated: true } : {}),
     loc,
   };
 }
