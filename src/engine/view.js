@@ -279,9 +279,9 @@ export function formatPanel() {
 
 // Deck appearance (TH02), set by main#deck[data-theme|data-font] and mirrored on the root:
 // a built-in charte overlays the colour tokens of style#charte; a font replaces the body font
-// while titles keep the charte's (--title-font, otherwise --font).
+// while titles always use the charte's (--title-font, otherwise --font).
 const LOOK_CSS = charteCSS() + FONTS.map(([id, , stack]) => `:root[data-font="${id}"]{--body-font:${stack}}`).join('') +
-  ':root[data-font] .slide{font-family:var(--body-font)}:root[data-font] .slide h1{font-family:var(--title-font,var(--font))}';
+  ':root[data-font] .slide{font-family:var(--body-font)}.slide h1{font-family:var(--title-font,var(--font))}';
 
 export const UI_CSS = SHELL_CSS + DRAWER_CSS + LOOK_CSS + `
 .hs-static main#deck{gap:0;padding:0}

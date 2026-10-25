@@ -113,6 +113,57 @@ test('File › Document settings… opens the panel; leaving edit mode closes it
   assert.equal(await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).isVisible(), false);
 });
 
+test('undoing a theme keeps the slides and the current slide', async t => {
+  const p = await open(t);
+  await p.locator('#s04').scrollIntoViewIfNeeded();
+  await p.locator('#s04 > h1').click();
+  await p.keyboard.press('Escape');
+  await p.evaluate(() => { window.__s04 = document.getElementById('s04'); });
+  await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).click();
+  await choose(p, 'Theme', 'Red');
+  await p.keyboard.press('Control+z');
+  await p.keyboard.press('Control+Shift+z');
+  await p.keyboard.press('Control+z');
+  assert.equal(await p.evaluate(() => window.__s04 === document.getElementById('s04')), true, 'the slide elements are kept');
+  assert.equal(await p.locator('.hs-float .sh-finfo').textContent(), 'Slide 4 of 9');
+  assert.equal(await p.locator('.hs-thumb.on .hs-num').textContent(), '4');
+  await p.keyboard.press('Escape');
+  await p.getByRole('toolbar', { name: 'Slide and selection' }).getByRole('button', { name: 'Duplicate slide', exact: true }).click();
+  assert.equal(await p.evaluate(() => document.getElementById('s04').nextElementSibling.querySelector('h1').textContent === document.querySelector('#s04 > h1').textContent), true,
+    'slide commands still act on the current slide');
+});
+
+test('a charte title font stays on titles whatever the body font', async t => {
+  const file = path.join(dir, 'title-font.html');
+  fs.writeFileSync(file, setZone(original, 'charte', zone(original, 'charte').replace('--font:Arial, Helvetica, sans-serif;', '--font:Arial, Helvetica, sans-serif;--title-font:Georgia, serif;')));
+  const p = await open(t, file);
+  assert.match((await looks(p)).title, /^Georgia/, 'titles use --title-font');
+  await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).click();
+  await choose(p, 'Document font', 'Verdana');
+  let now = await looks(p);
+  assert.match(now.body, /^Verdana/);
+  assert.match(now.title, /^Georgia/, 'a body font leaves titles alone');
+  await choose(p, 'Document font', 'Charte font');
+  now = await looks(p);
+  assert.match(now.body, /^Arial/);
+  assert.match(now.title, /^Georgia/);
+});
+
+test('focus returns to the settings-bar button, also from the File menu and when leaving edit mode', async t => {
+  const p = await open(t);
+  const focused = () => p.evaluate(() => document.activeElement.getAttribute('aria-label') || document.activeElement.textContent.trim());
+  await p.getByRole('menubar').getByRole('menuitem', { name: 'File', exact: true }).click();
+  await p.locator('.sh-pop [role=menuitem]').filter({ hasText: 'Document settings…' }).click();
+  await panel(p).waitFor();
+  await p.keyboard.press('Escape');
+  assert.equal(await focused(), 'Theme & font');
+  await p.keyboard.press('Enter');
+  await panel(p).getByRole('radio', { name: /Blue/ }).focus();
+  await p.keyboard.press('e');
+  assert.equal(await panel(p).count(), 0);
+  assert.equal(await focused(), 'Edit', 'leaving edit mode from the panel hands focus to Edit');
+});
+
 test('a saved deck carries data-theme and data-font on main#deck but no shell state; reopening applies them', async t => {
   const p = await open(t);
   await p.locator('.hs-float').getByRole('button', { name: 'Theme & font' }).click();

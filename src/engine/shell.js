@@ -209,7 +209,8 @@ export function mountShell(cmd) {
       extra: [h('h3', {}, 'Footer'), h('p', { class: 'sh-hint hs-footer-line' }, footerLine()),
         h('div', { class: 'sh-prow' }, button({ label: 'Footer…', ic: 'footer', text: 'Footer…', cls: 'sh-ghost', onClick: run('footer') }))] }) });
   const panel = createDrawer(h('div', { class: 'sh-root hs-drawer', 'data-ui': '' }));
-  const openSettings = () => { closePopover({ restore: false }); panel.open('settings', settings()); };
+  // Opened from a menu, the panel returns focus to the settings-bar button when it closes.
+  const openSettings = () => { closePopover({ restore: false }); panel.open('settings', { ...settings(), trigger: B.settings }); };
 
   // ---- floating settings bar: file commands while reading, theme and slide position while editing ----
   const info = h('span', { class: 'sh-finfo', role: 'status' });
@@ -241,6 +242,7 @@ export function mountShell(cmd) {
       : c.chart ? 'Chart' : c.table ? 'Table' : c.els[0].matches('img') ? 'Image' : c.els[0].matches('.shape') ? 'Shape' : 'Element');
     text(info, on && n ? `Slide ${n} of ${all.length}` : '');
     // The open panel follows undo and redo; it closes with edit mode.
+    const inPanel = panel.host.contains(focused);
     if (panel.current() && !on) panel.close({ restore: false });
     else if (panel.current()) {
       const l = deckLook();
@@ -257,7 +259,7 @@ export function mountShell(cmd) {
     B.color.bar.style.background = `var(--${l.color})`;
     B.fill.bar.style.background = !l.fill || l.fill === 'none' ? 'transparent' : l.fill === 'tint' ? 'var(--callout)' : `var(--${l.fill === 'dark' ? 'ink' : l.fill})`;
     // A mode switch from the chrome hides the control that had focus: hand it to its counterpart.
-    if (focused && focused !== document.body && (top.contains(focused) || float.contains(focused)) && !focused.offsetParent)
+    if (focused && focused !== document.body && (top.contains(focused) || float.contains(focused) || inPanel) && !focused.offsetParent)
       (on ? B.done : B.edit).focus({ preventScroll: true });
     const now = on + chip.textContent + binds.map(([b]) => +b.disabled).join('');
     if (now !== shown || bar.contains(focused) && focused.disabled) {

@@ -202,7 +202,7 @@ Two optional attributes of `main#deck` change the look of the whole deck without
 ```
 
 - `data-theme` overlays a built-in charte on the colour tokens of `style#charte`: `blue` (the default branding), `red`, `green`, or `black` (greyscale with one alert colour). Fonts, sizes, and logo stay those of the deck's charte, which is never rewritten; removing the attribute restores its colours.
-- `data-font` sets the body font: `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, or `times`. Titles (`h1`) keep the charte font (`--title-font` when the charte defines it, otherwise `--font`).
+- `data-font` sets the body font: `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, or `times`. Titles (`h1`) keep the charte font: `--title-font` when the charte defines it, otherwise `--font`.
 - Absent means the charte's own colours and font. Other values are checker errors.
 - Charts are drawn in the theme colours and the body font; `pack` refreshes their cached SVGs. Changing either attribute reflows text: check the deck again.
 

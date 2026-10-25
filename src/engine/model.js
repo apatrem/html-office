@@ -188,7 +188,8 @@ export function commitDeck(tok) {
 }
 export function applyDeck(fn) { const tok = beginDeck(); const r = fn(); commitDeck(tok); return r; }
 function restoreDeck(d) {
-  state.main.innerHTML = d.html;
+  // An attribute-only entry (theme, font, footer text) keeps the slides and the current slide.
+  if (cleanMainHTML() !== d.html) state.main.innerHTML = d.html;
   for (const k of DECK_DATA) setDeckData(k, d[k]);
   emit('deck');
 }
