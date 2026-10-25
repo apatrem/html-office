@@ -108,24 +108,26 @@ function classRules(root) {
       if (match) rules.set(match[1], (rules.get(match[1]) ?? "") + ";" + body);
     }
   };
+  // Comments are skipped whole, in selectors and in declarations alike.
   let selector = "",
+    body = null,
     i = 0;
   while (i < css.length) {
     if (css.startsWith("/*", i)) {
       const end = css.indexOf("*/", i + 2);
       i = end < 0 ? css.length : end + 2;
-    } else if (css.startsWith("<!--", i)) i += 4;
-    else if (css.startsWith("-->", i)) i += 3;
-    else if (css[i] === "{") {
-      const end = css.indexOf("}", i + 1),
-        stop = end < 0 ? css.length : end;
-      add(selector, css.slice(i + 1, stop).replace(/\/\*|\*\//g, ""));
-      selector = "";
-      i = stop + 1;
-    } else if (css[i] === "}") {
-      selector = "";
+    } else if (body === null && css.startsWith("<!--", i)) i += 4;
+    else if (body === null && css.startsWith("-->", i)) i += 3;
+    else if (css[i] === "{" && body === null) {
+      body = "";
       i++;
-    } else selector += css[i++];
+    } else if (css[i] === "}") {
+      if (body !== null) add(selector, body);
+      selector = "";
+      body = null;
+      i++;
+    } else if (body === null) selector += css[i++];
+    else body += css[i++];
   }
   return rules;
 }

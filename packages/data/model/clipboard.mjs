@@ -528,6 +528,12 @@ function typeText(text, typing) {
   }
   return { input: typed(text, typing) };
 }
+// Every format a pasted table supplies, whichever representation is pasted:
+// a malformed recognised envelope aborts (ADR-013 §1).
+export function validateTableFormats(table) {
+  for (const row of table.rows)
+    for (const slot of row) if (slot?.format) validateFormat(slot.format);
+}
 const BOLD = ["title", "header", "output", "total", "alert"],
   ITALIC = ["note"];
 // A portable table as Data cells at its own origin. Untyped text follows

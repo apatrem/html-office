@@ -110,12 +110,20 @@ test('untrusted CSS is scanned in linear time', () => {
     read(`<style>${css}</style>${table}`);
     assert.ok(performance.now() - start < 1000, css.slice(0, 4));
   }
+  // Comments inside declarations are skipped whole, braces included.
+  const hidden = read('<style>.h{/* hide } */display:none}.b{font-weight:/*x*/700}</style><table><tr><td class="b"><span class="h">999</span>12</td></tr></table>');
+  assert.deepEqual(hidden.table.rows[0][0], { text: '12', bold: true });
   // Rules still apply after comments, HTML comment markers and at-rules.
   assert.equal(read(`<style><!-- /* c */ @page x{margin:0} .b{font-weight:700} --></style>${table}`).table.rows[0][0].bold, true);
 });
 
 test('spans are rejected before a grid is built', () => {
   const html = '<table><tr><td colspan="1000" rowspan="65534">x</td></tr>' + '<tr><td>y</td></tr>'.repeat(3000) + '</table>';
+  // Expanded, this is 3 million slots: rejecting it must cost far less.
+  globalThis.gc?.();
+  const heap = process.memoryUsage().heapUsed;
+  assert.throws(() => readTable(parseInert(html), { maxCells: 2000000 }), /larger than/);
+  assert.ok(process.memoryUsage().heapUsed - heap < 40 * 2 ** 20, 'no grid was allocated');
   const start = performance.now();
   assert.throws(() => readTable(parseInert(html), { maxCells: 2000000 }), /larger than 2,000,000 cells/);
   assert.ok(performance.now() - start < 2000);

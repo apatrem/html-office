@@ -18,6 +18,7 @@ import {
   rangeTable,
   tableCells,
   validateRange,
+  validateTableFormats,
   LIMIT,
 } from "../model/clipboard.mjs";
 import { jsonStringify } from "../model/json.mjs";
@@ -407,6 +408,7 @@ export function setupClipboard({
         const { envelope } = read;
         if (envelope.kind === "chart")
           throw new Error("Charts cannot be pasted into Data yet");
+        if (envelope.table) validateTableFormats(envelope.table);
         if (envelope.range) pasteRange(envelope.range, notices);
         else pasteTable(envelope.table, notices, envelope.source);
       } else if (read.source === "legacy") pasteRange(read.range, notices);

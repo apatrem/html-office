@@ -248,6 +248,15 @@ try {
     [
       {
         [MIME]: JSON.stringify({
+          ...envelope,
+          table: { rows: [[{ text: "x", format: { kind: "bogus" } }]] },
+        }),
+      },
+      "Invalid format",
+    ],
+    [
+      {
+        [MIME]: JSON.stringify({
           schema: "html-office-clip/1",
           kind: "chart",
           chart: {},
