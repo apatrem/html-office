@@ -1,34 +1,105 @@
-// Keeps edited documents inside the subset where the schema alone cannot (FORMAT.md › Inline content):
-// HTML cannot nest <a>, so a link never covers a footnote or a cross-reference. A transaction that
-// would put one there (Add link over a selection, typing at a link's edge) leaves those nodes unlinked.
+// Keeps edited documents inside the subset where the schema alone cannot (FORMAT.md). After each
+// changing transaction it repairs, in one appended step:
+// - links over footnotes and cross-references (HTML cannot nest <a>): those nodes are unlinked;
+// - repeated IDs (a split heading, a duplicated figure): later copies get a fresh ID;
+// - table rows left short by an edit: empty cells fill the grid back to a rectangle.
 import { Plugin } from "prosemirror-state";
 import { schema } from "./schema.mjs";
 
-const link = schema.marks.link;
+const N = schema.nodes,
+  link = schema.marks.link;
+const IDS = new Set([
+  "heading",
+  "chart",
+  "image_figure",
+  "table_figure",
+  "comment_thread",
+]);
 
 export function linkConflicts(doc) {
   const found = [];
   doc.descendants((node, pos) => {
     if (
-      (node.type.name === "footnote" || node.type.name === "xref") &&
+      (node.type === N.footnote || node.type === N.xref) &&
       link.isInSet(node.marks)
     )
       found.push({ node, pos });
-    // Text inside a linked footnote cannot be linked either.
-    return node.type.name !== "xref";
   });
   return found;
+}
+
+// [{pos, id}] for every node after the first that repeats an ID.
+export function repeatedIds(doc) {
+  const seen = new Set(),
+    found = [];
+  doc.descendants((node, pos) => {
+    if (!IDS.has(node.type.name)) return;
+    if (seen.has(node.attrs.id)) found.push({ pos, id: node.attrs.id });
+    seen.add(node.attrs.id);
+  });
+  return { seen, found };
+}
+
+// Missing cells per row of a table, from its spans: [{row, missing}] with the row's end position.
+export function shortRows(table, pos) {
+  const grid = [];
+  const ends = [];
+  let at = pos + 1;
+  table.forEach((row, _o, r) => {
+    grid[r] ??= [];
+    let col = 0;
+    row.forEach((cell) => {
+      while (grid[r][col]) col++;
+      for (let dr = 0; dr < cell.attrs.rowspan; dr++)
+        for (let dc = 0; dc < cell.attrs.colspan; dc++)
+          (grid[r + dr] ??= [])[col + dc] = true;
+      col += cell.attrs.colspan;
+    });
+    at += row.nodeSize;
+    ends.push({ end: at - 1, head: row.attrs.head });
+  });
+  const width = Math.max(
+    1,
+    ...grid.slice(0, table.childCount).map((r) => r.length),
+  );
+  return ends
+    .map((e, r) => ({
+      ...e,
+      missing: width - (grid[r] ?? []).slice(0, width).filter(Boolean).length,
+    }))
+    .filter((e) => e.missing > 0);
+}
+
+function repair(state) {
+  const tr = state.tr;
+  for (const { node, pos } of linkConflicts(state.doc))
+    tr.removeNodeMark(pos, link);
+  const { seen, found } = repeatedIds(tr.doc);
+  for (const { pos, id } of found) {
+    let n = 2;
+    while (seen.has(`${id}-${n}`)) n++;
+    seen.add(`${id}-${n}`);
+    tr.setNodeAttribute(pos, "id", `${id}-${n}`);
+  }
+  const tables = [];
+  tr.doc.descendants((node, pos) => {
+    if (node.type === N.table) tables.push({ node, pos });
+    return node.type !== N.table;
+  });
+  for (const { node, pos } of tables.reverse())
+    for (const { end, head, missing } of shortRows(node, pos).reverse())
+      tr.insert(
+        end,
+        Array.from({ length: missing }, () =>
+          (head ? N.table_header : N.table_cell).create(),
+        ),
+      );
+  return tr.docChanged ? tr : null;
 }
 
 export const subsetGuard = () =>
   new Plugin({
     appendTransaction(transactions, _old, state) {
-      if (!transactions.some((tr) => tr.docChanged)) return null;
-      const conflicts = linkConflicts(state.doc);
-      if (!conflicts.length) return null;
-      const tr = state.tr;
-      for (const { node, pos } of conflicts)
-        tr.removeMark(pos, pos + node.nodeSize, link);
-      return tr;
+      return transactions.some((tr) => tr.docChanged) ? repair(state) : null;
     },
   });

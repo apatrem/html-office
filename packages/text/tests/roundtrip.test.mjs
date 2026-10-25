@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { EditorState } from "prosemirror-state";
+import { EditorState, TextSelection } from "prosemirror-state";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import {
@@ -296,4 +296,58 @@ test("the line diff keeps unchanged text and stays bounded", () => {
   const edits = diffLines(lines, changed);
   assert.equal(edits.filter((e) => e.op === "-").length, 4000);
   assert.equal(edits.filter((e) => e.op === "+").length, 4000);
+});
+
+test("the guard repairs footnotes inserted in links, repeated IDs and short table rows", () => {
+  const editor = (body) => {
+    const file = parseFile(article(body));
+    const state = EditorState.create({
+      doc: openFile(file).doc,
+      plugins: [subsetGuard()],
+    });
+    const reopen = (s) => {
+      const saved = saveFile(file, s.doc);
+      assert.ok(open(saved).doc.eq(s.doc));
+      return saved;
+    };
+    return { state, reopen };
+  };
+
+  const linked = editor('<p><a href="https://example.org/">abc</a></p>');
+  const inLink = linked.state.apply(
+    linked.state.tr
+      .setSelection(TextSelection.create(linked.state.doc, 2))
+      .replaceSelectionWith(
+        schema.nodes.footnote.create(null, schema.text("note")),
+      ),
+  );
+  assert.deepEqual(linkConflicts(inLink.doc), []);
+  assert.match(
+    linked.reopen(inLink),
+    /<a href="https:\/\/example.org\/">a<\/a><span class="footnote">note<\/span>/,
+  );
+
+  const headed = editor('<h1 id="sec-a">Heading</h1>');
+  const split = headed.state.apply(headed.state.tr.split(4));
+  assert.match(
+    headed.reopen(split),
+    /<h1 id="sec-a">Hea<\/h1>\n<h1 id="sec-a-2">ding<\/h1>/,
+  );
+
+  const table = editor(
+    '<figure class="table" id="t">\n<table>\n<tbody>\n<tr><td>x</td><td>y</td></tr>\n<tr><td>z</td><td>w</td></tr>\n</tbody>\n</table>\n</figure>',
+  );
+  let cellPos = null;
+  table.state.doc.descendants((n, p) => {
+    if (
+      cellPos === null &&
+      n.type.name === "table_cell" &&
+      n.textContent === "w"
+    )
+      cellPos = p;
+  });
+  const deleted = table.state.apply(
+    table.state.tr.delete(cellPos, cellPos + 3),
+  );
+  assert.match(table.reopen(deleted), /<tr><td>z<\/td><td><\/td><\/tr>/);
 });

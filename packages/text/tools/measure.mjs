@@ -6,6 +6,7 @@
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { inlineScript } from "../../../tools/inline-script.mjs";
 import {
   bundledPackages,
   packageEntries,
@@ -31,6 +32,7 @@ const OURS = {
   "Parser (tree to document)": "./editor/schema/parse.mjs",
   "Serialiser (document to HTML)": "./editor/schema/serialize.mjs",
   "File layout": "./model/file.mjs",
+  "Editing guard": "./editor/schema/guard.mjs",
 };
 
 async function bundle(contents, external = []) {
@@ -48,6 +50,7 @@ async function bundle(contents, external = []) {
   });
   const code = result.outputFiles[0].contents;
   return {
+    text: result.outputFiles[0].text,
     bytes: code.length,
     gzip: gzipSync(code, { level: 9 }).length,
     metafile: result.metafile,
@@ -102,12 +105,16 @@ export async function measure() {
       gzip: gzipSync(notices, { level: 9 }).length,
     },
   );
-  const total = core.bytes + noticeBytes;
+  // As embedded: notices comment, then the code prepared for an inline <script>.
+  const total = Buffer.byteLength(
+    inlineScript(`/*! html-text\n${notices}*/\n${core.text}`, "core"),
+    "utf8",
+  );
   return {
     ceiling: STANDARD_CODE_CEILING,
     total,
     headroom: STANDARD_CODE_CEILING - total,
-    rows: rows.map(({ metafile, ...row }) => row),
+    rows: rows.map(({ metafile, text, ...row }) => row),
   };
 }
 
