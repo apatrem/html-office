@@ -88,21 +88,45 @@ export function findEnvelope(root) {
 
 // Class rules from the fragment's own <style> elements (Excel and Word put
 // bold, italic and alignment there), for `.name` and `tag.name` selectors.
+const MAX_CSS = 2 ** 20;
 function classRules(root) {
   const rules = new Map();
   let css = "";
   walk(root, (node) => {
     if (node.nodeType === ELEMENT && node.localName === "style") {
-      if (css.length < 2 ** 20) css += node.textContent + "\n";
+      const text = node.textContent;
+      if (css.length + text.length < MAX_CSS) css += text + "\n";
       return false;
     }
   });
-  css = css.replace(/\/\*[\s\S]*?\*\/|<!--|-->/g, "");
-  for (const [, selectors, body] of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g))
+  // One linear pass (no backtracking regular expression over untrusted
+  // CSS): comments and HTML comment markers are skipped, at-rules ignored.
+  const add = (selectors, body) => {
+    if (selectors.includes("@")) return;
     for (const selector of selectors.split(",")) {
       const match = /^\s*[a-z0-9]*\.([\w-]+)\s*$/i.exec(selector);
       if (match) rules.set(match[1], (rules.get(match[1]) ?? "") + ";" + body);
     }
+  };
+  let selector = "",
+    i = 0;
+  while (i < css.length) {
+    if (css.startsWith("/*", i)) {
+      const end = css.indexOf("*/", i + 2);
+      i = end < 0 ? css.length : end + 2;
+    } else if (css.startsWith("<!--", i)) i += 4;
+    else if (css.startsWith("-->", i)) i += 3;
+    else if (css[i] === "{") {
+      const end = css.indexOf("}", i + 1),
+        stop = end < 0 ? css.length : end;
+      add(selector, css.slice(i + 1, stop).replace(/\/\*|\*\//g, ""));
+      selector = "";
+      i = stop + 1;
+    } else if (css[i] === "}") {
+      selector = "";
+      i++;
+    } else selector += css[i++];
+  }
   return rules;
 }
 function declarations(element, rules) {
@@ -379,7 +403,6 @@ export function readTable(root, { maxCells = Infinity } = {}) {
     table.rows[headerRows].every((slot) => !slot || slot.covered || slot.header)
   )
     headerRows++;
-  if (headerRows === table.rows.length) headerRows = 0;
   if (headerRows) table.headerRows = headerRows;
   return { table, dropped: counts };
 }

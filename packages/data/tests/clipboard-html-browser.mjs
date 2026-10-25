@@ -282,6 +282,17 @@ try {
   cells = (await saved(page, "clip-html-newer.html")).sheets[0].cells;
   assert.deepEqual(cells.B40.input, { type: "number", value: 7 });
 
+  // 7b. Data's custom type from before X02a still pastes, signed zero intact.
+  await jump(page, "A50");
+  await paste(page, {
+    "application/x-html-office-range+json":
+      '{"schema":"html-office-range/1","origin":{"row":1,"column":1},"cells":[[{"input":{"type":"number","value":-0}},{"formula":"=A1*2"}]]}',
+  });
+  await statusText(page, "Calculated locally");
+  cells = (await saved(page, "clip-html-legacy.html")).sheets[0].cells;
+  assert.ok(Object.is(cells.A50.input.value, -0));
+  assert.equal(cells.B50.formula, "=A50*2");
+
   // 8. No script runs and nothing is fetched while pasting resource-bearing
   // HTML.
   await jump(page, "A45");

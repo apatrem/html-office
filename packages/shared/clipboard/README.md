@@ -35,5 +35,5 @@ Data includes the portable `table` in its envelope up to the same 20,000 cells; 
 ## Tests
 
 - `tests/clipboard.test.mjs` (root): the module in Node, with parse5 standing in for the browser's parser (`tests/helpers/inert-dom.mjs`).
-- `tests/clipboard-engines.mjs` (root, CI job `clipboard-engines`): the reader in Chromium, Firefox and WebKit, including the zero-request and no-script check for resource-bearing HTML. `CLIPBOARD_ENGINES=chromium,webkit` limits the engines.
+- `tests/clipboard-engines.mjs` (root, CI job `clipboard-engines`): in Chromium, Firefox and WebKit, the zero-request and no-script check for resource-bearing HTML, the fixtures read as in Node, the envelope through dispatched paste events, and a Data paste of its own `text/html` (formulas relocated) undone in one step. Native pasteboards across documents and browsers stay in ADR-013's manual matrix. `CLIPBOARD_ENGINES=chromium,webkit` limits the engines.
 - `packages/data/tests/clipboard.test.mjs` and `clipboard-html-browser.mjs`: Data's mapping and Data ⇄ Data, Data ⇄ other applications in the browser.

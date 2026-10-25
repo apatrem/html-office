@@ -109,6 +109,7 @@ test("a final closed quoted empty field remains an explicit row", () => {
 
 // ---- Portable tables and the shared clipboard module (ADR-013, X02a) ----
 import { readFileSync } from "node:fs";
+import { address } from "../model/workbook.mjs";
 import {
   rangeTable,
   tableCells,
@@ -409,4 +410,57 @@ test("Data's own HTML without its attribute still pastes its displayed table", (
   assert.equal(cells[0][0].cellStyle, "header");
   assert.deepEqual(cells[1][0].input, { type: "number", value: 0.5 });
   assert.deepEqual(cells[1][0].format, { kind: "percent", digits: 0 });
+});
+
+test("review fixes: percents ask when ambiguous, formats are always checked, column alignment, long centre runs, header-only copies", () => {
+  const one = (text) => ({ rows: [[{ text }]] });
+  assert.match(tableCells(one("12,5%")).ambiguous, /Ambiguous value "12,5"/);
+  assert.match(tableCells(one("1,234%")).ambiguous, /Ambiguous/);
+  assert.deepEqual(tableCells(one("12,5%"), { typing: "fr-FR" }).cells[0][0], {
+    input: { type: "number", value: 0.125 },
+    format: { kind: "percent", digits: 1 },
+  });
+  assert.deepEqual(tableCells(one("5 kg%")).cells[0][0].input, {
+    type: "text",
+    value: "5 kg%",
+  });
+  assert.throws(
+    () => tableCells({ rows: [[{ text: "x", format: { kind: "bogus" } }]] }),
+    /Invalid format/,
+  );
+  const right = tableCells({
+    rows: [[{ text: "a" }]],
+    columns: [{ align: "right" }],
+  });
+  assert.deepEqual(right.cells[0][0].style, { align: { horizontal: "right" } });
+  const cells = {
+    A1: {
+      input: { type: "text", value: "Wide" },
+      cellStyle: "header",
+      style: { align: { horizontal: "centerContinuous" } },
+    },
+  };
+  for (let c = 2; c <= 1201; c++)
+    cells[`${address(1, c)}`] = {
+      style: { align: { horizontal: "centerContinuous" } },
+    };
+  const wide = rangeTable({ id: "s", cells }, "A1:AUF1", {
+    text: (c) => display(c),
+    red: negativeRed,
+  });
+  validateTable(wide);
+  assert.equal(wide.rows[0][0].colspan, 1000);
+  assert.equal(wide.rows[0][1000].covered, undefined);
+  const head = rangeTable(
+    {
+      id: "s",
+      cells: {
+        A1: { input: { type: "text", value: "H" }, cellStyle: "header" },
+      },
+    },
+    "A1",
+    { text: (c) => display(c), red: negativeRed },
+  );
+  assert.equal(head.headerRows, 1);
+  assert.equal(head.rows[0][0].header, true);
 });

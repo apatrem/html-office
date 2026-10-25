@@ -83,8 +83,18 @@ function validateCell(cell, where) {
   span(cell.rowspan, MAX_ROWSPAN, `${where} rowspan`);
   if (cell.value !== undefined) validateValue(cell.value, `${where} value`);
   // A Data preset; Data's own validator checks its fields.
-  if (cell.format !== undefined && !plainObject(cell.format))
-    fail(`${where}: format must be an object`);
+  if (
+    cell.format !== undefined &&
+    !(
+      plainObject(cell.format) &&
+      Object.entries(cell.format).every(
+        ([key, v]) =>
+          /^[a-z][a-zA-Z]{0,31}$/.test(key) &&
+          ["string", "number", "boolean"].includes(typeof v),
+      )
+    )
+  )
+    fail(`${where}: format must be an object of plain values`);
   oneOf(cell.color, TEXT_COLORS, `${where} color`);
   oneOf(cell.fill, FILLS, `${where} fill`);
   oneOf(cell.cellStyle, CELL_STYLES, `${where} cellStyle`);

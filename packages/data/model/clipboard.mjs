@@ -3,6 +3,7 @@ import {
   parseRange,
   address,
   validateCell,
+  validateFormat,
 } from "./workbook.mjs";
 import { effectiveStyle, BUILTIN_CELL_STYLES } from "./formatting.mjs";
 import { COLUMN_WIDTH } from "./navigation.mjs";
@@ -461,8 +462,10 @@ export function rangeTable(sheet, ref, { text, red }) {
       const anchor = line[c];
       if (!anchor?.continuous || anchor.slot.text === "") continue;
       let end = c + 1;
+      // HTML's colspan limit; the rest of a longer run stays empty.
       while (
         end < line.length &&
+        end - c < 1000 &&
         line[end]?.continuous &&
         line[end].slot.text === ""
       )
@@ -490,7 +493,7 @@ export function rangeTable(sheet, ref, { text, red }) {
       rows,
       columns: widths.map((w) => ({ width: +((w / total) * 100).toFixed(2) })),
     };
-  if (headerRows && headerRows < rows.length) {
+  if (headerRows) {
     table.headerRows = headerRows;
     for (const row of rows.slice(0, headerRows))
       for (const slot of row) if (slot && !slot.covered) slot.header = true;
@@ -509,11 +512,9 @@ function typeText(text, typing) {
     return { input: typed(text, "en-US") };
   const percent = typing === "text" ? null : /^(.*\d)\s?%$/.exec(text);
   if (percent) {
-    let inner = null;
-    try {
-      inner = typed(percent[1], typing);
-    } catch {}
-    if (inner?.type === "number") {
+    // An ambiguous number before the % asks, like any other cell.
+    const inner = typed(percent[1], typing);
+    if (inner.type === "number") {
       const separator = typing === "fr-FR" ? "," : ".",
         digits = percent[1].split(separator)[1]?.replace(/\D/g, "").length ?? 0;
       return {
@@ -577,6 +578,8 @@ export function tableCells(table, { typing = "auto" } = {}) {
       const style = {};
       if (source.fill && source.fill !== "none") style.fill = source.fill;
       if (cover?.across) style.align = { horizontal: "centerContinuous" };
+      // A supplied format is checked even where it is not used.
+      if (source.format) validateFormat(source.format);
       if (slot?.covered) {
         if (Object.keys(style).length) cell.style = style;
         return cell;
@@ -612,12 +615,9 @@ export function tableCells(table, { typing = "auto" } = {}) {
       if (italic !== undefined && italic !== ITALIC.includes(cellStyle))
         style.italic = italic;
       if (slot.color) style.color = slot.color;
-      if (
-        slot.align &&
-        !cover?.across &&
-        slot.align !== generalAlign(cell.input)
-      )
-        style.align = { horizontal: slot.align };
+      const align = slot.align ?? table.columns?.[c]?.align;
+      if (align && !cover?.across && align !== generalAlign(cell.input))
+        style.align = { horizontal: align };
       if (Object.keys(style).length) cell.style = style;
       if (link) links[`${r},${c}`] = { url: link };
       return cell;

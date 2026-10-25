@@ -103,7 +103,18 @@ test('deeply nested HTML is read without recursion', () => {
   assert.equal(read(html).table.rows[0][0].text, 'deep');
 });
 
-test('spans are bounded before any grid is allocated', () => {
+test('untrusted CSS is scanned in linear time', () => {
+  const table = '<table><tr><td class="b">x</td></tr></table>';
+  for (const css of ['x'.repeat(400000), '/*'.repeat(200000), '{'.repeat(400000), '.b{'.repeat(100000)]) {
+    const start = performance.now();
+    read(`<style>${css}</style>${table}`);
+    assert.ok(performance.now() - start < 1000, css.slice(0, 4));
+  }
+  // Rules still apply after comments, HTML comment markers and at-rules.
+  assert.equal(read(`<style><!-- /* c */ @page x{margin:0} .b{font-weight:700} --></style>${table}`).table.rows[0][0].bold, true);
+});
+
+test('spans are rejected before a grid is built', () => {
   const html = '<table><tr><td colspan="1000" rowspan="65534">x</td></tr>' + '<tr><td>y</td></tr>'.repeat(3000) + '</table>';
   const start = performance.now();
   assert.throws(() => readTable(parseInert(html), { maxCells: 2000000 }), /larger than 2,000,000 cells/);
@@ -130,6 +141,8 @@ test('table validator: all or nothing, allow-listed fields, spans and limits', (
     t => (t.totalRows = [5]),
     t => (t.columns = [{ width: 50 }]),
     t => (t.extra = true),
+    t => (t.rows[1][1].format = JSON.parse('{"kind":"number","__proto__":{"x":1}}')),
+    t => (t.rows[1][1].format = { kind: 'number', digits: [2] }),
   ];
   for (const change of bad) {
     const t = structuredClone(table);
@@ -191,7 +204,9 @@ test('HTML writer: semantic table, escaped envelope attribute, spans, links and 
   const json = JSON.stringify({ ...envelope, note: '"quoted" <b>&amp;</b> \u2028' });
   const html = tableHTML(table, { envelope: json, locale: 'fr-FR' });
   assert.equal(findEnvelope(parseInert(html)), json, 'the attribute round-trips exactly');
-  assert.match(html, /<thead><tr><th>Region<\/th><th colspan="2">2026<\/th><\/tr><\/thead>/);
+  // Column alignment applies where a cell has none.
+  assert.match(html, /<thead><tr><th style="text-align:left;">Region<\/th><th colspan="2" style="text-align:right;">2026<\/th><\/tr><\/thead><tbody>/);
+  assert.match(html, /<\/tbody><\/table>$/);
   assert.match(html, /x:num="1234.5"/);
   assert.match(html, /data-sheets-value="\{&quot;1&quot;:3,&quot;3&quot;:1234.5\}"/);
   assert.match(html, /mso-number-format:'#,##0.0 &quot;€&quot;'/);
@@ -201,7 +216,12 @@ test('HTML writer: semantic table, escaped envelope attribute, spans, links and 
   assert.match(linked, /x:str style="mso-number-format:'\\@';"/, 'leading-zero text stays text in Excel');
   // The reader reads the writer's semantic table back.
   const back = read(tableHTML(table));
-  assert.deepEqual(back.table.rows[0], [{ text: 'Region', bold: true, header: true }, { text: '2026', bold: true, header: true, colspan: 2 }, { covered: true }]);
+  assert.deepEqual(back.table.rows[0], [{ text: 'Region', bold: true, header: true, align: 'left' }, { text: '2026', bold: true, header: true, colspan: 2, align: 'right' }, { covered: true }]);
+  // A table of header rows only stays a header and closes its <thead>.
+  const heads = tableHTML({ rows: [[{ text: 'Only', header: true }]], headerRows: 1 });
+  assert.match(heads, /<thead><tr><th>Only<\/th><\/tr><\/thead><\/table>$/);
+  assert.equal(read(heads).table.headerRows, 1);
+  assert.equal(tableHTML(table).includes('</body>'), false, 'no literal </body> in bundles');
 });
 
 test('Excel number formats for Data presets', () => {

@@ -145,10 +145,11 @@ export function tableHTML(table, { envelope, locale, css, color } = {}) {
       const tag = r < header || cell?.header ? "th" : "td";
       if (!cell) return out.push(`<${tag}></${tag}>`);
       const hint = hints(cell, locale),
+        align = cell.align ?? table.columns?.[c]?.align,
         style =
           (css?.(cell, r, c) ?? "") +
           (hint.css ?? "") +
-          (cell.align && !css ? `text-align:${cell.align};` : ""),
+          (align && !css ? `text-align:${align};` : ""),
         spans =
           (cell.colspan > 1 ? ` colspan="${cell.colspan}"` : "") +
           (cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : "");
@@ -168,9 +169,10 @@ export function tableHTML(table, { envelope, locale, css, color } = {}) {
     });
     out.push("</tr>");
   });
+  out.push(header >= table.rows.length ? "</thead>" : "</tbody>");
   // </body> and </html> are optional; leaving them out keeps the literal
   // out of every product bundle (test harnesses inject before it).
-  out.push("</tbody></table>");
+  out.push("</table>");
   return out.join("");
 }
 

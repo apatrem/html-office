@@ -29,6 +29,7 @@ import {
   writeClipboard,
   toTSV,
   tableText,
+  validateTable,
 } from "../../shared/clipboard/index.mjs";
 import { display, negativeRed } from "./view.mjs";
 import { paint, generalAlign, LINE } from "./grid.mjs";
@@ -94,6 +95,15 @@ function literalStyles(sheet, top, left) {
   }
   return { css, done: () => host.remove() };
 }
+// Data never publishes a table its own reader would refuse: such a table is
+// left out, and other products read text/plain (the range still travels).
+function portable(table) {
+  try {
+    return validateTable(table);
+  } catch {
+    return undefined;
+  }
+}
 export function setupClipboard({
   getBook,
   getSheet,
@@ -147,10 +157,12 @@ export function setupClipboard({
         // text/html limit only Data's own range travels.
         table =
           cells <= LIMITS.htmlCells
-            ? rangeTable(sheet, ref, {
-                text: (cell) => display(cell, locale),
-                red: negativeRed,
-              })
+            ? portable(
+                rangeTable(sheet, ref, {
+                  text: (cell) => display(cell, locale),
+                  red: negativeRed,
+                }),
+              )
             : undefined,
         formulas = range.cells.some((row) => row.some((c) => c?.formula));
       looks = table && literalStyles(sheet, r.top, r.left);
@@ -224,7 +236,7 @@ export function setupClipboard({
           .join("\n");
       $("paste-apply").disabled = false;
     } catch (error) {
-      parsed = null;
+      parsed = pasted = null;
       $("paste-apply").disabled = true;
       $("paste-preview").textContent = error.message;
     }
