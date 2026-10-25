@@ -15,8 +15,8 @@ import {
 } from "prosemirror-commands";
 import { schema } from "../editor/schema/schema.mjs";
 import { createCommands } from "../../shared/shell/commands.mjs";
-import { fromDocument, serialize } from "../model/html.mjs";
-import { serializeFile } from "../model/file.mjs";
+import { fromDocument } from "../model/html.mjs";
+import { looksCanonical } from "../model/file.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { toDoc } from "../editor/schema/parse.mjs";
 import {
@@ -25,6 +25,7 @@ import {
   verifySaved,
 } from "../editor/schema/document.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
+import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { mountShell, refusal } from "./shell.mjs";
 import shellCSS from "../../shared/shell/shell.css";
@@ -51,12 +52,33 @@ const enter = chainCommands(
   ),
 );
 
-// The file is captured while this script runs: it is the last element of the file, so everything
-// before it is parsed, and nothing added later (by the editor, an extension…) enters the capture.
-const file = fromDocument(document);
+// The file is captured while this script runs: as the classic script#engine, last element of the
+// file, everything before it is parsed and nothing added later (by the editor, an extension…)
+// enters the capture. Run any other way, it refuses to edit.
+const self = document.currentScript;
+const file = self?.id === "engine" ? fromDocument(document) : null;
+const misplaced = {
+  ok: false,
+  errors: [
+    {
+      code: "structure",
+      message:
+        "The editor runs as the classic script#engine, the last element of <body>",
+      path: "body",
+    },
+  ],
+};
+
+// File zones found after the engine once parsing ends: a file the capture did not see whole.
+function zonesAfter() {
+  for (let n = self.nextElementSibling; n; n = n.nextElementSibling)
+    if (n.localName === "script" || ["doc", "assets", "echarts"].includes(n.id))
+      return true;
+  return false;
+}
 
 function start() {
-  const report = validateFile(file);
+  const report = file && !zonesAfter() ? validateFile(file) : misplaced;
   const style = document.createElement("style");
   style.textContent = shellCSS + editorCSS;
   document.head.append(style);
@@ -71,11 +93,11 @@ function start() {
   const opened = save(doc);
   // A source that differs from its canonical form where the browser can see it (line breaks in
   // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
-  const asRead = serializeFile(file, serialize(findArticle(file)));
+
   let view;
   const saving = setupSaving({
     opened,
-    canonical: asRead === opened,
+    canonical: looksCanonical(file, articleHTML(doc)),
     serialize: () => save(view.state.doc),
     // The text about to be written must reopen as the same document; DOMParser runs no script.
     check: (text) =>

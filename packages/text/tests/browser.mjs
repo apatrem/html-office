@@ -27,6 +27,11 @@ const write = async (name, html) => {
   return pathToFileURL(path).href;
 };
 const url = await write("example.html", built);
+// The engine's own code contains "</body>": insert before the file's last one.
+const beforeBodyEnd = (html, insert) => {
+  const at = html.lastIndexOf("</body>");
+  return html.slice(0, at) + insert + html.slice(at);
+};
 const changed = (a, b) =>
   diffLines(a.split("\n"), b.split("\n"))
     .filter((e) => e.op !== " ")
@@ -362,6 +367,41 @@ try {
   assert.equal(await noncanonical.page.evaluate(() => window.disk.writes), 0);
   pass("a non-canonical source is neither saved nor copied without pack.mjs");
   await noncanonical.context.close();
+
+  // ---- whitespace the browser keeps is checked too; a misplaced engine refuses to edit ----
+  const blank = built.replace("<body>\n", "<body>\n\n");
+  const blankPage = await open(await write("blank-line.html", blank), blank);
+  await blankPage.page.waitForFunction(() => window.htmlText);
+  assert.equal(
+    await blankPage.page.evaluate(() => window.htmlText.saving.canonical),
+    false,
+  );
+  await blankPage.context.close();
+  for (const [label, html] of [
+    [
+      "a script after the engine",
+      beforeBodyEnd(
+        built,
+        '<script id="echarts">globalThis.echarts = {};</script>\n',
+      ),
+    ],
+    [
+      "a module engine",
+      built.replace('<script id="engine"', '<script type="module" id="engine"'),
+    ],
+  ]) {
+    const misplaced = await open(await write("misplaced.html", html));
+    await misplaced.page.waitForSelector(".tx-refusal");
+    assert.equal(
+      await misplaced.page.evaluate(() => window.htmlText),
+      undefined,
+      label,
+    );
+    await misplaced.context.close();
+  }
+  pass(
+    "a blank line between zones blocks saving; a misplaced engine refuses to edit",
+  );
 
   // ---- size ----
   const sizes = measureFile(built);

@@ -197,3 +197,5 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 ## Limits of the runtime check
 
 The checker runs on the source. The editor runs the same rules on the browser's parsed document before it allows editing, but a file is HTML: whatever a tampered file contains has already been parsed, and possibly run, by the time any editor code starts. Check files from unknown sources with `node tools/check.mjs` before opening them.
+
+The editor saves only a file it can tell is canonical. Save binds only an empty file or the file's exact bytes as opened, so any difference stops it. Save a copy has no file to compare: it checks what the parsed page still shows (zones, whitespace, the article) and refuses when that differs from the canonical form. Spellings the parser does not keep, such as `&#38;` for `&amp;`, single quotes or uppercase tags, are invisible to it, so a copy of such a file is written in canonical form. `check.mjs` reports these, and `pack.mjs` rewrites them explicitly.
