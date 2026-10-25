@@ -7,40 +7,78 @@ import { readFile, writeFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { canonicalize } from "../editor/schema/document.mjs";
 
-// Myers' shortest edit script on lines: [{op: " " | "-" | "+", line, text}].
+// Shortest edit script on lines: [{op: " " | "-" | "+", line, text}], line numbers 1-based in
+// the old text for " " and "-", in the new text for "+". Common leading and trailing lines are
+// trimmed first; past MAX_EDITS differences the middle is reported as one replaced range, so time
+// and memory stay bounded.
+const MAX_EDITS = 2000;
+
 export function diffLines(a, b) {
-  const max = a.length + b.length;
-  const v = new Map([[1, 0]]);
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start++;
+  let endA = a.length,
+    endB = b.length;
+  while (endA > start && endB > start && a[endA - 1] === b[endB - 1])
+    (endA--, endB--);
+  const same = (i, j) => ({ op: " ", line: i + 1, text: a[i] });
+  const head = a.slice(0, start).map((_, i) => same(i));
+  const tail = a.slice(endA).map((_, k) => same(endA + k));
+  return [...head, ...middle(a, b, start, endA, endB), ...tail];
+}
+
+function middle(a, b, start, endA, endB) {
+  const n = endA - start,
+    m = endB - start;
+  const replaced = () => [
+    ...a
+      .slice(start, endA)
+      .map((text, i) => ({ op: "-", line: start + i + 1, text })),
+    ...b
+      .slice(start, endB)
+      .map((text, i) => ({ op: "+", line: start + i + 1, text })),
+  ];
+  if (!n || !m) return replaced();
+  // Myers: v[k] is the furthest x on diagonal k; a copy is kept per edit (bounded by MAX_EDITS).
+  const offset = n + m + 1;
+  const v = new Int32Array(2 * offset + 1);
   const trace = [];
-  search: for (let d = 0; d <= max; d++) {
-    trace.push(new Map(v));
+  let found = false;
+  for (let d = 0; d <= Math.min(n + m, MAX_EDITS) && !found; d++) {
+    trace.push(v.slice(offset - d - 1, offset + d + 2));
     for (let k = -d; k <= d; k += 2) {
       let x =
-        k === -d || (k !== d && v.get(k - 1) < v.get(k + 1))
-          ? v.get(k + 1)
-          : v.get(k - 1) + 1;
+        k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1])
+          ? v[offset + k + 1]
+          : v[offset + k - 1] + 1;
       let y = x - k;
-      while (x < a.length && y < b.length && a[x] === b[y]) (x++, y++);
-      v.set(k, x);
-      if (x >= a.length && y >= b.length) break search;
+      while (x < n && y < m && a[start + x] === b[start + y]) (x++, y++);
+      v[offset + k] = x;
+      if (x >= n && y >= m) {
+        found = true;
+        break;
+      }
     }
   }
+  if (!found) return replaced();
   const edits = [];
-  let x = a.length,
-    y = b.length;
+  let x = n,
+    y = m;
   for (let d = trace.length - 1; d >= 0; d--) {
-    const v = trace[d],
+    const saved = trace[d],
+      at = (k) => saved[k + d + 1],
       k = x - y;
-    const prev =
-      k === -d || (k !== d && v.get(k - 1) < v.get(k + 1)) ? k + 1 : k - 1;
-    const px = v.get(prev),
+    const prev = k === -d || (k !== d && at(k - 1) < at(k + 1)) ? k + 1 : k - 1;
+    const px = d ? at(prev) : 0,
       py = px - prev;
-    while (x > px && y > py) edits.push({ op: " ", line: x--, text: a[--y] });
+    while (x > px && y > py) {
+      (x--, y--);
+      edits.push({ op: " ", line: start + x + 1, text: a[start + x] });
+    }
     if (d > 0)
       edits.push(
         x === px
-          ? { op: "+", line: y, text: b[--y] }
-          : { op: "-", line: x, text: a[--x] },
+          ? { op: "+", line: start + y, text: b[start + --y] }
+          : { op: "-", line: start + x, text: a[start + --x] },
       );
     x = px;
     y = py;
@@ -49,7 +87,8 @@ export function diffLines(a, b) {
 }
 
 export function pack(source) {
-  const { canonical, difference } = canonicalize(source, parseFile);
+  const { canonical, difference, unstable } = canonicalize(source, parseFile);
+  if (unstable) throw new Error(`Cannot be saved faithfully: ${unstable}`);
   const changes = difference
     ? diffLines(source.split("\n"), canonical.split("\n")).filter(
         (e) => e.op !== " ",

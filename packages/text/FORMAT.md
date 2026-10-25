@@ -81,7 +81,7 @@ Margins, running headers and footers join this list with T04. The article holds 
 | Highlight | `<mark>` |
 | Superscript, subscript | `<sup>`, `<sub>` (never combined) |
 | Inline code | `<code>` |
-| Link | `<a href="https://…">`; `http:` and `mailto:` too. No other attribute. A link holds text, marks and line breaks: no footnote or cross-reference, since HTML cannot nest links |
+| Link | `<a href="https://…">`; `http:` and `mailto:` too. No other attribute. A link holds text, marks and line breaks: no footnote or cross-reference, since HTML cannot nest links. The editor leaves them unlinked when a link is added over them |
 | Cross-reference | `<a class="xref" href="#id">Figure 1</a>`: plain text label, saved and rewritten by the editor; the target is a heading or figure ID |
 | Footnote | `<span class="footnote">…</span>` at the point of reference: inline content without footnotes or line breaks. Shown as numbered notes, printed as endnotes |
 | Comment anchor | `<mark class="comment" data-ref="thread-id">…</mark>`; anchors may overlap and nest |
@@ -168,7 +168,7 @@ The table model maps onto the portable table of [ADR-013](../../docs/decisions/0
 
 ## Canonical form
 
-A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently.
+A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently. Before writing, `check`, `pack` and the editor read the result back: content the HTML parser repaired on the way in (typically inside a protected block) that would not reopen as the same document is an `unstable` error, and nothing is written.
 
 - **File layout**: `<!doctype html>`, then `html`, `head` and `body` each on their own line, one zone per line, ending with `</body>`, `</html>` and a newline, as in Slides.
 - **Lines**: each block of `article#doc` starts on its own line. So do the children of the cover, quotes, callouts, lists, the contents list, figures, `table`, `thead`, `tbody`, `section.comments` and threads. A table row, with its cells, is one line; so is a `colgroup`. A nested list starts directly after its item's text: `<li>Text<ul>`, and ends `</ul></li>`. Inline content and `pre` keep their text exactly; inline text contains no line breaks or tabs.
@@ -192,7 +192,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
   Class tokens follow the order of this reference: `lead ta-c`, `unnumbered new-page ta-r`, `callout warning`.
 - **Marks** nest in a fixed order, outermost first: comment anchor, link, `strong`, `em`, `u`, `mark`, `sub`/`sup`, `code`. A footnote or cross-reference sits inside the marks that cover it.
 - **Text**: line breaks and tabs in inline text read as spaces (rendered the same); write them as spaces.
-- **Escaping**: `&amp;`, `&lt;`, `&gt;` and `&nbsp;` (U+00A0) in text, plus `&quot;` in attribute values. Every other character, including non-ASCII, is written as itself in UTF-8. No other entity or numeric reference.
+- **Escaping**: `&amp;`, `&lt;`, `&gt;` and `&nbsp;` (U+00A0) in text, plus `&quot;` in attribute values. A carriage return is written `&#13;`, since a literal one would read back as a line feed. Every other character, including non-ASCII, is written as itself in UTF-8. No other entity or numeric reference.
 
 ## Limits of the runtime check
 

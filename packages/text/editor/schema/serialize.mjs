@@ -3,9 +3,10 @@
 import { element, text, serialize } from "../../model/html.mjs";
 
 const NL = () => text("\n");
-const tokens = (...list) => list.filter(Boolean).join(" ");
-// [name, value] pairs in canonical order; null values and empty classes are left out.
-const pairs = (list) => list.filter(([, v]) => v !== null && v !== "");
+// Class tokens, or null when there are none.
+const tokens = (...list) => list.filter(Boolean).join(" ") || null;
+// [name, value] pairs in canonical order; null values are left out (an empty value is kept).
+const pairs = (list) => list.filter(([, v]) => v !== null);
 // Each child on its own line: <x>\n<a>\n<b>\n</x>.
 const lines = (children) => [...children.flatMap((c) => [NL(), c]), NL()];
 

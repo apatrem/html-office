@@ -81,15 +81,19 @@ export function fromDocument(document) {
   return { doctype: document.doctype?.name ?? null, children: [html], html };
 }
 
+// A carriage return would become a line feed when the file is read again: it is the one character
+// written as a reference.
 const escapeText = (s) =>
   s
     .replace(/&/g, "&amp;")
+    .replace(/\r/g, "&#13;")
     .replace(/\u00a0/g, "&nbsp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 export const escapeAttribute = (s) =>
   s
     .replace(/&/g, "&amp;")
+    .replace(/\r/g, "&#13;")
     .replace(/\u00a0/g, "&nbsp;")
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")

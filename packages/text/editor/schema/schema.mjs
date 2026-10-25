@@ -44,7 +44,8 @@ const tocList = (entries) => [
 export const schema = new Schema({
   nodes: {
     doc: {
-      content: "cover? block* comments?",
+      // Never empty: an empty paragraph fills a document whose blocks were all deleted.
+      content: "block+ comments? | cover block* comments? | comments",
       attrs: {
         lang: { default: "en" },
         headingNumbers: { default: false },
@@ -252,7 +253,8 @@ export const schema = new Schema({
     },
     // head rows are the thead; total rows are tr.total in the tbody.
     table_row: {
-      content: "(table_cell | table_header)+",
+      // A row covered entirely by rowspans above has no cell of its own.
+      content: "(table_cell | table_header)*",
       tableRole: "row",
       attrs: { head: { default: false }, total: { default: false } },
       toDOM: (n) => [

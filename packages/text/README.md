@@ -10,7 +10,7 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `model/format.mjs` | Vocabulary of the subset |
 | `model/validate.mjs` | Validator: errors, protected blocks and warnings |
 | `model/file.mjs` | File layout of the canonical form: one zone per line, article#doc from the editor |
-| `editor/schema/` | ProseMirror schema of the subset, parser (tree to document), serialiser (document to canonical HTML) and `document.mjs` (validated open and save) (T02) |
+| `editor/schema/` | ProseMirror schema of the subset, parser (tree to document), serialiser (document to canonical HTML) `document.mjs` (validated open, save, read-back check) and `guard.mjs` (keeps links off footnotes and cross-references while editing) (T02) |
 | `tools/check.mjs` | `node tools/check.mjs <document.html> [--json]`; also reports a valid document that is not in canonical form |
 | `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form and lists changed lines |
 | `tools/measure.mjs` | Code budget by component (`--write` updates `bench/code-size.json`) |

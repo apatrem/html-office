@@ -11,6 +11,7 @@ import {
 } from "../editor/schema/document.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { schema } from "../editor/schema/schema.mjs";
+import { subsetGuard, linkConflicts } from "../editor/schema/guard.mjs";
 import { pack, diffLines } from "../tools/pack.mjs";
 import { checkSource } from "../tools/check.mjs";
 import { generate, envelope } from "./generate.mjs";
@@ -229,4 +230,70 @@ test("non-canonical sources are reported, packed explicitly and keep their conte
 test("pack refuses an invalid file", async () => {
   assert.throws(() => pack(Buffer.from("")), /error/);
   assert.throws(() => pack(String(1)), /error/);
+});
+
+const article = (body) =>
+  envelope(`<article id="doc" data-format="1" lang="en">\n${body}\n</article>`);
+
+test("content the HTML parser repaired is refused rather than saved differently", () => {
+  const source = article(
+    '<h1 id="h">H</h1>\n<dt><table><b id="s"><dd>x</dd></b></table></dt>',
+  );
+  assert.equal(validateFile(parseFile(source)).ok, true);
+  const report = checkSource(source);
+  assert.deepEqual(
+    report.errors.map((e) => e.code),
+    ["unstable"],
+  );
+  assert.throws(() => pack(source), /saved faithfully/);
+});
+
+test("deleting every block leaves an empty paragraph that saves and reopens", () => {
+  const source = article("<p>x</p>");
+  const file = parseFile(source);
+  const state = EditorState.create({ doc: openFile(file).doc });
+  const tr = state.tr.delete(0, state.doc.content.size);
+  const saved = saveFile(file, tr.doc);
+  assert.match(saved, /<article[^>]*>\n<p><\/p>\n<\/article>/);
+  assert.ok(open(saved).doc.eq(tr.doc));
+});
+
+test("a link added over footnotes and cross-references leaves them unlinked", () => {
+  const source = article(
+    '<h1 id="h">Heading</h1>\n<p>Before <a class="xref" href="#h">Section 1</a> and a note.<span class="footnote">Note</span> After.</p>',
+  );
+  const file = parseFile(source);
+  const doc = openFile(file).doc;
+  let state = EditorState.create({ doc, plugins: [subsetGuard()] });
+  const p = doc.child(1);
+  const from = doc.child(0).nodeSize + 1;
+  state = state.apply(
+    state.tr.addMark(
+      from,
+      from + p.content.size,
+      schema.marks.link.create({ href: "https://example.org/" }),
+    ),
+  );
+  assert.equal(linkConflicts(state.doc).length, 0);
+  const saved = saveFile(file, state.doc);
+  assert.ok(open(saved).doc.eq(state.doc));
+  assert.match(
+    saved,
+    /<a href="https:\/\/example.org\/">Before <\/a><a class="xref"/,
+  );
+});
+
+test("the line diff keeps unchanged text and stays bounded", () => {
+  assert.deepEqual(
+    diffLines(["a", "b"], ["x", "a", "b"]).map((e) => e.op + e.text),
+    ["+x", " a", " b"],
+  );
+  const lines = Array.from(
+    { length: 4000 },
+    (_, i) => `<p class="ta-c lead">${i}</p>`,
+  );
+  const changed = lines.map((l) => l.replace("ta-c lead", "lead ta-c"));
+  const edits = diffLines(lines, changed);
+  assert.equal(edits.filter((e) => e.op === "-").length, 4000);
+  assert.equal(edits.filter((e) => e.op === "+").length, 4000);
 });

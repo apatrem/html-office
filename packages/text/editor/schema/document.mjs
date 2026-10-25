@@ -25,6 +25,21 @@ export function openFile(file) {
 
 export const saveFile = (file, doc) => serializeFile(file, articleHTML(doc));
 
+// Reads a saved text back and checks that it is valid and gives the same document. Content the
+// HTML parser repaired (a protected block it restructured) may not survive a second parse.
+// parse: parse.mjs parseFile in Node, or a DOMParser-based reader in the browser.
+export function verifySaved(text, doc, parse) {
+  let reopened;
+  try {
+    reopened = openFile(parse(text)).doc;
+  } catch (error) {
+    return `the saved file would not open again (${error.message})`;
+  }
+  return reopened.eq(doc)
+    ? null
+    : "the saved file would open as a different document";
+}
+
 // Line and column (1-based) of an offset in a source text.
 export function position(source, offset) {
   const before = source.slice(0, offset).split("\n");
@@ -36,6 +51,7 @@ export function canonicalize(source, parse) {
   const file = parse(source);
   const { doc, report } = openFile(file);
   const canonical = saveFile(file, doc);
+  const unstable = verifySaved(canonical, doc, parse);
   let offset = 0;
   while (offset < source.length && source[offset] === canonical[offset])
     offset++;
@@ -44,6 +60,7 @@ export function canonicalize(source, parse) {
     doc,
     report,
     canonical,
+    unstable,
     difference:
       canonical === source ? null : { offset, ...position(source, offset) },
   };

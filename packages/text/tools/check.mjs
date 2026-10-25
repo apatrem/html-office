@@ -15,8 +15,15 @@ const excerpt = (text, offset) =>
 export function checkSource(source) {
   const report = validateFile(parseFile(source));
   if (!report.ok) return report;
-  const { canonical, difference } = canonicalize(source, parseFile);
-  if (difference)
+  const { canonical, difference, unstable } = canonicalize(source, parseFile);
+  if (unstable) {
+    report.ok = false;
+    report.errors.push({
+      code: "unstable",
+      message: `Cannot be saved faithfully: ${unstable}. Usually markup the HTML parser repaired, inside a protected block`,
+      path: "article#doc",
+    });
+  } else if (difference)
     report.warnings.push({
       code: "not-canonical",
       message: `Not in canonical form: expected ${excerpt(canonical, difference.offset)}, found ${excerpt(source, difference.offset)}. pack.mjs rewrites it`,

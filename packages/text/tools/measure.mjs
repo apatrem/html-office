@@ -6,6 +6,12 @@
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
+import {
+  bundledPackages,
+  packageEntries,
+  groupNotices,
+  formatNotices,
+} from "../../shared/notices.mjs";
 
 export const STANDARD_CODE_CEILING = 500000;
 const root = new URL("../", import.meta.url);
@@ -29,6 +35,7 @@ const OURS = {
 
 async function bundle(contents, external = []) {
   const result = await build({
+    metafile: true,
     stdin: { contents, resolveDir: root.pathname, loader: "js" },
     bundle: true,
     write: false,
@@ -40,7 +47,11 @@ async function bundle(contents, external = []) {
     external,
   });
   const code = result.outputFiles[0].contents;
-  return { bytes: code.length, gzip: gzipSync(code, { level: 9 }).length };
+  return {
+    bytes: code.length,
+    gzip: gzipSync(code, { level: 9 }).length,
+    metafile: result.metafile,
+  };
 }
 
 export async function measure() {
@@ -66,14 +77,37 @@ export async function measure() {
       ...Object.values(OURS).map((p, i) => `export * as m${i} from "${p}";`),
     ].join("\n"),
   );
-  rows.push({
-    component: "Editor core (all of the above, shared code once)",
-    ...core,
-  });
+  // The file must carry the licence notices of what it embeds (ADR-011 §9): count them too.
+  const notices = formatNotices(
+    groupNotices([
+      {
+        label: "html-text/LICENSE",
+        text: await readFile(new URL("../../LICENSE", root), "utf8"),
+      },
+      // esbuild reports inputs relative to the working directory.
+      ...packageEntries(bundledPackages([core.metafile])),
+    ]),
+    { title: "Licence notices" },
+  );
+  const noticeBytes = Buffer.byteLength(notices, "utf8");
+  rows.push(
+    {
+      component: "Editor core (all of the above, shared code once)",
+      bytes: core.bytes,
+      gzip: core.gzip,
+    },
+    {
+      component: "Licence notices of the editor core",
+      bytes: noticeBytes,
+      gzip: gzipSync(notices, { level: 9 }).length,
+    },
+  );
+  const total = core.bytes + noticeBytes;
   return {
     ceiling: STANDARD_CODE_CEILING,
-    headroom: STANDARD_CODE_CEILING - core.bytes,
-    rows,
+    total,
+    headroom: STANDARD_CODE_CEILING - total,
+    rows: rows.map(({ metafile, ...row }) => row),
   };
 }
 
@@ -85,7 +119,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       `| ${r.component} | ${r.bytes.toLocaleString("en")} | ${r.gzip.toLocaleString("en")} |`,
     );
   console.log(
-    `\nEditor core: ${result.rows.at(-1).bytes.toLocaleString("en")} of ${result.ceiling.toLocaleString("en")} bytes; headroom ${result.headroom.toLocaleString("en")}.`,
+    `\nEditor core with notices: ${result.total.toLocaleString("en")} of ${result.ceiling.toLocaleString("en")} bytes; headroom ${result.headroom.toLocaleString("en")}. Bare minified bundles; tools/build.mjs (T03) measures the built file.`,
   );
   if (process.argv.includes("--write")) {
     await mkdir(new URL("bench/", root), { recursive: true });
