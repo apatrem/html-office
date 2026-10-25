@@ -111,7 +111,7 @@ try {
     // A standard build embeds neither the engine nor ECharts (T18).
     const standardHTML = html
       .replace(configMatch[1], JSON.stringify(standardConfig))
-      .replace(/<script id="echarts">[\s\S]*?<\/script>\n?/, "");
+      .replace(/<script id="echarts-source"[^>]*>[\s\S]*?<\/script>\n?/, "");
     const standardSize = measureHTML(standardHTML);
     assert.ok(standardSize.applicationCodeBytes < STANDARD_CODE_CEILING);
     await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);

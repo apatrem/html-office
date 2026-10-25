@@ -368,12 +368,33 @@ export function setupCharts({
     s.captured = null;
     paint(chart, s);
   }
+  // Offline builds carry ECharts as inert text (script#echarts-source,
+  // checked at build time): it runs only when a chart is first drawn or
+  // edited, as the standard build's CDN load does. (An element with the id
+  // "echarts" would shadow window.echarts.)
+  function embeddedLibrary() {
+    const source = document.getElementById("echarts-source");
+    if (source?.type !== "text/plain") return null;
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(
+          new Blob([source.textContent], { type: "text/javascript" }),
+        ),
+        script = document.createElement("script");
+      script.src = url;
+      script.setAttribute("data-ui", "");
+      script.onload = script.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(window.echarts || null);
+      };
+      document.head.append(script);
+    });
+  }
   function requestLibrary() {
     if (library !== null) return;
     library = "loading";
     status("Loading the chart library…");
     draw();
-    void loadECharts().then((echarts) => {
+    void (embeddedLibrary() ?? loadECharts()).then((echarts) => {
       library = echarts ? "ready" : "failed";
       if (!echarts)
         status(
@@ -395,6 +416,8 @@ export function setupCharts({
     }
   }
   function draw() {
+    // A workbook without charts costs nothing on each render.
+    if (!states.size && !getBook().charts?.length) return void drawPanel();
     const sheetId = getSheetId(),
       sheet = getBook().sheets.find((x) => x.id === sheetId),
       shown = new Set(),
@@ -652,7 +675,13 @@ export function setupCharts({
   }
   function renderPanel() {
     if (!panel?.isConnected) return;
-    const focused = document.activeElement?.closest?.("[data-ck]")?.dataset.ck;
+    const active = document.activeElement?.closest?.("[data-ck]"),
+      focused = active?.dataset.ck,
+      // Text being typed survives a re-render (it is applied on change).
+      typing = active?.matches("input:not([type=checkbox])")
+        ? active.value
+        : undefined;
+    lastPanelKey = panelKey();
     if (!draft)
       return void panel.replaceChildren(
         h(
@@ -879,8 +908,12 @@ export function setupCharts({
       ),
     );
     panel.replaceChildren(...content.childNodes);
-    if (focused)
-      panel.querySelector(`[data-ck="${CSS.escape(focused)}"]`)?.focus();
+    if (focused) {
+      const next = panel.querySelector(`[data-ck="${CSS.escape(focused)}"]`);
+      if (next && typing !== undefined && next.matches("input"))
+        next.value = typing;
+      next?.focus();
+    }
   }
   function apply() {
     if (!draft || busy()) return;
@@ -902,6 +935,14 @@ export function setupCharts({
       status(`Chart not applied: ${error.message}`);
     }
   }
+  const panelKey = () =>
+    JSON.stringify([
+      draft,
+      savedDraft,
+      dirtyDraft,
+      busy(),
+      getBook().sheets.map((s) => s.name),
+    ]);
   // Follows undo, structural moves and deletions without discarding a draft
   // being edited.
   function drawPanel() {
@@ -932,13 +973,7 @@ export function setupCharts({
         }
       }
     }
-    const key = JSON.stringify([
-      draft,
-      savedDraft,
-      dirtyDraft,
-      busy(),
-      getBook().sheets.map((s) => s.name),
-    ]);
+    const key = panelKey();
     if (key === lastPanelKey) return;
     lastPanelKey = key;
     renderPanel();

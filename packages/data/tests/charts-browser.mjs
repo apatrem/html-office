@@ -467,12 +467,15 @@ try {
       await buildWorkbook(pnl(), { offline: true }),
       { name: "charts-offline.html" },
     );
-    await page.waitForFunction(
-      () => document.querySelectorAll(".data-chart-plot.live").length >= 2,
-    );
+    // The embedded library stays inert text until a chart needs it.
+    await waitStates(page, ["current", "current", "current"]);
+    assert.equal(await page.evaluate(() => typeof window.echarts), "undefined");
     await selectSheet(page, "Inputs");
     await enter(page, "B4", "9");
     await selectSheet(page, "Summary");
+    await page.waitForFunction(
+      () => document.querySelectorAll(".data-chart-plot.live").length >= 2,
+    );
     await select(page, "A1", "B4");
     await menu(page, "Insert", "Chart…");
     await panel(page).getByLabel("Unit", { exact: true }).fill("EUR");
@@ -490,11 +493,13 @@ try {
       await buildWorkbook(manyCharts(), { offline: true }),
       { name: "charts-many.html" },
     );
+    assert.equal(await liveCount(page), 0, "no instance before editing");
+    await menu(page, "Data", "Redraw charts");
     await page.waitForFunction(
       () => document.querySelectorAll(".data-chart-plot.live").length > 0,
     );
     const first = await liveCount(page);
-    assert.ok(first >= 2 && first <= 6, `live at open: ${first}`);
+    assert.ok(first >= 2 && first <= 6, `live after Redraw: ${first}`);
     assert.equal(await page.locator(".data-chart").count(), 40);
     await page.locator("#grid").evaluate((g) => (g.scrollTop = 4000));
     await page.waitForFunction(

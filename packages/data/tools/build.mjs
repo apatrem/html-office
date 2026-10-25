@@ -236,7 +236,7 @@ ${helpDialogHTML(formatGuide, notices)}
 <div id="shell-layer" data-shell-mount></div>
 <script id="worker-source" type="text/plain">${workerText}</script>
 <script id="recovery-worker-source" type="text/plain">${recoveryText}</script>
-${offline ? `<script id="echarts">${await embeddedECharts()}</script>\n` : ""}<script type="module">${js}</script></body></html>`;
+${offline ? `<script id="echarts-source" type="text/plain">${await embeddedECharts()}</script>\n` : ""}<script type="module">${js}</script></body></html>`;
   const size = measureHTML(html);
   if (!offline && size.applicationCodeBytes >= STANDARD_CODE_CEILING)
     throw new Error(
