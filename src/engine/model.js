@@ -171,12 +171,14 @@ export function detach(slide) {
   list.forEach(({ el, r }) => setPos(el, r));
 }
 
-// ---------- deck operations (structure, footer) ----------
-const deckState = () => ({ html: cleanMainHTML(), footer: state.main.dataset.footer || '' });
+// ---------- deck operations (structure, footer, theme, font) ----------
+// Deck attributes of main#deck recorded with the structure; absent is null.
+const DECK_DATA = ['footer', 'theme', 'font'];
+const deckState = () => ({ html: cleanMainHTML(), ...Object.fromEntries(DECK_DATA.map(k => [k, state.main.dataset[k] ?? null])) });
 export function beginDeck() { return { before: deckState() }; }
 export function commitDeck(tok) {
   const after = deckState();
-  if (after.html === tok.before.html && after.footer === tok.before.footer) return false;
+  if (['html', ...DECK_DATA].every(k => after[k] === tok.before[k])) return false;
   state.undo.push({ deck: true, before: tok.before, after });
   if (state.undo.length > 200) state.undo.shift();
   state.redo = [];
@@ -187,8 +189,18 @@ export function commitDeck(tok) {
 export function applyDeck(fn) { const tok = beginDeck(); const r = fn(); commitDeck(tok); return r; }
 function restoreDeck(d) {
   state.main.innerHTML = d.html;
-  state.main.dataset.footer = d.footer;
+  for (const k of DECK_DATA) setDeckData(k, d[k]);
   emit('deck');
+}
+function setData(data, key, value) { if (value === null || value === undefined) delete data[key]; else data[key] = value; }
+export const setDeckData = (key, value) => setData(state.main.dataset, key, value);
+// The theme and font are stored on main#deck and mirrored on the root element, where the overlay
+// rules apply (view.js), so that thumbnails, colour swatches and charts follow them too. The root
+// attributes are runtime state: serialize() writes the root attributes the file was opened with.
+export const look = () => (state.main.dataset.theme || '') + '/' + (state.main.dataset.font || '');
+export function syncLook() {
+  const root = document.documentElement.dataset;
+  for (const k of ['theme', 'font']) setData(root, k, state.main.dataset[k] || null);
 }
 export function nextSlideId() {
   let n = 0;

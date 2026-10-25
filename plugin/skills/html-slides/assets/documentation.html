@@ -21,7 +21,7 @@ The minified engine, base64 assets, and cached SVGs are technical blocks; ordina
 
 | Zone | Contents and editing |
 | --- | --- |
-| `main#deck` | Slides, chart data, deck metadata, and notes; primary content editing zone |
+| `main#deck` | Slides, chart data, deck metadata (footer, theme, font), and notes; primary content editing zone |
 | `style#charte` | Colours, fonts, and sizes; preserve unless branding changes are requested |
 | `style#theme` | Layouts and CSS primitives; preserve during content edits |
 | `script#assets` (`application/json`) | Embedded images/fonts; retain referenced resources |
@@ -39,7 +39,7 @@ Keep slide `id`, element `data-id`, order, classes, `data-layout`, `data-detache
 
 A template slide follows its grid. A `data-detached` slide uses explicit placement: every content child has four unitless pixel numbers `--x`, `--y`, `--w`, `--h`. The editor freezes all elements on the first move so neighbours remain in place. Removing `data-detached` and coordinates reactivates the layout: do this only for a requested recomposition. The **Reset layout** button does the same.
 
-Use only classes from the reference below. Do not invent layouts, colours, fonts, free styles, or chart types. HTML order also determines stacking. Footers come from `main[data-footer]` with a generated page number; `data-nofoot` hides a slide's footer.
+Use only classes from the reference below. Do not invent layouts, colours, fonts, free styles, or chart types. The deck's colours and body font change only through the `data-theme` and `data-font` attributes of `main#deck` (see Theme and font below); keep them unless a change is requested. HTML order also determines stacking. Footers come from `main[data-footer]` with a generated page number; `data-nofoot` hides a slide's footer.
 
 ## Edit without the skill
 
@@ -80,6 +80,7 @@ Layouts : `default`, `top-left`, `mid-left`, `section`, `quote`, `panel-14`, `pa
 Shapes: `rect`, `round`, `ellipse`, `triangle`, `diamond`, `hexagon`, `parallelogram`, `pentagon`, `chevron`, `arrow-r`, `arrow-l`, `arrow-u`, `arrow-d`.
 Charts: `column`, `hbar`, `stacked`, `line`, `waterfall`, `bubble`, `gantt`.
 Allowed content classes: `slide`, `dark`, `tracker`, `sticker`, `source`, `body`, `lead`, `callout`, `kpi`, `sm`, `stack`, `cards`, `card`, `n`, `box`, `tint`, `accent`, `arrow`, `rule`, `shape`, `t`, `steps`, `matrix`, `q`, `on`, `ylab`, `xlab`, `chart`, `in-panel`, `band`, `kicker`, `note`, `cartouche`, `acc`, `num`, `quote`, `author`, `hl`, `neg`, `t2`, `exh`, `notes`, `to-ai`, `tot`, `fs-s`, `fs-m`, `fs-l`, `fs-xl`, `fs-xxl`, `ta-l`, `ta-c`, `ta-r`, `t-bold`, `t-italic`, `c-ink`, `c-acc`, `c-mid`, `c-alert`, `c-t2`, `c-bg`, `bg-none`, `bg-tint`, `bg-lig`, `bg-mid`, `bg-acc`, `bg-alert`, `bg-dark`, `cols-2`, `cols-3`, `cols-4`, `cols-5`, `w-2`, `w-3`, `w-4`, `w-5`, `w-6`, `w-7`, `w-8`, `w-9`, `w-10`, `w-12`, `r4`.
+Deck themes (`main[data-theme]`): `blue`, `red`, `green`, `black`. Deck fonts (`main[data-font]`): `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, `times`.
 
 Chart library: https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js
 CDN integrity: `sha384-C2iskrW/uPW46KzOjrvJIQo4YkV8lkD+QS0CrDN18IIPIpT/g2USu8bTP3nvmIAD`.
@@ -185,13 +186,28 @@ Prefer catalogue defaults. For individual exceptions, use only these classes, al
 
 Use one focal emphasis per slide, such as chart `highlight`, `hl`, an accent colour, or a filled callout. Colours follow the branding theme.
 
+## Theme and font
+
+Two optional attributes of `main#deck` change the look of the whole deck without touching `style#charte`:
+
+```html
+&lt;main id=&quot;deck&quot; data-footer=&quot;…&quot; data-theme=&quot;green&quot; data-font=&quot;georgia&quot;&gt;
+```
+
+- `data-theme` overlays a built-in charte on the colour tokens of `style#charte`: `blue` (the default branding), `red`, `green`, or `black` (greyscale with one alert colour). Fonts, sizes, and logo stay those of the deck's charte, which is never rewritten; removing the attribute restores its colours.
+- `data-font` sets the body font: `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, or `times`. Titles (`h1`) keep the charte font (`--title-font` when the charte defines it, otherwise `--font`).
+- Absent means the charte's own colours and font. Other values are checker errors.
+- Charts are drawn in the theme colours and the body font; `pack` refreshes their cached SVGs. Changing either attribute reflows text: check the deck again.
+
+In the editor, **Theme &amp; font** in the settings bar (or File → Document settings…) opens the document settings: theme, font, and the footer. Each change is one undoable step and needs no network.
+
 ## Checker rules
 
 Inert parsing precedes rendering. Active content, scripts outside permitted zones, and unknown engines are rejected before execution. Local script hashes are not signed updates.
 
 `--since` compares deletions, relative order, parents, layouts, detachment, coordinates, and rendered geometry (1.5 px tolerance). `--allow e12,e13` permits specified elements; `--allow s04` permits recomposing that slide. Keep a reference with stable identifiers.
 
-The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
+The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; an unknown deck `data-theme` or `data-font`; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
 
 # Catalogue
 

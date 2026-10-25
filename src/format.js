@@ -1,4 +1,6 @@
 import {tokenize, TokenType as T} from '@csstools/css-tokenizer';
+import {CHARTES} from '../packages/shared/themes/chartes.mjs';
+import {FONTS} from '../packages/shared/themes/fonts.mjs';
 
 // Vocabulary shared by the checker, the embedded reference and the engine.
 export const FORMAT_VERSION = '1';
@@ -8,6 +10,10 @@ export const CONTENT_CLASSES = ['slide', 'dark', 'tracker', 'sticker', 'source',
   'fs-s', 'fs-m', 'fs-l', 'fs-xl', 'fs-xxl', 'ta-l', 'ta-c', 'ta-r', 't-bold', 't-italic',
   'c-ink', 'c-acc', 'c-mid', 'c-alert', 'c-t2', 'c-bg', 'bg-none', 'bg-tint', 'bg-lig', 'bg-mid', 'bg-acc', 'bg-alert', 'bg-dark',
   'cols-2', 'cols-3', 'cols-4', 'cols-5', 'w-2', 'w-3', 'w-4', 'w-5', 'w-6', 'w-7', 'w-8', 'w-9', 'w-10', 'w-12', 'r4'];
+// Deck appearance (TH02): main#deck[data-theme] picks a built-in charte overlaid on style#charte,
+// main#deck[data-font] the body font. Absent means the document's own charte and font.
+export const THEMES = Object.keys(CHARTES);
+export const DECK_FONTS = FONTS.map(([id]) => id);
 
 // ---------- safety rules: deck content never runs code or loads an external resource ----------
 // Shared by the inert checker (tools/validation.mjs) and draft restoration in the engine.

@@ -160,6 +160,7 @@ export async function buildWorkbook(
   const js = result.outputFiles[0].text.replace(/<\/script/gi, "<\\/script"),
     css =
       (await readFile(new URL("../shared/shell/shell.css", root), "utf8")) +
+      (await readFile(new URL("../shared/shell/drawer.css", root), "utf8")) +
       (await readFile(new URL("../shared/shell/panels.css", root), "utf8")) +
       (await readFile(new URL("runtime/style.css", root), "utf8")) +
       charteCSS();

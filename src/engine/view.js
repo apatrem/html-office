@@ -6,6 +6,9 @@ import { h, icon } from '../../packages/shared/shell/dom.mjs';
 import { menuButton } from '../../packages/shared/shell/menu.mjs';
 import { closePopover } from '../../packages/shared/shell/popover.mjs';
 import SHELL_CSS from '../../packages/shared/shell/shell.css';
+import DRAWER_CSS from '../../packages/shared/shell/drawer.css';
+import { charteCSS } from '../../packages/shared/themes/chartes.mjs';
+import { FONTS } from '../../packages/shared/themes/fonts.mjs';
 
 export const isStatic = () => !!window.__DECK_STATIC;
 
@@ -274,7 +277,13 @@ export function formatPanel() {
   guide.focus();
 }
 
-export const UI_CSS = SHELL_CSS + `
+// Deck appearance (TH02), set by main#deck[data-theme|data-font] and mirrored on the root:
+// a built-in charte overlays the colour tokens of style#charte; a font replaces the body font
+// while titles keep the charte's (--title-font, otherwise --font).
+const LOOK_CSS = charteCSS() + FONTS.map(([id, , stack]) => `:root[data-font="${id}"]{--body-font:${stack}}`).join('') +
+  ':root[data-font] .slide{font-family:var(--body-font)}:root[data-font] .slide h1{font-family:var(--title-font,var(--font))}';
+
+export const UI_CSS = SHELL_CSS + DRAWER_CSS + LOOK_CSS + `
 .hs-static main#deck{gap:0;padding:0}
 html:has(body.hs-editing){scroll-padding-top:100px;scroll-padding-left:196px}
 /* variant A shell (U04-Slides): file bar and toolbar while editing, floating settings bar */
@@ -292,7 +301,9 @@ body.hs-editing .hs-shell{display:block}
 .hs-float{z-index:4000;user-select:none}
 body.hs-editing .hs-float{left:calc(196px + (100% - 196px) / 2)}
 .hs-float .hs-main{font-weight:600}
-.hs-float .hs-save:not(.dirty),body.hs-editing .hs-float .hs-read{display:none}
+.hs-float .hs-save:not(.dirty),body.hs-editing .hs-float .hs-read,body:not(.hs-editing) .hs-float .hs-edit{display:none}
+/* document settings: a side panel between the file bar and the settings bar */
+.hs-drawer{--sh-top:84px;--sh-bottom:56px;z-index:4050}
 .sh-finfo:empty{display:none}
 .sh-pop{z-index:4300}
 .sh-swrow .sh-sw-tint{background:var(--callout)}

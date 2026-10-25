@@ -1,0 +1,22 @@
+/* Shared side panel (ADR-011 §7), a bottom sheet when narrow, and the document-settings body (theme and font).
+   Load after shell.css; every product with document settings uses it. */
+.sh-prow{display:flex;flex-wrap:wrap;gap:6px;margin:8px 6px 4px}
+.sh-drawer{position:fixed;top:calc(var(--sh-top,96px) + 8px);right:8px;bottom:calc(var(--sh-bottom,0px) + 8px);width:340px;z-index:40;background:var(--sh-bg);border:1px solid var(--sh-line);border-radius:10px;box-shadow:0 12px 32px rgba(16,24,40,.18);overflow:hidden;font:13px/1.3 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--sh-ink)}
+.sh-drawer[hidden]{display:none}.sh-drawer *{box-sizing:border-box}.sh-drawer :focus-visible{outline:2px solid var(--sh-focus);outline-offset:1px}
+.sh-panel{display:flex;flex-direction:column;height:100%}
+.sh-ph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:12px 10px 10px 16px;border-bottom:1px solid var(--sh-line)}
+.sh-ph h2{font-size:14px;margin:0;outline:0}.sh-ph p{margin:2px 0 0;font-size:11.5px;color:var(--sh-mute)}
+.sh-pb{padding:12px 16px 20px;overflow:auto;flex:1 1 auto}
+.sh-pb h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--sh-mute);margin:18px 0 8px}.sh-pb h3:first-child{margin-top:2px}
+.sh-hint{font-size:11.5px;color:var(--sh-mute);margin:8px 0 0;line-height:1.4}
+.sh-themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.sh-themes>button{border:1px solid var(--sh-line);border-radius:8px;background:#fff;padding:8px;text-align:left;display:flex;flex-direction:column;gap:4px;cursor:pointer;font:inherit;font-size:12px;font-weight:600;color:inherit}
+.sh-dots{display:flex;gap:3px}.sh-dots i{width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+.sh-fonts{display:flex;flex-direction:column;gap:2px}
+.sh-fonts>button{display:flex;align-items:center;gap:6px;width:100%;padding:7px 10px;border:1px solid transparent;border-radius:6px;background:none;font-size:14px;text-align:left;cursor:pointer;color:inherit}
+.sh-fonts>button:hover{background:var(--sh-hover)}.sh-aa{margin-left:auto;color:var(--sh-mute)}
+.sh-themes>button:hover{background:var(--sh-bg2)}
+.sh-themes>[aria-checked=true],.sh-fonts>[aria-checked=true]{border-color:var(--sh-focus);box-shadow:0 0 0 2px rgba(37,99,235,.22)}
+@media (max-width:719.98px){
+  .sh-drawer{top:auto;left:0;right:0;bottom:0;width:auto;height:62vh;border-radius:14px 14px 0 0}
+}

@@ -13,6 +13,7 @@ function boot() {
   M.state.main = main;
   M.state.bodyClass = document.body.getAttribute('class') || '';
   M.captureShell(); // before any injection: only these nodes are saved
+  M.syncLook(); // the deck's theme and font, before charts read the charte tokens
   const st = document.createElement('style');
   st.setAttribute('data-ui', '');
   st.textContent = V.UI_CSS;
@@ -32,6 +33,16 @@ function boot() {
     else if (charts().length && !V.isStatic())
       V.banner('ECharts could not be loaded: cached charts are displayed, but data cannot be edited.', [], 8000);
     return !!ec;
+  });
+
+  // A theme or font change (or its undo) redraws every chart in the new colours and font, before
+  // the thumbnails are rebuilt from the slides.
+  let look = M.look();
+  M.on('deck', () => {
+    M.syncLook();
+    if (M.look() === look) return;
+    look = M.look();
+    charts().forEach(C.renderChart);
   });
 
   const serialize = written => M.serialize(() => C.refreshCaches(main), written);

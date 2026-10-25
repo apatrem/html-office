@@ -58,7 +58,7 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
   - Below 720 px (or whenever the file bar would overflow) the menus collapse into ☰, the toolbar scrolls and the thumbnails become a strip above the settings bar; the slide gets the full width (335 px at 375, against 139 before).
   - Commands are registered on the shared command/state API, now [`packages/shared/shell/commands.mjs`](../packages/shared/shell/commands.mjs) (moved from Data). Every command has a home in the menus; disabled entries stay listed, inert ones never are. A browser check runs every menu entry and chrome button and fails if one changes nothing (`tests/shell.test.mjs`).
   - Intentional changes from variant A: insert commands are icon buttons; colours open the shared swatch pickers instead of 13 inline swatches; the old pill's place moves from the bottom right to the bottom centre. Saved decks are byte-identical to those saved before (engine apart).
-  - The settings bar has no theme, font or zoom yet: theme and font come with TH02, and zoom is not a command Slides has.
+  - The settings bar had no theme, font or zoom: theme and font came with TH02 (below), and zoom is not a command Slides has.
   - Size: the standard engine grows from 375,094 to 398,471 bytes (121,292 to 129,032 gzip). Data-only panel styles moved to [`panels.css`](../packages/shared/shell/panels.css) so Slides does not carry them; the Data P&L's application code grows from 454,195 to 457,118 bytes (the Slides icons in the shared set).
   - The version stays 0.7.1; the committed example decks are regenerated with this engine (the bump happens at release).
 - **U04-Text**: build the editor on the module when Text starts.
@@ -127,7 +127,13 @@ Implemented 24 October 2026 on `feature/l01-notices`, in review. One generator, 
 
 **TH02 — Theme and font settings per product.** Scope M each.
 - Data: workbook `theme` and `font` with overlay rendering, undo, guide and tests — merged with F05 (PR #54).
-- Slides: `data-theme` and `data-font`, body font only.
+- Slides: `data-theme` and `data-font`, body font only — implemented 25 October 2026, awaiting review.
+  - Both are attributes of `main#deck`, saved with the content and recorded in drafts and in deck undo entries. The engine mirrors them on the root element, where the shared overlays apply: `charteCSS()` for the colour tokens, and `:root[data-font]` rules that set `--body-font` on slides while `h1` keeps `--title-font` (otherwise `--font`). Thumbnails, colour swatches and charts therefore follow; the root attributes are runtime state and are not saved.
+  - The settings bar gains **Theme & font** while editing, and File › Document settings… opens the same shared side panel (`documentBody`), with the footer as the Slides extra. Each choice is one undoable deck change and redraws every chart; `pack` refreshes the saved previews in the theme colours.
+  - The checker rejects unknown values; the inert validator accepts both attributes. FORMAT.md › Theme and font, the embedded guide and SKILL.md document them.
+  - Shared changes: the six fonts moved to `packages/shared/themes/fonts.mjs`; the side-panel and document-settings rules moved from `panels.css` to `drawer.css`, which Data loads before `panels.css`; the chart `theme()` reads `--body-font` before `--font`.
+  - Size: the standard engine grows from 419,095 to 428,044 bytes (135,172 to 138,089 gzip): the overlays, the side panel and its styles. Data's application code is unchanged in size (its stylesheets are only reordered).
+  - The committed example decks are regenerated: only the engine and the embedded guide change; content, chartes, themes, assets and chart previews are byte-identical. The version stays 0.7.1.
 - Text: the same as Slides, when its editor exists.
 
 The setting's placement follows the shell design (U03).

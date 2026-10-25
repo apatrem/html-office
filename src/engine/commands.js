@@ -31,6 +31,8 @@ export function slideCommands(save) {
   R('layout', E.setLayout, edit);
   R('reset-layout', E.relayout, () => edit() && !!current()?.hasAttribute('data-detached'));
   R('footer', E.footerPanel, edit);
+  R('theme', E.setTheme, edit);
+  R('font', E.setFont, edit);
   R('duplicate-slide', E.duplicateSlide, edit);
   R('delete-slide', E.deleteSlide, () => edit() && slides().length > 1);
 

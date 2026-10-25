@@ -18,6 +18,7 @@ The DOM is the current model; undo uses HTML snapshots. Stable identifiers suppo
 
 - Slide insertion, duplication, deletion, and reordering; text, shapes, images, tables, and seven chart types.
 - Snapping, resize, alignment, distribution, theme-based formatting, chart/table data editing, footer controls, presentation, and PDF.
+- Deck theme and body font (TH02): `main#deck[data-theme]` overlays one of four built-in chartes and `data-font` picks one of six body fonts, set from the document-settings panel and undoable; `style#charte` is never rewritten.
 - Complete drafts with deck attributes and assets; queued saves preserve subsequent edits; errors and cancelled writes keep drafts.
 - Inert preflight before execution, recognised script digests, network-limited rendering, and preservation comparison against stable references.
 - Explicit migrations: `pack` preserves engine/theme/guide; `upgrade` replaces engine/guide with a backup; theme replacement is opt-in.

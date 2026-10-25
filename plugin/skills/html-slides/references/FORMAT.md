@@ -8,7 +8,7 @@ A deck is one HTML file divided into zones. Only the content zone is authored by
 | --- | --- | --- |
 | Branding | `<style id="charte">` | `new/pack --charte` |
 | Layout theme | `<style id="theme">` | `new`, explicit `upgrade --theme` |
-| **Content** | `<main id="deck" data-footer="…">` | **LLM and editor** |
+| **Content** | `<main id="deck" data-footer="…">`, optional `data-theme` and `data-font` | **LLM and editor** |
 | Assets | `<script id="assets" type="application/json">` | `add-image` |
 | Offline ECharts (optional) | `<script id="echarts">` | `pack --offline` |
 | Engine/editor | `<script id="engine" data-version="…">` | `new/upgrade` |
@@ -121,10 +121,25 @@ Prefer catalogue defaults. For individual exceptions, use only these classes, al
 
 Use one focal emphasis per slide, such as chart `highlight`, `hl`, an accent colour, or a filled callout. Colours follow the branding theme.
 
+## Theme and font
+
+Two optional attributes of `main#deck` change the look of the whole deck without touching `style#charte`:
+
+```html
+<main id="deck" data-footer="…" data-theme="green" data-font="georgia">
+```
+
+- `data-theme` overlays a built-in charte on the colour tokens of `style#charte`: `blue` (the default branding), `red`, `green`, or `black` (greyscale with one alert colour). Fonts, sizes, and logo stay those of the deck's charte, which is never rewritten; removing the attribute restores its colours.
+- `data-font` sets the body font: `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, or `times`. Titles (`h1`) keep the charte font (`--title-font` when the charte defines it, otherwise `--font`).
+- Absent means the charte's own colours and font. Other values are checker errors.
+- Charts are drawn in the theme colours and the body font; `pack` refreshes their cached SVGs. Changing either attribute reflows text: check the deck again.
+
+In the editor, **Theme & font** in the settings bar (or File → Document settings…) opens the document settings: theme, font, and the footer. Each change is one undoable step and needs no network.
+
 ## Checker rules
 
 Inert parsing precedes rendering. Active content, scripts outside permitted zones, and unknown engines are rejected before execution. Local script hashes are not signed updates.
 
 `--since` compares deletions, relative order, parents, layouts, detachment, coordinates, and rendered geometry (1.5 px tolerance). `--allow e12,e13` permits specified elements; `--allow s04` permits recomposing that slide. Keep a reference with stable identifiers.
 
-The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
+The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; an unknown deck `data-theme` or `data-font`; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.

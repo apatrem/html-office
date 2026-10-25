@@ -1,12 +1,15 @@
 // Variant A editor shell of html-slides (ADR-011 §7, U04-Slides), built from the shared
 // native components: a file bar with menus, one toolbar that follows the selection, and a
-// floating settings bar that replaces the reading-mode pill. Every control runs a command
-// registered in commands.js; menus list disabled commands, never inert ones.
+// floating settings bar that replaces the reading-mode pill, and the document-settings side panel
+// (theme, font, footer). Every control runs a command registered in commands.js; menus list
+// disabled commands, never inert ones.
 import { h, button } from '../../packages/shared/shell/dom.mjs';
 import { menubar, menuButton, openMenu } from '../../packages/shared/shell/menu.mjs';
 import { toolbar, group } from '../../packages/shared/shell/toolbar.mjs';
 import { openPopover, closePopover, openPopoverState } from '../../packages/shared/shell/popover.mjs';
 import { swatchGroup, colourButton, TEXT_COLOURS, FILLS } from '../../packages/shared/shell/pickers.mjs';
+import { drawer as createDrawer } from '../../packages/shared/shell/drawer.mjs';
+import { documentBody } from '../../packages/shared/shell/panels.mjs';
 import { state, slides } from './model.js';
 import { LAYOUTS, CHART_TYPES, SHAPES, ELEMENTS } from './templates.js';
 import { context, editingMode, stopText, textContext, resumeText } from './editor.js';
@@ -81,7 +84,8 @@ export function mountShell(cmd) {
   // Every command has a home in the menus; the toolbar repeats the frequent ones.
   // Opening a menu moves focus into it, which ends typing: record what was being typed.
   const menus = [
-    { name: 'File', items: () => [item('Save', 'save', { shortcut: key('S') }), item('Print / PDF', 'print'), ...(guide().length ? ['-', ...guide()] : [])] },
+    { name: 'File', items: () => [item('Save', 'save', { shortcut: key('S') }), item('Print / PDF', 'print'), '-',
+      item('Document settings…', 'theme', { onSelect: () => openSettings() }), ...(guide().length ? ['-', ...guide()] : [])] },
     { name: 'Edit', items: () => [item('Undo', 'undo', { shortcut: key('Z') }), item('Redo', 'redo', { shortcut: key('Shift+Z') }), '-',
       item('Duplicate', 'duplicate', { shortcut: key('D') }), item('Delete', 'delete', { shortcut: 'Del' }), '-',
       item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format', { resume: true, withText: true })] },
@@ -188,17 +192,38 @@ export function mountShell(cmd) {
         () => { menuOpens(); return menus.flatMap((m, i) => [...(i ? ['-'] : []), { heading: m.name }, ...m.items()]); }, 'Menu'))),
     h('div', { class: 'sh-row sh-row2' }, bar));
 
-  // ---- floating settings bar: file commands while reading, slide position while editing ----
+  // ---- document settings (ADR-011 §7, TH02): theme and font of the deck, and its footer ----
+  // The deck's own charte colours, read without a built-in overlay.
+  const documentColours = (() => {
+    const root = document.documentElement, theme = root.dataset.theme;
+    delete root.dataset.theme;
+    const cs = getComputedStyle(root), colours = Object.fromEntries(['ink', 'acc', 'mid', 'lig', 'alert'].map(t => [t, cs.getPropertyValue('--' + t).trim()]));
+    if (theme) root.dataset.theme = theme;
+    return colours;
+  })();
+  const deckLook = () => ({ theme: state.main.dataset.theme || 'document', font: state.main.dataset.font || 'document', footer: state.main.dataset.footer || '' });
+  const footerLine = () => deckLook().footer ? 'Footer text: ' + deckLook().footer : 'No footer text; page numbers only.';
+  const settings = () => ({ title: 'Document settings', subtitle: 'Theme and font apply to the whole deck',
+    body: () => documentBody({ ...deckLook(), documentColours, onTheme: t => cmd.run('theme', t), onFont: f => cmd.run('font', f),
+      fontNote: 'Body text only; titles keep the charte font.',
+      extra: [h('h3', {}, 'Footer'), h('p', { class: 'sh-hint hs-footer-line' }, footerLine()),
+        h('div', { class: 'sh-prow' }, button({ label: 'Footer…', ic: 'footer', text: 'Footer…', cls: 'sh-ghost', onClick: run('footer') }))] }) });
+  const panel = createDrawer(h('div', { class: 'sh-root hs-drawer', 'data-ui': '' }));
+  const openSettings = () => { closePopover({ restore: false }); panel.open('settings', settings()); };
+
+  // ---- floating settings bar: file commands while reading, theme and slide position while editing ----
   const info = h('span', { class: 'sh-finfo', role: 'status' });
+  B.settings = bind(panel.toggle(button({ label: 'Theme & font', ic: 'sliders', text: 'Theme & font', cls: 'hs-edit', title: 'Document settings: theme, font and footer' }),
+    'settings', settings), 'theme');
   const float = h('div', { class: 'sh-root sh-float hs-float', role: 'group', 'aria-label': 'Presentation', 'data-ui': '' },
     add('edit', 'edit', { label: 'Edit', ic: 'pen', text: 'Edit', cls: 'hs-read', title: 'Edit mode (E)' }),
     add('present2', 'present', { label: 'Present', ic: 'play', text: 'Present', cls: 'hs-read hs-main', title: 'Presentation mode (P)' }),
     add('print', 'print', { label: 'Print or save as PDF', ic: 'print', cls: 'hs-read' }),
     B.save2 = add('save2', 'save', { label: 'Save', ic: 'save', cls: 'hs-read hs-save', title: `Save to file (${key('S')})` }),
-    info);
+    B.settings, info);
   // Clicking the chrome keeps focus (and the text being typed) in the slide.
   for (const el of [top, float]) el.addEventListener('pointerdown', e => { if (!e.target.closest('input, textarea')) e.preventDefault(); });
-  document.body.append(top, float);
+  document.body.append(top, float, panel.host);
   // Working on the canvas takes keyboard focus out of the chrome.
   state.main.addEventListener('pointerdown', leaveChrome, true);
 
@@ -215,7 +240,14 @@ export function mountShell(cmd) {
     text(chip, c.kind === 'slide' ? (n ? 'Slide ' + n : 'Slide') : c.typing ? 'Text' : c.els.length > 1 ? c.els.length + ' elements'
       : c.chart ? 'Chart' : c.table ? 'Table' : c.els[0].matches('img') ? 'Image' : c.els[0].matches('.shape') ? 'Shape' : 'Element');
     text(info, on && n ? `Slide ${n} of ${all.length}` : '');
-    float.hidden = on && !n;
+    // The open panel follows undo and redo; it closes with edit mode.
+    if (panel.current() && !on) panel.close({ restore: false });
+    else if (panel.current()) {
+      const l = deckLook();
+      for (const [sel, v] of [['.sh-themes > button', l.theme], ['.sh-fonts > button', l.font]])
+        for (const b of panel.host.querySelectorAll(sel)) b.setAttribute('aria-checked', String(b.dataset.value === v));
+      text(panel.host.querySelector('.hs-footer-line'), footerLine());
+    }
     text(status, state.dirty ? 'Unsaved changes' : '');
     for (const b of [B.save, B.save2]) b.classList.toggle('dirty', !!state.dirty);
     const l = look();

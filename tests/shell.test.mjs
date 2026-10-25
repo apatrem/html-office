@@ -63,7 +63,7 @@ const STATES = {
 // Everything a command can change: the saved deck, modes, panels, popovers, banners, file actions, selection.
 const signature = page => page.evaluate(() => JSON.stringify({
   html: window.deckEngine.serialize(), body: document.body.className, sel: window.deckEngine.selection(),
-  panels: [...document.querySelectorAll('.hs-panel h2')].map(e => e.textContent),
+  panels: [...document.querySelectorAll('.hs-panel h2, .sh-drawer h2')].map(e => e.textContent),
   pops: [...document.querySelectorAll('.sh-pop, .sh-pop [aria-label]')].map(e => e.getAttribute('aria-label')),
   banner: document.querySelector('.hs-banner')?.textContent || '', files: [window.__saves, window.__prints, window.__files]
 }));
