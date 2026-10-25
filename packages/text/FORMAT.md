@@ -168,7 +168,7 @@ The table model maps onto the portable table of [ADR-013](../../docs/decisions/0
 
 ## Canonical form
 
-A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. The checker will compare against this form with the schema (T02); `pack` (T02) rewrites a valid document into it and reports the difference. The editor never normalises silently.
+A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently.
 
 - **File layout**: `<!doctype html>`, then `html`, `head` and `body` each on their own line, one zone per line, ending with `</body>`, `</html>` and a newline, as in Slides.
 - **Lines**: each block of `article#doc` starts on its own line. So do the children of the cover, quotes, callouts, lists, the contents list, figures, `table`, `thead`, `tbody`, `section.comments` and threads. A table row, with its cells, is one line; so is a `colgroup`. A nested list starts directly after its item's text: `<li>Text<ul>`, and ends `</ul></li>`. Inline content and `pre` keep their text exactly; inline text contains no line breaks or tabs.
@@ -191,6 +191,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 
   Class tokens follow the order of this reference: `lead ta-c`, `unnumbered new-page ta-r`, `callout warning`.
 - **Marks** nest in a fixed order, outermost first: comment anchor, link, `strong`, `em`, `u`, `mark`, `sub`/`sup`, `code`. A footnote or cross-reference sits inside the marks that cover it.
+- **Text**: line breaks and tabs in inline text read as spaces (rendered the same); write them as spaces.
 - **Escaping**: `&amp;`, `&lt;`, `&gt;` and `&nbsp;` (U+00A0) in text, plus `&quot;` in attribute values. Every other character, including non-ASCII, is written as itself in UTF-8. No other entity or numeric reference.
 
 ## Limits of the runtime check

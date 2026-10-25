@@ -6,9 +6,20 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "check": "node tools/check.mjs",
-    "format:check": "prettier --check \"{model,tools,tests}/**/*.mjs\""
+    "pack": "node tools/pack.mjs",
+    "measure": "node tools/measure.mjs",
+    "format:check": "prettier --check \"{model,editor,tools,tests}/**/*.mjs\""
   },
   "devDependencies": {
     "prettier": "3.6.2"
+  },
+  "dependencies": {
+    "prosemirror-commands": "1.7.2",
+    "prosemirror-history": "1.5.1",
+    "prosemirror-keymap": "1.2.3",
+    "prosemirror-model": "1.25.12",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-transform": "1.12.4",
+    "prosemirror-view": "1.42.8"
   }
 }

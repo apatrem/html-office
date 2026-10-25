@@ -2,13 +2,33 @@
 // html-text checker: validates a document against the canonical subset (FORMAT.md).
 //   node check.mjs <document.html> [--json]
 // Lists errors (rejected), protected blocks (kept, not editable) and warnings, with line:column.
+// A valid document that is not in canonical form gets a not-canonical warning: run pack.mjs.
 // Exit code 1 when at least one error remains.
 import { readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
+import { canonicalize } from "../editor/schema/document.mjs";
+
+const excerpt = (text, offset) =>
+  JSON.stringify(text.slice(offset, offset + 40));
+
+export function checkSource(source) {
+  const report = validateFile(parseFile(source));
+  if (!report.ok) return report;
+  const { canonical, difference } = canonicalize(source, parseFile);
+  if (difference)
+    report.warnings.push({
+      code: "not-canonical",
+      message: `Not in canonical form: expected ${excerpt(canonical, difference.offset)}, found ${excerpt(source, difference.offset)}. pack.mjs rewrites it`,
+      path: "document",
+      line: difference.line,
+      col: difference.col,
+    });
+  return report;
+}
 
 export async function checkFile(file) {
-  return validateFile(parseFile(await readFile(file, "utf8")));
+  return checkSource(await readFile(file, "utf8"));
 }
 
 const at = (f) => (f.line ? `${f.line}:${f.col}` : "-");
