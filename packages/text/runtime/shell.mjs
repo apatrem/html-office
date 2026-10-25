@@ -151,9 +151,13 @@ export function mountShell(cmd, saving, report) {
   const protectedCount = report.protected.length;
   text(
     kept,
-    protectedCount
-      ? `${protectedCount} protected block${protectedCount > 1 ? "s" : ""} (not editable)`
-      : "",
+    [
+      protectedCount &&
+        `${protectedCount} protected block${protectedCount > 1 ? "s" : ""} (not editable)`,
+      !saving.canonical && "Not in canonical form: saving needs pack.mjs",
+    ]
+      .filter(Boolean)
+      .join(" · "),
   );
   function sync() {
     for (const [b, id] of binds) b.disabled = !cmd.enabled(id);

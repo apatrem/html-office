@@ -3,7 +3,14 @@
 // empty or hold exactly the document as opened, in canonical form.
 import { DirtyState, FileWriter } from "../../shared/persistence.mjs";
 
-export function setupSaving({ opened, serialize, check, name, changed }) {
+export function setupSaving({
+  opened,
+  canonical,
+  serialize,
+  check,
+  name,
+  changed,
+}) {
   const dirty = new DirtyState();
   let writer = null,
     busy = false,
@@ -14,6 +21,10 @@ export function setupSaving({ opened, serialize, check, name, changed }) {
   };
   // The file text to write, read back first: a problem stops the save before anything is written.
   const output = () => {
+    if (!canonical)
+      throw new Error(
+        "this file is not in canonical form, so saving would rewrite more than your edits. Run tools/pack.mjs on it first; nothing was written",
+      );
     const text = serialize();
     const problem = check(text);
     if (problem) throw new Error(`${problem}; nothing was written`);
@@ -107,5 +118,6 @@ export function setupSaving({ opened, serialize, check, name, changed }) {
     get message() {
       return message;
     },
+    canonical,
   };
 }

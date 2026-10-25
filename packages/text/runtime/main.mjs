@@ -5,9 +5,18 @@ import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { baseKeymap } from "prosemirror-commands";
+import {
+  baseKeymap,
+  chainCommands,
+  newlineInCode,
+  createParagraphNear,
+  liftEmptyBlock,
+  splitBlockAs,
+} from "prosemirror-commands";
+import { schema } from "../editor/schema/schema.mjs";
 import { createCommands } from "../../shared/shell/commands.mjs";
-import { fromDocument } from "../model/html.mjs";
+import { fromDocument, serialize } from "../model/html.mjs";
+import { serializeFile } from "../model/file.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { toDoc } from "../editor/schema/parse.mjs";
 import {
@@ -21,8 +30,32 @@ import { mountShell, refusal } from "./shell.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import editorCSS from "./style.css";
 
+// Enter as in baseKeymap, except: a heading split at its end continues with a paragraph (the
+// guard gives a heading split in the middle a fresh ID), and nothing splits inside a footnote or
+// a table cell, whose text stays one paragraph (FORMAT.md).
+const inside = (types) => (state) => {
+  const { $from } = state.selection;
+  for (let d = $from.depth; d >= 0; d--)
+    if (types.includes($from.node(d).type.name)) return true;
+  return false;
+};
+const enter = chainCommands(
+  newlineInCode,
+  inside(["footnote", "table_cell", "table_header"]),
+  createParagraphNear,
+  liftEmptyBlock,
+  splitBlockAs((node, atEnd) =>
+    node.type === schema.nodes.heading && atEnd
+      ? { type: schema.nodes.paragraph }
+      : null,
+  ),
+);
+
+// The file is captured while this script runs: it is the last element of the file, so everything
+// before it is parsed, and nothing added later (by the editor, an extension…) enters the capture.
+const file = fromDocument(document);
+
 function start() {
-  const file = fromDocument(document);
   const report = validateFile(file);
   const style = document.createElement("style");
   style.textContent = shellCSS + editorCSS;
@@ -35,9 +68,14 @@ function start() {
   const commands = createCommands();
   const save = (doc) => saveFile(file, doc);
   const doc = toDoc(findArticle(file), report.blocks);
+  const opened = save(doc);
+  // A source that differs from its canonical form where the browser can see it (line breaks in
+  // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
+  const asRead = serializeFile(file, serialize(findArticle(file)));
   let view;
   const saving = setupSaving({
-    opened: save(doc),
+    opened,
+    canonical: asRead === opened,
     serialize: () => save(view.state.doc),
     // The text about to be written must reopen as the same document; DOMParser runs no script.
     check: (text) =>
@@ -59,7 +97,7 @@ function start() {
         "Shift-Mod-z": redo,
         "Mod-s": () => (commands.run("save"), true),
       }),
-      keymap(baseKeymap),
+      keymap({ ...baseKeymap, Enter: enter }),
     ],
   });
   view = new EditorView(

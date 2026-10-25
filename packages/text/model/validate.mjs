@@ -1267,6 +1267,16 @@ export function validateFile(file) {
         ctx.error("body", `script#${id} contains a comment opener`, node, p);
     } else ctx.error("body", `Unexpected ${label(node)} in <body>`, node, p);
   }
+  // The editor captures the file while script#engine runs: nothing may follow it.
+  const zones = elements(body);
+  const engine = zones.findIndex((n) => attr(n, "id") === "engine");
+  if (engine >= 0 && engine !== zones.length - 1)
+    ctx.error(
+      "structure",
+      "script#engine is the last element of <body>",
+      zones[engine + 1],
+      "body",
+    );
   if (!article) {
     ctx.error("structure", "The file needs one article#doc", body, "body");
     return result(ctx, []);

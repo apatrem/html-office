@@ -27,7 +27,7 @@ The checker sorts what it finds into three kinds:
 | Editor | `script#engine` | Build tools |
 | Offline chart library (optional) | `script#echarts` | Offline build |
 
-Nothing else may appear in `head` or `body`. `html` may have `lang` and `dir`; `head` and `body` have no attributes. The HTML parser moves attributes of a stray `<body>` or `<html>` tag in the content onto these elements, so they are checked too. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
+Nothing else may appear in `head` or `body`, and `script#engine` is the last element of `body`: the editor reads the file while that script runs. `html` may have `lang` and `dir`; `head` and `body` have no attributes. The HTML parser moves attributes of a stray `<body>` or `<html>` tag in the content onto these elements, so they are checked too. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
 
 ## Rules for the whole content
 

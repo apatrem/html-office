@@ -259,6 +259,110 @@ try {
   pass("a save that would not reopen as the same document writes nothing");
   await unstable.context.close();
 
+  // ---- nodes added after the engine ran are not part of the file ----
+  const injected = await open(url);
+  await injected.page.addInitScript(() =>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.body.append(
+        Object.assign(document.createElement("div"), {
+          className: "extension",
+        }),
+      );
+      document.head.append(
+        Object.assign(document.createElement("meta"), { name: "injected" }),
+      );
+    }),
+  );
+  await injected.page.goto(url);
+  await injected.page.waitForFunction(() => window.htmlText);
+  assert.equal(await injected.page.locator("div.extension").count(), 1);
+  assert.equal(
+    await injected.page.evaluate(() => window.htmlText.serialize()),
+    built,
+  );
+  pass(
+    "nodes added after the engine ran neither block editing nor enter the saved file",
+  );
+  await injected.context.close();
+
+  // ---- Enter keeps the subset ----
+  const enter = await open(url);
+  await enter.page.waitForFunction(() => window.htmlText);
+  // Puts the caret `offset` characters into the first block matching `test` (node name and text).
+  const caret = (name, text, offset) =>
+    enter.page.evaluate(
+      ([name, text, offset]) => {
+        const { view } = window.htmlText;
+        let at = null;
+        view.state.doc.descendants((n, p) => {
+          if (at === null && n.type.name === name && n.textContent === text)
+            at = p + 1 + (offset < 0 ? n.content.size : offset);
+        });
+        view.focus();
+        const Selection = view.state.selection.constructor;
+        view.dispatch(
+          view.state.tr.setSelection(Selection.create(view.state.doc, at)),
+        );
+      },
+      [name, text, offset],
+    );
+  await enter.page.click("#doc h1#sec-summary");
+  await caret("heading", "Executive summary", -1);
+  await enter.page.keyboard.press("Enter");
+  await enter.page.keyboard.type("New paragraph");
+  await caret("heading", "Method", 2);
+  await enter.page.keyboard.press("Enter");
+  await caret("table_cell", "North", 2);
+  await enter.page.keyboard.press("Enter");
+  const afterEnter = await enter.page.evaluate(() =>
+    window.htmlText.serialize(),
+  );
+  const enterDiff = changed(built, afterEnter);
+  assert.deepEqual(
+    enterDiff.filter((l) => l.startsWith("+")),
+    [
+      "+<p>New paragraph</p>",
+      '+<h3 id="sec-method">Me</h3>',
+      '+<h3 id="sec-method-2">thod</h3>',
+    ],
+  );
+  await enter.page.click(".tx-shell .sh-primary");
+  await enter.page.waitForFunction(() => window.disk.writes === 1);
+  pass(
+    "Enter: heading end gives a paragraph, a split heading a fresh ID, a table cell stays whole",
+  );
+  await enter.context.close();
+
+  // ---- a non-canonical source is never rewritten silently ----
+  const loose = built.replace(
+    "<p>Prepared by the planning team, October 2026</p>",
+    "<p>Prepared by the planning team,\nOctober 2026</p>",
+  );
+  const noncanonical = await open(
+    await write("noncanonical.html", loose),
+    loose,
+  );
+  await noncanonical.page.waitForFunction(() => window.htmlText);
+  assert.match(
+    await noncanonical.page.locator(".tx-shell .sh-state").textContent(),
+    /Not in canonical form/,
+  );
+  await noncanonical.page.click(".tx-shell .sh-primary");
+  await noncanonical.page.waitForFunction(() =>
+    /Save failed/.test(
+      document.querySelector(".tx-shell [role=status]").textContent,
+    ),
+  );
+  await noncanonical.page.click(".tx-shell [role=menubar] button:text('File')");
+  await noncanonical.page.click("[role=menuitem]:has-text('Save a copy')");
+  assert.match(
+    await status(noncanonical.page),
+    /Copy failed: this file is not in canonical form/,
+  );
+  assert.equal(await noncanonical.page.evaluate(() => window.disk.writes), 0);
+  pass("a non-canonical source is neither saved nor copied without pack.mjs");
+  await noncanonical.context.close();
+
   // ---- size ----
   const sizes = measureFile(built);
   assert.ok(sizes.applicationCode < sizes.ceiling);
