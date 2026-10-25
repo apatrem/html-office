@@ -38,6 +38,8 @@ const MENUS = {
     "Copy style",
     "Delete rows",
     "Delete columns",
+    "Duplicate chart",
+    "Delete chart",
     "Clear formatting",
   ],
   Insert: [
@@ -46,6 +48,7 @@ const MENUS = {
     "Link…",
     "New sheet…",
     "Pivot table…",
+    "Chart…",
   ],
   Format: [
     "Bold",
@@ -65,12 +68,14 @@ const MENUS = {
     "Column width…",
     "Auto-fit column width",
     "Conditional formatting…",
+    "Chart settings…",
     "Clear formatting",
   ],
   Data: [
     "Recalculate",
     "Pivot tables…",
     "Refresh all pivot tables",
+    "Redraw charts",
     "Dropdown settings…",
     "Manage sheets…",
   ],

@@ -435,6 +435,9 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("Delete rows", "delete-rows"),
         item("Delete columns", "delete-columns"),
         "-",
+        item("Duplicate chart", "duplicate-chart"),
+        item("Delete chart", "delete-chart"),
+        "-",
         item("Clear formatting", "clear-formatting"),
       ],
     },
@@ -448,6 +451,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("New sheet…", "new-sheet"),
         "-",
         item("Pivot table…", "insert-pivot"),
+        item("Chart…", "insert-chart"),
       ],
     },
     {
@@ -489,6 +493,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
           item("Auto-fit column width", "auto-fit"),
           "-",
           item("Conditional formatting…", "conditional-formatting"),
+          item("Chart settings…", "chart-settings"),
           item("Clear formatting", "clear-formatting"),
         ];
       },
@@ -499,6 +504,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("Recalculate", "recalculate"),
         item("Pivot tables…", "pivot-tables"),
         item("Refresh all pivot tables", "refresh-pivots"),
+        item("Redraw charts", "redraw-charts"),
         "-",
         item("Dropdown settings…", "dropdown-settings"),
         item("Manage sheets…", "manage-sheets"),

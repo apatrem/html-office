@@ -11,6 +11,7 @@ import {
   validateAxes,
 } from "./formatting.mjs";
 import { validatePivots } from "./pivot.mjs";
+import { validateCharts } from "./charts.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
@@ -386,6 +387,7 @@ export function validateWorkbook(book) {
       "scenario",
       "conditionalFormats",
       "pivots",
+      "charts",
       "font",
       "theme",
     ],
@@ -485,6 +487,7 @@ export function validateWorkbook(book) {
   validateValidations(book);
   validateConditionalFormats(book);
   validatePivots(book);
+  validateCharts(book);
   if (book.snapshot !== undefined) {
     fields(
       book.snapshot,

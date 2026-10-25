@@ -34,6 +34,7 @@ import {
   PIVOT_ERROR,
 } from "../model/pivot.mjs";
 import { setupPivots } from "./pivots.mjs";
+import { setupCharts } from "./charts.mjs";
 import {
   applyLinkEdits,
   FONTS,
@@ -89,6 +90,8 @@ const status = (text) => {
 };
 const persistence = setupPersistence({
   getBook: () => book,
+  // Saved files carry this session's chart drawings as previews.
+  finalizeBook: (draft) => charts.finalize(draft),
   isSnapshotCurrent: () =>
     !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
   onConditionalScales: (scales) => {
@@ -123,6 +126,7 @@ const persistence = setupPersistence({
         dropdowns.draw();
         persistence.refreshConditionalScales();
         grid.draw();
+        charts.draw();
         drawCalculationState();
         status(
           value.state === "current"
@@ -170,7 +174,10 @@ const grid = createGrid($("grid"), {
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   getLocale: () => book.locale,
   busy: () => !!loading,
-  onSelect: (ref) => choose(ref, false),
+  onSelect: (ref) => {
+    charts.select(null);
+    choose(ref, false);
+  },
   onCommand: (event) => {
     const key = event.key.toLowerCase();
     if (["z", "y"].includes(key)) {
@@ -245,6 +252,7 @@ function render() {
   dropdownSettings.draw();
   conditionalSettings.draw();
   pivots.draw();
+  charts.draw();
   commands.changed();
 }
 // The formula bar's calculation-state chip; details stay in the status line.
@@ -1045,6 +1053,34 @@ function publishPivots(next, message) {
   status(message);
   return true;
 }
+// ---- charts (T18) ----
+// Definitions are header data: one history entry, no engine.
+function publishCharts(next, message) {
+  if (loading) {
+    status("Wait for the current calculation before changing a chart.");
+    return false;
+  }
+  const headBefore = captureHead(book),
+    selection = { sheetId, ...grid.selection };
+  if (next.length) book.charts = next;
+  else delete book.charts;
+  const headAfter = captureHead(book);
+  history.record({
+    before: [],
+    after: [],
+    headBefore,
+    headAfter,
+    snapshotBefore: book.snapshot,
+    snapshotAfter: book.snapshot,
+    selectionBefore: selection,
+    selectionAfter: selection,
+    calculate: false,
+  });
+  persistence.changed([], { head: headAfter });
+  render();
+  status(message);
+  return true;
+}
 const pivotBusy = () =>
   pendingEdits.length
     ? "Apply or discard the attempted edit before changing a pivot table."
@@ -1197,6 +1233,21 @@ const pivots = setupPivots({
   refresh: refreshPivot,
   remove: deletePivot,
   status,
+});
+const charts = setupCharts({
+  root: $("grid"),
+  getBook: () => book,
+  getSheetId: () => sheetId,
+  getSelection: () => grid.selection,
+  isSnapshotCurrent: () =>
+    !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint),
+  getRevision: () => persistence.revision,
+  edited: () => history.canUndo || history.canRedo,
+  busy: () => !!loading,
+  publish: publishCharts,
+  status,
+  changed: () => commands.changed(),
+  openPanel: () => shell.openPanel("chart"),
 });
 const navigation = setupSheetNavigation($("sheet-tabs"), {
   getBook: () => book,
@@ -1363,6 +1414,30 @@ register(
   () => refreshAllPivots(),
   () => idle() && !!book.pivots?.length,
 );
+register("insert-chart", () => {
+  charts.create();
+  shell.openPanel("chart");
+});
+register(
+  "chart-settings",
+  () => shell.openPanel("chart"),
+  () => !!charts.selected,
+);
+register(
+  "duplicate-chart",
+  () => charts.duplicate(charts.selected),
+  () => idle() && !!charts.selected,
+);
+register(
+  "delete-chart",
+  () => charts.remove(charts.selected),
+  () => idle() && !!charts.selected,
+);
+register(
+  "redraw-charts",
+  () => charts.redraw(),
+  () => charts.canRedraw,
+);
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
 register(
@@ -1421,6 +1496,11 @@ const shell = mountShell({
       subtitle: "Rows, columns, filters and totals from a source range",
       body: () => pivots.body(),
     }),
+    chart: () => ({
+      title: "Chart",
+      subtitle: "Drawn from a data range, saved with a preview",
+      body: () => charts.body(),
+    }),
   },
   state: () => {
     const cell = selectedCell(),
@@ -1477,6 +1557,7 @@ if (revisions.current(initialRevision)) {
   if (fallbackInspection) persistence.refreshConditionalScales();
   dropdowns.draw();
   grid.draw();
+  charts.draw();
   drawCalculationState();
   status(
     initialState.state === "current"
