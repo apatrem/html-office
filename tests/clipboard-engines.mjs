@@ -59,6 +59,17 @@ const workbook = new URL('dist/clipboard-engines/data.html', root);
 await writeFile(workbook, await buildWorkbook(book, { offline: true }));
 const expected = Object.fromEntries(fixtures.map(name => [name, readTable(parseInert(fixture(name)))]));
 
+// A paste event carrying a DataTransfer. Firefox's ClipboardEvent
+// constructor ignores clipboardData (the event gets an empty one), so the
+// DataTransfer is attached as an own property there: the reader then runs on
+// Firefox's real DataTransfer, though not on its native pasteboard.
+const pasteEventScript = () => {
+  globalThis.pasteEvent = data => {
+    const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+    if (event.clipboardData !== data) Object.defineProperty(event, 'clipboardData', { value: data });
+    return event;
+  };
+};
 const engines = { chromium, firefox, webkit };
 for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').split(',').map(name => engines[name])) {
   const browser = await type.launch();
@@ -66,6 +77,7 @@ for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').
     const page = await browser.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
+    await page.addInitScript(pasteEventScript);
     await page.goto(files + '/');
     hits = [];
     const result = await page.evaluate(async ({ hostile, sources }) => {
@@ -85,7 +97,7 @@ for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').
       const send = flavours => {
         const data = new DataTransfer();
         for (const [t, v] of Object.entries(flavours)) data.setData(t, v);
-        document.getElementById('grid').dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+        document.getElementById('grid').dispatchEvent(pasteEvent(data));
       };
       send({ [m.MIME]: json, 'text/plain': 'x' });
       send({ 'text/html': m.tableHTML(envelope.table, { envelope: json }), 'text/plain': 'x' });
@@ -104,6 +116,7 @@ for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').
     // Data in this engine: paste the HTML carrier, then undo.
     const data = await browser.newPage();
     data.on('pageerror', e => errors.push(e.message));
+    await data.addInitScript(pasteEventScript);
     await data.goto(files + '/data.html');
     await data.getByText('Saved results are current.', { exact: true }).waitFor();
     await data.getByLabel('Cell address').fill('E5');
@@ -112,7 +125,7 @@ for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').
       const transfer = new DataTransfer();
       transfer.setData('text/html', html);
       transfer.setData('text/plain', 'x');
-      document.getElementById('grid').dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+      document.getElementById('grid').dispatchEvent(pasteEvent(transfer));
     }, dataHTML);
     await data.getByText('Calculated locally. Unsaved changes.', { exact: true }).waitFor();
     assert.equal(await data.locator('#grid-E5').textContent(), '100', `${name}: pasted value`);
