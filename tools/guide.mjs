@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {LAYOUTS, SHAPES, CHART_TYPES, chartHTML} from '../src/engine/templates.js';
 import {FORMAT_VERSION, CONTENT_CLASSES} from '../src/format.js';
-import {ECHARTS_URL, ECHARTS_INTEGRITY} from '../src/echarts.js';
+import {ECHARTS_URL, ECHARTS_INTEGRITY} from '../packages/shared/charts/echarts.mjs';
 
 const escape = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 export function documentation(root, version) {

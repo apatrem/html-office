@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {ECHARTS_VERSION,ECHARTS_INTEGRITY} from '../src/echarts.js';
+import {ECHARTS_VERSION,ECHARTS_INTEGRITY} from '../packages/shared/charts/echarts.mjs';
 
 export function verifyECharts(bytes,version) {
   if (version!==ECHARTS_VERSION) throw new Error(`ECharts : version ${version} unexpected; ${ECHARTS_VERSION} required`);

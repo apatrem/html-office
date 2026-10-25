@@ -1,12 +1,12 @@
 // Chart rendering: ECharts (CDN, pinned version) when available, otherwise the cached SVG.
-import { ECHARTS_URL, ECHARTS_INTEGRITY } from './model.js';
-import column from '../charts/column.js';
-import hbar from '../charts/hbar.js';
-import stacked from '../charts/stacked.js';
-import line from '../charts/line.js';
-import waterfall from '../charts/waterfall.js';
-import bubble from '../charts/bubble.js';
-import gantt from '../charts/gantt.js';
+import { ECHARTS_URL, ECHARTS_INTEGRITY } from './echarts.mjs';
+import column from './types/column.mjs';
+import hbar from './types/hbar.mjs';
+import stacked from './types/stacked.mjs';
+import line from './types/line.mjs';
+import waterfall from './types/waterfall.mjs';
+import bubble from './types/bubble.mjs';
+import gantt from './types/gantt.mjs';
 
 export const registry = { column, hbar, stacked, line, waterfall, bubble, gantt };
 const instances = new WeakMap();

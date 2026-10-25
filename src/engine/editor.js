@@ -5,7 +5,7 @@ import Selecto from 'selecto';
 import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, undo, redo,
   setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
-import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches } from './charts.js';
+import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches } from '../../packages/shared/charts/index.mjs';
 import { banner, present, go, ui } from './view.js';
 
 const GRID = 8;

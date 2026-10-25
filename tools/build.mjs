@@ -53,7 +53,7 @@ await build({ entryPoints: [P('tools/validation.mjs')], bundle: true, platform: 
   outfile: P('plugin/skills/html-slides/tools/validation.mjs'), minify: true, legalComments: 'eof' });
 await build({ entryPoints: [P('src/format.js')], bundle: true, platform: 'node', format: 'esm', target: 'node18',
   outfile: P('plugin/skills/html-slides/tools/format.mjs'), minify: true });
-await build({ entryPoints: [P('src/echarts.js')], bundle: true, platform: 'node', format: 'esm', target: 'node18',
+await build({ entryPoints: [P('packages/shared/charts/echarts.mjs')], bundle: true, platform: 'node', format: 'esm', target: 'node18',
   outfile: P('plugin/skills/html-slides/tools/echarts.mjs'), minify: true });
 
 fs.writeFileSync(P('dist/engine.js'), engine);

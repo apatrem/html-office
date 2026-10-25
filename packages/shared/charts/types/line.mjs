@@ -1,5 +1,5 @@
 // Lines: long time series (> 6 periods).
-import { base, axisCat, seriesColor, fmt, validateCategory, categoryTable } from './common.js';
+import { base, axisCat, seriesColor, fmt, validateCategory, categoryTable } from './common.mjs';
 
 export default {
   label: 'Lines',
