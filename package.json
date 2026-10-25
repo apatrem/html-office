@@ -13,7 +13,8 @@
     "release": "bash tools/release.sh",
     "record-release": "node tools/build.mjs --release",
     "check:example": "node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/community-garden.html",
-    "test:data": "npm --prefix packages/data test && npm --prefix packages/data run test:browser"
+    "test:data": "npm --prefix packages/data test && npm --prefix packages/data run test:browser",
+    "test:text": "npm --prefix packages/text test"
   },
   "devDependencies": {
     "@csstools/css-tokenizer": "3.0.4",

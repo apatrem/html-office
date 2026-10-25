@@ -1,0 +1,126 @@
+{
+  "article-attribute.html": [
+    "article-attribute 8:48"
+  ],
+  "article-format.html": [
+    "article-attribute 8:1"
+  ],
+  "article-lang.html": [
+    "article-attribute 8:35"
+  ],
+  "chart-json.html": [
+    "chart-data 11:1"
+  ],
+  "chart-schema.html": [
+    "chart-data 11:1",
+    "chart-data 11:1"
+  ],
+  "chart-structure.html": [
+    "malformed-figure 10:1"
+  ],
+  "chart-type.html": [
+    "malformed-figure 10:34"
+  ],
+  "chart-width.html": [
+    "malformed-figure 10:1"
+  ],
+  "comments-position.html": [
+    "malformed-thread 10:1"
+  ],
+  "duplicate-id.html": [
+    "duplicate-id 10:5"
+  ],
+  "empty-document.html": [
+    "empty-document 8:1"
+  ],
+  "event-handler.html": [
+    "unsafe-attribute 10:4"
+  ],
+  "external-css.html": [
+    "unsafe-style 6:1"
+  ],
+  "external-image.html": [
+    "unsafe-attribute 10:15"
+  ],
+  "figure-id.html": [
+    "malformed-figure 10:1"
+  ],
+  "form-control.html": [
+    "forbidden-element 10:10"
+  ],
+  "iframe.html": [
+    "forbidden-element 10:1",
+    "unsafe-attribute 10:9"
+  ],
+  "image-alt.html": [
+    "missing-alt 11:1"
+  ],
+  "image-asset.html": [
+    "unknown-asset 11:6"
+  ],
+  "image-width.html": [
+    "malformed-figure 10:34"
+  ],
+  "invalid-id.html": [
+    "invalid-id 9:5"
+  ],
+  "javascript-url.html": [
+    "unsafe-attribute 10:7"
+  ],
+  "missing-heading-id.html": [
+    "missing-id 9:1"
+  ],
+  "reserved-id.html": [
+    "reserved-id 9:5"
+  ],
+  "script.html": [
+    "forbidden-element 11:1"
+  ],
+  "style-attribute-inline.html": [
+    "style-attribute 10:17"
+  ],
+  "style-attribute.html": [
+    "style-attribute 10:4"
+  ],
+  "svg-script.html": [
+    "forbidden-element 12:76",
+    "malformed-figure 12:76"
+  ],
+  "table-cell-content.html": [
+    "malformed-table 13:5"
+  ],
+  "table-columns.html": [
+    "malformed-table 12:1"
+  ],
+  "table-grid.html": [
+    "malformed-table 11:1"
+  ],
+  "table-head-cell.html": [
+    "malformed-table 13:5",
+    "malformed-table 11:1"
+  ],
+  "table-rowspan.html": [
+    "malformed-table 13:9"
+  ],
+  "thread-date.html": [
+    "malformed-thread 13:39"
+  ],
+  "thread-empty.html": [
+    "malformed-thread 12:1"
+  ],
+  "thread-markup.html": [
+    "malformed-thread 13:1"
+  ],
+  "thread-reference.html": [
+    "unknown-thread 10:26"
+  ],
+  "thread-status.html": [
+    "malformed-thread 12:39"
+  ],
+  "unknown-body.html": [
+    "body 11:1"
+  ],
+  "unknown-head.html": [
+    "head 6:1"
+  ]
+}

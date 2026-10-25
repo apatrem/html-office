@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Protected content</title>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB">
+<h1 id="sec-p">Protected content</h1>
+<p>Ordinary paragraph.</p>
+<details><summary>Inert unknown element</summary><p>Kept as written.</p></details>
+<p class="intro">Paragraph with an unknown class.</p>
+<p>Text with <abbr title="Key performance indicator">KPI</abbr> markup.</p>
+<!-- an HTML comment between blocks -->
+<div><p>Paragraph inside a div.</p></div>
+<ul>
+<li><p>List item holding a paragraph</p></li>
+</ul>
+<p><a href="#sec-p">Internal link without class xref</a></p>
+<h2 class="intro" id="sec-p2">Heading with an unknown class</h2>
+<figure class="quote"><blockquote><p>Unknown figure kind.</p></blockquote></figure>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"></rect></svg>
+Loose text between blocks.
+<p><sub><sup>Nested sub and sup</sup></sub></p>
+<p>After the protected blocks.</p>
+</article>
+</body>
+</html>

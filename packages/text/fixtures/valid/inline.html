@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inline marks</title>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB">
+<h1 id="sec-inline">Inline marks</h1>
+<p><strong>Bold</strong>, <em>italic</em>, <u>underline</u>, <mark>highlight</mark>, <code>code</code>, x<sup>2</sup>, H<sub>2</sub>O.</p>
+<p><strong><em>Bold italic</em></strong> and <a href="https://example.org/a?b=1&amp;c=2"><strong>a bold link</strong></a>, <a href="mailto:team@example.org">mail</a>, <a href="http://example.org/">plain http</a>.</p>
+<p>Footnote here.<span class="footnote">With <em>italic</em> and a <a href="https://example.org/source">source link</a>; see <a class="xref" href="#sec-inline">Section 1</a>.</span> Line<br>break.</p>
+<p>Escaped &lt;tag&gt; text &amp; an ampersand, no-break&nbsp;space, quotes " and ' and Unicode: déjà vu, Ωmega, 漢字, emoji 🌱.</p>
+<p><mark class="comment" data-ref="c1">Commented <strong>bold</strong> text</mark> and <mark class="comment" data-ref="c1"><mark class="comment" data-ref="c2">overlapping comments</mark></mark>.</p>
+<section class="comments">
+<aside class="comment-thread" id="c1" data-status="open" data-quote="Commented bold text">
+<p class="comment" data-author="Alex" data-date="2026-10-15T14:02Z">First thread.</p>
+</aside>
+<aside class="comment-thread" id="c2" data-status="open" data-quote="overlapping comments">
+<p class="comment" data-author="Sam" data-date="2026-10-15T14:05:30Z">Second thread.</p>
+</aside>
+</section>
+</article>
+</body>
+</html>
