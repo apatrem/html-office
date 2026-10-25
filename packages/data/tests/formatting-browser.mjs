@@ -60,12 +60,12 @@ async function richCopyPaste(page, from, to) {
       .dispatchEvent(
         new ClipboardEvent("copy", { clipboardData: data, bubbles: true }),
       );
-    return data.getData("application/x-html-office-range+json");
+    return data.getData("application/x-html-office+json");
   });
   await jump(page, to);
   await page.evaluate((json) => {
     const data = new DataTransfer();
-    data.setData("application/x-html-office-range+json", json);
+    data.setData("application/x-html-office+json", json);
     document
       .getElementById("grid")
       .dispatchEvent(

@@ -68,3 +68,19 @@ jobs:
             dist/data-bench/ci-results.json
             dist/data-bench/browser-results.json
             dist/data-bench/profiles/*.cpuprofile
+
+  clipboard-engines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Inert clipboard parsing and paste events in Chromium, Firefox and WebKit (ADR-013 X02a)
+        run: node tests/clipboard-engines.mjs

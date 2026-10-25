@@ -1243,6 +1243,11 @@ const clipboard = setupClipboard({
   apply,
   status,
   cancel: () => $("cancel").click(),
+  // As for the picture: copied results are marked stale in the envelope.
+  isStale: (formulas) =>
+    pendingEdits.length > 0 ||
+    (formulas &&
+      !(book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint))),
 });
 let gridLines = true;
 const idle = () => !loading,
