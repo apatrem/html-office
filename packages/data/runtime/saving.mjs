@@ -1,5 +1,5 @@
 import { readModel, writeModel } from "./document-model.mjs";
-import { DirtyState, FileWriter, digestText } from "./persistence.mjs";
+import { DirtyState, FileWriter, digestText } from "../../shared/persistence.mjs";
 import { RecoveryClient } from "./recovery.mjs";
 import {
   overlayDraft,

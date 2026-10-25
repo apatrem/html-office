@@ -61,7 +61,7 @@ Requested by the user on 22 October 2026. Decisions land in [ADR-011](decisions/
   - The settings bar has no theme, font or zoom yet: theme and font come with TH02, and zoom is not a command Slides has.
   - Size: the standard engine grows from 375,094 to 398,471 bytes (121,292 to 129,032 gzip). Data-only panel styles moved to [`panels.css`](../packages/shared/shell/panels.css) so Slides does not carry them; the Data P&L's application code grows from 454,195 to 457,118 bytes (the Slides icons in the shared set).
   - The version stays 0.7.1; the committed example decks are regenerated with this engine (the bump happens at release).
-- **U04-Text**: build the editor on the module when Text starts.
+- **U04-Text** — started 25 October 2026 with Text T03 on `feature/text-t03-editor`: a file bar (product mark, title, save state, File/Edit/Help menus, Save, the narrow ☰ menu) and a toolbar with history only, since T03 ships no other working command. Formatting, insert, comments and outline panels and the settings bar join with the Text tasks that make them work (T04–T13). Screen-reader, Safari and Firefox passes are open as for the other products.
 - Gates as in each product plan: browser, keyboard, size and performance. Add a screen-reader pass (VoiceOver or NVDA) and Safari and Firefox runs, which R06 did not cover.
 
 ## X — Cross-product copy and paste

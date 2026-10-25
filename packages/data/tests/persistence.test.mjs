@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FileWriter, DirtyState, digestText } from "../runtime/persistence.mjs";
+import { FileWriter, DirtyState, digestText } from "../../shared/persistence.mjs";
 
 function file(initial = "old") {
   let contents = initial,

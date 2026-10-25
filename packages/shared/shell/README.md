@@ -26,4 +26,4 @@ Rules the components enforce:
 
 The built-in chartes the theme picker offers live in [`../themes/chartes.mjs`](../themes/chartes.mjs) (TH01): token sets applied as `:root[data-theme=…]` overlays, never rewriting a document's own charte.
 
-Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05) and [html-slides](../../../src/engine/shell.js) (U04-Slides; commands in [`commands.js`](../../../src/engine/commands.js)). Text (U04-Text) follows.
+Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05) and [html-slides](../../../src/engine/shell.js) (U04-Slides; commands in [`commands.js`](../../../src/engine/commands.js)). [html-text](../../text/runtime/shell.mjs) (U04-Text, from Text T03). Local-file saving is shared too: [`../persistence.mjs`](../persistence.mjs).
