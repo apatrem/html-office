@@ -19,8 +19,10 @@ Table adapters are lossless: `fromRows(toRows(d))` returns every per-item field,
 | `bubble` | Name, X, Y, Size |
 | `gantt` | Task, Start, End, Group, Highlight (y/n) |
 
-ECharts loads from the CDN with SRI only when a chart must be drawn or edited. Offline builds embed the same verified bytes as `script#echarts`; saved SVG previews display and print without it.
+ECharts loads from the CDN with SRI only when a chart must be drawn or edited. Offline builds embed the same verified bytes: Slides as an executable `script#echarts`, Data as inert text (`script#echarts-source`) run only when a chart is first drawn or edited. Saved SVG previews display and print without it.
 
 Moving the module out of `src/` left the Slides engine byte-identical (first X03 commit). `src/engine/model.js` still re-exports the ECharts constants so the bundle keeps its module order.
+
+Used by: html-slides (`src/engine/`) and html-data (`packages/data/runtime/charts.mjs`, T18: bindings over typed ranges, saved previews, lazy instances). Text (T11) follows.
 
 Follow-up: chart numbers are formatted in `en-US` only (`types/common.mjs`); a document `locale` option is not implemented yet.

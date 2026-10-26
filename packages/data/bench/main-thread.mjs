@@ -28,13 +28,14 @@ const report = {
 try {
   for (const id of ["pnl", "100000x2-scans"]) {
     const file = resolve(`dist/data-bench/${id}-main.html`),
-      html = await readFile(resolve(`dist/data-bench/${id}.html`), "utf8");
+      html = await readFile(resolve(`dist/data-bench/${id}.html`), "utf8"),
+      // The last </body>: embedded scripts (ECharts) may contain the text.
+      end = html.lastIndexOf("</body>");
     await writeFile(
       file,
-      html.replace(
-        "</body>",
-        `<script type="module">${source}</script></body>`,
-      ),
+      html.slice(0, end) +
+        `<script type="module">${source}</script>` +
+        html.slice(end),
     );
     const page = await browser.newPage();
     page.setDefaultTimeout(180000);

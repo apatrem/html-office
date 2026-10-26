@@ -83,3 +83,12 @@ dialog:not(.sh-dialog){max-width:min(900px,94vw);border:1px solid var(--border);
 .pv .pv-filter{border:1px solid var(--sh-line,#ccd);border-radius:6px;margin:6px 0;padding:4px 8px}.pv .pv-filter legend{font-size:11.5px}
 .pv .pv-items{display:flex;flex-direction:column;gap:2px;max-height:168px;overflow:auto;font-size:12px;margin:4px 0}.pv .pv-items label{display:flex;gap:6px;align-items:center}
 .pv .pv-state{font-size:12px;margin:6px 0;padding:6px 8px;border-radius:6px;background:color-mix(in srgb,var(--acc,#2563eb) 8%,transparent)}.pv .pv-state[data-state=stale],.pv .pv-state[data-state=error],.pv .pv-state[data-state=unverified]{background:color-mix(in srgb,var(--alert,#b42318) 12%,transparent)}
+.chart-layer{position:absolute;top:0;left:0;width:0;height:0;z-index:1}
+.data-chart{position:absolute;margin:0;box-sizing:border-box;padding:8px;background:var(--bg,#fff);border:0;box-shadow:0 0 0 1px var(--grid-line),0 1px 3px rgb(0 0 0/.12);font-family:var(--font,inherit);outline:0;overflow:hidden}
+.data-chart.selected,.data-chart:focus-visible{box-shadow:0 0 0 2px var(--select)}
+.data-chart-head{height:auto}.data-chart-title{margin:0;height:24px;line-height:22px;font-weight:bold;color:var(--ink);border-bottom:1px solid var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.data-chart-unit{margin:0;height:18px;line-height:18px;font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.data-chart-plot{position:relative}.data-chart-plot img{display:block;width:100%;height:100%}
+.data-chart-msg{margin:0;padding:12px;font-size:12.5px;color:var(--t2)}
+.data-chart-badge{position:absolute;right:8px;bottom:6px;margin:0;padding:2px 8px;display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--sh-warn,#8a5a00);background:#fff8e6;border:1px solid #f0d77a;border-radius:3px}
+.data-chart-badge .sh-b{min-height:0;padding:0 6px;font-size:11.5px}
+@media print{.data-chart{box-shadow:0 0 0 1px var(--grid-line)}.data-chart.selected{box-shadow:0 0 0 1px var(--grid-line)}.data-chart-badge button{display:none}}
