@@ -1,20 +1,69 @@
 // Variant A shell of html-text (ADR-011 §7, U04-Text), from the shared native components:
 // a file bar with menus and Save, and one toolbar. It starts with the commands T03 makes work;
 // each later task adds its own (a released shell never shows an inert command).
-import { h, button } from "../../shared/shell/dom.mjs";
+import { h, button, icon } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group } from "../../shared/shell/toolbar.mjs";
-import { modal } from "../../shared/shell/dialogs.mjs";
+import { modal, linkDialog, checkUrl } from "../../shared/shell/dialogs.mjs";
+import { STYLES } from "../editor/commands.mjs";
 import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
 import { documentBody, choices } from "../../shared/shell/panels.mjs";
 
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k) => (mac ? "⌘" : "Ctrl+") + k;
+const alt = (k) => (mac ? "⌘⌥" : "Ctrl+Alt+") + k;
 const SHORTCUTS = [
   [() => (window.showSaveFilePicker ? "Save" : "Save a copy"), key("S")],
   ["Undo", key("Z")],
   ["Redo", `${key("Shift+Z")} or ${key("Y")}`],
   ["New paragraph", "Enter"],
+  ["Body text", alt("0")],
+  ["Heading 1 to 4", `${alt("1")} to ${alt("4")}`],
+  ["Bold, italic, underline", `${key("B")}, ${key("I")}, ${key("U")}`],
+  ["Highlight", key("Shift+H")],
+  ["Superscript, subscript", `${key(".")}, ${key(",")}`],
+  ["Inline code", key("E")],
+  ["Link", key("K")],
+  ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
+  ["List level down, up", "Tab, Shift+Tab"],
+  ["Page break", key("Enter")],
+];
+// Toolbar glyphs for commands without a shared icon (20 × 20, as shared/shell/icons.mjs).
+const svg = (paths) =>
+  `<svg class="sh-ic" viewBox="0 0 20 20" aria-hidden="true" focusable="false">${paths}</svg>`;
+const GLYPHS = {
+  bold: "<b>B</b>",
+  italic: "<i>I</i>",
+  underline: "<u>U</u>",
+  highlight: svg('<path d="m11 4 5 5-6 6H6v-4z"/><path d="M4 17.5h12"/>'),
+  superscript: "x<sup>2</sup>",
+  subscript: "x<sub>2</sub>",
+  code: svg('<path d="m7 6-4 4 4 4M13 6l4 4-4 4"/>'),
+  bullets: svg(
+    '<circle cx="4" cy="6" r=".8"/><circle cx="4" cy="10" r=".8"/><circle cx="4" cy="14" r=".8"/><path d="M8 6h9M8 10h9M8 14h9"/>',
+  ),
+  numbers: svg(
+    '<path d="M3 4.5h1.2v3.5M3 12.3c.4-.9 2.4-.9 2.4.3 0 1-2.4 1.5-2.4 2.4h2.6M9 6h8M9 10h8M9 14h8"/>',
+  ),
+  outdent: svg('<path d="M3 4h14M9 8h8M9 12h8M3 16h14M6 8l-3 2 3 2"/>'),
+  indent: svg('<path d="M3 4h14M9 8h8M9 12h8M3 16h14M3 8l3 2-3 2"/>'),
+  justify: svg('<path d="M3 5h14M3 9h14M3 13h14M3 17h14"/>'),
+};
+const STYLE_NAMES = Object.fromEntries(STYLES);
+const MARK_ITEMS = [
+  ["bold", "Bold", key("B")],
+  ["italic", "Italic", key("I")],
+  ["underline", "Underline", key("U")],
+  ["highlight", "Highlight", key("Shift+H")],
+  ["superscript", "Superscript", key(".")],
+  ["subscript", "Subscript", key(",")],
+  ["code", "Inline code", key("E")],
+];
+const ALIGN_ITEMS = [
+  ["align-left", "Align left", null],
+  ["align-center", "Center", "ta-c"],
+  ["align-right", "Align right", "ta-r"],
+  ["justify", "Justify", "ta-j"],
 ];
 
 // "document": what style#theme sets when the article has no data-page or data-margins.
@@ -59,7 +108,8 @@ function shortcuts(opener) {
 }
 
 // look(): the document's attributes (theme, font, page, margins; null when absent).
-export function mountShell(cmd, saving, report, look) {
+// editing(): the selection's style, marks, alignment, list, new-page and link (T06).
+export function mountShell(cmd, saving, report, look, editing) {
   const binds = [];
   const item = (label, id, extra = {}) => ({
     label,
@@ -96,6 +146,54 @@ export function mountShell(cmd, saving, report, look) {
       ],
     },
     {
+      name: "Insert",
+      items: () => [
+        item("Link…", "link", { shortcut: key("K") }),
+        item("Remove link", "unlink"),
+        "-",
+        item("Page break", "page-break", { shortcut: key("Enter") }),
+      ],
+    },
+    {
+      name: "Format",
+      items: () => {
+        const c = editing();
+        return [
+          { heading: "Paragraph style" },
+          ...styleItems(c),
+          "-",
+          { heading: "Text" },
+          ...MARK_ITEMS.map(([id, label, shortcut]) =>
+            item(label, id, { shortcut, checked: c.marks[id] }),
+          ),
+          "-",
+          { heading: "Alignment" },
+          ...ALIGN_ITEMS.map(([id, label, value]) =>
+            item(label, id, {
+              checked: c.align !== undefined && c.align === value,
+              radio: true,
+            }),
+          ),
+          "-",
+          { heading: "Lists" },
+          item("Bulleted list", "bullets", {
+            shortcut: key("Shift+8"),
+            checked: c.list === "bullet_list",
+          }),
+          item("Numbered list", "numbers", {
+            shortcut: key("Shift+7"),
+            checked: c.list === "ordered_list",
+          }),
+          item("Increase list level", "indent", { shortcut: "Tab" }),
+          item("Decrease list level", "outdent", { shortcut: "Shift+Tab" }),
+          "-",
+          item("Start on a new page", "new-page", {
+            checked: c.newPage === true,
+          }),
+        ];
+      },
+    },
+    {
       name: "Help",
       items: () => [
         {
@@ -124,6 +222,30 @@ export function mountShell(cmd, saving, report, look) {
         cls: "sh-primary",
         title: `Download a complete copy of this document (${key("S")}); this browser cannot save to the opened file`,
       });
+  // The paragraph style: a menu button showing the current style.
+  const styleItems = (c) =>
+    STYLES.map(([id, label]) =>
+      item(label, `style-${id}`, { checked: c.style === id, radio: true }),
+    );
+  const styleLabel = h("span", { class: "sh-lbl" }, "Body");
+  const styleButton = menuButton(
+    button({
+      label: "Paragraph style",
+      text: "Body",
+      caret: true,
+      cls: "tx-style",
+      title: "Paragraph style",
+    }),
+    () => styleItems(editing()),
+    "Paragraph style",
+  );
+  styleButton.querySelector(".sh-lbl").replaceWith(styleLabel);
+  const pressed = [];
+  const toggle = (id, label, glyph, title, isOn) => {
+    const b = add(id, { label, glyph, title, pressed: false });
+    pressed.push([b, isOn]);
+    return b;
+  };
   const bar = toolbar(
     "Document",
     group(
@@ -135,7 +257,73 @@ export function mountShell(cmd, saving, report, look) {
         title: `Redo (${key("Shift+Z")})`,
       }),
     ),
+    group("Style", styleButton),
+    group(
+      "Text",
+      ...MARK_ITEMS.map(([id, label, shortcut]) =>
+        toggle(
+          id,
+          label,
+          GLYPHS[id],
+          `${label} (${shortcut})`,
+          (c) => c.marks[id],
+        ),
+      ),
+    ),
+    group(
+      "Link",
+      toggle("link", "Link", null, `Link (${key("K")})`, (c) => !!c.link),
+    ),
+    group(
+      "Lists",
+      toggle(
+        "bullets",
+        "Bulleted list",
+        GLYPHS.bullets,
+        "Bulleted list",
+        (c) => c.list === "bullet_list",
+      ),
+      toggle(
+        "numbers",
+        "Numbered list",
+        GLYPHS.numbers,
+        "Numbered list",
+        (c) => c.list === "ordered_list",
+      ),
+      add("outdent", {
+        label: "Decrease list level",
+        glyph: GLYPHS.outdent,
+        title: "Decrease list level (Shift+Tab)",
+      }),
+      add("indent", {
+        label: "Increase list level",
+        glyph: GLYPHS.indent,
+        title: "Increase list level (Tab)",
+      }),
+    ),
+    group(
+      "Alignment",
+      ...ALIGN_ITEMS.map(([id, label, value]) =>
+        toggle(
+          id,
+          label,
+          GLYPHS[id],
+          label,
+          (c) => c.align !== undefined && c.align === value,
+        ),
+      ),
+    ),
   );
+  // The link button has the shared icon; the alignment buttons too, except Justify.
+  for (const [b, id] of binds) {
+    const ic = {
+      link: "link",
+      "align-left": "alignL",
+      "align-center": "alignC",
+      "align-right": "alignR",
+    }[id];
+    if (ic) b.prepend(icon(ic));
+  }
   const top = h(
     "div",
     { class: "sh-root tx-shell" },
@@ -324,6 +512,18 @@ export function mountShell(cmd, saving, report, look) {
         parseFloat(cs.paddingRight);
       text(width, `Text width ${Math.round((px * 25.4) / 96)} mm`);
     }
+    const e = editing();
+    for (const [b, isOn] of pressed)
+      b.setAttribute("aria-pressed", String(!!isOn(e)));
+    text(
+      styleLabel,
+      STYLE_NAMES[e.style] ??
+        (e.style === "list"
+          ? "List"
+          : e.style === "cover"
+            ? "Cover line"
+            : "—"),
+    );
     status.dataset.state = saving.busy ? "saving" : saving.state;
     text(
       status,
@@ -393,7 +593,22 @@ export function mountShell(cmd, saving, report, look) {
     });
     restoreButton.focus();
   }
-  return { recover };
+  // The link dialog: web and email addresses (FORMAT.md › Inline content).
+  function link(href, back) {
+    linkDialog({
+      initial: href ? { url: href } : null,
+      check: ({ url }) =>
+        checkUrl(url) || /[\s<>"]/.test(url.trim())
+          ? checkUrl(url) ||
+            "Spaces, quotes and angle brackets must be encoded (%20…)."
+          : "",
+      onSave: ({ url }) => cmd.run("set-link", url.trim()),
+      onRemove: () => cmd.run("unlink-quiet"),
+      // Focus returns through the editor, which puts its selection back.
+      opener: { isConnected: true, focus: back },
+    });
+  }
+  return { recover, link };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

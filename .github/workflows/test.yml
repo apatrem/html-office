@@ -132,3 +132,7 @@ jobs:
         run: node packages/text/tests/saving-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Edit blocks, lists, formatting and links in Firefox and WebKit (Text T06)
+        run: node packages/text/tests/editing-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

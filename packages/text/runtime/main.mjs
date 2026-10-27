@@ -1,13 +1,14 @@
 // html-text editor bootstrap (T03). The file's own nodes are captured before anything else runs;
 // article#doc is validated with the same rules as tools/check.mjs, then edited with ProseMirror.
 // Saving writes the captured zones unchanged and article#doc from the editor's document.
-import { EditorState } from "prosemirror-state";
+import { EditorState, TextSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
 import {
   baseKeymap,
   chainCommands,
+  toggleMark,
   newlineInCode,
   createParagraphNear,
   liftEmptyBlock,
@@ -27,6 +28,7 @@ import {
 } from "../editor/schema/document.mjs";
 import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
+import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { mountShell, refusal } from "./shell.mjs";
@@ -36,9 +38,10 @@ import drawerCSS from "../../shared/shell/drawer.css";
 import panelsCSS from "../../shared/shell/panels.css";
 import editorCSS from "./style.css";
 
-// Enter as in baseKeymap, except: a heading split at its end continues with a paragraph (the
-// guard gives a heading split in the middle a fresh ID), and nothing splits inside a footnote or
-// a table cell, whose text stays one paragraph (FORMAT.md).
+// Enter as in baseKeymap, except: a list item splits into items (an empty one leaves its level);
+// a heading split at its end continues with a paragraph (the guard gives a heading split in the
+// middle a fresh ID), as do the cover's title and subtitle; nothing splits inside a footnote or a
+// table cell, whose text stays one paragraph (FORMAT.md).
 const inside = (types) => (state) => {
   const { $from } = state.selection;
   for (let d = $from.depth; d >= 0; d--)
@@ -48,14 +51,35 @@ const inside = (types) => (state) => {
 const enter = chainCommands(
   newlineInCode,
   inside(["footnote", "table_cell", "table_header"]),
+  E.splitListItem,
   createParagraphNear,
   liftEmptyBlock,
   splitBlockAs((node, atEnd) =>
-    node.type === schema.nodes.heading && atEnd
+    (node.type === schema.nodes.heading && atEnd) ||
+    node.type === schema.nodes.title ||
+    node.type === schema.nodes.subtitle
       ? { type: schema.nodes.paragraph }
       : null,
   ),
 );
+const M = schema.marks,
+  N = schema.nodes;
+// Inline marks: command ID, mark, label, shortcut key.
+export const MARKS = [
+  ["bold", M.strong, "Bold", "Mod-b"],
+  ["italic", M.em, "Italic", "Mod-i"],
+  ["underline", M.u, "Underline", "Mod-u"],
+  ["highlight", M.highlight, "Highlight", "Mod-Shift-h"],
+  ["superscript", M.sup, "Superscript", "Mod-."],
+  ["subscript", M.sub, "Subscript", "Mod-,"],
+  ["code", M.code, "Inline code", "Mod-e"],
+];
+const ALIGNS = [
+  ["align-left", null],
+  ["align-center", "ta-c"],
+  ["align-right", "ta-r"],
+  ["justify", "ta-j"],
+];
 
 // The file is captured while this script runs: as the classic script#engine, last element of the
 // file, everything before it is parsed and nothing added later (by the editor, an extension…)
@@ -159,6 +183,21 @@ function start() {
         "Mod-z": undo,
         "Mod-y": redo,
         "Shift-Mod-z": redo,
+        ...Object.fromEntries(
+          MARKS.map(([, type, , k]) => [k, toggleMark(type)]),
+        ),
+        "Mod-Alt-0": E.setStyle("body"),
+        ...Object.fromEntries(
+          [1, 2, 3, 4].map((n) => [`Mod-Alt-${n}`, E.setStyle(`h${n}`)]),
+        ),
+        "Mod-Shift-8": E.toggleList(N.bullet_list),
+        "Mod-Shift-7": E.toggleList(N.ordered_list),
+        // In a list Tab changes the level, and never leaves the document.
+        Tab: (s, d) => E.inList(s) && (E.indent(s, d), true),
+        "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
+        "Mod-Enter": E.insertPageBreak,
+        "Mod-k": () => (commands.run("link"), true),
+        Backspace: E.liftListItem,
         "Mod-s": () => (
           commands.run(saving.direct ? "save" : "save-copy"),
           true
@@ -171,6 +210,9 @@ function start() {
     { mount: article },
     {
       state,
+      // The caret is kept clear of the sticky file bar and the floating settings bar.
+      scrollMargin: { top: 110, bottom: 90, left: 5, right: 5 },
+      scrollThreshold: { top: 110, bottom: 90, left: 0, right: 0 },
       attributes: (state) => ({
         "aria-label": "Document",
         spellcheck: "true",
@@ -193,13 +235,90 @@ function start() {
     );
   commands.register("save-copy", () => saving.saveCopy());
   commands.register("print", () => window.print());
+  // Editing commands (T06): enabled where they apply; run from the chrome, they return the
+  // keyboard to the document.
+  const edit = (id, command) =>
+    commands.register(
+      id,
+      () => {
+        command(view.state, view.dispatch, view);
+        view.focus();
+      },
+      () => command(view.state),
+    );
+  for (const [style] of E.STYLES) edit(`style-${style}`, E.setStyle(style));
+  for (const [id, type] of MARKS) edit(id, toggleMark(type));
+  for (const [id, value] of ALIGNS) edit(id, E.setAlign(value));
+  edit("bullets", E.toggleList(N.bullet_list));
+  edit("numbers", E.toggleList(N.ordered_list));
+  edit("indent", E.indent);
+  edit("outdent", E.outdent);
+  edit("page-break", E.insertPageBreak);
+  edit("new-page", E.toggleNewPage);
+  edit("unlink", E.removeLink);
+  commands.register("unlink-quiet", () =>
+    E.removeLink(view.state, view.dispatch),
+  );
+  // The link dialog asks for the address; set-link applies it.
+  commands.register(
+    "set-link",
+    // Run from the link dialog, which hands focus back through "focus" once it has closed:
+    // focusing the editor behind a modal dialog would move the selection (Safari).
+    (href) => E.setLink(href)(view.state, view.dispatch),
+    () => true,
+  );
+  // The dialog gives focus back through `back`: a native dialog refocuses the article first,
+  // which resets the caret in Safari, so the selection is put back (links move no position).
+  commands.register(
+    "link",
+    () => {
+      const { anchor, head } = view.state.selection;
+      shell.link(E.linkAt(view.state), () => {
+        const size = view.state.doc.content.size;
+        const at = (p) => Math.min(p, size);
+        view.dispatch(
+          view.state.tr.setSelection(
+            TextSelection.create(view.state.doc, at(anchor), at(head)),
+          ),
+        );
+        view.focus();
+      });
+    },
+    () => {
+      const { empty } = view.state.selection;
+      return (
+        (!empty || !!E.linkAt(view.state)) &&
+        E.setLink("https://a.b")(view.state)
+      );
+    },
+  );
   commands.register("undo", run(undo), () => undo(view.state));
   commands.register("redo", run(redo), () => redo(view.state));
   for (const key of ["theme", "font", "page", "margins"])
     commands.register(key, (value) =>
       setLook(key, value)(view.state, view.dispatch),
     );
-  shell = mountShell(commands, saving, report, () => view.state.doc.attrs);
+  // What the toolbar and menus show as current.
+  const current = () => {
+    const s = view.state;
+    return {
+      style: E.styleAt(s),
+      marks: Object.fromEntries(
+        MARKS.map(([id, type]) => [id, E.markActive(s, type)]),
+      ),
+      align: E.alignAt(s),
+      list: E.listKind(s)?.name ?? null,
+      newPage: E.newPageAt(s),
+      link: E.linkAt(s),
+    };
+  };
+  shell = mountShell(
+    commands,
+    saving,
+    report,
+    () => view.state.doc.attrs,
+    current,
+  );
   mirrorLook(doc);
   document.body.classList.add("tx-editing");
   // Tests and tools read the editor through this handle; it is not part of the file.

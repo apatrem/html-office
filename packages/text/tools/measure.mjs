@@ -33,6 +33,7 @@ const OURS = {
   "Serialiser (document to HTML)": "./editor/schema/serialize.mjs",
   "File layout": "./model/file.mjs",
   "Editing guard": "./editor/schema/guard.mjs",
+  "Editing commands": "./editor/commands.mjs",
 };
 
 async function bundle(contents, external = []) {

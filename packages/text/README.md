@@ -11,6 +11,7 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `model/validate.mjs` | Validator: errors, protected blocks and warnings |
 | `model/file.mjs` | File layout of the canonical form: one zone per line, article#doc from the editor |
 | `editor/schema/` | ProseMirror schema of the subset, parser (tree to document), serialiser (document to canonical HTML), `document.mjs` (validated open, save, read-back check) and `guard.mjs` (keeps links off footnotes and cross-references while editing) (T02) |
+| `editor/commands.mjs` | Editing commands (T06): paragraph styles, lists, marks, links, alignment, page breaks, stable heading IDs |
 | `runtime/` | The editor (T03): bootstrap (`main.mjs`), variant A shell (`shell.mjs`, shared components, document settings), theme, font, page and margins (`look.mjs`, T04), saving and draft recovery through `packages/shared/persistence.mjs` (`saving.mjs`, T05), editor-only CSS |
 | `theme/` | Default look (T04): `layout.css` is the default `style#theme` (page format, margins, type scale, blocks, tables); `index.mjs` gives it and the default charte to tools and tests |
 | `tools/build.mjs` | `node tools/build.mjs <document.html> [<output.html>] [--json]`: builds the editor with its notices into `script#engine` and reports bytes by zone |
