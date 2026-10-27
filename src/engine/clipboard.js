@@ -73,28 +73,33 @@ function cellContent(cell, base) {
 }
 const alignOf = cl => (cl.contains('ta-l') ? 'left' : cl.contains('ta-c') ? 'center' : cl.contains('ta-r') || cl.contains('n') ? 'right' : undefined);
 
-// Formatting classes of the element holding the table (the editor's toolbar sets them there)
-// apply to every cell: bold, italic, text colour, alignment and fill.
-function elementLook(table) {
-  const classes = new Set([...table.classList, ...(table.closest('section.slide > *')?.classList || [])]);
-  const look = {}, token = prefix => [...classes].find(c => c.startsWith(prefix))?.slice(prefix.length);
-  if (classes.has('t-bold')) look.bold = true;
-  if (classes.has('t-italic')) look.italic = true;
-  if (token('c-')) look.color = token('c-');
-  const align = { l: 'left', c: 'center', r: 'right' }[token('ta-')], fill = token('bg-');
-  return { look, align, fill: fill && fill !== 'none' ? fill : undefined };
+// Formatting classes on the element holding the table (the editor's toolbar sets them there), on a
+// row or on a cell: bold, italic, text colour, alignment and fill, the nearest one winning. Header
+// cells have their own colour and alignment in the theme, so they inherit only bold, italic and fill.
+const LOOK = { bold: c => (c.contains('t-bold') ? true : undefined), italic: c => (c.contains('t-italic') ? true : undefined),
+  color: c => [...c].find(x => x.startsWith('c-'))?.slice(2), align: c => alignOf(c),
+  fill: c => [...c].find(x => x.startsWith('bg-'))?.slice(3) };
+function lookOf(a, levels) {
+  const own = a.cell.classList, look = {};
+  for (const [key, read] of Object.entries(LOOK)) {
+    const inherited = !(a.cell.localName === 'th' && (key === 'color' || key === 'align'));
+    for (const c of [own, ...(inherited ? levels : [])]) { const v = read(c); if (v !== undefined) { look[key] = v; break; } }
+  }
+  if (look.fill === 'none') delete look.fill;
+  return look;
 }
 
 export function tableModel(table) {
-  const g = tableGrid(table), element = elementLook(table);
+  const g = tableGrid(table), host = table.closest('section.slide > *');
   if (!g.width) throw new ClipboardError('the table is empty');
   const rows = g.rows.map((tr, r) => Array.from({ length: g.width }, (_, c) => {
     const a = g.slots[r][c];
     if (!a) return null;
     if (a.r !== r || a.c !== c) return { covered: true };
-    const th = a.cell.localName === 'th', align = alignOf(a.cell.classList) || element.align, slot = cellContent(a.cell, element.look);
+    const th = a.cell.localName === 'th', { align, fill, ...look } = lookOf(a, [tr.classList, table.classList, ...(host && host !== table ? [host.classList] : [])]);
+    const slot = cellContent(a.cell, look);
     if (!slot.text && !th && !align && a.rs === 1 && a.cs === 1) return null;
-    if (element.fill) slot.fill = element.fill;
+    if (fill) slot.fill = fill;
     if (th) slot.header = true;
     if (a.cs > 1) slot.colspan = a.cs;
     if (a.rs > 1) slot.rowspan = a.rs;
@@ -198,6 +203,7 @@ export function readPaste(data, options = {}) {
   else if (read.source === 'table') { table = validateTable(read.table); dropped = read.dropped?.links ?? 0; }
   else if (read.source === 'text' && read.text.includes('\t')) {
     const rows = fromTSV(read.text, { maxCells: LIMIT.rows * LIMIT.columns });
+    if (rows.length > LIMIT.rows || rows[0].length > LIMIT.columns) throw tooLarge();
     table = validateTable({ rows: rows.map(row => row.map(text => (text ? { text } : null))) });
   } else return null;
   if (table.rows.length > LIMIT.rows || table.rows[0].length > LIMIT.columns) throw tooLarge();

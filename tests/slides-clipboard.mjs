@@ -148,13 +148,19 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       const menuCopy = await copy(a, '#s90 > table', 'menu');
       ok(JSON.stringify(menuCopy) === JSON.stringify(flavours), `${where}: Edit › Copy writes the same flavours`);
       if (where === 'file://') {
-        // Formatting set on the whole table by the toolbar reaches every cell.
-        await a.evaluate(() => document.querySelector('#s90 > table').classList.add('t-bold', 'c-alert', 'bg-tint', 'ta-c'));
+        // Formatting set on the whole table (by the toolbar) or on a row reaches its cells; header
+        // cells keep their own colour and alignment, as the theme draws them.
+        await a.evaluate(() => { const t = document.querySelector('#s90 > table'); t.classList.add('t-bold', 'c-alert', 'bg-tint', 'ta-c'); t.rows[3].classList.add('t-italic', 'c-acc'); });
         const styled = JSON.parse((await copy(a, '#s90 > table'))[MIME]).table.rows;
-        await a.evaluate(() => document.querySelector('#s90 > table').classList.remove('t-bold', 'c-alert', 'bg-tint', 'ta-c'));
-        ok(JSON.stringify(styled[2][0]) === '{"text":"Revenue growth","bold":true,"color":"alert","fill":"tint","align":"center"}' &&
-          JSON.stringify(styled[2][1]) === '{"text":"120","bold":true,"color":"alert","fill":"tint","align":"right"}',
-          'table-level bold, colour, fill and alignment are copied into the cells (a cell class wins)\n      ' + JSON.stringify(styled[2].slice(0, 2)));
+        await a.evaluate(() => { const t = document.querySelector('#s90 > table'); t.classList.remove('t-bold', 'c-alert', 'bg-tint', 'ta-c'); t.rows[3].removeAttribute('class'); });
+        const got = JSON.stringify([styled[0][1], styled[1][1], styled[2][0], styled[2][1], styled[3][2]]);
+        ok(got === JSON.stringify([
+          { text: 'Hours', bold: true, fill: 'tint', header: true, colspan: 2, align: 'center' },
+          { text: 'Spring', bold: true, fill: 'tint', header: true, align: 'right' },
+          { text: 'Revenue growth', bold: true, color: 'alert', fill: 'tint', align: 'center' },
+          { text: '120', bold: true, color: 'alert', fill: 'tint', align: 'right' },
+          { text: '0012', bold: true, italic: true, color: 'acc', fill: 'tint', align: 'right' }]),
+          'table and row formatting reach the cells (the nearest wins; headers keep their colour and alignment)\n      ' + got);
         const groups = JSON.parse((await copy(a, '#s91 > table'))[MIME]).table;
         ok(JSON.stringify(groups.rows.map(r => r.map(c => c?.text))) === '[["A","B"],["c","d"]]' && !groups.rows[0][0].rowspan,
           `a rowspan does not leave its row group (${JSON.stringify(groups.rows)})`);

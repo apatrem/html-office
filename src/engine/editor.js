@@ -533,9 +533,11 @@ function disarmClipboard() {
   proxy.blur();
   getSelection().removeAllRanges();
 }
+// Fields, panels, menus and the drawer, or text selected anywhere, keep the browser's own copy.
+const ownClipboard = target => !!target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer') ||
+  (() => { const s = getSelection(); return s.rangeCount > 0 && !s.isCollapsed && !proxy.contains(s.anchorNode); })();
 function onCopy(e) {
-  // text selected in a panel or a field keeps the browser's own copy
-  if (editing || !editingMode() || !copyable() || e.target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer')) return;
+  if (editing || !editingMode() || !copyable() || ownClipboard(e.target)) return;
   e.preventDefault();
   disarmClipboard();
   try {
@@ -776,8 +778,10 @@ function onKey(e) {
   if (mod && k.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   // no preventDefault: the browser's own copy and paste fire the events (onCopy, onPaste)
-  if (mod && k.toLowerCase() === 'c' && copyable()) { armClipboard(); return; }
-  if (mod && k.toLowerCase() === 'v') { armClipboard(); return; }
+  if (mod && 'cv'.includes(k.toLowerCase()) && !ownClipboard(e.target)) {
+    if (k.toLowerCase() === 'v' || copyable()) armClipboard();
+    return;
+  }
   if (mod && k.toLowerCase() === 'd') { e.preventDefault(); duplicateSel(); return; }
   if (mod && k.toLowerCase() === 'b') { e.preventDefault(); bold(); return; }
   if (mod && k.toLowerCase() === 'i') { e.preventDefault(); italic(); return; }
