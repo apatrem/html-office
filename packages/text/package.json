@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser.mjs && node tests/look-browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/look-browser.mjs && node tests/saving-browser.mjs",
     "build": "node tools/build.mjs",
     "check": "node tools/check.mjs",
     "pack": "node tools/pack.mjs",

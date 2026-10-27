@@ -109,3 +109,26 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
       - name: Inert clipboard parsing and paste events in Chromium, Firefox and WebKit (ADR-013 X02a)
         run: node tests/clipboard-engines.mjs
+
+  text-engines:
+    runs-on: ubuntu-latest
+    # Installing two browsers with their system packages can take over 15 minutes on hosted runners.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/text/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix packages/text --ignore-scripts
+      - run: npx playwright install --with-deps firefox webkit
+      - name: Edit, save a copy and recover from file:// in Firefox and WebKit (Text T05)
+        run: node packages/text/tests/saving-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

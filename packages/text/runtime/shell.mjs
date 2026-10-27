@@ -11,7 +11,7 @@ import { documentBody, choices } from "../../shared/shell/panels.mjs";
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k) => (mac ? "⌘" : "Ctrl+") + k;
 const SHORTCUTS = [
-  ["Save", key("S")],
+  [() => (window.showSaveFilePicker ? "Save" : "Save a copy"), key("S")],
   ["Undo", key("Z")],
   ["Redo", `${key("Shift+Z")} or ${key("Y")}`],
   ["New paragraph", "Enter"],
@@ -41,7 +41,16 @@ function shortcuts(opener) {
       "table",
       { class: "tx-keys" },
       SHORTCUTS.map(([label, keys]) =>
-        h("tr", {}, h("th", { scope: "row" }, label), h("td", {}, keys)),
+        h(
+          "tr",
+          {},
+          h(
+            "th",
+            { scope: "row" },
+            typeof label === "function" ? label() : label,
+          ),
+          h("td", {}, keys),
+        ),
       ),
     ),
     [],
@@ -67,8 +76,12 @@ export function mountShell(cmd, saving, report, look) {
     {
       name: "File",
       items: () => [
-        item("Save", "save", { shortcut: key("S") }),
-        item("Save a copy", "save-copy"),
+        ...(cmd.has("save")
+          ? [
+              item("Save", "save", { shortcut: key("S") }),
+              item("Save a copy", "save-copy"),
+            ]
+          : [item("Save a copy", "save-copy", { shortcut: key("S") })]),
         "-",
         { label: "Document settings…", onSelect: () => openSettings() },
         "-",
@@ -95,13 +108,22 @@ export function mountShell(cmd, saving, report, look) {
   const title = document.title.trim() || "Document";
   const status = h("p", { role: "status" });
   const kept = h("p", {});
-  const save = add("save", {
-    label: "Save",
-    ic: "save",
-    text: "Save",
-    cls: "sh-primary",
-    title: `Save to file (${key("S")})`,
-  });
+  // Safari and Firefox cannot write the opened file: their primary action says what it does.
+  const save = cmd.has("save")
+    ? add("save", {
+        label: "Save",
+        ic: "save",
+        text: "Save",
+        cls: "sh-primary",
+        title: `Save to file (${key("S")})`,
+      })
+    : add("save-copy", {
+        label: "Save a copy",
+        ic: "save",
+        text: "Save a copy",
+        cls: "sh-primary",
+        title: `Download a complete copy of this document (${key("S")}); this browser cannot save to the opened file`,
+      });
   const bar = toolbar(
     "Document",
     group(
@@ -245,7 +267,9 @@ export function mountShell(cmd, saving, report, look) {
     const k = event.key.toLowerCase();
     const id =
       k === "s"
-        ? "save"
+        ? cmd.has("save")
+          ? "save"
+          : "save-copy"
         : event.target.closest?.("input, textarea, [contenteditable]")
           ? null
           : k === "z"
@@ -300,18 +324,88 @@ export function mountShell(cmd, saving, report, look) {
         parseFloat(cs.paddingRight);
       text(width, `Text width ${Math.round((px * 25.4) / 96)} mm`);
     }
+    status.dataset.state = saving.busy ? "saving" : saving.state;
     text(
       status,
-      saving.busy
-        ? "Saving…"
-        : saving.message || (saving.dirty ? "Unsaved changes" : ""),
+      saving.busy ? "Saving…" : saving.message || STATES[saving.state](saving),
     );
     save.classList.toggle("dirty", saving.dirty);
     bar.refresh?.(document.activeElement);
   }
   cmd.subscribe(sync);
   sync();
+
+  // A draft found on open: restore it (as a copy when the file changed since) or discard it.
+  // The choice cannot be dismissed, so a later draft never replaces this one unseen.
+  function recover({ date, asCopy, article, zones }, restore) {
+    const when = new Date(date);
+    const error = h("p", { class: "sh-err", role: "status" });
+    const restoreButton = h(
+      "button",
+      { type: "button", class: "sh-b sh-t sh-primary" },
+      asCopy ? "Restore as a copy" : "Restore draft",
+    );
+    const dialog = modal(
+      "Recover unsaved changes?",
+      [
+        h(
+          "p",
+          {},
+          `This browser kept a draft of unsaved changes to this document${isNaN(when) ? "" : `, last changed ${when.toLocaleString()}`}.`,
+        ),
+        h(
+          "p",
+          {},
+          asCopy
+            ? "The file has changed since the draft was made. Restored, the draft can only be saved to a new file or as a copy."
+            : "Restoring replaces the document shown with the draft. Nothing is written to the file until you save.",
+        ),
+        error,
+      ],
+      [
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => {
+              dialog.close("discard");
+              saving.discarded();
+            },
+          },
+          "Discard draft",
+        ),
+        h("span", { class: "sh-spacer" }),
+        restoreButton,
+      ],
+    );
+    dialog.addEventListener("cancel", (event) => event.preventDefault());
+    restoreButton.addEventListener("click", () => {
+      try {
+        restore({ article, zones });
+      } catch (e) {
+        error.textContent = `The draft cannot be restored: ${e.message}. Discard it to continue.`;
+        restoreButton.disabled = true;
+        return;
+      }
+      dialog.close("restore");
+      saving.restored({ asCopy });
+    });
+    restoreButton.focus();
+  }
+  return { recover };
 }
+
+// The state line when no action has just reported: saved, unsaved, draft kept, or copied.
+const STATES = {
+  saved: () => "No unsaved changes",
+  unsaved: (s) =>
+    s.recovery === "unavailable"
+      ? `Unsaved changes · no draft in this browser (${s.problem})`
+      : "Unsaved changes",
+  draft: () => "Unsaved changes · draft kept in this browser",
+  copied: () => "Copy downloaded · this file is not changed",
+};
 
 // Shown instead of the editor when the file fails validation; nothing is saved.
 export function refusal(report) {
