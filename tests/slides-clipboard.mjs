@@ -346,7 +346,10 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       await data.bringToFront();
       await jump('D1:F4');
       await data.evaluate(() => { globalThis.copied = null; });
-      await data.keyboard.press('ControlOrMeta+c');
+      // Firefox fires no copy event for a shortcut while nothing is selected or editable: Data's own
+      // keyboard copy is outside X02b, so its copy event is dispatched there.
+      if (name === 'firefox') await data.evaluate(() => document.getElementById('grid').dispatchEvent(clipEvent('copy', new DataTransfer())));
+      else await data.keyboard.press('ControlOrMeta+c');
       await data.locator('#status').filter({ hasText: 'Range copied' }).waitFor();
       lastCopy = await data.evaluate(() => globalThis.copied);
       await paste(b, 's05', 'keyboard');
