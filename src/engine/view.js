@@ -225,6 +225,7 @@ export function helpPanel() {
     ['Drag · handles', 'Move · resize (snapping; Alt = free; Shift = proportions)'],
     ['Arrow keys (Alt = 1 px)', 'Move by 8 px'],
     ['Cmd+Z · Cmd+Shift+Z', 'Undo · redo'],
+    ['Cmd+C · Cmd+V', 'Copy the selected table · paste a table (from a slide, Data, Excel, Sheets, Word or Docs) onto the current slide'],
     ['Cmd+D · Delete', 'Duplicate · delete the element'],
     ['Cmd+B · Cmd+I', 'Bold · italic'],
     ['Cmd+] · Cmd+[', 'Bring forward · send backward'],
@@ -337,6 +338,8 @@ body.hs-editing .hs-side{display:flex}
 .hs-keys td{padding:5px 8px;border-bottom:1px solid #eef2f5}
 .hs-keys td:first-child{font-weight:600;white-space:nowrap;width:40%}
 body.hs-editing main#deck > .slide.hs-focus{outline:2px solid #4F7FA3;outline-offset:3px}
+/* off-screen target of keyboard copy and paste (editor.js) */
+.hs-clip{position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0}
 .hs-banner{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:4100;background:#0B1C2C;color:#fff;border-radius:8px;
   padding:10px 14px;font:13px/1.4 system-ui,-apple-system,Arial,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.25)}
 .hs-banner button{font:inherit;background:#fff;color:#0B1C2C;border:0;border-radius:5px;padding:4px 10px;cursor:pointer}

@@ -91,6 +91,22 @@ Use shapes for processes, steps, and arrows on detached slides:
 
 Types, fields, and examples: CHARTS.md. Title/unit come from JSON. `pack` adds a cached `<svg class="render">` for offline viewing; never author or edit it by hand. JSON is authoritative. Within script JSON, escape `<` as `\u003c` to avoid a closing script tag.
 
+## Tables
+
+```html
+<table class="t w-8">
+  <tr><th rowspan="2">Plot</th><th class="ta-c" colspan="2">Hours</th></tr>
+  <tr><th class="n">Spring</th><th class="n">Summer</th></tr>
+  <tr><td>Raised beds</td><td class="n">120</td><td class="n">45</td></tr>
+  <tr class="tot"><td>Total</td><td class="n">120</td><td class="n">45</td></tr>
+</table>
+```
+
+- `th` cells form the header rows at the top; `td.n` and `th.n` are numbers (right-aligned); `tr.tot` is a total row, last.
+- Merged cells: `colspan` and `rowspan` take whole numbers from 1. Every row covers the same number of columns, and a merged cell neither extends past the last row nor overlaps another (checker).
+- Cell alignment: `ta-l`, `ta-c`, `ta-r` on a `th` or `td`. Inside cells: `<b>`, `<i>`, `<br>` and theme spans; slides have no links.
+- In the editor, Cmd/Ctrl+C copies a selected table for another deck, a Data workbook, Excel, Sheets, Word or Docs; Cmd/Ctrl+V adds a table copied from these to the current slide (at most 50 rows × 12 columns), built from its text and structure, never from its markup.
+
 ## Images
 
 `deck.mjs add-image deck.html image.png` adds an asset (recompressed to WebP if available) and returns its identifier:
@@ -142,4 +158,4 @@ Inert parsing precedes rendering. Active content, scripts outside permitted zone
 
 `--since` compares deletions, relative order, parents, layouts, detachment, coordinates, and rendered geometry (1.5 px tolerance). `--allow e12,e13` permits specified elements; `--allow s04` permits recomposing that slide. Keep a reference with stable identifiers.
 
-The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; an unknown deck `data-theme` or `data-font`; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.
+The checker rejects: unknown layouts/classes/shapes; active scripts except chart JSON; `on…` attributes, executable URLs, iframes/objects/embeds; external resources (`src` other than embedded images, `srcset`, `background`, `poster`, `ping`, SVG `href`, CSS `url()` other than `url(#…)`, `@import`); non-geometric styles, inline styled spans/fonts; non-theme span classes; an unknown deck `data-theme` or `data-font`; titles over two lines (three on covers); overflowing text, footer intrusion, or off-slide content; invalid charts or missing sources; merged table cells that extend past the table or overlap; images without alt/assets; duplicate `data-id`; and unpermitted changes against `--since`.

@@ -2,11 +2,13 @@
 // alignment, in-place text, theme formatting, data panel, keyboard.
 import Moveable from 'moveable';
 import Selecto from 'selecto';
-import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, undo, redo,
+import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, measure, undo, redo,
   setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
 import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches } from '../../packages/shared/charts/index.mjs';
 import { banner, present, go, ui } from './view.js';
+import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge } from './tables.js';
+import { copyTable, readPaste } from './clipboard.js';
 
 const GRID = 8;
 const CONTENT = { x: 64, y: 44, w: 1152, h: 624 };
@@ -380,56 +382,59 @@ export function insertShape(key) {
 }
 
 // ---------- tables: rows and columns ----------
-// Acts on the cell holding the caret (while typing), otherwise on the last row / column.
+// Acts on the cell holding the caret (while typing), otherwise on the last row / column. Merged
+// cells (colspan, rowspan) are kept: positions are grid positions (tables.js).
 function tableAt() {
   const host = editing ? editing.el : selection()[0];
   const table = host && tableOf(host);
-  if (!table) return null;
+  if (!table || !table.rows.length) return null; // empty table: nothing to act on
   const sel = getSelection();
   const anchor = editing && sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
   const cell = anchor && table.contains(anchor) ? (anchor.nodeType === 1 ? anchor : anchor.parentElement).closest('td, th') : null;
-  const rows = [...table.rows];
-  const row = cell ? cell.parentElement : rows[rows.length - 1];
-  if (!row) return null; // empty table: nothing to act on
-  return { host, table, sel, cell, rows, row, col: cell ? cell.cellIndex : row.cells.length - 1 };
+  const g = tableGrid(table);
+  const at = cell && g.anchors.find(a => a.cell === cell);
+  const r = at ? at.r : g.rows.length - 1, c = at ? at.c : g.width - 1;
+  return { host, table, sel, g, at, r, c };
 }
 // A table keeps at least two rows and one column.
 export function tableCan(kind) {
   const t = tableAt();
-  return !!t && (kind === 'row-' ? t.rows.length > 2 : kind === 'col-' ? t.row.cells.length > 1 : true);
+  if (!t) return false;
+  if (kind === 'row-') return t.g.rows.length > 2;
+  if (kind === 'col-') return t.g.width > 1;
+  if (kind === 'unmerge') return t.at ? merged(t.at) : t.g.anchors.some(merged);
+  return true;
 }
 export function tableOp(kind) {
   const t = tableAt();
   if (!t) return banner('Select a table.', [], 2500);
-  const { host, table, sel, cell, rows, row, col } = t;
+  const { host, table, sel, g, at, r, c } = t;
   let focus = null;
+  const slot = (row, col) => { const n = tableGrid(table); return n.slots[Math.min(row, n.rows.length - 1)]?.[Math.min(col, n.width - 1)]?.cell || null; };
   const fn = () => {
     if (kind === 'row+') {
+      const row = g.rows[r];
       // template: the current row, or the first data row when the caret is in the header
-      const model = row.querySelector('th') ? (rows.find(r => !r.querySelector('th') && !r.classList.contains('tot')) || row) : row;
-      const nr = model.cloneNode(true);
-      nr.classList.remove('tot');
-      if (!nr.getAttribute('class')) nr.removeAttribute('class');
-      [...nr.cells].forEach(c => { c.textContent = ''; c.appendChild(document.createElement('br')); });
-      // no row added below the total row: it stays last
-      (row.classList.contains('tot') ? row.before(nr) : row.after(nr));
-      focus = nr.cells[Math.min(col, nr.cells.length - 1)];
+      const model = row.querySelector('th') ? (g.rows.find(x => !x.querySelector('th') && !x.classList.contains('tot')) || row) : row;
+      // no row added below a total row: it stays last, even when the caret's cell spans down to it
+      let to = row.classList.contains('tot') ? r : r + (at ? at.rs : 1);
+      while (to > r && g.rows[to - 1].classList.contains('tot')) to--;
+      const fresh = insertRow(table, to, model);
+      focus = (fresh.find(a => a.c >= c) || fresh[fresh.length - 1])?.cell || null;
     } else if (kind === 'row-') {
-      if (rows.length <= 2) return banner('Un tableau garde au moins deux lignes.', [], 2500);
-      focus = (row.nextElementSibling || row.previousElementSibling)?.cells[col] || null;
-      row.remove();
+      if (g.rows.length <= 2) return banner('A table keeps at least two rows.', [], 2500);
+      deleteRow(table, r);
+      focus = slot(r, c);
     } else if (kind === 'col+') {
-      rows.forEach(r => {
-        const c = r.cells[Math.min(col, r.cells.length - 1)];
-        const nc = c.cloneNode(false);
-        nc.appendChild(document.createElement('br'));
-        c.after(nc);
-        if (r === row) focus = nc;
-      });
+      const fresh = insertColumn(table, c + (at ? at.cs : 1));
+      focus = (fresh.find(a => a.r === r) || fresh[0])?.cell || null;
     } else if (kind === 'col-') {
-      if (row.cells.length <= 1) return banner('Un tableau garde au moins une colonne.', [], 2500);
-      rows.forEach(r => { const c = r.cells[Math.min(col, r.cells.length - 1)]; if (c) c.remove(); });
-      focus = row.cells[Math.max(0, col - 1)] || null;
+      if (g.width <= 1) return banner('A table keeps at least one column.', [], 2500);
+      deleteColumn(table, c);
+      focus = slot(r, Math.max(0, c - 1));
+    } else if (kind === 'unmerge') {
+      unmerge(table, at ? [at.cell] : undefined);
+      focus = at ? at.cell : null;
     }
     // detached slide: enlarge the frame if the table overflows
     if (host.hasAttribute('style')) {
@@ -440,7 +445,7 @@ export function tableOp(kind) {
   if (editing) {
     fn(); // recorded with the text being typed (a single undo step)
     markDirty();
-    if (focus) { const r = document.createRange(); r.selectNodeContents(focus); r.collapse(true); sel.removeAllRanges(); sel.addRange(r); }
+    if (focus) { const range = document.createRange(); range.selectNodeContents(focus); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
   } else {
     apply({ type: 'mutate', slide: slideOf(host), els: [host], fn });
     refresh();
@@ -507,6 +512,85 @@ export function insertImage() {
   input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml';
   input.onchange = () => insertImageFile(input.files[0]);
   input.click();
+}
+
+// ---------- clipboard (ADR-013) ----------
+// A selected table is copied as an element; text being typed keeps the browser's own copy and a
+// plain-text paste. Keyboard shortcuts first put the focus and a selection in an off-screen proxy,
+// so that every engine fires copy and paste events while no text is selected or editable.
+let proxy = null;
+const shortcut = k => (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+') + k;
+export const copyable = () => !editing && selection().length === 1 && !!tableOf(selection()[0]);
+function armClipboard() {
+  proxy.focus({ preventScroll: true });
+  const r = document.createRange(), s = getSelection();
+  r.selectNodeContents(proxy);
+  s.removeAllRanges(); s.addRange(r);
+  setTimeout(disarmClipboard);
+}
+function disarmClipboard() {
+  if (document.activeElement !== proxy) return;
+  proxy.blur();
+  getSelection().removeAllRanges();
+}
+// Fields, panels, menus and the drawer, or text selected anywhere, keep the browser's own copy.
+const ownClipboard = target => !!target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer') ||
+  (() => { const s = getSelection(); return s.rangeCount > 0 && !s.isCollapsed && !proxy.contains(s.anchorNode); })();
+function onCopy(e) {
+  if (editing || !editingMode() || !copyable() || ownClipboard(e.target)) return;
+  e.preventDefault();
+  disarmClipboard();
+  try {
+    const written = copyTable(e.clipboardData, tableOf(selection()[0]));
+    banner(written.html ? 'Table copied. Paste it into a slide, a Data grid, or another application.'
+      : 'Table copied. Other applications receive plain text.', [], 3000);
+  } catch (x) { banner('Copy failed: ' + x.message + '.', [], 5000); }
+}
+// The menu command: the copy event fired by execCommand from the menu click.
+export function copySel() {
+  if (!copyable()) return banner('Select a table to copy it, or double-click to copy text.', [], 3000);
+  armClipboard();
+  if (!document.execCommand('copy')) { disarmClipboard(); banner(`Press ${shortcut('C')} to copy.`, [], 3000); }
+}
+function onPaste(e) {
+  if (editing) {
+    e.preventDefault();
+    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+    return;
+  }
+  if (!editingMode() || e.target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer')) return;
+  e.preventDefault();
+  disarmClipboard();
+  pasteData(e.clipboardData);
+}
+// The menu command reads the clipboard where the browser allows it (Chromium, Firefox 127+, Safari
+// with its paste prompt): sanitised text/html keeps the data-html-office attribute.
+export async function pasteMenu() {
+  if (!navigator.clipboard?.read) return banner(`Press ${shortcut('V')} to paste.`, [], 3000);
+  const flavours = {};
+  try {
+    for (const item of await navigator.clipboard.read())
+      for (const type of ['text/html', 'text/plain'])
+        if (item.types.includes(type) && !(type in flavours)) flavours[type] = await (await item.getType(type)).text();
+  } catch (x) { return banner(`The browser did not allow reading the clipboard. Press ${shortcut('V')} to paste.`, [], 5000); }
+  pasteData({ types: Object.keys(flavours), getData: type => flavours[type] ?? '' });
+}
+// One undoable step: a new table.t on the current slide, placed like an inserted element.
+function pasteData(data) {
+  let read;
+  try { read = readPaste(data); }
+  catch (x) { return banner('Paste failed: ' + x.message + '. Deck unchanged.', [], 6000); }
+  if (!read) return banner('The clipboard holds no table. To paste text, double-click a text box first.', [], 4000);
+  if (read.chart) return banner('Charts cannot be pasted into slides yet. Deck unchanged.', [], 5000);
+  const r = insertNode(read.html, Math.min(CONTENT.w, Math.max(320, read.columns * 112)), 8);
+  if (!r) return;
+  const p = getPos(r.el), h = Math.ceil(measure(r.slide, r.el).h);
+  setPos(r.el, { ...p, y: Math.max(CONTENT.y, Math.min(p.y, CONTENT.y + CONTENT.h - h)), h });
+  commit(r.tok);
+  setTargets([r.el]);
+  const notes = [...read.notices];
+  if (h > CONTENT.h) notes.push('The table is taller than the slide: split it or shorten it.');
+  banner(['Table pasted.', ...notes].join(' '), [], notes.length ? 8000 : 3000);
 }
 
 // ---------- slide operations ----------
@@ -693,6 +777,11 @@ function onKey(e) {
   if (!editingMode()) return;
   if (mod && k.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
   if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  // no preventDefault: the browser's own copy and paste fire the events (onCopy, onPaste)
+  if (mod && 'cv'.includes(k.toLowerCase()) && !ownClipboard(e.target)) {
+    if (k.toLowerCase() === 'v' || copyable()) armClipboard();
+    return;
+  }
   if (mod && k.toLowerCase() === 'd') { e.preventDefault(); duplicateSel(); return; }
   if (mod && k.toLowerCase() === 'b') { e.preventDefault(); bold(); return; }
   if (mod && k.toLowerCase() === 'i') { e.preventDefault(); italic(); return; }
@@ -727,11 +816,14 @@ export function init(handlers) {
     while (el && el.parentElement !== slide) el = el.parentElement;
     if (el && isContent(el)) startText(el, e);
   });
-  document.addEventListener('paste', e => {
-    if (!editing) return;
-    e.preventDefault();
-    document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
-  });
+  proxy = ui('div', 'hs-clip');
+  proxy.contentEditable = 'true';
+  proxy.tabIndex = -1;
+  proxy.setAttribute('aria-hidden', 'true');
+  proxy.textContent = '\u00a0';
+  document.body.appendChild(proxy);
+  document.addEventListener('copy', onCopy);
+  document.addEventListener('paste', onPaste);
   addEventListener('pointerdown', () => { buttonDown = true; }, true);
   state.main.addEventListener('pointerdown', e => { const sl = e.target.closest('section.slide'); if (sl) setCurrent(sl); }, true);
   addEventListener('pointerup', () => { buttonDown = false; }, true);

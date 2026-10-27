@@ -47,6 +47,11 @@ const STATES = {
   slide: async page => { await page.keyboard.press('e'); await page.locator('#s06').scrollIntoViewIfNeeded(); await page.locator('#s06 > .sticker').click(); await page.keyboard.press('Escape'); },
   chart: async page => { await page.keyboard.press('e'); await page.locator('#s04').scrollIntoViewIfNeeded(); await page.locator('#s04 > figure.chart').click({ position: { x: 200, y: 150 } }); },
   table: async page => { await page.keyboard.press('e'); await page.locator('#s08').scrollIntoViewIfNeeded(); await page.locator('#s08 > table').click({ position: { x: 30, y: 10 } }); },
+  // a merged header cell (ADR-013 decision 3), as a pasted table may have
+  merged: async page => {
+    await page.evaluate(() => { const th = document.querySelector('#s08 > table th'); th.nextElementSibling.remove(); th.colSpan = 2; });
+    await STATES.table(page);
+  },
   text: async page => { await page.keyboard.press('e'); await page.locator('#s05').scrollIntoViewIfNeeded(); await page.locator('#s05 > .body').click(); },
   formatted: async page => { await STATES.text(page); await page.keyboard.press('Control+b'); },
   history: async page => {
@@ -146,7 +151,7 @@ const listMenu = async (page, name) => {
   await page.keyboard.press('ArrowRight');
   ok(await focused() === 'Edit', 'menu bar: Right moves to the next menu');
   await page.keyboard.press('ArrowDown');
-  ok(await focused() === 'Undo' || await focused() === 'Duplicate', `menu bar: Down opens the menu on its first enabled entry (${await focused()})`);
+  ok(['Undo', 'Paste'].includes(await focused()), `menu bar: Down opens the menu on its first enabled entry (${await focused()})`); // Paste is enabled in edit mode
   await page.keyboard.press('ArrowRight');
   ok(await page.locator('.sh-pop [aria-label=Insert]').count() === 1, 'inside a menu, Right switches to the next menu');
   await page.keyboard.press('Escape');

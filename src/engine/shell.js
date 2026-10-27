@@ -78,7 +78,8 @@ export function mountShell(cmd) {
   const layoutItems = () => { const cur = currentLayout(); return LAYOUTS.map(([k, l]) => item(l, 'layout', { args: [k], checked: k === cur, radio: true })); };
   const arrangeItems = () => ARRANGE.map(a => (a === '-' ? a : item(a[0], a[1], { args: [a[2]], icon: svg(a[3]), shortcut: a[4] && key(a[4]) })));
   const tableItems = () => [item('Insert row below', 'tablerow+', { resume: true }), item('Delete row', 'tablerow-', { resume: true }),
-    item('Insert column right', 'tablecol+', { resume: true }), item('Delete column', 'tablecol-', { resume: true })];
+    item('Insert column right', 'tablecol+', { resume: true }), item('Delete column', 'tablecol-', { resume: true }), '-',
+    item('Unmerge cells', 'tableunmerge', { resume: true })];
   const guide = () => (cmd.enabled('guide') ? [item('File format guide', 'guide')] : []);
 
   // Every command has a home in the menus; the toolbar repeats the frequent ones.
@@ -87,6 +88,7 @@ export function mountShell(cmd) {
     { name: 'File', items: () => [item('Save', 'save', { shortcut: key('S') }), item('Print / PDF', 'print'), '-',
       item('Document settings…', 'theme', { onSelect: () => openSettings() }), ...(guide().length ? ['-', ...guide()] : [])] },
     { name: 'Edit', items: () => [item('Undo', 'undo', { shortcut: key('Z') }), item('Redo', 'redo', { shortcut: key('Shift+Z') }), '-',
+      item('Copy', 'copy', { shortcut: key('C') }), item('Paste', 'paste', { shortcut: key('V') }), '-',
       item('Duplicate', 'duplicate', { shortcut: key('D') }), item('Delete', 'delete', { shortcut: 'Del' }), '-',
       item('Edit chart data…', 'chart-data'), item('Clear formatting', 'clear-format', { resume: true, withText: true })] },
     { name: 'Insert', items: () => [item('Text box', 'insert', { args: ['text'] }), sub('Shape', 'insert-shape', shapeItems), sub('Block', 'insert', blockItems),

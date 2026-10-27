@@ -8,7 +8,7 @@ import { parseInert } from './helpers/inert-dom.mjs';
 import {
   SCHEMA, MIME, LEGACY_MIME, LIMITS, ClipboardError,
   decodeEnvelope, validateTable, readTable, readClipboard, findEnvelope,
-  tableHTML, writeClipboard, excelFormat, toTSV, tableText,
+  tableHTML, writeClipboard, excelFormat, toTSV, tableText, fromTSV,
 } from '../packages/shared/clipboard/index.mjs';
 
 const fixture = name => readFileSync(new URL(`../packages/shared/clipboard/fixtures/${name}.html`, import.meta.url), 'utf8');
@@ -258,6 +258,17 @@ test('writeClipboard: every flavour from one copy, HTML left out above its limit
   assert.throws(() => writeClipboard(data, { envelope, table, text: 'x'.repeat(LIMITS.text + 1) }), /too large/);
 });
 
+test('TSV read back as Excel quotes it, bounded before the grid grows', () => {
+  const rows = [['a', 'b\tc'], ['"q"', 'line\nbreak'], ['', 'x']];
+  assert.deepEqual(fromTSV(toTSV(rows)), rows);
+  assert.deepEqual(fromTSV('a\tb\r\n'), [['a', 'b']], 'a final CRLF is not a column or a row');
+  assert.deepEqual(fromTSV('a\tb\r\nc\n'), [['a', 'b'], ['c', '']], 'short rows padded');
+  assert.deepEqual(fromTSV('a\tb\n""'), [['a', 'b'], ['', '']], 'a quoted empty field is a row');
+  assert.deepEqual(fromTSV('a\t'), [['a', '']], 'a final tab starts a field');
+  assert.deepEqual(fromTSV('"a""b"\t"open'), [['a"b', 'open']], 'doubled quotes; an unclosed quote runs to the end');
+  assert.throws(() => fromTSV('a\tb\nc\td', { maxCells: 3 }), ClipboardError);
+  assert.throws(() => fromTSV('a\tb\tc\nd\ne', { maxCells: 6 }), ClipboardError, 'the padded size counts');
+});
 test('TSV quoting as Excel writes it', () => {
   assert.equal(toTSV([['a', 'b\tc'], ['"q"', 'line\nbreak']]), 'a\t"b\tc"\n"""q"""\t"line\nbreak"');
   assert.equal(tableText(table), 'Region\t2026\t\nNorth\t1 234,5 €\t12 %');

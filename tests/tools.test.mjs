@@ -54,6 +54,21 @@ test('since blocks position removal and order changes; explicit slide authorizat
  fs.writeFileSync(b,base.replace('<h1 data-id="e1">Short title</h1><div class="body" data-id="e2">Text.</div>','<div class="body" data-id="e2">Text.</div><h1 data-id="e1">Short title</h1>'));
  assert.equal(run('check',b,'--since',a).status,1);
 });
+test('checker accepts merged table cells and rejects spans that leave or overlap the table',()=>{
+ const table=rows=>base.replace('<div class="body" data-id="e2">Text.</div>',`<table class="t" data-id="e3">${rows}</table>`);
+ const check=(name,rows)=>{const f=path.join(dir,`table-${name}.html`);fs.writeFileSync(f,table(rows));const r=run('check',f,'--json');return {status:r.status,out:JSON.parse(r.stdout).out};};
+ const good=check('merged','<tr><th rowspan="2">Plot</th><th class="ta-c" colspan="2">Hours</th></tr><tr><th class="n">Spring</th><th class="n">Summer</th></tr><tr><td>Beds</td><td class="n">1</td><td class="n">2</td></tr>');
+ assert.equal(good.status,0,JSON.stringify(good.out));assert.deepEqual(good.out,[]);
+ for(const [name,rows,msg] of [
+  ['past','<tr><td rowspan="3">a</td><td>b</td></tr><tr><td>c</td></tr>',/extends past the last row/],
+  ['section','<thead><tr><th rowspan="2">a</th><th>b</th></tr></thead><tbody><tr><td>c</td><td>d</td></tr></tbody>',/past the last row of its table section/],
+  ['zero','<tr><td rowspan="0">a</td><td>b</td></tr><tr><td>c</td></tr>',/Invalid rowspan="0"/],
+  ['overlap','<tr><td>a</td><td rowspan="2">b</td><td>c</td></tr><tr><td colspan="2">d</td><td>e</td></tr>',/overlap/]]){
+  const r=check(name,rows);assert.equal(r.status,1,name);assert.ok(r.out.some(x=>x.level==='error'&&msg.test(x.msg)),name+': '+JSON.stringify(r.out));
+ }
+ const ragged=check('ragged','<tr><td>a</td><td>b</td></tr><tr><td>c</td></tr>');
+ assert.equal(ragged.status,0);assert.match(ragged.out.find(x=>x.level==='warning').msg,/different numbers of columns \(2, 1\)/);
+});
 test('validator and checker accept a built-in theme and font on main#deck and reject unknown values',()=>{
  const look=(theme,font)=>base.replace('<main id="deck" data-footer="">',`<main id="deck" data-footer="" data-theme="${theme}" data-font="${font}">`);
  assert.match(look('green','verdana'),/data-theme="green" data-font="verdana"/);

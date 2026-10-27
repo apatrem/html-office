@@ -319,6 +319,64 @@ test("th rows become header cells; text typing keeps everything as text", () => 
   assert.deepEqual(text.cells[2][0].input, { type: "text", value: "12%" });
 });
 
+// The portable table a Slides copy writes (src/engine/clipboard.js, X02b).
+test("a Slides table: header and total rows, merges, runs and token colours", () => {
+  const { cells, counts, ambiguous } = tableCells({
+    rows: [
+      [
+        { text: "Plot", header: true, rowspan: 2 },
+        { text: "Hours", header: true, colspan: 2, align: "center" },
+        { covered: true },
+      ],
+      [
+        { covered: true },
+        { text: "Spring", header: true, align: "right" },
+        { text: "Summer", header: true, align: "right" },
+      ],
+      [
+        {
+          text: "Revenue growth",
+          runs: [{ text: "Revenue " }, { text: "growth", bold: true }],
+        },
+        { text: "120", align: "right" },
+        { text: "-8", bold: true, color: "alert", align: "right" },
+      ],
+      [
+        { text: "Total" },
+        { text: "112", align: "right" },
+        { text: "0012", align: "right" },
+      ],
+    ],
+    headerRows: 2,
+    totalRows: [3],
+  });
+  assert.equal(ambiguous, null);
+  assert.deepEqual(counts, { merged: 2, flattened: 1, links: 0 });
+  assert.deepEqual(cells[0][1], {
+    input: { type: "text", value: "Hours" },
+    cellStyle: "header",
+    style: { align: { horizontal: "centerContinuous" } },
+  });
+  assert.deepEqual(cells[0][2].style, {
+    align: { horizontal: "centerContinuous" },
+  });
+  assert.deepEqual(cells[1][0], {
+    input: { type: "blank" },
+    cellStyle: "header",
+  });
+  assert.deepEqual(cells[2][0].input, {
+    type: "text",
+    value: "Revenue growth",
+  });
+  assert.equal(cells[2][0].style, undefined, "mixed runs are flattened");
+  assert.deepEqual(cells[2][2], {
+    input: { type: "number", value: -8 },
+    style: { bold: true, color: "alert" },
+  });
+  assert.equal(cells[3][0].cellStyle, "total");
+  assert.deepEqual(cells[3][2].input, { type: "text", value: "0012" });
+});
+
 test("a Data range from the clipboard is validated whole", () => {
   const range = {
     schema: "html-office-range/1",

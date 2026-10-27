@@ -36,7 +36,7 @@ The following features were approved for later V1 development: V1-01 to V1-05 on
 | V1-01 | Copy/paste complete slides between documents in separate browser tabs | Planned |
 | V1-02 | Create reusable themes from reference files | Planned |
 | V1-03 | Confirm a short generation brief and default settings | Planned |
-| V1-04 | Copy/paste individual elements and selections | Planned |
+| V1-04 | Copy/paste individual elements and selections | Started: tables (ADR-013 X02b) |
 | V1-05 | Crop and replace images while preserving their frame | Planned |
 | V1-06 | Check text density per layout region: a comfortable range and a maximum | Planned |
 | V1-07 | Annotate the layout catalogue so an LLM picks layouts well | Planned |
@@ -89,6 +89,8 @@ Acceptance goals:
 - Preserve editable text, shapes, tables, charts and images, their required assets, and relative positions within a selection.
 - Remap identifiers, keep pasted elements within the destination slide, and support undo/redo, drafts and save/reopen.
 - Preserve normal text-selection copy/paste while editing text; define placement and repeated-paste behaviour before implementation.
+
+Tables come first, through the cross-product clipboard of [ADR-013](decisions/013-cross-product-clipboard.md) (X02b, 27 October 2026): one selected `table.t` is copied, and a pasted table becomes a new element on the current slide, placed like an inserted element (a repeated paste is offset by 16 px), in one undoable step. Charts follow in X02c; other elements, multi-element selections and whole slides remain planned.
 
 ### V1-05 — Crop and replace images
 
