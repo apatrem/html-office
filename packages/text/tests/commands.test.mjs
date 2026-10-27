@@ -498,3 +498,62 @@ test("new heading IDs avoid the file's other IDs", () => {
     C.reserveIds([]);
   }
 });
+
+test("second review: split IDs, code line endings, Enter across items and in the cover, Body after a cover", () => {
+  // A repeated heading ID (a split) gets a fresh one that is not a file ID.
+  C.reserveIds(["sec-a-2"]);
+  try {
+    const split = editor('<h1 id="sec-a">Heading</h1>');
+    split.run((s, d) =>
+      d(
+        s.tr.insert(
+          s.doc.content.size,
+          s.doc.child(0).copy(s.doc.child(0).content),
+        ),
+      ),
+    );
+    assert.deepEqual(split.lines(), [
+      '<h1 id="sec-a">Heading</h1>',
+      '<h1 id="sec-a-3">Heading</h1>',
+    ]);
+  } finally {
+    C.reserveIds([]);
+  }
+
+  // Carriage returns in code become line breaks in text.
+  const code = editor("<pre><code>a&#13;b&#13;\nc</code></pre>");
+  code.select("a", { offset: 0 }).run(C.setStyle("body"));
+  assert.deepEqual(code.lines(), ["<p>a<br>b<br>c</p>"]);
+
+  // Enter with a selection across two items deletes it and splits there.
+  const items = editor("<ul>\n<li>Alpha</li>\n<li>Beta</li>\n</ul>");
+  assert.ok(items.select("lpha", { to: "Be" }).run(C.splitListItem));
+  assert.deepEqual(items.lines(), [
+    "<ul>",
+    "<li>A</li>",
+    "<li>ta</li>",
+    "</ul>",
+  ]);
+
+  // Enter at the end of a title followed by a subtitle moves into the subtitle.
+  const cover = editor(
+    '<header class="cover">\n<h1 class="title">Report</h1>\n<p class="subtitle">Sub</p>\n</header>\n<h1 id="sec-b">Body heading</h1>',
+  );
+  cover.select("Report", { offset: 6 });
+  assert.ok(cover.run(C.titleEnter));
+  assert.equal(cover.state.selection.$from.parent.type, N.subtitle);
+  cover.select("Report", { offset: 2 });
+  const before = cover.state.doc;
+  assert.ok(cover.run(C.titleEnter));
+  assert.equal(cover.state.doc, before);
+
+  // Body from the subtitle through a heading after the cover changes both.
+  cover.select("Sub", { to: "Body heading" }).run(C.setStyle("body"));
+  assert.deepEqual(cover.lines(), [
+    '<header class="cover">',
+    '<h1 class="title">Report</h1>',
+    "<p>Sub</p>",
+    "</header>",
+    "<p>Body heading</p>",
+  ]);
+});

@@ -123,6 +123,19 @@ async function run(engine) {
         .isDisabled(),
       true,
     );
+    // The dialog uses the command's own rule: an address the browser would normalise
+    // ("https:example.org") is refused here too.
+    await field.fill("https:example.org");
+    assert.equal(
+      await page
+        .locator("dialog.sh-dialog button:text('Save link')")
+        .isDisabled(),
+      true,
+    );
+    assert.match(
+      await page.locator("dialog.sh-dialog .sh-err").first().textContent(),
+      /starting with https:\/\//,
+    );
     await field.fill("https://example.org/plan");
     await page.click("dialog.sh-dialog button:text('Save link')");
     assert.equal(

@@ -52,6 +52,7 @@ const enter = chainCommands(
   newlineInCode,
   inside(["footnote", "table_cell", "table_header"]),
   E.splitListItem,
+  E.titleEnter,
   createParagraphNear,
   liftEmptyBlock,
   splitBlockAs((node, atEnd) =>

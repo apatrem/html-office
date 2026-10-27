@@ -8,6 +8,12 @@ import { Plugin } from "prosemirror-state";
 import { schema } from "./schema.mjs";
 import { classes } from "../../model/html.mjs";
 
+// IDs of the file outside the article (its title, guide, zones), set by the editor on open:
+// fresh IDs (here and for new headings, editor/commands.mjs) never take one.
+let fileIds = new Set();
+export const reserveIds = (ids) => (fileIds = new Set(ids));
+export const reservedIds = () => fileIds;
+
 const N = schema.nodes,
   link = schema.marks.link;
 const IDS = new Set([
@@ -79,7 +85,7 @@ function repair(state) {
   const { seen, found } = repeatedIds(tr.doc);
   for (const { pos, id } of found) {
     let n = 2;
-    while (seen.has(`${id}-${n}`)) n++;
+    while (seen.has(`${id}-${n}`) || fileIds.has(`${id}-${n}`)) n++;
     seen.add(`${id}-${n}`);
     tr.setNodeAttribute(pos, "id", `${id}-${n}`);
   }

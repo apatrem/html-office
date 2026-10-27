@@ -6,6 +6,7 @@ import { Fragment } from "prosemirror-model";
 import { TextSelection, NodeSelection } from "prosemirror-state";
 import { liftTarget, findWrapping } from "prosemirror-transform";
 import { schema } from "./schema/schema.mjs";
+import { reserveIds, reservedIds } from "./schema/guard.mjs";
 import { RESERVED_IDS, LINK_URL } from "../model/format.mjs";
 
 const N = schema.nodes,
@@ -20,13 +21,11 @@ function treeIds(tree, ids) {
   for (const [name, value] of tree.attrs) if (name === "id") ids.add(value);
   for (const child of tree.children) treeIds(child, ids);
 }
-// IDs of the file outside the article (its title, guide, zones): the editor sets them on open.
-let fileIds = new Set();
-export const reserveIds = (ids) => (fileIds = new Set(ids));
+export { reserveIds };
 // Every ID the article uses or may not use: nodes, protected blocks, chart previews, the file's
 // other elements, reserved.
 export function usedIds(doc) {
-  const ids = new Set([...RESERVED_IDS, ...fileIds]);
+  const ids = new Set([...RESERVED_IDS, ...reservedIds()]);
   doc.descendants((node) => {
     if (typeof node.attrs.id === "string") ids.add(node.attrs.id);
     if (node.type === N.protected) treeIds(node.attrs.node, ids);
@@ -178,12 +177,13 @@ function asCode(node) {
   });
   return ok ? (text ? Fragment.from(schema.text(text)) : Fragment.empty) : null;
 }
-// Code text as inline content: "\n" becomes a line break and a tab a space (as inline text reads it).
+// Code text as inline content: a line ending (\n, \r, \r\n) becomes a line break and a tab a space,
+// as inline text would read them.
 function fromCode(node) {
   const parts = [];
   node.textContent
     .replace(/\t/g, " ")
-    .split("\n")
+    .split(/\r\n?|\n/)
     .forEach((line, i) => {
       if (i) parts.push(N.hard_break.create());
       if (line) parts.push(schema.text(line));
@@ -473,12 +473,14 @@ export const outdent = blockCommand((tr, lo, hi) => shift(tr, lo, hi, -1));
 // the item splits, and the items nested under it follow the new one.
 export function splitListItem(state, dispatch) {
   const { $from, $to, empty } = state.selection;
-  // A selection inside one item is deleted first, in the same transaction.
+  // A selection within list items is deleted first, in the same transaction.
   if (!empty) {
-    if ($from.parent.type !== N.list_text || $to.parent !== $from.parent)
+    if ($from.parent.type !== N.list_text || $to.parent.type !== N.list_text)
       return false;
     const deleted = state.tr.deleteSelection();
     const mid = state.apply(deleted);
+    if (!mid.selection.empty || mid.selection.$from.parent.type !== N.list_text)
+      return false;
     return splitListItem(
       mid,
       dispatch &&
@@ -516,6 +518,19 @@ export function splitListItem(state, dispatch) {
   }
   return true;
 }
+// Enter in a title followed by a subtitle (nothing may come between them): at the end it moves
+// into the subtitle; elsewhere it does nothing.
+export function titleEnter(state, dispatch) {
+  const { $from, empty } = state.selection;
+  if ($from.parent.type !== N.title) return false;
+  const next = $from.node(-1).maybeChild($from.indexAfter(-1));
+  if (next?.type !== N.subtitle) return false;
+  if (dispatch && empty && $from.parentOffset === $from.parent.content.size)
+    dispatch(
+      state.tr.setSelection(TextSelection.create(state.doc, $from.after() + 1)),
+    );
+  return true;
+}
 // Backspace at the start of a list item moves it up a level.
 export function liftListItem(state, dispatch) {
   const { $from, empty } = state.selection;
@@ -550,29 +565,36 @@ function dissolveCover(tr) {
 function plainStyle(tr, lo, hi, style) {
   const [type, attrs] = PLAIN[style];
   const start = allBlocks(tr.doc, lo, hi);
-  const inCover = start.filter(
-    (b) =>
-      around(tr.doc, b.pos).parent.type === N.cover || b.node.type === N.title,
-  );
-  if (inCover.length) {
-    if (start.some((b) => b.node.type === N.title)) dissolveCover(tr);
-    else if (style === "body") {
-      // A subtitle becomes a cover line; cover lines stay.
-      for (const b of start)
-        if (b.node.type === N.subtitle) tr.setNodeMarkup(b.pos, N.paragraph);
-      return;
-    } else return false;
+  // Cover blocks: restyling the title dissolves the cover; Body turns a subtitle into a cover
+  // line; other styles stay out of the cover. Blocks after the cover are restyled as usual.
+  let skip = new Set();
+  if (start.some((b) => b.node.type === N.title)) dissolveCover(tr);
+  else {
+    skip = new Set(
+      start
+        .map((b, k) =>
+          around(tr.doc, b.pos).parent.type === N.cover ? lo + k : -1,
+        )
+        .filter((i) => i >= 0),
+    );
+    if (skip.size && style !== "body") return false;
+    for (const b of start)
+      if (b.node.type === N.subtitle) tr.setNodeMarkup(b.pos, N.paragraph);
   }
+  const rest = [];
+  for (let i = lo; i <= hi; i++) if (!skip.has(i)) rest.push(i);
   if (
-    start.some((b) =>
-      [N.caption, N.table_cell, N.table_header].includes(b.node.type),
+    rest.some((i) =>
+      [N.caption, N.table_cell, N.table_header].includes(
+        blockAt(tr.doc, i).node.type,
+      ),
     )
   )
     return false;
   unlist(tr, lo, hi);
-  for (let i = lo; i <= hi; i++) if (!liftOut(tr, i)) return false;
+  for (const i of rest) if (!liftOut(tr, i)) return false;
   const taken = usedIds(tr.doc);
-  for (let i = lo; i <= hi; i++) {
+  for (const i of rest) {
     const { node, pos } = blockAt(tr.doc, i);
     const extra =
       type === N.heading && node.type !== N.heading
