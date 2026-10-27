@@ -1,0 +1,87 @@
+{
+  "ceiling": 500000,
+  "total": 294310,
+  "headroom": 205690,
+  "rows": [
+    {
+      "component": "prosemirror-model 1.25.12",
+      "bytes": 46376,
+      "gzip": 14692
+    },
+    {
+      "component": "prosemirror-transform 1.12.4",
+      "bytes": 58030,
+      "gzip": 17401
+    },
+    {
+      "component": "prosemirror-state 1.4.4",
+      "bytes": 66687,
+      "gzip": 19788
+    },
+    {
+      "component": "prosemirror-view 1.42.8",
+      "bytes": 155870,
+      "gzip": 48297
+    },
+    {
+      "component": "prosemirror-history 1.5.1",
+      "bytes": 54020,
+      "gzip": 15898
+    },
+    {
+      "component": "prosemirror-keymap 1.2.3",
+      "bytes": 45688,
+      "gzip": 13812
+    },
+    {
+      "component": "prosemirror-commands 1.7.2",
+      "bytes": 63176,
+      "gzip": 18792
+    },
+    {
+      "component": "HTML tree and serialiser",
+      "bytes": 2379,
+      "gzip": 1163
+    },
+    {
+      "component": "Validator",
+      "bytes": 57637,
+      "gzip": 18230
+    },
+    {
+      "component": "Schema",
+      "bytes": 6256,
+      "gzip": 2043
+    },
+    {
+      "component": "Parser (tree to document)",
+      "bytes": 11685,
+      "gzip": 4102
+    },
+    {
+      "component": "Serialiser (document to HTML)",
+      "bytes": 6023,
+      "gzip": 2352
+    },
+    {
+      "component": "File layout",
+      "bytes": 1738,
+      "gzip": 822
+    },
+    {
+      "component": "Editing guard",
+      "bytes": 7797,
+      "gzip": 2745
+    },
+    {
+      "component": "Editor core (all of the above, shared code once)",
+      "bytes": 292490,
+      "gzip": 91121
+    },
+    {
+      "component": "Licence notices of the editor core",
+      "bytes": 1797,
+      "gzip": 984
+    }
+  ]
+}

@@ -1262,7 +1262,9 @@ export function validateFile(file) {
       (id === "engine" || id === "echarts") &&
       attr(node, "src") === null
     ) {
-      // Written by the build tools, never by the LLM or the editor.
+      // Written by the build tools; a comment opener would change how the script is parsed back.
+      if (/<!-{2}/.test(textOf(node)))
+        ctx.error("body", `script#${id} contains a comment opener`, node, p);
     } else ctx.error("body", `Unexpected ${label(node)} in <body>`, node, p);
   }
   if (!article) {
