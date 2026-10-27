@@ -24,6 +24,7 @@ export {
 } from "./table.mjs";
 export {
   tableHTML,
+  figureHTML,
   writeClipboard,
   excelFormat,
   escapeAttribute,

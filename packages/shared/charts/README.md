@@ -4,8 +4,10 @@ The chart contract of html-office, extracted from Slides ([ADR-013 §4](../../..
 
 | File | Contents |
 | --- | --- |
-| `index.mjs` | Type registry, `theme()` from charte tokens, the lazy SRI-verified ECharts loader, rendering into `figure.chart`, and SVG preview capture (`refreshCaches`) |
-| `schema.mjs` | Strict per-type schemas: `checkSchema` allow-lists fields and types recursively, `strictValidate` adds the type's own `validate`. A new type needs an entry here too. Chart JSON from another document (clipboard) must pass it. Not part of the Slides engine bundle |
+| `index.mjs` | Type registry, `theme()` from charte tokens, the lazy SRI-verified ECharts loader, rendering into `figure.chart`, and SVG preview capture (`previewOf`, `refreshCaches`) |
+| `schema.mjs` | Strict per-type schemas: `checkSchema` allow-lists fields and types recursively, `strictValidate` adds the type's own `validate`. A new type needs an entry here too. Chart JSON from another document (clipboard) must pass it. Part of the Slides engine bundle since X02c (pasted charts) |
+| `clipboard.mjs` | Charts on the clipboard (ADR-013 §4, X02c): `readChart` (strict schema, `validate`, 1 Mi of JSON, 10,000 points), `chartTable` and `chartText` (the data through the type's table adapter), and `sanitizeSVG`, which rebuilds a pasted preview from the allow-list with prefixed ids. Needs a DOM |
+| `picture.mjs` | `chartPicture`: the picture other applications receive, the title and unit above the plot preview, PNG at 2× (sides up to 4,096 px). Needs a DOM |
 | `echarts.mjs` | Approved ECharts version, CDN URL and SHA-384 digest. A version bump changes all three products and needs a new digest |
 | `types/common.mjs` | Helpers shared by the types: number formatting, axes, series colours, required-field checks, the categories × series table adapter |
 | `types/<type>.mjs` | One chart type: `label`, `validate(data)`, `table` adapter and `toOption(data, theme)` |

@@ -3,12 +3,14 @@
 import Moveable from 'moveable';
 import Selecto from 'selecto';
 import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, measure, undo, redo,
-  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft } from './model.js';
+  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft, jsonForScript, look } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
-import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches } from '../../packages/shared/charts/index.mjs';
+import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches, previewOf, theme } from '../../packages/shared/charts/index.mjs';
+import { sanitizeSVG } from '../../packages/shared/charts/clipboard.mjs';
+import { chartPicture } from '../../packages/shared/charts/picture.mjs';
 import { banner, present, go, ui } from './view.js';
 import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge } from './tables.js';
-import { copyTable, readPaste } from './clipboard.js';
+import { copyTable, copyChart, readPaste } from './clipboard.js';
 
 const GRID = 8;
 const CONTENT = { x: 64, y: 44, w: 1152, h: 624 };
@@ -38,6 +40,8 @@ function setTargets(list) {
   moveable.target = list;
   selecto.setSelectedTargets(list);
   notify();
+  // a chart's picture for other applications is drawn ahead: the copy event cannot wait for it
+  if (list.length === 1 && list[0].matches('figure.chart')) pictureOf(list[0]);
 }
 // Toolbar context: slide only, or selected element(s) / element being typed in
 export function context() {
@@ -341,11 +345,13 @@ export function currentSlide() {
 
 // ---------- inserting elements ----------
 const fromHTML = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+// Each repeat steps down and right; a position is checked once kept above the footer, so repeats
+// near the bottom keep stepping right instead of landing on each other.
 function placeNew(slide, el, w, h) {
-  const taken = items(slide).filter(x => x !== el).map(getPos);
+  const taken = items(slide).filter(x => x !== el).map(getPos), bottom = Math.max(CONTENT.y, CONTENT.y + CONTENT.h - h);
   let x = Math.round((1280 - w) / 2 / GRID) * GRID, y = 224;
-  while (taken.some(r => r.x === x && r.y === y)) { x += 16; y += 16; }
-  setPos(el, { x, y, w, h });
+  while (taken.some(r => r.x === x && r.y === Math.min(y, bottom))) { x += 16; y += 16; }
+  setPos(el, { x, y: Math.min(y, bottom), w, h });
 }
 function insertNode(html, w, h) {
   const slide = currentSlide();
@@ -520,7 +526,23 @@ export function insertImage() {
 // so that every engine fires copy and paste events while no text is selected or editable.
 let proxy = null;
 const shortcut = k => (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+') + k;
-export const copyable = () => !editing && selection().length === 1 && !!tableOf(selection()[0]);
+export const copyable = () => !editing && selection().length === 1 && (!!tableOf(selection()[0]) || selection()[0].matches('figure.chart'));
+// The picture of a chart (title, unit and plot as PNG), kept until the chart or the theme changes.
+const pictures = new WeakMap();
+function pictureOf(fig) {
+  const svg = previewOf(fig) || fig.querySelector(':scope > svg.render'), { data } = readData(fig);
+  if (!svg || !data) return null;
+  const key = JSON.stringify(data) + '|' + look() + '|' + svg.outerHTML;
+  let p = pictures.get(fig);
+  if (p?.key !== key) {
+    p = { key, promise: chartPicture(svg, { title: data.title, unit: data.unit, theme: theme() }) };
+    p.promise.then(v => { p.url = v.url; }, () => {});
+    pictures.set(fig, p);
+  }
+  return p;
+}
+// Each copy is numbered: a picture still being drawn for an earlier copy never replaces a later one.
+let copies = 0;
 function armClipboard() {
   proxy.focus({ preventScroll: true });
   const r = document.createRange(), s = getSelection();
@@ -540,15 +562,36 @@ function onCopy(e) {
   if (editing || !editingMode() || !copyable() || ownClipboard(e.target)) return;
   e.preventDefault();
   disarmClipboard();
+  const n = ++copies, el = selection()[0];
+  if (el.matches('figure.chart')) return copyFigure(e.clipboardData, el, n);
   try {
-    const written = copyTable(e.clipboardData, tableOf(selection()[0]));
+    const written = copyTable(e.clipboardData, tableOf(el));
     banner(written.html ? 'Table copied. Paste it into a slide, a Data grid, or another application.'
       : 'Table copied. Other applications receive plain text.', [], 3000);
   } catch (x) { banner('Copy failed: ' + x.message + '.', [], 5000); }
 }
+// The copy event writes the envelope, the figure (with the picture when it is ready) and TSV. In the
+// same gesture the async API then adds image/png for other applications (ADR-013 §4); if the browser
+// refuses, the strings of the copy event stay on the clipboard.
+function copyFigure(data, fig, n) {
+  const picture = pictureOf(fig);
+  let copied;
+  try { copied = copyChart(data, fig, picture?.url); }
+  catch (x) { return banner('Copy failed: ' + x.message + '.', [], 5000); }
+  banner('Chart copied. Paste it into a slide; other applications receive a picture.', [], 3000);
+  if (!picture || !copied.html(null) || !navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return;
+  const png = picture.promise.then(v => { if (n !== copies) throw new Error('a newer copy replaced this one'); return v; });
+  try {
+    navigator.clipboard.write([new ClipboardItem({
+      'text/html': png.then(v => new Blob([copied.html(v.url)], { type: 'text/html' })),
+      'text/plain': new Blob([copied.text], { type: 'text/plain' }),
+      'image/png': png.then(v => v.blob)
+    })]).then(() => { if (n === copies) banner('Chart copied, with a picture for other applications.', [], 3000); }, () => {});
+  } catch (x) { /* the strings of the copy event stay */ }
+}
 // The menu command: the copy event fired by execCommand from the menu click.
 export function copySel() {
-  if (!copyable()) return banner('Select a table to copy it, or double-click to copy text.', [], 3000);
+  if (!copyable()) return banner('Select a table or a chart to copy it, or double-click to copy text.', [], 3000);
   armClipboard();
   if (!document.execCommand('copy')) { disarmClipboard(); banner(`Press ${shortcut('C')} to copy.`, [], 3000); }
 }
@@ -575,13 +618,13 @@ export async function pasteMenu() {
   } catch (x) { return banner(`The browser did not allow reading the clipboard. Press ${shortcut('V')} to paste.`, [], 5000); }
   pasteData({ types: Object.keys(flavours), getData: type => flavours[type] ?? '' });
 }
-// One undoable step: a new table.t on the current slide, placed like an inserted element.
+// One undoable step: a new table.t or figure.chart on the current slide, placed like an inserted element.
 function pasteData(data) {
   let read;
   try { read = readPaste(data); }
   catch (x) { return banner('Paste failed: ' + x.message + '. Deck unchanged.', [], 6000); }
-  if (!read) return banner('The clipboard holds no table. To paste text, double-click a text box first.', [], 4000);
-  if (read.chart) return banner('Charts cannot be pasted into slides yet. Deck unchanged.', [], 5000);
+  if (!read) return banner('The clipboard holds no table or chart. To paste text, double-click a text box first.', [], 4000);
+  if (read.chart) return pasteChart(read.chart, read.notices);
   const r = insertNode(read.html, Math.min(CONTENT.w, Math.max(320, read.columns * 112)), 8);
   if (!r) return;
   const p = getPos(r.el), h = Math.ceil(measure(r.slide, r.el).h);
@@ -591,6 +634,39 @@ function pasteData(data) {
   const notes = [...read.notices];
   if (h > CONTENT.h) notes.push('The table is taller than the slide: split it or shorten it.');
   banner(['Table pasted.', ...notes].join(' '), [], notes.length ? 8000 : 3000);
+}
+
+// Drawn from its JSON with this deck's charte when ECharts is available; otherwise the pasted
+// preview is shown, rebuilt from the SVG allow-list with ids of its own, until ECharts loads.
+let pastes = 0;
+function pasteChart({ type, data, svg }, notices) {
+  const r = insertNode(`<figure class="chart" data-type="${type}"><script type="application/json">${jsonForScript(data)}</script></figure>`, 640, 360);
+  if (!r) return;
+  const preview = !echartsReady() && svg ? sanitizeSVG(svg, { prefix: `p${Date.now().toString(36)}${++pastes}-` }) : null;
+  if (preview) r.el.appendChild(preview);
+  if (!r.slide.querySelector(':scope > .source')) {
+    const src = fromHTML('<p class="source">Source: to be completed</p>');
+    src.dataset.id = newId();
+    r.slide.appendChild(src);
+    setPos(src, { x: 64, y: 648, w: 1152, h: 16 });
+  }
+  commit(r.tok);
+  renderChart(r.el);
+  setTargets([r.el]);
+  const notes = [...notices];
+  if (!echartsReady()) {
+    if (preview) r.el.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
+    notes.push(preview ? 'Shown as a preview until ECharts loads.' : 'The chart is drawn when ECharts loads.');
+    // Undo and redo may have replaced the figure meanwhile: every chart still waiting is drawn.
+    loadECharts().then(ec => {
+      if (!ec) return;
+      const waiting = [...state.main.querySelectorAll('figure.chart:not(.live)')];
+      waiting.forEach(renderChart);
+      new Set(waiting.map(slideOf)).forEach(refreshCaches);
+      persistDraft();
+    });
+  }
+  banner(['Chart pasted.', ...notes].join(' '), [], notes.length ? 6000 : 3000);
 }
 
 // ---------- slide operations ----------

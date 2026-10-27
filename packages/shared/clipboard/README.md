@@ -7,7 +7,7 @@ The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisio
 | `envelope.mjs` | `html-office-clip/1`: `SCHEMA`, the carriers (`MIME`, the `data-html-office` `ATTRIBUTE`, Data's read-only `LEGACY_MIME`), `LIMITS`, `decodeEnvelope` / `checkEnvelope` / `encodeEnvelope` |
 | `table.mjs` | The portable table model (§3): vocabulary (`TEXT_COLORS`, `FILLS`, `CELL_STYLES`), `validateTable`, and TSV (`toTSV`, `tableText`, and `fromTSV`, which reads Excel's quoting back with a cell bound) |
 | `read.mjs` | `readClipboard` (reader precedence), `parseInert` (a detached `<template>`), `findEnvelope`, `readTable` (the HTML table reader) |
-| `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `excelFormat` |
+| `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `figureHTML` (a chart's picture and caption, X02c), `excelFormat` |
 | `errors.mjs` | `ClipboardError`, allow-listed field checks, `safeURL` |
 | `fixtures/` | Excel, Google Sheets, Word and Google Docs table HTML (see its README) |
 
