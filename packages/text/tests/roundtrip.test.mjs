@@ -351,3 +351,34 @@ test("the guard repairs footnotes inserted in links, repeated IDs and short tabl
   );
   assert.match(table.reopen(deleted), /<tr><td>z<\/td><td><\/td><\/tr>/);
 });
+
+test("a comment thread that text refers to cannot be deleted; with its anchors it can", () => {
+  const source = article(
+    '<p><mark class="comment" data-ref="c1">Quoted</mark> text.</p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="Quoted">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>',
+  );
+  const file = parseFile(source);
+  const state = EditorState.create({
+    doc: openFile(file).doc,
+    plugins: [subsetGuard()],
+  });
+  const comments = state.doc.lastChild;
+  const at = state.doc.content.size - comments.nodeSize;
+  // Deleting the comments section alone would leave the mark without its thread.
+  const alone = state.applyTransaction(
+    state.tr.delete(at, state.doc.content.size),
+  );
+  assert.equal(alone.state.doc, state.doc);
+  // Deleting the paragraph too removes the anchor: allowed, and the file reopens.
+  const both = state.applyTransaction(
+    state.tr
+      .delete(at, state.doc.content.size)
+      .replaceWith(
+        0,
+        state.doc.child(0).nodeSize,
+        schema.nodes.paragraph.create(),
+      ),
+  );
+  assert.notEqual(both.state.doc, state.doc);
+  const saved = saveFile(file, both.state.doc);
+  assert.ok(open(saved).doc.eq(both.state.doc));
+});

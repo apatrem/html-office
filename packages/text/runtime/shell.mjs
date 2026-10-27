@@ -337,7 +337,7 @@ export function mountShell(cmd, saving, report, look) {
 
   // A draft found on open: restore it (as a copy when the file changed since) or discard it.
   // The choice cannot be dismissed, so a later draft never replaces this one unseen.
-  function recover({ date, asCopy, article: draft }, restore) {
+  function recover({ date, asCopy, article, zones }, restore) {
     const when = new Date(date);
     const error = h("p", { class: "sh-err", role: "status" });
     const restoreButton = h(
@@ -382,7 +382,7 @@ export function mountShell(cmd, saving, report, look) {
     dialog.addEventListener("cancel", (event) => event.preventDefault());
     restoreButton.addEventListener("click", () => {
       try {
-        restore(draft);
+        restore({ article, zones });
       } catch (e) {
         error.textContent = `The draft cannot be restored: ${e.message}. Discard it to continue.`;
         restoreButton.disabled = true;

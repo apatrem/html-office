@@ -3,6 +3,7 @@
 // - links over footnotes and cross-references (HTML cannot nest <a>): those nodes are unlinked;
 // - repeated IDs (a split heading, a duplicated figure): later copies get a fresh ID;
 // - table rows left short by an edit: empty cells fill the grid back to a rectangle.
+// It also refuses a transaction that deletes a comment thread text still refers to.
 import { Plugin } from "prosemirror-state";
 import { schema } from "./schema.mjs";
 
@@ -97,8 +98,35 @@ function repair(state) {
   return tr.docChanged ? tr : null;
 }
 
+// Comment anchors (marks, and mark.comment in protected blocks) whose thread is missing.
+function treeRefs(tree, refs) {
+  if (tree.type !== "element") return;
+  if (tree.name === "mark")
+    for (const [name, value] of tree.attrs)
+      if (name === "data-ref") refs.add(value);
+  for (const child of tree.children) treeRefs(child, refs);
+}
+export function lostThreads(doc) {
+  const threads = new Set(),
+    refs = new Set();
+  doc.descendants((node) => {
+    if (node.type === N.comment_thread) threads.add(node.attrs.id);
+    else if (node.type === N.protected) treeRefs(node.attrs.node, refs);
+    for (const mark of node.marks)
+      if (mark.type === schema.marks.comment) refs.add(mark.attrs.ref);
+  });
+  return [...refs].filter((ref) => !threads.has(ref));
+}
+
 export const subsetGuard = () =>
   new Plugin({
+    // A thread that text still refers to cannot be deleted (the file would be invalid); comment
+    // editing is T13. The comments section is the last block: unchanged, it is the same node.
+    filterTransaction(tr, state) {
+      if (!tr.docChanged || tr.doc.lastChild === state.doc.lastChild)
+        return true;
+      return lostThreads(tr.doc).length <= lostThreads(state.doc).length;
+    },
     appendTransaction(transactions, _old, state) {
       return transactions.some((tr) => tr.docChanged) ? repair(state) : null;
     },

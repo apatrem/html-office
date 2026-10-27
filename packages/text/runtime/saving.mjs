@@ -13,7 +13,9 @@ import {
 const DRAFT_DELAY = 500;
 
 // opened: the canonical text of the document as opened. draft(): the article HTML of the current
-// document. onDraft(record): a draft was found on open; the shell asks to restore or discard it.
+// document; zones(): the file's other zones as text (the engine left empty), stored with the
+// draft so that it can be restored whatever the file holds later. onDraft({date, asCopy, article,
+// zones}): a draft was found on open; the shell asks to restore or discard it.
 export function setupSaving({
   opened,
   canonical,
@@ -22,6 +24,7 @@ export function setupSaving({
   name,
   changed,
   draft,
+  zones,
   onDraft,
 }) {
   const direct = typeof window.showSaveFilePicker === "function";
@@ -41,6 +44,7 @@ export function setupSaving({
     key,
     baseHash,
     timer = 0,
+    storedZones = null,
     queue = Promise.resolve();
   const say = (text) => {
     message = text;
@@ -63,14 +67,21 @@ export function setupSaving({
     clearTimeout(timer);
     if (recovery !== "ready" || !dirty.dirty) return;
     const revision = dirty.revision;
+    const text = zones();
     const record = {
-      schema: 1,
+      schema: 2,
       baseHash,
       asCopy,
       article: draft(),
       date: new Date().toISOString(),
     };
     enqueue(async () => {
+      // The zones (assets included) are written again only when they change.
+      record.zonesHash = await digestText(text);
+      if (storedZones !== record.zonesHash) {
+        await store.put(`${key}:zones`, { hash: record.zonesHash, text });
+        storedZones = record.zonesHash;
+      }
       await store.put(key, record);
       kept = Math.max(kept, revision);
       changed();
@@ -79,9 +90,18 @@ export function setupSaving({
   const dropDraft = () =>
     enqueue(async () => {
       await store.delete(key);
+      await store.delete(`${key}:zones`);
+      storedZones = null;
       kept = -1;
     });
 
+  // Storage that never answers must not block saving: after a few seconds it counts as unavailable.
+  const silent = setTimeout(() => {
+    if (recovery !== "opening") return;
+    recovery = "unavailable";
+    unavailable = "the browser storage did not answer";
+    changed();
+  }, 5000);
   void (async () => {
     [baseHash, key] = await Promise.all([
       digestText(opened),
@@ -89,25 +109,40 @@ export function setupSaving({
     ]);
     key = `text:${key}`;
     store = draftDatabase("html-office-text-recovery");
-    const record = await store.get(key);
-    if (record?.schema === 1 && typeof record.article === "string") {
+    const [record, stored] = await Promise.all([
+      store.get(key),
+      store.get(`${key}:zones`),
+    ]);
+    // An answer after the timeout comes too late: saving may already have changed the file.
+    if (recovery !== "opening") return;
+    if (record) {
+      // A record this version cannot read, or whose zones are missing, can only be discarded.
+      const readable =
+        record.schema === 2 &&
+        typeof record.article === "string" &&
+        stored?.hash === record.zonesHash &&
+        typeof stored.text === "string";
       recovery = "unresolved";
       changed();
       onDraft({
         date: record.date,
         asCopy: !!record.asCopy || record.baseHash !== baseHash,
-        article: record.article,
+        article: readable ? record.article : null,
+        zones: readable ? stored.text : null,
       });
     } else {
       recovery = "ready";
       if (dirty.dirty) storeDraft();
       changed();
     }
-  })().catch((error) => {
-    recovery = "unavailable";
-    unavailable = error?.message || "storage unavailable";
-    changed();
-  });
+  })()
+    .finally(() => clearTimeout(silent))
+    .catch((error) => {
+      if (recovery !== "opening") return;
+      recovery = "unavailable";
+      unavailable = error?.message || "storage unavailable";
+      changed();
+    });
 
   // The file text to write, read back first: a problem stops the save before anything is written.
   const output = () => {
@@ -122,7 +157,9 @@ export function setupSaving({
   };
 
   async function save() {
-    if (busy || !direct) return;
+    // Not while a draft found on open awaits a choice, nor before the draft store has answered.
+    if (busy || !direct || recovery === "opening" || recovery === "unresolved")
+      return;
     busy = true;
     changed();
     try {
@@ -195,9 +232,9 @@ export function setupSaving({
     }
   }
 
-  // Unsaved work is lost on leaving only if no saved file, copy or draft holds it.
+  // A requested copy may have been cancelled, and a draft is a safety net: unsaved work always warns.
   window.addEventListener("beforeunload", (event) => {
-    if (dirty.dirty && copied !== dirty.revision) {
+    if (dirty.dirty) {
       event.preventDefault();
       event.returnValue = "";
     }
@@ -221,6 +258,9 @@ export function setupSaving({
     // The choice on a found draft: restored (the editor has applied it as an edit) or discarded.
     restored({ asCopy: copy }) {
       asCopy = copy;
+      // A file bound before the choice belongs to the document replaced; Save asks again.
+      writer = null;
+      storedZones = null;
       recovery = "ready";
       storeDraft();
       say(
@@ -235,7 +275,7 @@ export function setupSaving({
       if (await dropDraft()) say("Draft discarded.");
     },
     get ready() {
-      return !busy && recovery !== "unresolved";
+      return !busy && recovery !== "unresolved" && recovery !== "opening";
     },
     get busy() {
       return busy;

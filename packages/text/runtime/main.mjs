@@ -15,7 +15,7 @@ import {
 } from "prosemirror-commands";
 import { schema } from "../editor/schema/schema.mjs";
 import { createCommands } from "../../shared/shell/commands.mjs";
-import { fromDocument } from "../model/html.mjs";
+import { fromDocument, attr } from "../model/html.mjs";
 import { looksCanonical } from "../model/file.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { toDoc } from "../editor/schema/parse.mjs";
@@ -61,7 +61,7 @@ const enter = chainCommands(
 // file, everything before it is parsed and nothing added later (by the editor, an extension…)
 // enters the capture. Run any other way, it refuses to edit.
 const self = document.currentScript;
-const file = self?.id === "engine" ? fromDocument(document) : null;
+let file = self?.id === "engine" ? fromDocument(document) : null;
 const misplaced = {
   ok: false,
   errors: [
@@ -112,12 +112,33 @@ function start() {
     name: () => (document.title.trim() || "document") + ".html",
     changed: () => commands.changed(),
     draft: () => articleHTML(view.state.doc),
+    // The article is a placeholder that restoring replaces with the draft's.
+    zones: () =>
+      serializeFile(withEngine(file, []), '<article id="doc"></article>'),
     onDraft: (found) => shell.recover(found, restoreDraft),
   });
-  // A draft holds the article only: with this file's other zones it must validate like the file,
-  // and it replaces the document as one undoable edit.
-  function restoreDraft(article) {
-    const next = openFile(read(serializeFile(file, article))).doc;
+  // The file tree with the engine's code replaced (a draft stores the zones without it).
+  function withEngine(tree, code) {
+    const swap = (node) =>
+      node.type === "element" && attr(node, "id") === "engine"
+        ? Array.isArray(code)
+          ? { ...node, children: code }
+          : code
+        : node.name === "html" || node.name === "body"
+          ? { ...node, children: node.children.map(swap) }
+          : node;
+    return { ...tree, html: swap(tree.html) };
+  }
+  // A draft is restored with the zones stored with it (its assets, theme…) and this editor: it
+  // must validate like a file, and it replaces the document as one undoable edit. Saving then
+  // writes those zones.
+  function restoreDraft({ article, zones }) {
+    if (article === null)
+      throw new Error("it was stored by another version of the editor");
+    const engine = findEngine(file.html);
+    const tree = withEngine(read(zones), engine);
+    const next = openFile(read(serializeFile(tree, article))).doc;
+    file = tree;
     let tr = view.state.tr.replaceWith(
       0,
       view.state.doc.content.size,
@@ -127,6 +148,10 @@ function start() {
       if (tr.doc.attrs[name] !== value) tr = tr.setDocAttribute(name, value);
     view.dispatch(tr.scrollIntoView());
   }
+  const findEngine = (node) =>
+    node.type === "element" && attr(node, "id") === "engine"
+      ? node
+      : node.children?.map(findEngine).find(Boolean);
   const run = (command) => () => command(view.state, view.dispatch, view);
   const state = EditorState.create({
     doc,

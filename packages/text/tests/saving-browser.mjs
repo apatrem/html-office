@@ -136,6 +136,15 @@ async function run(engine) {
       const copy = await readFile(await (await download).path(), "utf8");
       assert.equal(await state(page), "copied");
       assert.match(await status(page), /Copy download requested/);
+      // The download may have been cancelled: leaving still warns.
+      assert.ok(
+        await page.evaluate(() => {
+          const event = new Event("beforeunload", { cancelable: true });
+          window.dispatchEvent(event);
+          return event.defaultPrevented;
+        }),
+        "leaving after a copy request warns",
+      );
       assert.deepEqual(changed(built, copy), [
         "-" + built.split("\n").find((l) => l.startsWith(LEAD)),
         "+" +
@@ -216,10 +225,16 @@ async function run(engine) {
         await typeInLead(page, "Draft: ");
         await waitState(page, "draft");
         await page.close();
-        const elsewhere = built.replace(
-          "Prepared by the planning team, October 2026",
-          "Prepared by the planning team, November 2026",
-        );
+        // Changed elsewhere: another cover line, and the image and its asset removed. The draft
+        // keeps the zones it was made with, so it still has its image.
+        const elsewhere = built
+          .replace(
+            "Prepared by the planning team, October 2026",
+            "Prepared by the planning team, November 2026",
+          )
+          .replace(/<figure class="image" id="fig-site"[^]*?<\/figure>\n/, "")
+          .replace(/<script id="assets"[^\n]*\n/, "");
+        assert.doesNotMatch(elsewhere, /data-asset="a1"|id="assets"/);
         await write(`recover-${engine}.html`, elsewhere);
         page = await open(url, {
           disk: elsewhere,
@@ -229,6 +244,11 @@ async function run(engine) {
         assert.match(
           await page.locator("dialog.sh-dialog").textContent(),
           /The file has changed since the draft was made/,
+        );
+        // Nothing saves while the draft awaits a choice.
+        assert.equal(
+          await page.evaluate(() => window.htmlText.saving.ready),
+          false,
         );
         await page.click("dialog.sh-dialog button:text('Restore as a copy')");
         assert.match(await lead(page), /^Draft: Revenue grew/);
@@ -249,6 +269,18 @@ async function run(engine) {
           assert.match(saved, /<p class="lead">Draft: <mark/);
           // The draft replaces the article: the other file's change is not merged into it.
           assert.match(saved, /October 2026/);
+          assert.match(saved, /data-asset="a1"/);
+          assert.match(
+            saved,
+            /<script id="assets" type="application\/json">\{"a1"/,
+          );
+          // The saved copy is a complete, valid file that reopens as the same document.
+          const copyUrl = await write(`recovered-${engine}.html`, saved);
+          const copyPage = await open(copyUrl);
+          assert.equal(
+            await copyPage.evaluate(() => window.htmlText.serialize()),
+            saved,
+          );
         }
         assert.deepEqual(errors, []);
         await ctx.close();
