@@ -1,8 +1,12 @@
-// Slides on the shared clipboard (ADR-013, X02b). A selected table.t is copied as the html-office
-// envelope, a semantic table for other applications and TSV. A pasted table (html-office, Excel,
-// Sheets, Word, Docs, web pages, TSV) becomes a new table.t built from the validated portable
-// model: clipboard nodes are never inserted into the deck.
-import { SCHEMA, ClipboardError, readClipboard, writeClipboard, validateTable, tableText, fromTSV } from '../../packages/shared/clipboard/index.mjs';
+// Slides on the shared clipboard (ADR-013, X02b tables, X02c charts). A selected table.t is copied
+// as the html-office envelope, a semantic table for other applications and TSV; a selected chart as
+// the envelope (chart JSON, saved preview, data table), a figure with its picture and TSV. A pasted
+// table (html-office, Excel, Sheets, Word, Docs, web pages, TSV) becomes a new table.t built from
+// the validated portable model, and a pasted chart a new figure.chart from its validated JSON:
+// clipboard nodes are never inserted into the deck.
+import { SCHEMA, ClipboardError, readClipboard, writeClipboard, figureHTML, validateTable, tableText, fromTSV } from '../../packages/shared/clipboard/index.mjs';
+import { registry, readData, previewOf } from '../../packages/shared/charts/index.mjs';
+import { readChart, chartTable, chartText, CHART_LIMITS } from '../../packages/shared/charts/clipboard.mjs';
 import { FORMAT_VERSION } from '../format.js';
 import { tableGrid } from './tables.js';
 
@@ -140,6 +144,21 @@ export function copyTable(data, table) {
   });
 }
 
+// ---------- charts ----------
+// The saved preview travels for destinations without ECharts; the picture (a PNG data: URL), when
+// ready, goes in text/html for other applications. Returns what the async upgrade needs.
+export function copyChart(data, fig, png) {
+  const type = fig.dataset.type, def = registry[type], { data: chart, error } = readData(fig);
+  const errors = error ? [error] : def ? def.validate(chart) : ['unknown chart type'];
+  if (errors.length) throw new ClipboardError('the chart is invalid: ' + errors.join('; '));
+  const preview = previewOf(fig) || fig.querySelector(':scope > svg.render'), svg = preview?.outerHTML;
+  const envelope = { schema: SCHEMA, kind: 'chart', source: { product: 'slides', format: FORMAT_VERSION },
+    chart: { type, data: chart, ...(svg && svg.length <= CHART_LIMITS.svg ? { svg } : {}) }, table: chartTable(type, chart) };
+  const caption = chart.title || def.label, text = chartText(type, chart), json = JSON.stringify(envelope);
+  writeClipboard(data, { envelope, figure: { caption, png }, text });
+  return { text, html: url => figureHTML({ envelope: json, png: url, caption }) };
+}
+
 // ---------- a portable table as a new table.t ----------
 const escape = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 // Slides text has no links (counted) and no fills; header and total rows are bold already.
@@ -194,7 +213,10 @@ export function readPaste(data, options = {}) {
   let table, dropped = 0;
   if (read.source === 'envelope') {
     const { envelope } = read;
-    if (envelope.kind === 'chart') return { chart: envelope, notices };
+    if (envelope.kind === 'chart') {
+      if (envelope.source.stale) notices.push('The chart values were not recalculated in the source.');
+      return { chart: readChart(envelope.chart), notices };
+    }
     // A Data range above the text/html limit travels without its portable table.
     if (!envelope.table) throw tooLarge();
     table = envelope.table;

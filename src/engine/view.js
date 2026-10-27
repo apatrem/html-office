@@ -225,7 +225,7 @@ export function helpPanel() {
     ['Drag · handles', 'Move · resize (snapping; Alt = free; Shift = proportions)'],
     ['Arrow keys (Alt = 1 px)', 'Move by 8 px'],
     ['Cmd+Z · Cmd+Shift+Z', 'Undo · redo'],
-    ['Cmd+C · Cmd+V', 'Copy the selected table · paste a table (from a slide, Data, Excel, Sheets, Word or Docs) onto the current slide'],
+    ['Cmd+C · Cmd+V', 'Copy the selected table or chart · paste a table (from a slide, Data, Excel, Sheets, Word or Docs) or a chart onto the current slide'],
     ['Cmd+D · Delete', 'Duplicate · delete the element'],
     ['Cmd+B · Cmd+I', 'Bold · italic'],
     ['Cmd+] · Cmd+[', 'Bring forward · send backward'],
@@ -345,6 +345,8 @@ body.hs-editing main#deck > .slide.hs-focus{outline:2px solid #4F7FA3;outline-of
 .hs-banner button{font:inherit;background:#fff;color:#0B1C2C;border:0;border-radius:5px;padding:4px 10px;cursor:pointer}
 .hs-chart-head{flex:none}
 .hs-unit{font-size:13px;color:var(--t2);margin:6px 0 8px}
+/* a pasted chart shown from its sanitised preview until ECharts loads */
+.hs-chart-preview{position:absolute;top:4px;right:4px;font:600 11px/1 system-ui,-apple-system,Arial,sans-serif;color:#5A6670;background:#fff;border:1px solid #D7DDE3;border-radius:4px;padding:3px 6px}
 .hs-plot{flex:1 1 auto;min-height:120px;position:relative}
 .hs-chart-msg{padding:16px;border:1px dashed var(--alert);color:var(--alert);font-size:13px}
 .hs-guide-text{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.55 ui-monospace,monospace;color:#1d2a35;max-height:55vh;overflow-y:auto;padding:14px;background:#f7f9fa;border:1px solid #dde3e8;border-radius:6px}

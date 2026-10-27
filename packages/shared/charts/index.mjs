@@ -105,18 +105,26 @@ export function resizeCharts(root) {
   root.querySelectorAll('figure.chart').forEach(fig => { const i = instances.get(fig); if (i) i.resize(); });
 }
 
+// The saved preview of a chart drawn by ECharts: its plot SVG, scaled by its viewBox. Null when the
+// chart is not drawn.
+export function previewOf(fig) {
+  const svg = fig.querySelector(':scope > .hs-plot svg');
+  if (!svg) return null;
+  const w = svg.getAttribute('width') || svg.clientWidth, h = svg.getAttribute('height') || svg.clientHeight;
+  const c = svg.cloneNode(true);
+  c.setAttribute('class', 'render');
+  c.setAttribute('viewBox', `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+  c.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  c.removeAttribute('width'); c.removeAttribute('height');
+  c.removeAttribute('style');
+  return c;
+}
+
 // Updates the cached SVG of every chart drawn by ECharts.
 export function refreshCaches(root) {
   root.querySelectorAll('figure.chart.live').forEach(fig => {
-    const svg = fig.querySelector(':scope > .hs-plot svg');
-    if (!svg) return;
-    const w = svg.getAttribute('width') || svg.clientWidth, h = svg.getAttribute('height') || svg.clientHeight;
-    const c = svg.cloneNode(true);
-    c.setAttribute('class', 'render');
-    c.setAttribute('viewBox', `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
-    c.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    c.removeAttribute('width'); c.removeAttribute('height');
-    c.removeAttribute('style');
+    const c = previewOf(fig);
+    if (!c) return;
     const old = fig.querySelector(':scope > svg.render');
     if (old) old.replaceWith(c); else fig.appendChild(c);
   });

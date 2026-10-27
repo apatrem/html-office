@@ -176,11 +176,23 @@ export function tableHTML(table, { envelope, locale, css, color } = {}) {
   return out.join("");
 }
 
+// A chart for other applications (ADR-013 §4): a figure with the picture (a
+// PNG data: URL, when ready) and the title as caption, which keeps the figure
+// rendered, so that sanitisers keep its data-html-office attribute.
+export function figureHTML({ envelope, png, caption }) {
+  return (
+    `<html><head><meta charset="utf-8"></head><body><figure ${ATTRIBUTE}="${escapeAttribute(envelope)}">` +
+    (png ? `<img alt="${escapeAttribute(caption)}" src="${escapeAttribute(png)}">` : "") +
+    `<figcaption>${escapeText(caption)}</figcaption></figure>`
+  );
+}
+
 // Writes every flavour from one synchronous copy event. text/html is left out
-// above its limits; the envelope and text/plain cannot be, so the copy fails.
+// above its limits (a figure first loses its picture); the envelope and
+// text/plain cannot be, so the copy fails.
 export function writeClipboard(
   data,
-  { envelope, table, text, stringify, html: options },
+  { envelope, table, figure, text, stringify, html: options },
 ) {
   const json = encodeEnvelope(envelope, stringify);
   if (text.length > LIMITS.text)
@@ -189,7 +201,12 @@ export function writeClipboard(
     );
   let html = null;
   const cells = table ? table.rows.length * table.rows[0].length : Infinity;
-  if (table && cells <= LIMITS.htmlCells) {
+  if (figure) {
+    html = figureHTML({ ...figure, envelope: json });
+    if (html.length > LIMITS.html)
+      html = figureHTML({ ...figure, png: null, envelope: json });
+    if (html.length > LIMITS.html) html = null;
+  } else if (table && cells <= LIMITS.htmlCells) {
     html = tableHTML(table, { ...options, envelope: json });
     if (html.length > LIMITS.html) html = null;
   }

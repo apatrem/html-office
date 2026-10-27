@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a and X02b are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)); X02c–X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a, X02b and X02c are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`packages/shared/charts/clipboard.mjs`](../../packages/shared/charts/clipboard.mjs), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)); X02d and X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
 
 ## Context
 
@@ -232,7 +232,7 @@ X03 is not a separate effort. It is **PR 1 of the session already assigned to th
 
 The **picture** must show what the reader sees. The saved preview (`refreshCaches`) captures only the plot's `svg`, while the title and unit are drawn separately in `.hs-chart-head`. The picture therefore draws the title and unit (from `chart.data`, in the charte font and colours) above the plot SVG. It is rasterised at 2× when the chart is selected or redrawn, because the `copy` handler is synchronous; sides are capped at 4,096 px, falling back to 1×.
 
-**Upgrade to a native picture (to be proven in X02c).** The same handler then calls `navigator.clipboard.write()` with `text/html`, `text/plain` and `image/png`, passing `ClipboardItem` promises. Safari requires `write()` to be called within the gesture. When the call succeeds, PowerPoint, Keynote, Word and Docs receive a picture. When it is rejected, the strings already written by the `copy` event remain. html-office targets keep reading the envelope from `text/html`.
+**Upgrade to a native picture (proven in X02c in Chromium; Firefox and Safari in the manual matrix).** The same handler then calls `navigator.clipboard.write()` with `text/html`, `text/plain` and `image/png`, passing `ClipboardItem` promises. Safari requires `write()` to be called within the gesture. When the call succeeds, PowerPoint, Keynote, Word and Docs receive a picture. When it is rejected, the strings already written by the `copy` event remain. html-office targets keep reading the envelope from `text/html`.
 
 The PoC verified each half separately: the `text/html` of an async write is visible to `paste`. It did not run the combined sequence, and Chromium's granted permissions hide activation rules. X02c must test it in all three browsers:
 
@@ -242,6 +242,8 @@ The PoC verified each half separately: the `text/html` of an async write is visi
 - two copies in quick succession, where the later copy must win.
 
 If the sequence is unreliable in a browser, that browser falls back to a separate Edit › Copy as picture command, using the async API only.
+
+X02c result (Chromium 151, `tests/slides-charts-clipboard.mjs`): the picture is drawn when a chart is selected, so the `copy` event's `text/html` already carries it. The async write in the same gesture then holds `text/html` (with the envelope attribute and the picture), `text/plain` and `image/png`, both with granted permissions and with user activation alone. When the picture fails, the write is rejected and the `copy` event's flavours stay. A paste before the write resolves reads those flavours. Of two quick copies, the later one stays: each copy is numbered, and an earlier pending picture rejects its own write. No Copy as picture command is needed in Chromium. Firefox and WebKit run the event path in CI; their async writes stay in the manual matrix.
 
 **A Data chart becomes a values snapshot.**
 
@@ -276,6 +278,15 @@ If the sequence is unreliable in a browser, that browser falls back to a separat
     - `clip-path`, `clipPathUnits`, `gradientUnits`, `gradientTransform`, `fx`, `fy`, `offset`, `stop-color`, `stop-opacity`.
   
   Values may not contain `url(` except `url(#id)` in `fill`, `stroke` and `clip-path`. X02c checks this list against recorded ECharts 6.1.0 output for every chart type; any change to the list is a reviewed edit of this ADR.
+
+  **Edit in X02c (27 October 2026, approved in the X02 sessions).** ECharts 6.1.0 output was recorded for all seven chart types: elements `svg`, `g`, `path`, `rect`, `text`, `defs`, `clipPath`; every attribute is on the list except `style`, `xml:space`, `version`, `baseProfile` and the namespace declarations. ECharts writes the text size, family and weight in `style` on `text` (`font-size`, `font-family`, `font-weight`, and the `font` shorthand); dropping them would draw previews at the browser's default size. So, on `text` and `tspan` only, the sanitiser reads these declarations and `fill`, checks each value strictly and writes it as the allowed presentation attribute; the `style` attribute itself is never copied, and any other declaration is dropped:
+  - `font-size`: a number of pixels from 1 to 400 (`12.5px`);
+  - `font-family`: letters, digits, spaces, commas, quotes and hyphens only, at most 120 characters;
+  - `font-weight`: `normal`, `bold` or `100`–`900`;
+  - `fill`: a hex or `rgb()`/`rgba()` colour, `none` or `transparent`;
+  - `font`: `[style] [weight] size[/line-height] family`, each part as above.
+  
+  A declaration whose value holds `url(`, `expression`, a backslash, `@`, a comment or angle brackets, or is longer than 200 characters, is dropped. Attribute values are checked the same way: `fill`, `stroke` and `stop-color` take colours only (or `url(#id)`), `id` is a word of at most 64 characters, and other values may not hold `url(`, `expression`, `@`, comments or `javascript:`.
   
   Everything else is dropped, including `script`, `foreignObject`, `style`, `image`, `use`, `a`, every `href` and every event attribute.
 - **Fragment references are isolated.** ECharts emits IDs such as `zr0-c0`, so two pasted previews, or a preview and a live chart, can collide. Every pasted `id` gets a fresh per-paste prefix and every `url(#…)` is rewritten to match. A reference to an ID outside the pasted SVG, or any other `url()`, is removed. X02c tests two pastes of the same chart offline.

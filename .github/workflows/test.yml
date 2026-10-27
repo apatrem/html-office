@@ -113,3 +113,5 @@ jobs:
         run: |
           npm run build
           CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-clipboard.mjs
+      - name: Slides charts through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02c)
+        run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-charts-clipboard.mjs
