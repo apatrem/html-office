@@ -210,18 +210,22 @@ export const tableText = (table) =>
   toTSV(table.rows.map((row) => row.map((slot) => slot?.text ?? "")));
 // TSV as Excel and toTSV write it, back to rows of strings: quoted fields may
 // hold tabs, line breaks and doubled quotes; one final line break is not a
-// row. Short rows are padded. Counting stops above maxCells, before the grid
-// grows further.
+// row. Short rows are padded. Cells are counted as they are read, and the
+// padded size is checked against maxCells before the grid is padded.
 export function fromTSV(text, { maxCells = Infinity } = {}) {
-  const rows = [[]];
+  const rows = [[]],
+    tooMany = () =>
+      fail(`table: more than ${maxCells.toLocaleString("en-US")} cells`);
   let field = "",
-    i = 0,
-    cells = 0;
+    // A field has started: text, a quote, or the tab before it.
+    pending = false,
+    cells = 0,
+    i = 0;
   const end = () => {
     rows.at(-1).push(field);
     field = "";
-    if (++cells > maxCells)
-      fail(`table: more than ${maxCells.toLocaleString("en-US")} cells`);
+    pending = false;
+    if (++cells > maxCells) tooMany();
   };
   while (i < text.length) {
     const ch = text[i];
@@ -235,21 +239,27 @@ export function fromTSV(text, { maxCells = Infinity } = {}) {
       }
       if (at < 0) at = text.length;
       field = text.slice(i + 1, at).replaceAll('""', '"');
+      pending = true;
       i = at + 1;
       // Text after a closing quote stays in the field, as Excel reads it.
       while (i < text.length && !"\t\r\n".includes(text[i])) field += text[i++];
     } else if (ch === "\t") {
       end();
+      pending = true;
       i++;
     } else if (ch === "\r" || ch === "\n") {
       end();
       i += ch === "\r" && text[i + 1] === "\n" ? 2 : 1;
       if (i < text.length) rows.push([]);
-    } else field += text[i++];
+    } else {
+      field += text[i++];
+      pending = true;
+    }
   }
-  if (field !== "" || rows.at(-1).length) end();
+  if (pending) end();
   if (rows.length > 1 && !rows.at(-1).length) rows.pop();
   const width = Math.max(...rows.map((row) => row.length));
+  if (rows.length * width > maxCells) tooMany();
   return rows.map((row) => [
     ...row,
     ...Array.from({ length: width - row.length }, () => ""),

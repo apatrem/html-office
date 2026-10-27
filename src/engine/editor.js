@@ -416,8 +416,10 @@ export function tableOp(kind) {
       const row = g.rows[r];
       // template: the current row, or the first data row when the caret is in the header
       const model = row.querySelector('th') ? (g.rows.find(x => !x.querySelector('th') && !x.classList.contains('tot')) || row) : row;
-      // no row added below the total row: it stays last
-      const fresh = insertRow(table, row.classList.contains('tot') ? r : r + (at ? at.rs : 1), model);
+      // no row added below a total row: it stays last, even when the caret's cell spans down to it
+      let to = row.classList.contains('tot') ? r : r + (at ? at.rs : 1);
+      while (to > r && g.rows[to - 1].classList.contains('tot')) to--;
+      const fresh = insertRow(table, to, model);
       focus = (fresh.find(a => a.c >= c) || fresh[fresh.length - 1])?.cell || null;
     } else if (kind === 'row-') {
       if (g.rows.length <= 2) return banner('A table keeps at least two rows.', [], 2500);
@@ -532,7 +534,8 @@ function disarmClipboard() {
   getSelection().removeAllRanges();
 }
 function onCopy(e) {
-  if (editing || !editingMode() || !copyable()) return;
+  // text selected in a panel or a field keeps the browser's own copy
+  if (editing || !editingMode() || !copyable() || e.target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer')) return;
   e.preventDefault();
   disarmClipboard();
   try {
@@ -553,7 +556,7 @@ function onPaste(e) {
     document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
     return;
   }
-  if (!editingMode() || e.target.closest?.('input, textarea, .hs-panel, .sh-pop')) return;
+  if (!editingMode() || e.target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer')) return;
   e.preventDefault();
   disarmClipboard();
   pasteData(e.clipboardData);

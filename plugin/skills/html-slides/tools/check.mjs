@@ -79,7 +79,9 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES,
     }));
     // merged cells: whole spans that stay inside the table and do not overlap; rows of equal width
     kids.forEach(el => [...(el.matches('table') ? [el] : []), ...el.querySelectorAll('table')].forEach(t => {
-      const rows = [...t.rows], taken = rows.map(() => []), problems = new Set();
+      // a cell spans rows of its own row group (thead, tbody, tfoot) only
+      const rows = [...t.rows], taken = rows.map(() => []), problems = new Set(), end = [];
+      for (let r = rows.length - 1; r >= 0; r--) end[r] = rows[r + 1]?.parentNode === rows[r].parentNode ? end[r + 1] : r + 1;
       rows.forEach((tr, r) => {
         let c = 0;
         for (const cell of tr.cells) {
@@ -88,9 +90,9 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES,
             if (v !== null && !/^\s*[1-9]\d*\s*$/.test(v)) problems.add(`Invalid ${name}="${v}": use a whole number from 1`);
           }
           while (taken[r][c]) c++;
-          const rs = cell.rowSpan || rows.length - r;
-          if (r + rs > rows.length) problems.add(`Merged cell "${cell.textContent.trim().slice(0, 30)}" extends past the last row (rowspan ${rs})`);
-          for (let i = r; i < Math.min(r + rs, rows.length); i++) for (let j = c; j < c + cell.colSpan; j++) {
+          const rs = cell.rowSpan || end[r] - r;
+          if (r + rs > end[r]) problems.add(`Merged cell "${cell.textContent.trim().slice(0, 30)}" extends past the last row of its table section (rowspan ${rs})`);
+          for (let i = r; i < Math.min(r + rs, end[r]); i++) for (let j = c; j < c + cell.colSpan; j++) {
             if (taken[i][j]) problems.add(`Merged cells overlap in row ${i + 1}, column ${j + 1}`);
             taken[i][j] = true;
           }

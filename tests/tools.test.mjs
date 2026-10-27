@@ -61,6 +61,7 @@ test('checker accepts merged table cells and rejects spans that leave or overlap
  assert.equal(good.status,0,JSON.stringify(good.out));assert.deepEqual(good.out,[]);
  for(const [name,rows,msg] of [
   ['past','<tr><td rowspan="3">a</td><td>b</td></tr><tr><td>c</td></tr>',/extends past the last row/],
+  ['section','<thead><tr><th rowspan="2">a</th><th>b</th></tr></thead><tbody><tr><td>c</td><td>d</td></tr></tbody>',/past the last row of its table section/],
   ['zero','<tr><td rowspan="0">a</td><td>b</td></tr><tr><td>c</td></tr>',/Invalid rowspan="0"/],
   ['overlap','<tr><td>a</td><td rowspan="2">b</td><td>c</td></tr><tr><td colspan="2">d</td><td>e</td></tr>',/overlap/]]){
   const r=check(name,rows);assert.equal(r.status,1,name);assert.ok(r.out.some(x=>x.level==='error'&&msg.test(x.msg)),name+': '+JSON.stringify(r.out));

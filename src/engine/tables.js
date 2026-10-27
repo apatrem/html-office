@@ -3,14 +3,15 @@
 // move around them; only colspan and rowspan change.
 
 // slots[r][c] is the anchor { cell, r, c, rs, cs } covering that grid position. A rowspan past the
-// last row (or rowspan="0") stops at the last row, as browsers draw it.
+// last row of its row group (thead, tbody, tfoot), or rowspan="0", stops there, as browsers draw it.
 export function tableGrid(table) {
-  const rows = [...table.rows], slots = rows.map(() => []), anchors = [];
+  const rows = [...table.rows], slots = rows.map(() => []), anchors = [], end = [];
+  for (let r = rows.length - 1; r >= 0; r--) end[r] = rows[r + 1]?.parentNode === rows[r].parentNode ? end[r + 1] : r + 1;
   rows.forEach((tr, r) => {
     let c = 0;
     for (const cell of tr.cells) {
       while (slots[r][c]) c++;
-      const rs = cell.rowSpan > 0 ? Math.min(cell.rowSpan, rows.length - r) : rows.length - r;
+      const rs = cell.rowSpan > 0 ? Math.min(cell.rowSpan, end[r] - r) : end[r] - r;
       const a = { cell, r, c, rs, cs: Math.max(1, cell.colSpan) };
       anchors.push(a);
       for (let i = r; i < r + rs; i++) for (let j = c; j < c + a.cs; j++) slots[i][j] = a;

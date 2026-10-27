@@ -5,10 +5,10 @@
 // semantic HTML, TSV); tables from Excel, Sheets, Word and Docs; hostile clipboards (deck
 // unchanged, no request, no script); merged cells through the editor's row and column commands
 // and print; Slides ⇄ Data.
-// Chromium runs every case with the real clipboard. CLIPBOARD_ENGINES=chromium,firefox,webkit adds
-// Firefox and WebKit, where the copy is real (keyboard and menu) and the paste a dispatched event
-// carrying the copied flavours: their headless clipboards are not the native pasteboards, which
-// stay in ADR-013's manual matrix.
+// Every engine runs every case. Chromium pastes from the real clipboard (keyboard and Edit › Paste);
+// CLIPBOARD_ENGINES=chromium,firefox,webkit adds Firefox and WebKit, where the copy is real (keyboard
+// and menu) and the paste a dispatched event carrying the copied flavours: their headless clipboards
+// are not the native pasteboards, which stay in ADR-013's manual matrix.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createServer } from 'node:http';
@@ -34,7 +34,9 @@ const SOURCE = '<table class="t"><tbody><tr><th rowspan="2">Plot</th><th class="
   '<tr><td><i>Shared</i> beds<br>north</td><td class="n"><span class="neg">−8</span></td><td class="n">0012</td></tr>' +
   '<tr class="tot"><td>Total</td><td class="n">112</td><td class="n">57</td></tr></tbody></table>';
 const example = upgrade(fs.readFileSync(path.join(ROOT, 'plugin/skills/html-slides/examples/community-garden.html'), 'utf8'));
-const deckA = example.replace('</main>', `<section class="slide" id="s90" data-layout="default"><h1>Clipboard fixture</h1>${SOURCE}<p class="source">Source: fictional</p></section></main>`);
+// s91: a rowspan in a one-row thead stops at its row group, as browsers draw it.
+const deckA = example.replace('</main>', `<section class="slide" id="s90" data-layout="default"><h1>Clipboard fixture</h1>${SOURCE}<p class="source">Source: fictional</p></section>` +
+  '<section class="slide" id="s91" data-layout="default"><h1>Row groups</h1><table class="t"><thead><tr><th rowspan="2">A</th><th>B</th></tr></thead><tbody><tr><td>c</td><td>d</td></tr></tbody></table></section></main>');
 const A = path.join(DIR, 'a/deck.html'), B = path.join(DIR, 'b/deck.html');
 fs.writeFileSync(A, deckA);
 fs.writeFileSync(B, example);
@@ -92,13 +94,15 @@ async function menu(page, name, entry) {
   await page.getByRole('menubar').getByRole('menuitem', { name, exact: true }).click();
   await page.locator('.sh-pop [role=menuitem]').filter({ has: page.locator('.sh-mlabel').getByText(entry, { exact: true }) }).click();
 }
+// The flavours of the last copy, pasted by a dispatched event where the clipboard is not real.
+let lastCopy = null, realPaste = false;
 async function copy(page, sel, how = 'keyboard') {
   await selectTable(page, sel);
   await page.evaluate(() => { globalThis.copied = null; });
   if (how === 'keyboard') await page.keyboard.press('ControlOrMeta+c');
   else await menu(page, 'Edit', 'Copy');
   await page.waitForFunction(() => globalThis.copied);
-  return page.evaluate(() => globalThis.copied);
+  return lastCopy = await page.evaluate(() => globalThis.copied);
 }
 // A paste of exactly these flavours, as another page would write them.
 const dispatchPaste = (page, flavours) => page.evaluate(f => {
@@ -109,6 +113,7 @@ const dispatchPaste = (page, flavours) => page.evaluate(f => {
 async function paste(page, slide, flavours) {
   await focusSlide(page, slide);
   await page.evaluate(() => document.querySelector('.hs-banner')?.remove());
+  if (flavours === 'keyboard' && !realPaste) flavours = lastCopy;
   if (flavours === 'keyboard') await page.keyboard.press('ControlOrMeta+v');
   else if (flavours === 'menu') await menu(page, 'Edit', 'Paste');
   else await dispatchPaste(page, flavours);
@@ -119,6 +124,7 @@ async function paste(page, slide, flavours) {
 const engines = { chromium, firefox, webkit };
 for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
   const engine = engines[name], full = name === 'chromium';
+  realPaste = full;
   const browser = await engine.launch();
   const label = `${name} ${browser.version()}`;
   console.log(`\n# ${label}`);
@@ -141,9 +147,30 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       ok(flavours['text/plain'].split('\n')[2] === 'Revenue growth\t120\t45', `${where}: text/plain is the displayed text as TSV`);
       const menuCopy = await copy(a, '#s90 > table', 'menu');
       ok(JSON.stringify(menuCopy) === JSON.stringify(flavours), `${where}: Edit › Copy writes the same flavours`);
+      if (where === 'file://') {
+        // Formatting set on the whole table by the toolbar reaches every cell.
+        await a.evaluate(() => document.querySelector('#s90 > table').classList.add('t-bold', 'c-alert', 'bg-tint', 'ta-c'));
+        const styled = JSON.parse((await copy(a, '#s90 > table'))[MIME]).table.rows;
+        await a.evaluate(() => document.querySelector('#s90 > table').classList.remove('t-bold', 'c-alert', 'bg-tint', 'ta-c'));
+        ok(JSON.stringify(styled[2][0]) === '{"text":"Revenue growth","bold":true,"color":"alert","fill":"tint","align":"center"}' &&
+          JSON.stringify(styled[2][1]) === '{"text":"120","bold":true,"color":"alert","fill":"tint","align":"right"}',
+          'table-level bold, colour, fill and alignment are copied into the cells (a cell class wins)\n      ' + JSON.stringify(styled[2].slice(0, 2)));
+        const groups = JSON.parse((await copy(a, '#s91 > table'))[MIME]).table;
+        ok(JSON.stringify(groups.rows.map(r => r.map(c => c?.text))) === '[["A","B"],["c","d"]]' && !groups.rows[0][0].rowspan,
+          `a rowspan does not leave its row group (${JSON.stringify(groups.rows)})`);
+        // Text selected in a field keeps the browser's own copy while a table is selected.
+        await selectTable(a, '#s90 > table');
+        await a.evaluate(() => { const i = document.createElement('input'); i.className = 'probe'; i.value = 'footer text'; document.querySelector('.hs-shell').append(i); i.select(); globalThis.copied = null; });
+        await a.keyboard.press('ControlOrMeta+c');
+        await a.waitForFunction(() => globalThis.copied);
+        ok(!Object.keys(await a.evaluate(() => globalThis.copied)).includes(MIME),
+          'copying text selected in an input is not taken over by the selected table');
+        await a.evaluate(() => document.querySelector('input.probe').remove());
+        await copy(a, '#s90 > table');
+      }
       // 2. Paste into the other deck, one undo step; keyboard and Edit › Paste in Chromium.
       const before = (await tables(b, 's05')).length, html0 = await mainHTML(b);
-      const said = await paste(b, 's05', full ? 'keyboard' : flavours);
+      const said = await paste(b, 's05', 'keyboard');
       ok(said.startsWith('Table pasted') && (await tables(b, 's05')).length === before + 1, `${where}: ${full ? 'keyboard' : 'event'} paste adds a table to the current slide ("${said}")`);
       ok(await last(b, 's05') === SOURCE, `${where}: the pasted table is identical to the copied one` + (await last(b, 's05') === SOURCE ? '' : '\n      ' + await last(b, 's05')));
       ok(await b.evaluate(() => window.deckEngine.selection().length === 1 && document.querySelector(`[data-id="${window.deckEngine.selection()[0]}"]`)?.matches('table.t')),
@@ -232,7 +259,6 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       }
       ok(await mainHTML(b) === unchanged, 'every paste above was undone in one step');
       ok(!a.errors.length && !b.errors.length, `no JavaScript error (${[...a.errors, ...b.errors]})`);
-      if (!full) { await a.close(); await b.close(); continue; }
 
       // 6. Merged cells through the editor's table commands, then print, save, reopen and check.
       await paste(b, 's05', 'keyboard');
@@ -281,6 +307,15 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       const again = await open(ctx, pathToFileURL(saved).href);
       ok(await last(again, 's05') === SOURCE, 'reopened: the pasted table is unchanged');
       await again.close();
+      // A cell merged down into the total row: a row inserted below it still goes before the total.
+      await b.evaluate(() => { const t = [...document.querySelectorAll('#s05 > table')].pop(); t.rows[3].cells[0].rowSpan = 2; t.rows[4].cells[0].remove(); });
+      await b.locator('#s05 > table').last().dblclick({ position: { x: 20, y: 8 } });
+      await caret(3, 0);
+      await tool('Insert row below').click();
+      g = await rect();
+      const lastRow = await b.evaluate(() => { const t = [...document.querySelectorAll('#s05 > table')].pop(); return [t.rows.length, t.rows[t.rows.length - 1].className, t.rows[3].cells[0].rowSpan]; });
+      ok(lastRow.join() === '6,tot,3' && g.widths.every(w => w === 3) && !g.overlap, `insert below a cell merged into the total row keeps the total last (${lastRow})`);
+      await b.keyboard.press('Escape');
 
       // 7. Slides → Data and Data → Slides.
       const book = JSON.parse(fs.readFileSync(path.join(ROOT, 'packages/data/fixtures/two-sheets.json'), 'utf8'));
@@ -295,15 +330,19 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       book.sheets[0].links = { F3: { url: 'https://example.com/guide' } };
       const workbook = path.join(DIR, 'data/book.html');
       fs.writeFileSync(workbook, await buildWorkbook(book, { offline: true }));
+      // Over http: Playwright's WebKit cannot start Data's blob: worker from file://.
+      const dataServer = serve(workbook), dataURL = await listen(dataServer);
       const data = await ctx.newPage();
       data.on('pageerror', e => b.errors.push(String(e)));
-      await data.goto(pathToFileURL(workbook).href);
+      await data.goto(dataURL + '/');
       await data.getByText('Saved results are current.', { exact: true }).waitFor();
       const jump = async ref => { await data.getByLabel('Cell address').fill(ref); await data.keyboard.press('Tab'); await data.locator('#grid').focus(); };
       await data.bringToFront();
       await jump('D1:F4');
+      await data.evaluate(() => { globalThis.copied = null; });
       await data.keyboard.press('ControlOrMeta+c');
       await data.locator('#status').filter({ hasText: 'Range copied' }).waitFor();
+      lastCopy = await data.evaluate(() => globalThis.copied);
       await paste(b, 's05', 'keyboard');
       const fromData = await last(b, 's05');
       ok(fromData === '<table class="t"><tbody><tr><th class="ta-c" colspan="2">Hours</th><th>Note</th></tr><tr><td>Spring</td><td class="n">120</td><td><span class="neg">Dry</span></td></tr>' +
@@ -313,7 +352,8 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       await copy(a, '#s90 > table');
       await data.bringToFront();
       await jump('H10');
-      await data.keyboard.press('ControlOrMeta+v');
+      if (realPaste) await data.keyboard.press('ControlOrMeta+v');
+      else await dispatchPaste(data, lastCopy);
       await data.locator('#status').filter({ hasText: 'Pasted.' }).waitFor();
       const cell = ref => data.evaluate(r => { const el = document.getElementById('grid-' + r); return [el.textContent.trim(), el.className]; }, ref);
       const status = await data.locator('#status').textContent();
@@ -324,6 +364,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       ok(/2 merged cells were unmerged/.test(status) && /2 cells' mixed formatting became plain text/.test(status), `Slides → Data: the paste notice counts merges and flattened cells ("${status}")`);
       ok(!a.errors.length && !b.errors.length, `no JavaScript error (${[...a.errors, ...b.errors]})`);
       await data.close(); await a.close(); await b.close();
+      dataServer.close();
     }
   } finally {
     await browser.close();

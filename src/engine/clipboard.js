@@ -23,7 +23,7 @@ function spanLook(el, look) {
   return next;
 }
 // The cell's displayed text and runs: white space collapsed, <br> and blocks as line breaks.
-function cellContent(cell) {
+function cellContent(cell, base) {
   const chars = [];
   let pending = false;
   const put = (ch, look) => {
@@ -49,7 +49,7 @@ function cellContent(cell) {
     for (const child of node.childNodes) visit(child, next);
     if (BLOCK.has(tag)) pending = chars.length > 0;
   };
-  for (const child of cell.childNodes) visit(child, {});
+  for (const child of cell.childNodes) visit(child, base);
   while (chars.length && /\s/.test(chars[chars.length - 1].ch)) chars.pop();
   // Runs of equal look. White space between two runs of the same look takes that look, so
   // <b>a</b> <b>b</b> stays one bold run; elsewhere it keeps its own.
@@ -73,15 +73,28 @@ function cellContent(cell) {
 }
 const alignOf = cl => (cl.contains('ta-l') ? 'left' : cl.contains('ta-c') ? 'center' : cl.contains('ta-r') || cl.contains('n') ? 'right' : undefined);
 
+// Formatting classes of the element holding the table (the editor's toolbar sets them there)
+// apply to every cell: bold, italic, text colour, alignment and fill.
+function elementLook(table) {
+  const classes = new Set([...table.classList, ...(table.closest('section.slide > *')?.classList || [])]);
+  const look = {}, token = prefix => [...classes].find(c => c.startsWith(prefix))?.slice(prefix.length);
+  if (classes.has('t-bold')) look.bold = true;
+  if (classes.has('t-italic')) look.italic = true;
+  if (token('c-')) look.color = token('c-');
+  const align = { l: 'left', c: 'center', r: 'right' }[token('ta-')], fill = token('bg-');
+  return { look, align, fill: fill && fill !== 'none' ? fill : undefined };
+}
+
 export function tableModel(table) {
-  const g = tableGrid(table);
+  const g = tableGrid(table), element = elementLook(table);
   if (!g.width) throw new ClipboardError('the table is empty');
   const rows = g.rows.map((tr, r) => Array.from({ length: g.width }, (_, c) => {
     const a = g.slots[r][c];
     if (!a) return null;
     if (a.r !== r || a.c !== c) return { covered: true };
-    const th = a.cell.localName === 'th', align = alignOf(a.cell.classList), slot = cellContent(a.cell);
+    const th = a.cell.localName === 'th', align = alignOf(a.cell.classList) || element.align, slot = cellContent(a.cell, element.look);
     if (!slot.text && !th && !align && a.rs === 1 && a.cs === 1) return null;
+    if (element.fill) slot.fill = element.fill;
     if (th) slot.header = true;
     if (a.cs > 1) slot.colspan = a.cs;
     if (a.rs > 1) slot.rowspan = a.rs;
