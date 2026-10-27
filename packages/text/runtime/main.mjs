@@ -21,9 +21,11 @@ import { validateFile } from "../model/validate.mjs";
 import { toDoc } from "../editor/schema/parse.mjs";
 import {
   findArticle,
+  openFile,
   saveFile,
   verifySaved,
 } from "../editor/schema/document.mjs";
+import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
@@ -31,6 +33,7 @@ import { mountShell, refusal } from "./shell.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
+import panelsCSS from "../../shared/shell/panels.css";
 import editorCSS from "./style.css";
 
 // Enter as in baseKeymap, except: a heading split at its end continues with a paragraph (the
@@ -82,7 +85,7 @@ function zonesAfter() {
 function start() {
   const report = file && !zonesAfter() ? validateFile(file) : misplaced;
   const style = document.createElement("style");
-  style.textContent = shellCSS + drawerCSS + LOOK_CSS + editorCSS;
+  style.textContent = shellCSS + drawerCSS + panelsCSS + LOOK_CSS + editorCSS;
   document.head.append(style);
   if (!report.ok) {
     refusal(report);
@@ -96,19 +99,34 @@ function start() {
   // A source that differs from its canonical form where the browser can see it (line breaks in
   // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
 
-  let view;
+  // DOMParser runs no script: the reader for every text this editor writes or restores.
+  const read = (text) =>
+    fromDocument(new DOMParser().parseFromString(text, "text/html"));
+  let view, shell;
   const saving = setupSaving({
     opened,
     canonical: looksCanonical(file, articleHTML(doc)),
     serialize: () => save(view.state.doc),
     // The text about to be written must reopen as the same document; DOMParser runs no script.
-    check: (text) =>
-      verifySaved(text, view.state.doc, (t) =>
-        fromDocument(new DOMParser().parseFromString(t, "text/html")),
-      ),
+    check: (text) => verifySaved(text, view.state.doc, read),
     name: () => (document.title.trim() || "document") + ".html",
     changed: () => commands.changed(),
+    draft: () => articleHTML(view.state.doc),
+    onDraft: (found) => shell.recover(found, restoreDraft),
   });
+  // A draft holds the article only: with this file's other zones it must validate like the file,
+  // and it replaces the document as one undoable edit.
+  function restoreDraft(article) {
+    const next = openFile(read(serializeFile(file, article))).doc;
+    let tr = view.state.tr.replaceWith(
+      0,
+      view.state.doc.content.size,
+      next.content,
+    );
+    for (const [name, value] of Object.entries(next.attrs))
+      if (tr.doc.attrs[name] !== value) tr = tr.setDocAttribute(name, value);
+    view.dispatch(tr.scrollIntoView());
+  }
   const run = (command) => () => command(view.state, view.dispatch, view);
   const state = EditorState.create({
     doc,
@@ -119,7 +137,10 @@ function start() {
         "Mod-z": undo,
         "Mod-y": redo,
         "Shift-Mod-z": redo,
-        "Mod-s": () => (commands.run("save"), true),
+        "Mod-s": () => (
+          commands.run(saving.direct ? "save" : "save-copy"),
+          true
+        ),
       }),
       keymap({ ...baseKeymap, Enter: enter }),
     ],
@@ -141,11 +162,13 @@ function start() {
       },
     },
   );
-  commands.register(
-    "save",
-    () => saving.save(),
-    () => !saving.busy,
-  );
+  // Direct Save exists only where the browser can write a chosen file (Chrome, Edge).
+  if (saving.direct)
+    commands.register(
+      "save",
+      () => saving.save(),
+      () => saving.ready,
+    );
   commands.register("save-copy", () => saving.saveCopy());
   commands.register("print", () => window.print());
   commands.register("undo", run(undo), () => undo(view.state));
@@ -154,7 +177,7 @@ function start() {
     commands.register(key, (value) =>
       setLook(key, value)(view.state, view.dispatch),
     );
-  mountShell(commands, saving, report, () => view.state.doc.attrs);
+  shell = mountShell(commands, saving, report, () => view.state.doc.attrs);
   mirrorLook(doc);
   document.body.classList.add("tx-editing");
   // Tests and tools read the editor through this handle; it is not part of the file.
