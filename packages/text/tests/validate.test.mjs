@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateArticle, validateFile } from "../model/validate.mjs";
 import { FONTS } from "../model/format.mjs";
+import { FONTS as SHARED_FONTS } from "../../shared/themes/fonts.mjs";
 import { element, text, serialize } from "../model/html.mjs";
 
 const fixtures = new URL("../fixtures/", import.meta.url);
@@ -98,16 +99,11 @@ test("errors carry a path to the element", async () => {
   );
 });
 
-test("the font list matches the shared document settings", async () => {
-  const source = await readFile(
-    new URL("../../shared/shell/panels.mjs", import.meta.url),
-    "utf8",
+test("the font list matches the shared document settings", () => {
+  assert.deepEqual(
+    FONTS,
+    SHARED_FONTS.map(([id]) => id),
   );
-  const block = source.slice(source.indexOf("export const FONTS"));
-  const ids = [
-    ...block.slice(0, block.indexOf("];")).matchAll(/\["([a-z]+)"/g),
-  ].map((m) => m[1]);
-  assert.deepEqual(FONTS, ids);
 });
 
 const page = (body) =>
