@@ -107,7 +107,7 @@ Dependencies: T08. Scope: M. Paths: clipboard/fill commands and reference tests.
 
 - Acceptance: rectangular internal copy/paste preserves supported formulas/formats and adjusts relative references; fill down/right respects absolute/mixed references. Normal text-selection copying remains available in cell editing.
 - Acceptance: Excel/Markdown table paste is values-first, with explicit handling of leading zeros and ambiguous date/number locale. Unsupported clipboard formats fail visibly without partial corruption.
-- Follow-up: the cross-product clipboard contract ([ADR-013](decisions/013-cross-product-clipboard.md), task X02a) replaces the bare `html-office-range/1` custom type with the `html-office-clip/1` envelope and adds a semantic `text/html` flavour.
+- Follow-up, done in X02a (25 October 2026): the cross-product clipboard contract ([ADR-013](decisions/013-cross-product-clipboard.md)) replaces the bare `html-office-range/1` custom type with the `html-office-clip/1` envelope and adds a semantic `text/html` flavour. Data still reads the old custom type.
 - Verification: mixed-reference/cross-sheet fixtures, quoted multiline tables and Markdown escaping; multi-cell undo plus save/reopen. No formula interpretation merely because imported text starts with `=`.
 
 ### T10 — Insert and delete rows/columns safely
