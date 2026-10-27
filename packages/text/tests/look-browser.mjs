@@ -245,6 +245,79 @@ try {
     "every line breaks at the same character on screen and in print (A4 and Letter)",
   );
 
+  // ---- an explicit page start clears a wrapped image, on screen as in print ----
+  const floated = built.replace(
+    '<h1 class="new-page" id="sec-plan">',
+    () =>
+      '<figure class="image" id="fig-float" data-width="40" data-wrap="left">\n<img data-asset="a1" alt="A wrapped image">\n<figcaption>A wrapped image with a caption long enough to take several lines beside the text</figcaption>\n</figure>\n<h1 class="new-page" id="sec-plan">',
+  );
+  assert.notEqual(floated, built);
+  const float = await open(await write("look-float.html", floated), floated);
+  const cleared = await float.page.evaluate(() => {
+    const figure = document.getElementById("fig-float");
+    const heading = document.getElementById("sec-plan");
+    const next = heading.nextElementSibling;
+    return {
+      below:
+        heading.getBoundingClientRect().top >=
+        figure.getBoundingClientRect().bottom,
+      // The first line of the next paragraph starts at the text's left edge, not beside the image.
+      left:
+        Math.abs(
+          (() => {
+            const r = document.createRange();
+            r.setStart(next.firstChild, 0);
+            r.setEnd(next.firstChild, 1);
+            return r.getClientRects()[0].left;
+          })() -
+            (document.getElementById("doc").getBoundingClientRect().left +
+              parseFloat(
+                getComputedStyle(document.getElementById("doc")).paddingLeft,
+              )),
+        ) < 1,
+    };
+  });
+  assert.deepEqual(cleared, { below: true, left: true });
+  assert.deepEqual(float.errors, []);
+  await float.page.close();
+  pass(
+    "a heading that starts a new page clears wrapped images, so the page after it keeps the full width",
+  );
+
+  // ---- the saved document alone (no script) has the page width, charte and column widths ----
+  const plain = await browser.newPage({
+    javaScriptEnabled: false,
+    viewport: { width: 1280, height: 900 },
+  });
+  await plain.goto(url);
+  const alone = await plain.evaluate(() => {
+    const a = document.getElementById("doc"),
+      cs = getComputedStyle(a);
+    const cols = [
+      ...document.querySelectorAll("#tab-regions tr:last-child > td"),
+    ].map((c) => c.getBoundingClientRect().width);
+    const table = document
+      .querySelector("#tab-regions table")
+      .getBoundingClientRect().width;
+    return {
+      editing: a.isContentEditable,
+      width:
+        a.clientWidth -
+        parseFloat(cs.paddingLeft) -
+        parseFloat(cs.paddingRight),
+      acc: getComputedStyle(document.getElementById("sec-summary")).color,
+      cols: cols.map((w) => Math.round((w / table) * 100)),
+    };
+  });
+  assert.equal(alone.editing, false);
+  assert.ok(Math.abs(alone.width - 160 * MM) < 1);
+  assert.equal(alone.acc, rgb(CHARTES.blue.acc));
+  assert.deepEqual(alone.cols, [40, 30, 30]);
+  await plain.close();
+  pass(
+    "without the editor, the saved document keeps its page width, charte and column widths",
+  );
+
   // ---- semantic styles and alignment render; no per-selection look controls ----
   const look = await page.evaluate(() => {
     const cs = (s) => getComputedStyle(document.querySelector(s));
