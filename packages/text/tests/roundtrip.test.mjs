@@ -394,3 +394,27 @@ test("only comment anchors count as references to threads", () => {
   assert.equal(doc.child(0).type.name, "protected");
   assert.deepEqual(lostThreads(doc), []);
 });
+
+test("a thread anchored inside a protected block cannot be deleted, whatever its class list", () => {
+  const thread =
+    '<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>';
+  for (const cls of ["comment other", " comment "]) {
+    const state = EditorState.create({
+      doc: open(
+        article(
+          `<div><mark class="${cls}" data-ref="c1">x</mark></div>\n<p>Text</p>\n${thread}`,
+        ),
+      ).doc,
+      plugins: [subsetGuard()],
+    });
+    assert.equal(state.doc.child(0).type.name, "protected");
+    const comments = state.doc.lastChild;
+    const result = state.applyTransaction(
+      state.tr.delete(
+        state.doc.content.size - comments.nodeSize,
+        state.doc.content.size,
+      ),
+    );
+    assert.equal(result.state.doc, state.doc, cls);
+  }
+});

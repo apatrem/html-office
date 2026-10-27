@@ -6,6 +6,7 @@
 // It also refuses a transaction that deletes a comment thread text still refers to.
 import { Plugin } from "prosemirror-state";
 import { schema } from "./schema.mjs";
+import { classes } from "../../model/html.mjs";
 
 const N = schema.nodes,
   link = schema.marks.link;
@@ -102,10 +103,8 @@ function repair(state) {
 function treeRefs(tree, refs) {
   if (tree.type !== "element") return;
   const ref = tree.attrs.find(([name]) => name === "data-ref");
-  const comment = tree.attrs.some(
-    ([name, value]) => name === "class" && value === "comment",
-  );
-  if (tree.name === "mark" && ref && comment) refs.add(ref[1]);
+  if (tree.name === "mark" && ref && classes(tree).includes("comment"))
+    refs.add(ref[1]);
   for (const child of tree.children) treeRefs(child, refs);
 }
 export function lostThreads(doc) {
