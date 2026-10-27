@@ -3,6 +3,9 @@
 // Each control applies immediately through the callbacks it is given.
 import { h, roving } from "./dom.mjs";
 import { CHARTES, THEME_NAMES } from "../themes/chartes.mjs";
+import { FONTS } from "../themes/fonts.mjs";
+
+export { FONTS };
 
 export const CELL_STYLES = [
   ["normal", "Normal", "Default"],
@@ -159,14 +162,6 @@ export function regionalBody({ locale, onSave }) {
   ];
 }
 
-export const FONTS = [
-  ["arial", "Arial", "Arial, Helvetica, sans-serif"],
-  ["verdana", "Verdana", "Verdana, Geneva, sans-serif"],
-  ["tahoma", "Tahoma", "Tahoma, Verdana, sans-serif"],
-  ["trebuchet", "Trebuchet MS", '"Trebuchet MS", Helvetica, sans-serif'],
-  ["georgia", "Georgia", 'Georgia, "Times New Roman", serif'],
-  ["times", "Times New Roman", '"Times New Roman", Times, serif'],
-];
 // theme/font: current values, "document" meaning the document's own charte
 // (its colours given as documentColours) and its font.
 export function documentBody({
