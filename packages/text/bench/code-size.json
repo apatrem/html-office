@@ -1,7 +1,7 @@
 {
   "ceiling": 500000,
-  "total": 294310,
-  "headroom": 205690,
+  "total": 311233,
+  "headroom": 188767,
   "rows": [
     {
       "component": "prosemirror-model 1.25.12",
@@ -45,38 +45,43 @@
     },
     {
       "component": "Validator",
-      "bytes": 57637,
-      "gzip": 18230
+      "bytes": 58298,
+      "gzip": 18474
     },
     {
       "component": "Schema",
-      "bytes": 6256,
-      "gzip": 2043
+      "bytes": 6322,
+      "gzip": 2066
     },
     {
       "component": "Parser (tree to document)",
-      "bytes": 11685,
-      "gzip": 4102
+      "bytes": 11783,
+      "gzip": 4133
     },
     {
       "component": "Serialiser (document to HTML)",
-      "bytes": 6023,
-      "gzip": 2352
+      "bytes": 6053,
+      "gzip": 2362
     },
     {
       "component": "File layout",
-      "bytes": 1738,
-      "gzip": 822
+      "bytes": 1995,
+      "gzip": 900
     },
     {
       "component": "Editing guard",
-      "bytes": 7797,
-      "gzip": 2745
+      "bytes": 8617,
+      "gzip": 3058
+    },
+    {
+      "component": "Editing commands",
+      "bytes": 22745,
+      "gzip": 8115
     },
     {
       "component": "Editor core (all of the above, shared code once)",
-      "bytes": 292490,
-      "gzip": 91121
+      "bytes": 309413,
+      "gzip": 96899
     },
     {
       "component": "Licence notices of the editor core",

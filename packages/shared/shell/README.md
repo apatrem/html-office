@@ -12,9 +12,9 @@ Started from the [R06 spike](../../../docs/HTML-DATA-NATIVE-SHELL-SPIKE.md). Onl
 | `menu.mjs` | ARIA menu, menu button and menu bar with type-ahead; checkbox and radio items, optional item icons |
 | `toolbar.mjs` | ARIA toolbar: one tab stop, arrow keys, Home and End, pointer-only overflow arrows |
 | `pickers.mjs` | Colour button, charte-token colour swatches (keyboard radio groups) and the border picker (presets, line style, colour) |
-| `dialogs.mjs` | Native modal dialog, form field with error line, and the link dialog (the product supplies its own validation) |
+| `dialogs.mjs` | Native modal dialog, form field with error line, and the link dialog (the product supplies its own validation; without sheets it takes web and email addresses only, as in Text) |
 | `drawer.mjs` | Side panel on the right, one at a time, a bottom sheet below 720 px; focus moves to its heading and back to the opening control |
-| `panels.mjs` | Panel bodies: cell-style catalogue, document settings (theme and font), regional settings with a live preview |
+| `panels.mjs` | Panel bodies: cell-style catalogue, document settings (theme and font, plus product extras built with its `choices` radio group), regional settings with a live preview |
 | `icons.mjs` | Outline icons from the mock-ups, limited to shipped commands |
 | `shell.css` | Neutral chrome, `.sh-` classes only: rows, buttons, toolbar, menus, swatches, context chip and floating settings bar; narrow layout below 720 px and print rules |
 | `drawer.css` | Side panel (a bottom sheet below 720 px) and the document-settings body; load after `shell.css` in every product with document settings |

@@ -29,6 +29,15 @@ The checker sorts what it finds into three kinds:
 
 Nothing else may appear in `head` or `body`, and `script#engine` is the last element of `body`: the editor reads the file while that script runs. `html` may have `lang` and `dir`; `head` and `body` have no attributes. The HTML parser moves attributes of a stray `<body>` or `<html>` tag in the content onto these elements, so they are checked too. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
 
+## Look: charte, layout theme and page
+
+The look is never in the content: `article#doc` only names choices, and the styles apply them.
+
+- **`style#charte`** holds the brand tokens shared with Slides and Data on `:root` (`--ink`, `--acc`, `--mid`, `--lig`, `--alert`, `--tint`, `--callout`, `--bd`, `--t2`, `--bg`, `--font`, optional `--title-font` and the Office roles such as `--header-bg`). The default is the html-slides default charte, the built-in "blue" charte of [`packages/shared/themes/chartes.mjs`](../shared/themes/chartes.mjs).
+- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](theme/layout.css): A4, 25 mm margins, 11 pt body text. It defines the page format and margins as `--page-w` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins.
+- `#doc` is as wide as the page's text (page width less both margins) on screen and in print, so lines break on screen where they print. The body uses `var(--body-font,var(--font))` and headings `var(--title-font,var(--font))`.
+- `data-theme` and `data-font` are applied by the editor, as in Slides: it mirrors them on `<html>`, where the shared overlays `:root[data-theme=…]` (built-in charte tokens) and `:root[data-font=…]` (`--body-font`) apply. The mirror is never saved, and the document's own charte is never rewritten.
+
 ## Rules for the whole content
 
 - No `style` attributes, scripts, event handlers (`on…`), `javascript:` or `data:` links, frames, objects, forms, inputs, media, raw-text elements (`plaintext`, `xmp`, `noembed`, `noframes`) or external resources. These rules apply inside protected blocks too. Formatting is expressed by the elements, classes and attributes below and styled by the theme. `data-*` and `alt` values are text and are never read as URLs.
@@ -52,8 +61,9 @@ Nothing else may appear in `head` or `body`, and `script#engine` is the last ele
 | `data-theme` | `blue`, `red`, `green`, `black`: a built-in charte instead of the document's own ([ADR-011](../../docs/decisions/011-html-office-shared-principles.md) §10) | no |
 | `data-font` | `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, `times`: the body font | no |
 | `data-page` | `a4`, `letter` (absent: the theme's page format) | no |
+| `data-margins` | `narrow`, `normal`, `wide`: a margin preset of the theme (absent: the theme's margins) | no |
 
-Margins, running headers and footers join this list with T04. The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
+Running headers and footers join this list with print (T14). The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
 
 ## Blocks
 
@@ -177,7 +187,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 
   | Element | Order |
   | --- | --- |
-  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page` |
+  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins` |
   | Headings | `class`, `id` |
   | `nav.toc` | `class`, `data-depth` |
   | `figure.chart` | `class`, `id`, `data-type`, `data-width` |

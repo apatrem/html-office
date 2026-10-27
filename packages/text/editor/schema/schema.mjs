@@ -53,6 +53,7 @@ export const schema = new Schema({
         theme: { default: null },
         font: { default: null },
         page: { default: null },
+        margins: { default: null },
       },
     },
     cover: {
@@ -243,6 +244,8 @@ export const schema = new Schema({
                   attrs([
                     ["class", c.emphasis ? "emphasis" : null],
                     ["data-width", c.width],
+                    // The editing view only: the saved col keeps data-width alone.
+                    ["style", c.width ? `width:${c.width}%` : null],
                   ]),
                 ]),
               ],

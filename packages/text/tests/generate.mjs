@@ -198,6 +198,8 @@ export function generate(seed, blocks = 30) {
       lang: r.pick(["en-GB", "fr-FR", "de"]),
       headingNumbers: r.chance(0.5),
       theme: r.pick([null, "green"]),
+      page: r.pick([null, "a4", "letter"]),
+      margins: r.pick([null, "narrow", "wide"]),
     },
     [
       N.cover.create(null, [
