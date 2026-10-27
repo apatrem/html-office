@@ -85,6 +85,7 @@ jobs:
             packages/text/package-lock.json
       - run: npm ci
       - run: npm ci --prefix packages/text --ignore-scripts
+      - run: npx playwright install --with-deps chromium
       - run: npm audit --prefix packages/text --audit-level=high
       - run: npm --prefix packages/text run format:check
       - run: npm run test:text
