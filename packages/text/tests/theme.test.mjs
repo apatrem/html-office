@@ -63,4 +63,7 @@ test("the layout theme sizes every page format and margin preset, on screen and 
     /width:calc\(var\(--page-w\) - 2\*var\(--margin\)\)/,
   );
   assert.doesNotMatch(LAYOUT_CSS, /@import|url\(/);
+  // Column widths render without the editor: every permitted percentage has a rule.
+  for (let n = 1; n <= 100; n++)
+    assert.ok(LAYOUT_CSS.includes(`col[data-width="${n}"]{width:${n}%}`), n);
 });

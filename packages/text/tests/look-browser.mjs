@@ -245,43 +245,53 @@ try {
     "every line breaks at the same character on screen and in print (A4 and Letter)",
   );
 
-  // ---- an explicit page start clears a wrapped image, on screen as in print ----
-  const floated = built.replace(
-    '<h1 class="new-page" id="sec-plan">',
-    () =>
-      '<figure class="image" id="fig-float" data-width="40" data-wrap="left">\n<img data-asset="a1" alt="A wrapped image">\n<figcaption>A wrapped image with a caption long enough to take several lines beside the text</figcaption>\n</figure>\n<h1 class="new-page" id="sec-plan">',
-  );
-  assert.notEqual(floated, built);
-  const float = await open(await write("look-float.html", floated), floated);
-  const cleared = await float.page.evaluate(() => {
-    const figure = document.getElementById("fig-float");
-    const heading = document.getElementById("sec-plan");
-    const next = heading.nextElementSibling;
-    return {
-      below:
-        heading.getBoundingClientRect().top >=
-        figure.getBoundingClientRect().bottom,
-      // The first line of the next paragraph starts at the text's left edge, not beside the image.
-      left:
-        Math.abs(
-          (() => {
-            const r = document.createRange();
-            r.setStart(next.firstChild, 0);
-            r.setEnd(next.firstChild, 1);
-            return r.getClientRects()[0].left;
-          })() -
-            (document.getElementById("doc").getBoundingClientRect().left +
-              parseFloat(
-                getComputedStyle(document.getElementById("doc")).paddingLeft,
-              )),
-        ) < 1,
-    };
-  });
-  assert.deepEqual(cleared, { below: true, left: true });
-  assert.deepEqual(float.errors, []);
-  await float.page.close();
+  // ---- an explicit page start clears a wrapped image, on screen as in print: a heading that
+  // starts a new page, and a page break (here before a heading that does not) ----
+  const FLOAT =
+    '<figure class="image" id="fig-float" data-width="40" data-wrap="left">\n<img data-asset="a1" alt="A wrapped image">\n<figcaption>A wrapped image with a caption long enough to take several lines beside the text</figcaption>\n</figure>\n';
+  for (const [name, from, to, after] of [
+    [
+      "a heading that starts a new page",
+      '<h1 class="new-page" id="sec-plan">',
+      `${FLOAT}<h1 class="new-page" id="sec-plan">`,
+      "#sec-plan",
+    ],
+    [
+      "a page break",
+      '<hr class="page-break">\n<h1 class="new-page" id="sec-plan">',
+      `${FLOAT}<hr class="page-break">\n<h1 id="sec-plan">`,
+      "#sec-plan",
+    ],
+  ]) {
+    const floated = built.replace(from, () => to);
+    assert.notEqual(floated, built);
+    const float = await open(await write("look-float.html", floated), floated);
+    const cleared = await float.page.evaluate((selector) => {
+      const doc = document.getElementById("doc");
+      const figure = document.getElementById("fig-float");
+      const next = document.querySelector(selector);
+      // The first line after the break starts at the text's left edge, not beside the image.
+      const r = document.createRange();
+      r.setStart(next.firstChild, 0);
+      r.setEnd(next.firstChild, 1);
+      return {
+        below:
+          next.getBoundingClientRect().top >=
+          figure.getBoundingClientRect().bottom,
+        left:
+          Math.abs(
+            r.getClientRects()[0].left -
+              (doc.getBoundingClientRect().left +
+                parseFloat(getComputedStyle(doc).paddingLeft)),
+          ) < 1,
+      };
+    }, after);
+    assert.deepEqual(cleared, { below: true, left: true }, name);
+    assert.deepEqual(float.errors, []);
+    await float.page.close();
+  }
   pass(
-    "a heading that starts a new page clears wrapped images, so the page after it keeps the full width",
+    "a heading that starts a new page and a page break clear wrapped images, so the page after keeps the full width",
   );
 
   // ---- the saved document alone (no script) has the page width, charte and column widths ----
