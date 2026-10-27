@@ -1,5 +1,6 @@
 import { address, parseAddress, parseRange } from "./workbook.mjs";
 import { assertPivotStructure } from "./pivot.mjs";
+import { shiftAnchor } from "./charts.mjs";
 export function validateStructure(command, book) {
   if (
     !command ||
@@ -196,6 +197,26 @@ export function shiftWorkbook(book, command) {
                     ref: shiftRange(pivot.output.ref, command),
                   }
                 : pivot.output,
+          })),
+        }),
+    // A chart moves with its anchor cell; its data range shifts and shrinks
+    // like a dropdown source (a deleted range becomes "#REF!").
+    ...(book.charts === undefined
+      ? {}
+      : {
+          charts: book.charts.map((chart) => ({
+            ...chart,
+            anchor:
+              chart.sheetId === command.sheetId
+                ? shiftAnchor(chart.anchor, command)
+                : chart.anchor,
+            source:
+              chart.source.sheetId === command.sheetId
+                ? {
+                    ...chart.source,
+                    ref: shiftRange(chart.source.ref, command),
+                  }
+                : chart.source,
           })),
         }),
     names: book.names.map((name) =>

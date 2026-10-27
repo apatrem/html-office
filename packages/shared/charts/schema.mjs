@@ -68,6 +68,20 @@ export function checkSchema(type, data) {
   return err.map(e => (e.startsWith(':') ? 'Data' + e : e));
 }
 
+// The fields a type's table adapter writes; every other field is a chart-level option.
+export const dataFields = { column: ['categories', 'series'], hbar: ['categories', 'series'], stacked: ['categories', 'series'],
+  line: ['categories', 'series'], waterfall: ['items'], bubble: ['points'], gantt: ['tasks'] };
+
+// Chart-level options alone, as a Data chart stores them beside its binding (ADR-013 §4).
+export function checkOptions(type, options) {
+  if (!Object.hasOwn(schemas, type)) return [`Unknown chart type "${type}"`];
+  const fields = { ...schemas[type].object };
+  for (const key of dataFields[type]) delete fields[key];
+  const err = [];
+  check(options, { object: fields }, '', err);
+  return err.map(e => (e.startsWith(':') ? 'Options' + e : e));
+}
+
 // Schema first, then the type's own validation (required fields, ranges, dates).
 export function strictValidate(type, data) {
   const err = checkSchema(type, data);

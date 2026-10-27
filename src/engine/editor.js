@@ -3,7 +3,7 @@
 import Moveable from 'moveable';
 import Selecto from 'selecto';
 import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, undo, redo,
-  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft } from './model.js';
+  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
 import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches } from '../../packages/shared/charts/index.mjs';
 import { banner, present, go, ui } from './view.js';
@@ -577,6 +577,12 @@ export function footerPanel() {
   document.body.appendChild(wrap);
   input.focus();
 }
+
+// ---------- deck appearance (TH02) ----------
+// A built-in charte or body font, "document" for the deck's own: one undoable deck change that
+// leaves style#charte as it is.
+export const setTheme = value => deckOp(() => setDeckData('theme', value === 'document' ? null : value));
+export const setFont = value => deckOp(() => setDeckData('font', value === 'document' ? null : value));
 
 // ---------- data panel ----------
 export function dataPanel() {

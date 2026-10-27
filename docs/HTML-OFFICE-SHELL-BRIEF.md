@@ -98,7 +98,7 @@ No interface exists. The specification implies: a block-style picker (title, sub
 | | Type in element | Canvas | Double-click, Enter; Escape |
 | Chart | Edit data (title, unit, highlight, rows, series, advanced JSON) | Toolbar (chart), Edit → Edit chart data… → modal | — |
 | Table | Insert/delete row, insert/delete column | Toolbar (table), Table menu | — |
-| **Planned** | Theme (4 built-ins + document charte), document font (body only) | ADR-011 §10, TH02: document settings in the settings bar | — |
+| Document | Theme (4 built-ins + document charte), document font (body only), footer | Settings bar → Theme & font, File → Document settings… → side panel (TH02) | — |
 
 ### 4.2 Data (native ribbon today, plus planned)
 

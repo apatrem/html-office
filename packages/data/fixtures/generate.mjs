@@ -32,17 +32,22 @@ export function pnl() {
   const summary = { id: "summary", name: "Summary", cells: {} },
     assumptions = { id: "inputs", name: "Inputs", cells: {} },
     raw = { id: "raw", name: "Actuals", cells: {} },
-    calc = { id: "calc", name: "Calculations", cells: {} };
+    calc = { id: "calc", name: "Calculations", cells: {} },
+    chartData = { id: "chartdata", name: "Chart data", cells: {} };
   const book = base(
     "community-learning-pnl",
     "Community Learning — fictional 24-month P&L",
-    [summary, assumptions, raw, calc],
+    [summary, assumptions, raw, calc, chartData],
   );
   book.groups = [
     { id: "summary-group", name: "Summary", sheetIds: ["summary"] },
     { id: "inputs-group", name: "Inputs / Hypotheses", sheetIds: ["inputs"] },
     { id: "raw-group", name: "Raw Data", sheetIds: ["raw"] },
-    { id: "calc-group", name: "Calculations", sheetIds: ["calc"] },
+    {
+      id: "calc-group",
+      name: "Calculations",
+      sheetIds: ["calc", "chartdata"],
+    },
   ];
   const a = assumptions.cells;
   for (const [row, label, value, f] of [
@@ -53,6 +58,9 @@ export function pnl() {
     [6, "Tax rate", 0.2, percent],
     [7, "Annual discount rate", 0.1, percent],
     [8, "Initial investment", 10000, money],
+    // Forecast growth of the two comparison scenarios (T18 charts).
+    [10, "Low-growth scenario: monthly growth", 0, percent],
+    [11, "High-growth scenario: monthly growth", 0.04, percent],
   ]) {
     a[`A${row}`] = input(label, "rowHeader");
     a[`B${row}`] = input(value, "assumption", f);
@@ -130,6 +138,7 @@ export function pnl() {
     summary.cells[`B${r}`] = formula(f, money);
   }
   summary.cells.A1 = input("24-month business review", "header");
+  pnlCharts(book, chartData.cells);
   book.metadata.benchmark = {
     kind: "pnl",
     months: 24,
@@ -140,6 +149,105 @@ export function pnl() {
     expectedNPV,
   };
   return book;
+}
+// Chart data blocks (header row first) read from the P&L, and the charts on
+// the Summary sheet that show revenue, margins and the growth scenarios.
+function pnlCharts(book, d) {
+  const header = (ref, text) => (d[ref] = input(text, "header"));
+  for (const [ref, text] of [
+    ["A1", "Period"],
+    ["B1", "Revenue"],
+    ["C1", "Net income"],
+    ["E1", "Period"],
+    ["F1", "Margin"],
+    ["H1", "Period"],
+    ["I1", "Low-growth participants"],
+    ["J1", "High-growth participants"],
+    ["K1", "Low-growth net income"],
+    ["L1", "High-growth net income"],
+    ["N1", "Scenario"],
+    ["O1", "Revenue"],
+    ["P1", "Net income"],
+  ])
+    header(ref, text);
+  const net = (p) =>
+    `(${p}*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)-MAX(0,(${p}*(Inputs!$B$3-Inputs!$B$4)-Inputs!$B$5)*Inputs!$B$6)`;
+  for (let m = 0; m < 24; m++) {
+    const col = address(1, m + 2).replace("1", ""),
+      r = m + 2;
+    // Period numbers keep 24 category labels short.
+    for (const c of ["A", "E", "H"])
+      d[`${c}${r}`] = formula(`=Calculations!${col}2`);
+    d[`B${r}`] = formula(`=Calculations!${col}4`, money);
+    d[`C${r}`] = formula(`=Calculations!${col}10`, money);
+    d[`F${r}`] = formula(`=Calculations!${col}11*100`, {
+      kind: "number",
+      digits: 1,
+    });
+    d[`I${r}`] = formula(
+      m < 12 ? `=Calculations!${col}3` : `=I${r - 1}*(1+Inputs!$B$10)`,
+    );
+    d[`J${r}`] = formula(
+      m < 12 ? `=Calculations!${col}3` : `=J${r - 1}*(1+Inputs!$B$11)`,
+    );
+    d[`K${r}`] = formula(`=${net(`I${r}`)}`, money);
+    d[`L${r}`] = formula(`=${net(`J${r}`)}`, money);
+  }
+  for (const [row, name, revenue, income] of [
+    [2, "Base", "=Summary!B2", "=Summary!B3"],
+    [3, "Low growth", "=SUM(I2:I25)*Inputs!$B$3", "=SUM(K2:K25)"],
+    [4, "High growth", "=SUM(J2:J25)*Inputs!$B$3", "=SUM(L2:L25)"],
+  ]) {
+    d[`N${row}`] = input(name, "rowHeader");
+    d[`O${row}`] = formula(revenue, money);
+    d[`P${row}`] = formula(income, money);
+  }
+  const source = (ref) => ({ sheetId: "chartdata", ref });
+  book.charts = [
+    {
+      id: "revenueTrend",
+      sheetId: "summary",
+      anchor: "D2",
+      width: 600,
+      height: 300,
+      type: "line",
+      options: {
+        title: "Monthly revenue and net income",
+        unit: "EUR",
+        decimals: 0,
+      },
+      source: source("A1:C25"),
+    },
+    {
+      id: "marginTrend",
+      sheetId: "summary",
+      anchor: "D16",
+      width: 600,
+      height: 260,
+      type: "line",
+      options: {
+        title: "Operating margin",
+        unit: "% of revenue",
+        decimals: 1,
+        suffix: " %",
+      },
+      source: source("E1:F25"),
+    },
+    {
+      id: "scenarioComparison",
+      sheetId: "summary",
+      anchor: "D29",
+      width: 600,
+      height: 300,
+      type: "column",
+      options: {
+        title: "24-month totals by growth scenario",
+        unit: "EUR",
+        decimals: 0,
+      },
+      source: source("N1:P4"),
+    },
+  ];
 }
 export function large({
   rows = 50000,

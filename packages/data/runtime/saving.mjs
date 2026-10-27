@@ -26,6 +26,7 @@ function shell(doc) {
 
 export function setupPersistence({
   getBook,
+  finalizeBook = (book) => book,
   getPending,
   restore,
   isSnapshotCurrent = () => false,
@@ -270,8 +271,11 @@ export function setupPersistence({
   };
   function capture() {
     const copy = document.documentElement.cloneNode(true),
-      modelText = writeModel(documentBook());
+      modelText = writeModel(finalizeBook(documentBook()));
     copy.querySelector("#workbook").textContent = modelText;
+    // The chart library loads afresh when a chart is edited (T18).
+    for (const script of copy.querySelectorAll("head > script[data-ui]"))
+      script.remove();
     // The shell is mounted afresh on every open; its view state is not saved.
     for (const mount of copy.querySelectorAll("[data-shell-mount]"))
       mount.replaceChildren();

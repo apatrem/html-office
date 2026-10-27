@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {LAYOUTS, SHAPES, CHART_TYPES, chartHTML} from '../src/engine/templates.js';
-import {FORMAT_VERSION, CONTENT_CLASSES} from '../src/format.js';
+import {FORMAT_VERSION, CONTENT_CLASSES, THEMES, DECK_FONTS} from '../src/format.js';
 import {ECHARTS_URL, ECHARTS_INTEGRITY} from '../packages/shared/charts/echarts.mjs';
 
 const escape = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -24,7 +24,7 @@ export function documentation(root, version) {
     const data=JSON.parse(chartHTML(type).match(/<script type="application\/json">([\s\S]*?)<\/script>/)[1]);
     return `### Data example: ${type}\n\nType \`${type}\` — ${label}.\n\n\`\`\`json\n${JSON.stringify(data,null,2)}\n\`\`\``;
   }).join('\n\n');
-  const inventory = `Layouts : ${LAYOUTS.map(([x])=>'`'+x+'`').join(', ')}.\nShapes: ${SHAPES.map(([x])=>'`'+x+'`').join(', ')}.\nCharts: ${CHART_TYPES.map(([x])=>'`'+x+'`').join(', ')}.\nAllowed content classes: ${CONTENT_CLASSES.map(x=>'`'+x+'`').join(', ')}.`;
+  const inventory = `Layouts : ${LAYOUTS.map(([x])=>'`'+x+'`').join(', ')}.\nShapes: ${SHAPES.map(([x])=>'`'+x+'`').join(', ')}.\nCharts: ${CHART_TYPES.map(([x])=>'`'+x+'`').join(', ')}.\nAllowed content classes: ${CONTENT_CLASSES.map(x=>'`'+x+'`').join(', ')}.\nDeck themes (\`main[data-theme]\`): ${THEMES.map(x=>'`'+x+'`').join(', ')}. Deck fonts (\`main[data-font]\`): ${DECK_FONTS.map(x=>'`'+x+'`').join(', ')}.`;
   const text=[read('src/guide.md'),`Format ${FORMAT_VERSION} · Documentation ${version} · Skill ${version}.\n\n${inventory}\n\nChart library: ${ECHARTS_URL}\nCDN integrity: \`${ECHARTS_INTEGRITY}\`.`,
     '# Format reference\n\n## Slides\n'+format,
     '# Catalogue\n\n## Layouts\n'+catalogue,
