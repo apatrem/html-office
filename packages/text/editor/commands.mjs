@@ -20,9 +20,13 @@ function treeIds(tree, ids) {
   for (const [name, value] of tree.attrs) if (name === "id") ids.add(value);
   for (const child of tree.children) treeIds(child, ids);
 }
-// Every ID the article uses or may not use: nodes, protected blocks, chart previews, reserved.
+// IDs of the file outside the article (its title, guide, zones): the editor sets them on open.
+let fileIds = new Set();
+export const reserveIds = (ids) => (fileIds = new Set(ids));
+// Every ID the article uses or may not use: nodes, protected blocks, chart previews, the file's
+// other elements, reserved.
 export function usedIds(doc) {
-  const ids = new Set(RESERVED_IDS);
+  const ids = new Set([...RESERVED_IDS, ...fileIds]);
   doc.descendants((node) => {
     if (typeof node.attrs.id === "string") ids.add(node.attrs.id);
     if (node.type === N.protected) treeIds(node.attrs.node, ids);
@@ -31,6 +35,34 @@ export function usedIds(doc) {
   });
   return ids;
 }
+function treeTargets(tree, out) {
+  if (tree.type !== "element") return;
+  for (const [name, value] of tree.attrs)
+    if (name === "href" && value.startsWith("#")) out.add(value.slice(1));
+    else if (name === "data-section") out.add(value);
+  for (const child of tree.children) treeTargets(child, out);
+}
+// IDs that other content points to: cross-references, contents entries, comment threads'
+// sections (protected blocks included). A heading they name keeps its ID: it cannot become text.
+export function referencedIds(doc) {
+  const out = new Set();
+  const toc = (entries) =>
+    entries.forEach((e) => {
+      out.add(e.target);
+      toc(e.children);
+    });
+  doc.descendants((node) => {
+    if (node.type === N.xref) out.add(node.attrs.target);
+    else if (node.type === N.toc) toc(node.attrs.entries);
+    else if (node.type === N.comment_thread && node.attrs.section)
+      out.add(node.attrs.section);
+    else if (node.type === N.protected) treeTargets(node.attrs.node, out);
+  });
+  return out;
+}
+const keepsId = (doc, node) =>
+  node.type === N.heading && referencedIds(doc).has(node.attrs.id);
+
 // A new heading's ID, from its text when it is created; later edits never change it.
 export function headingId(text, taken) {
   const slug = text
@@ -139,7 +171,8 @@ function asCode(node) {
   let text = "",
     ok = true;
   node.forEach((child) => {
-    if (child.isText && !M.comment.isInSet(child.marks)) text += child.text;
+    if (M.comment.isInSet(child.marks)) ok = false;
+    else if (child.isText) text += child.text;
     else if (child.type === N.hard_break) text += "\n";
     else ok = false;
   });
@@ -165,6 +198,7 @@ function retype(tr, pos, type, attrs) {
       if (node.attrs[k] !== v) tr.setNodeAttribute(pos, k, v);
     return true;
   }
+  if (type !== N.heading && keepsId(tr.doc, node)) return false;
   if (type === N.heading && node.type === N.heading) {
     if (node.attrs.level !== attrs.level)
       tr.setNodeAttribute(pos, "level", attrs.level);
@@ -222,13 +256,16 @@ function flatten(list, depth = 0, out = [], ids = { n: 0 }) {
   });
   return out;
 }
-// Lists from entries: each depth at most one more than the previous; a nested list takes the
-// kind of its first item (an item holds one nested list).
+// Lists from entries; a nested list takes the kind of its first item (an item holds one nested
+// list).
 function build(entries) {
-  let prev = -1;
+  // An entry's level is the number of open items above it, so siblings stay siblings when the
+  // items before them have gone (into paragraphs, or a level up).
+  const open = [];
   entries = entries.map((e) => {
-    const depth = Math.max(0, Math.min(e.depth, prev + 1));
-    prev = depth;
+    while (open.length && open.at(-1) >= e.depth) open.pop();
+    const depth = open.length;
+    open.push(e.depth);
     return { ...e, depth };
   });
   let i = 0;
@@ -297,13 +334,17 @@ function replaceList(tr, list, entries) {
 // Selected entries with the items nested under them (they move together).
 function withChildren(entries, selected) {
   const out = new Set();
+  // The shallowest selected item stays the ancestor until its subtree ends.
   let under = -1;
   entries.forEach((e, i) => {
-    if (selected.has(i)) {
-      out.add(i);
-      under = e.depth;
-    } else if (under >= 0 && e.depth > under) out.add(i);
-    else under = -1;
+    if (under >= 0 && e.depth > under) out.add(i);
+    else {
+      under = -1;
+      if (selected.has(i)) {
+        out.add(i);
+        under = e.depth;
+      }
+    }
   });
   return out;
 }
@@ -431,8 +472,28 @@ export const outdent = blockCommand((tr, lo, hi) => shift(tr, lo, hi, -1));
 // Enter in a list item: an empty item moves up a level (out of the list at the top); otherwise
 // the item splits, and the items nested under it follow the new one.
 export function splitListItem(state, dispatch) {
-  const { $from, empty } = state.selection;
-  if (!empty || $from.parent.type !== N.list_text) return false;
+  const { $from, $to, empty } = state.selection;
+  // A selection inside one item is deleted first, in the same transaction.
+  if (!empty) {
+    if ($from.parent.type !== N.list_text || $to.parent !== $from.parent)
+      return false;
+    const deleted = state.tr.deleteSelection();
+    const mid = state.apply(deleted);
+    return splitListItem(
+      mid,
+      dispatch &&
+        ((tr) => {
+          for (const step of tr.steps) deleted.step(step);
+          const { anchor, head } = tr.selection;
+          dispatch(
+            deleted
+              .setSelection(TextSelection.create(deleted.doc, anchor, head))
+              .scrollIntoView(),
+          );
+        }),
+    );
+  }
+  if ($from.parent.type !== N.list_text) return false;
   if ($from.parent.content.size === 0) return outdent(state, dispatch);
   const mark = bookmark(state);
   const list = listsIn(state.doc, mark.lo, mark.lo)[0];
@@ -535,7 +596,7 @@ function wrapStyle(tr, lo, hi, style) {
   )
     return false;
   const callouts = blocks.map((b) => wrapperOf(tr.doc, b.pos, N.callout));
-  if (!quote && callouts.every(Boolean)) {
+  if (!quote && callouts.every((pos) => pos !== null)) {
     for (const pos of new Set(callouts))
       if (tr.doc.nodeAt(pos).attrs.kind !== style)
         tr.setNodeAttribute(pos, "kind", style);
@@ -550,8 +611,9 @@ function wrapStyle(tr, lo, hi, style) {
   for (let i = lo; i <= hi; i++) if (!liftOut(tr, i)) return false;
   for (let i = lo; i <= hi; i++) {
     const { node, pos } = blockAt(tr.doc, i);
-    if (node.type === N.heading) retype(tr, pos, N.paragraph, { lead: false });
-    else if (node.type === N.paragraph && node.attrs.lead)
+    if (node.type === N.heading) {
+      if (!retype(tr, pos, N.paragraph, { lead: false })) return false;
+    } else if (node.type === N.paragraph && node.attrs.lead)
       tr.setNodeAttribute(pos, "lead", false);
   }
   const first = blockAt(tr.doc, lo).pos,
@@ -579,7 +641,12 @@ function wrapperOf(doc, pos, type) {
 // Title: the first block of a document without a cover becomes its title.
 function titleStyle(tr, lo, hi) {
   const { node, pos } = blockAt(tr.doc, lo);
-  if (lo !== hi || pos !== 0 || ![N.paragraph, N.heading].includes(node.type))
+  if (
+    lo !== hi ||
+    pos !== 0 ||
+    ![N.paragraph, N.heading].includes(node.type) ||
+    keepsId(tr.doc, node)
+  )
     return false;
   tr.replaceWith(
     0,
@@ -595,7 +662,11 @@ function subtitleStyle(tr, lo, hi) {
   if (!cover || (cover.child(0).nodeSize + 1 !== pos && pos !== cover.nodeSize))
     return false;
   if (pos === cover.nodeSize) {
-    if (cover.childCount !== 1 || ![N.paragraph, N.heading].includes(node.type))
+    if (
+      cover.childCount !== 1 ||
+      ![N.paragraph, N.heading].includes(node.type) ||
+      keepsId(tr.doc, node)
+    )
       return false;
     tr.delete(pos, pos + node.nodeSize);
     tr.insert(cover.nodeSize - 1, N.subtitle.create(null, node.content));
@@ -802,9 +873,19 @@ export function linkAt(state) {
   });
   return href;
 }
+// Why an address cannot be a link (FORMAT.md › Inline content), or "": the link dialog and
+// setLink share it, so the dialog never accepts an address the command refuses.
+export function linkProblem(href) {
+  if (!LINK_URL.test(href))
+    return "Write the full address, starting with https://, http:// or mailto:.";
+  // Control characters do not survive the HTML parser; spaces, quotes and brackets need encoding.
+  if (/[\s<>"\u0000-\u001f\u007f]/.test(href))
+    return "Spaces, quotes, angle brackets and control characters must be encoded (%20…).";
+  return "";
+}
 // Links a non-empty selection, or changes the link around the cursor.
 export const setLink = (href) => (state, dispatch) => {
-  if (!LINK_URL.test(href) || /[\s<>"]/.test(href)) return false;
+  if (linkProblem(href)) return false;
   let { from, to, empty, $from } = state.selection;
   if (empty) {
     const r = markRange($from, M.link);

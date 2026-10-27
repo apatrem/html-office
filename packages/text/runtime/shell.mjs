@@ -5,7 +5,7 @@ import { h, button, icon } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group } from "../../shared/shell/toolbar.mjs";
 import { modal, linkDialog, checkUrl } from "../../shared/shell/dialogs.mjs";
-import { STYLES } from "../editor/commands.mjs";
+import { STYLES, linkProblem } from "../editor/commands.mjs";
 import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
 import { documentBody, choices } from "../../shared/shell/panels.mjs";
 
@@ -597,11 +597,7 @@ export function mountShell(cmd, saving, report, look, editing) {
   function link(href, back) {
     linkDialog({
       initial: href ? { url: href } : null,
-      check: ({ url }) =>
-        checkUrl(url) || /[\s<>"]/.test(url.trim())
-          ? checkUrl(url) ||
-            "Spaces, quotes and angle brackets must be encoded (%20…)."
-          : "",
+      check: ({ url }) => checkUrl(url) || linkProblem(url.trim()),
       onSave: ({ url }) => cmd.run("set-link", url.trim()),
       onRemove: () => cmd.run("unlink-quiet"),
       // Focus returns through the editor, which puts its selection back.

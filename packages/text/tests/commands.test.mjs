@@ -410,3 +410,91 @@ test("random command sequences produce only subset content", async () => {
     }
   }
 });
+
+test("review fixes: IDs, code, list levels, callouts, Enter and links", () => {
+  // A heading something refers to keeps its ID: it cannot become text, a quote or the title.
+  const ref = editor(
+    '<h1 id="sec-a">Alpha</h1>\n<p>See <a class="xref" href="#sec-a">Section 1</a>.</p>',
+  );
+  ref.select("Alpha");
+  for (const style of ["body", "lead", "code", "quote", "note", "title"])
+    assert.equal(ref.can(C.setStyle(style)), false, style);
+  assert.ok(ref.can(C.setStyle("h2")));
+
+  // A comment anchor on a line break cannot go into code.
+  const anchored = editor(
+    '<p>A<mark class="comment" data-ref="c1"><br></mark>B</p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>',
+  );
+  anchored.select("A", { offset: 0 });
+  assert.equal(anchored.can(C.setStyle("code")), false);
+
+  // Indenting a parent and one child keeps the other children under the parent.
+  const tree = editor(
+    "<ul>\n<li>O</li>\n<li>A<ul>\n<li>B</li>\n<li>C</li>\n</ul></li>\n<li>D</li>\n</ul>",
+  );
+  tree.select("A", { to: "B" }).run(C.indent);
+  assert.deepEqual(tree.lines(), [
+    "<ul>",
+    "<li>O<ul>",
+    "<li>A<ul>",
+    "<li>B</li>",
+    "<li>C</li>",
+    "</ul></li>",
+    "</ul></li>",
+    "<li>D</li>",
+    "</ul>",
+  ]);
+  // Unlisting a parent leaves its children siblings, not children of each other.
+  const parent = editor(
+    "<ul>\n<li>A<ul>\n<li>B</li>\n<li>C</li>\n</ul></li>\n<li>D</li>\n</ul>",
+  );
+  parent.select("A", { offset: 0 }).run(C.toggleList(N.bullet_list));
+  assert.deepEqual(parent.lines(), [
+    "<p>A</p>",
+    "<ul>",
+    "<li>B</li>",
+    "<li>C</li>",
+    "<li>D</li>",
+    "</ul>",
+  ]);
+
+  // A callout at the start of the document changes kind, from a list inside it too.
+  const callout = editor(
+    '<aside class="callout note">\n<ul>\n<li>Item</li>\n</ul>\n</aside>',
+  );
+  assert.ok(callout.select("Item", { offset: 0 }).run(C.setStyle("warning")));
+  assert.equal(callout.lines()[0], '<aside class="callout warning">');
+
+  // Enter with text selected in an item replaces it and splits there.
+  const items = editor("<ul>\n<li>Alpha</li>\n</ul>");
+  assert.ok(items.select("lph").run(C.splitListItem));
+  assert.deepEqual(items.lines(), [
+    "<ul>",
+    "<li>A</li>",
+    "<li>a</li>",
+    "</ul>",
+  ]);
+
+  // Links: the dialog's check and the command agree; control characters are refused.
+  assert.ok(C.linkProblem("https:example.org"));
+  assert.ok(C.linkProblem("https://example.org/\u0000"));
+  assert.equal(C.linkProblem("mailto:team@example.org"), "");
+  const linked = editor("<p>Word</p>");
+  linked.select("Word");
+  assert.equal(linked.can(C.setLink("https://example.org/\u0000")), false);
+});
+
+test("new heading IDs avoid the file's other IDs", () => {
+  const source = article("<p>Intro</p>").replace(
+    "<title>",
+    '<title id="sec-intro">',
+  );
+  C.reserveIds(["sec-intro"]);
+  try {
+    const e = editor(source);
+    e.select("Intro").run(C.setStyle("h1"));
+    assert.equal(e.lines()[0], '<h1 id="sec-intro-2">Intro</h1>');
+  } finally {
+    C.reserveIds([]);
+  }
+});

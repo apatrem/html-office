@@ -162,6 +162,7 @@ function start() {
     const tree = withEngine(read(zones), findEngine(file.html));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
+    E.reserveIds(fileIds(file.html));
     view.updateState(
       EditorState.create({ doc: next, plugins: view.state.plugins }),
     );
@@ -169,6 +170,16 @@ function start() {
     mirrorLook(next);
     commands.changed();
   }
+  // New heading IDs avoid the IDs of the file's other elements (title, guide, zones).
+  const fileIds = (node, out = []) => {
+    if (node.type !== "element") return out;
+    if (node.name === "article" && attr(node, "id") === "doc") return out;
+    const id = attr(node, "id");
+    if (id !== null) out.push(id);
+    for (const child of node.children) fileIds(child, out);
+    return out;
+  };
+  E.reserveIds(fileIds(file.html));
   const findEngine = (node) =>
     node.type === "element" && attr(node, "id") === "engine"
       ? node
