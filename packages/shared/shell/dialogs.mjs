@@ -64,7 +64,8 @@ export const checkRef = (text) =>
     ? ""
     : "Enter a cell or range such as B4 or B4:C9.";
 
-// Link dialog. initial: {url} or {sheetId, ref}; sheets: [{id, name}].
+// Link dialog. initial: {url} or {sheetId, ref}; sheets: [{id, name}], or none for web and
+// email addresses only (Text).
 // check(link) returns the product's validation message ("" when valid);
 // onSave(link) returns false to keep the dialog open; onRemove() deletes.
 export function linkDialog({
@@ -76,7 +77,8 @@ export function linkDialog({
   onRemove,
   opener,
 }) {
-  const place = !!initial?.sheetId,
+  const places = !!sheets?.length,
+    place = places && !!initial?.sheetId,
     url = h("input", {
       type: "url",
       value: initial?.url ?? "",
@@ -86,7 +88,7 @@ export function linkDialog({
     sheet = h(
       "select",
       {},
-      sheets.map((s) =>
+      (sheets ?? []).map((s) =>
         h(
           "option",
           { value: s.id, selected: s.id === (initial?.sheetId ?? sheetId) },
@@ -129,7 +131,8 @@ export function linkDialog({
         name,
       ),
     );
-  const kind = () => kinds.querySelector("input:checked").value;
+  const kind = () =>
+    places ? kinds.querySelector("input:checked").value : "url";
   const linkOf = () =>
     kind() === "url"
       ? { url: url.value.trim() }
@@ -154,7 +157,7 @@ export function linkDialog({
   kinds.addEventListener("change", validate);
   const dialog = modal(
     "Link",
-    [kinds, urlBox, placeBox],
+    places ? [kinds, urlBox, placeBox] : [urlBox],
     [
       initial &&
         h(

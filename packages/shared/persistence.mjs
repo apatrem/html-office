@@ -94,9 +94,23 @@ export function draftDatabase(name = "html-office-data-recovery") {
       transaction.onerror = () => reject(transaction.error);
     });
   }
+  // Several reads and writes in one readwrite transaction: work(store) issues requests (callback
+  // style, so the transaction stays active); resolves once it commits, with work's return value.
+  async function update(work) {
+    const db = await ready;
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction("drafts", "readwrite");
+      const result = work(transaction.objectStore("drafts"));
+      transaction.oncomplete = () => resolve(result);
+      transaction.onabort = () =>
+        reject(transaction.error ?? new Error("Recovery transaction aborted"));
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
   return {
     get: (key) => run("get", key),
     put: (key, value) => run("put", key, value),
     delete: (key) => run("delete", key),
+    update,
   };
 }

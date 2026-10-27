@@ -995,6 +995,11 @@ function articleAttributes(article, ctx, path) {
     (v) => F.PAGES.includes(v),
     `data-page is ${F.PAGES.join(" or ")}`,
   );
+  check(
+    "data-margins",
+    (v) => F.MARGINS.includes(v),
+    `data-margins is ${F.MARGINS.join(", ")}`,
+  );
 }
 
 const result = (ctx, blocks) => ({

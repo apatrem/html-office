@@ -31,6 +31,7 @@ export const FONTS = [
   "times",
 ];
 export const PAGES = ["a4", "letter"];
+export const MARGINS = ["narrow", "normal", "wide"];
 
 // Attributes of article#doc, in canonical order.
 export const ARTICLE_ATTRIBUTES = [
@@ -42,6 +43,7 @@ export const ARTICLE_ATTRIBUTES = [
   "data-theme",
   "data-font",
   "data-page",
+  "data-margins",
 ];
 
 export const ALIGN = ["ta-l", "ta-c", "ta-r", "ta-j"];

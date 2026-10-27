@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/look-browser.mjs && node tests/saving-browser.mjs && node tests/editing-browser.mjs",
     "build": "node tools/build.mjs",
     "check": "node tools/check.mjs",
     "pack": "node tools/pack.mjs",
     "measure": "node tools/measure.mjs",
-    "format:check": "prettier --check \"{model,editor,runtime,tools,tests}/**/*.mjs\""
+    "format:check": "prettier --check \"{model,editor,runtime,theme,tools,tests}/**/*.mjs\""
   },
   "devDependencies": {
     "prettier": "3.6.2"
