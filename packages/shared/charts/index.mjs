@@ -12,11 +12,13 @@ export const registry = { column, hbar, stacked, line, waterfall, bubble, gantt 
 const instances = new WeakMap();
 let loading = null;
 
+// Charte tokens on the root, built-in charte overlays included; a document body font
+// (--body-font, Slides and Text) replaces the charte font.
 export function theme() {
   const cs = getComputedStyle(document.documentElement);
   const g = n => cs.getPropertyValue('--' + n).trim();
   return { ink: g('ink'), acc: g('acc'), mid: g('mid'), lig: g('lig'), alert: g('alert'), t2: g('t2'),
-    bd: g('bd'), w: g('bg') || '#fff', font: g('font') || 'Arial, sans-serif' };
+    bd: g('bd'), w: g('bg') || '#fff', font: g('body-font') || g('font') || 'Arial, sans-serif' };
 }
 
 export function echartsReady() { return !!window.echarts; }

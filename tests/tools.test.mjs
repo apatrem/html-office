@@ -54,6 +54,21 @@ test('since blocks position removal and order changes; explicit slide authorizat
  fs.writeFileSync(b,base.replace('<h1 data-id="e1">Short title</h1><div class="body" data-id="e2">Text.</div>','<div class="body" data-id="e2">Text.</div><h1 data-id="e1">Short title</h1>'));
  assert.equal(run('check',b,'--since',a).status,1);
 });
+test('validator and checker accept a built-in theme and font on main#deck and reject unknown values',()=>{
+ const look=(theme,font)=>base.replace('<main id="deck" data-footer="">',`<main id="deck" data-footer="" data-theme="${theme}" data-font="${font}">`);
+ assert.match(look('green','verdana'),/data-theme="green" data-font="verdana"/);
+ assert.doesNotThrow(()=>preflight(look('green','verdana')));
+ const f=path.join(dir,'look.html');
+ for(const [theme,font] of [['blue','arial'],['red','georgia'],['green','verdana'],['black','times']]){
+  fs.writeFileSync(f,look(theme,font));
+  const r=run('check',f,'--json');assert.equal(r.status,0,r.stdout+r.stderr);
+ }
+ fs.writeFileSync(f,look('purple','comic'));
+ const r=run('check',f,'--json');
+ assert.equal(r.status,1);
+ const msgs=JSON.parse(r.stdout).out.map(x=>x.msg).join('\n');
+ assert.match(msgs,/Unknown deck theme "purple"/);assert.match(msgs,/Unknown deck font "comic"/);
+});
 test('upgrade is explicit and preserves theme unless requested',()=>{
  const html=setZone(base,'theme','/* customer theme */');
  assert.equal(zone(upgrade(html),'theme'),'/* customer theme */');

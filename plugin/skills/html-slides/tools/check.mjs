@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openDeck, args } from './lib.mjs';
 import { snapshot, compareSnapshots } from './validation.mjs';
-import {CONTENT_CLASSES as CLASSES, attributeProblem} from './format.mjs';
+import {CONTENT_CLASSES as CLASSES, THEMES, DECK_FONTS, attributeProblem} from './format.mjs';
 
 const A = args(process.argv.slice(2));
 const file = A._[0];
@@ -24,9 +24,14 @@ catch (e) {
   process.exit(1);
 }
 const { browser, page, errors: jsErrors } = opened;
-const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
+const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES, DECK_FONTS }) => {
   const out = [], attributes = [];
   const add = (level, slide, id, msg) => out.push({ level, slide, id, msg });
+  // deck appearance: a built-in charte and a body font from the shared lists, or absent
+  const deck = document.querySelector('main#deck');
+  for (const [name, list] of [['theme', THEMES], ['font', DECK_FONTS]])
+    if (deck.hasAttribute('data-' + name) && !list.includes(deck.dataset[name]))
+      add('error', '-', null, `Unknown deck ${name} "${deck.dataset[name]}" (data-${name}: ${list.join(', ')}, or remove it for the charte's own)`);
   const slides = [...document.querySelectorAll('main#deck > section.slide')];
   const ids = new Set();
   slides.forEach((s, i) => {
@@ -89,7 +94,7 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES }) => {
   });
   window.deckEngine.validateCharts().forEach(c => c.errors.forEach(m => add('error', c.slide, c.id, `chart ${c.type}: ${m}`)));
   return { out, attributes, n: slides.length };
-}, { LAYOUTS, CLASSES, RUNTIME, SHAPES });
+}, { LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES, DECK_FONTS });
 for (const a of report.attributes) {
   const problem = attributeProblem(a.name, a.value, a.html);
   if (problem) report.out.push({ level: 'error', slide: a.slide, id: a.id, msg: problem });

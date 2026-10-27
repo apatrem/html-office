@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Figures</title>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB">
+<h1 id="sec-f">Figures</h1>
+<figure class="chart" id="fig-line" data-type="line" data-width="full">
+<script type="application/json">{"title":"Visitors","unit":"people","categories":["Jan","Feb","Mar"],"series":[{"name":"2026","values":[120,null,150]}],"labels":"all"}</script>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" class="render" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet"><defs><clipPath id="zr-clip-1"><rect width="200" height="100"></rect></clipPath><linearGradient id="zr-grad-1"><stop offset="0" stop-color="#14517A"></stop></linearGradient></defs><g clip-path="url(#zr-clip-1)"><path d="M0 50L200 50" fill="none" stroke="#D7DDE3"></path><circle cx="50" cy="50" r="5" fill="url(#zr-grad-1)"></circle><text dominant-baseline="central" text-anchor="middle" xml:space="preserve" style="font-size:12px;font-family:Arial" transform="translate(100 90)">A &amp; B</text></g></svg>
+<figcaption>Visitors per month</figcaption>
+</figure>
+<figure class="chart" id="fig-water" data-type="waterfall" data-width="text">
+<script type="application/json">
+{
+  "title": "Budget bridge",
+  "unit": "EUR k",
+  "items": [{"label": "2026", "value": 100, "total": true}, {"label": "Growth", "value": 20}, {"label": "2027", "total": true}]
+}
+</script>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" class="render" viewBox="0 0 200 100" preserveAspectRatio="xMidYMid meet"><defs><clipPath id="zr-clip-1"><rect width="200" height="100"></rect></clipPath><linearGradient id="zr-grad-1"><stop offset="0" stop-color="#14517A"></stop></linearGradient></defs><g clip-path="url(#zr-clip-1)"><path d="M0 50L200 50" fill="none" stroke="#D7DDE3"></path><circle cx="50" cy="50" r="5" fill="url(#zr-grad-1)"></circle><text dominant-baseline="central" text-anchor="middle" xml:space="preserve" style="font-size:12px;font-family:Arial" transform="translate(100 90)">A &amp; B</text></g></svg>
+</figure>
+<figure class="image" id="fig-full" data-width="full">
+<img data-asset="a1" alt="A full-width fictional photo">
+</figure>
+<figure class="image" id="fig-left" data-width="25" data-wrap="left">
+<img data-asset="a1" alt="A small fictional photo">
+<figcaption>Wrapped left</figcaption>
+</figure>
+<p>Text beside the wrapped image, see <a class="xref" href="#fig-left">Figure 3</a>.</p>
+<figure class="image" id="fig-text" data-width="text">
+<img data-asset="a1" alt="A text-width fictional photo">
+<figcaption>Text width</figcaption>
+</figure>
+</article>
+<script id="assets" type="application/json">{"a1":{"type":"image/png","data":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}}</script>
+</body>
+</html>

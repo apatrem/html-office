@@ -17,13 +17,14 @@ Started from the [R06 spike](../../../docs/HTML-DATA-NATIVE-SHELL-SPIKE.md). Onl
 | `panels.mjs` | Panel bodies: cell-style catalogue, document settings (theme and font), regional settings with a live preview |
 | `icons.mjs` | Outline icons from the mock-ups, limited to shipped commands |
 | `shell.css` | Neutral chrome, `.sh-` classes only: rows, buttons, toolbar, menus, swatches, context chip and floating settings bar; narrow layout below 720 px and print rules |
-| `panels.css` | Link card, border picker, dialogs, side panel and panel bodies; load after `shell.css` when the product uses them |
+| `drawer.css` | Side panel (a bottom sheet below 720 px) and the document-settings body; load after `shell.css` in every product with document settings |
+| `panels.css` | Link card, border picker, dialogs and the Data panel bodies (cell styles, regional settings); load after `drawer.css` when the product uses them |
 
 Rules the components enforce:
 - A visible label is the accessible name, also when it is visually collapsed at narrow widths.
 - A menu never lists an inert command. Disabled items stay focusable; the first enabled item takes focus.
 - Popovers append to `#shell-layer` when present. Products mark mounted shell containers with `data-shell-mount` so saved copies can leave them empty. Slides builds its whole shell at load and saves only the nodes the file had, so it needs no mount points.
 
-The built-in chartes the theme picker offers live in [`../themes/chartes.mjs`](../themes/chartes.mjs) (TH01): token sets applied as `:root[data-theme=…]` overlays, never rewriting a document's own charte.
+The built-in chartes the theme picker offers live in [`../themes/chartes.mjs`](../themes/chartes.mjs) (TH01): token sets applied as `:root[data-theme=…]` overlays, never rewriting a document's own charte. The six document fonts are in [`../themes/fonts.mjs`](../themes/fonts.mjs) (TH02).
 
-Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05) and [html-slides](../../../src/engine/shell.js) (U04-Slides; commands in [`commands.js`](../../../src/engine/commands.js)). Text (U04-Text) follows.
+Used by: [html-data](../../data/runtime/shell.mjs) (U04-Data, F03, F05) and [html-slides](../../../src/engine/shell.js) (U04-Slides; commands in [`commands.js`](../../../src/engine/commands.js)). [html-text](../../text/runtime/shell.mjs) (U04-Text, from Text T03). Local-file saving is shared too: [`../persistence.mjs`](../persistence.mjs).

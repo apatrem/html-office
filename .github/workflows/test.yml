@@ -69,9 +69,32 @@ jobs:
             dist/data-bench/browser-results.json
             dist/data-bench/profiles/*.cpuprofile
 
+  text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/text/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix packages/text --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm audit --prefix packages/text --audit-level=high
+      - run: npm --prefix packages/text run format:check
+      - run: npm run test:text
+
   clipboard-engines:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Installing three browsers with their system packages can take over
+    # 15 minutes on hosted runners.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

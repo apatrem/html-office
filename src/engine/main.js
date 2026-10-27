@@ -13,6 +13,7 @@ function boot() {
   M.state.main = main;
   M.state.bodyClass = document.body.getAttribute('class') || '';
   M.captureShell(); // before any injection: only these nodes are saved
+  M.syncLook(); // the deck's theme and font, before charts read the charte tokens
   const st = document.createElement('style');
   st.setAttribute('data-ui', '');
   st.textContent = V.UI_CSS;
@@ -32,6 +33,16 @@ function boot() {
     else if (charts().length && !V.isStatic())
       V.banner('ECharts could not be loaded: cached charts are displayed, but data cannot be edited.', [], 8000);
     return !!ec;
+  });
+
+  // A theme or font change (or its undo) redraws every chart in the new colours and font, before
+  // the thumbnails are rebuilt from the slides.
+  let look = M.look();
+  M.on('deck', () => {
+    M.syncLook();
+    if (M.look() === look) return;
+    look = M.look();
+    charts().forEach(C.renderChart);
   });
 
   const serialize = written => M.serialize(() => C.refreshCaches(main), written);
@@ -121,7 +132,13 @@ function boot() {
     V.chromeAll();
     charts().filter(f => !f.classList.contains('live')).forEach(C.renderChart);
     E.clearSel();
-    if (M.state.current && M.state.current.isConnected) M.emit('current', M.state.current);
+    // A restored structure has new slide elements: the current slide is found again by its id,
+    // otherwise (it was removed) the slide at the centre of the screen becomes current.
+    const cur = M.state.current;
+    if (cur && !cur.isConnected) {
+      const again = document.getElementById(cur.id);
+      if (again?.matches('main#deck > section.slide')) E.setCurrent(again); else E.currentSlide();
+    } else if (cur) M.emit('current', cur);
   });
   addEventListener('resize', () => { V.fit(); });
 

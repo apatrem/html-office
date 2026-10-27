@@ -1,3 +1,5 @@
+// Local-file persistence shared by html-office products (Data T07, Text T03): explicit file
+// binding with staged-write conflict checks, a dirty-revision counter and IndexedDB drafts.
 export async function digestText(text) {
   const bytes = await crypto.subtle.digest(
     "SHA-256",
@@ -67,9 +69,10 @@ export class FileWriter {
 }
 
 // IndexedDB permits larger drafts than synchronous localStorage, with explicit errors.
-export function draftDatabase() {
+// Each product keeps its drafts in its own database.
+export function draftDatabase(name = "html-office-data-recovery") {
   const ready = new Promise((resolve, reject) => {
-    const request = indexedDB.open("html-office-data-recovery", 1);
+    const request = indexedDB.open(name, 1);
     request.onupgradeneeded = () => request.result.createObjectStore("drafts");
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

@@ -3,7 +3,7 @@ import { pivotState } from "../model/pivot.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { shiftWorkbook, restoreHead } from "../model/structure.mjs";
 import { readModel, writeModel } from "./document-model.mjs";
-import { draftDatabase } from "./persistence.mjs";
+import { draftDatabase } from "../../shared/persistence.mjs";
 let database,
   book,
   key,

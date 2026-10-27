@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tables</title>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB">
+<h1 id="sec-t">Tables</h1>
+<figure class="table" id="tab-plain">
+<table>
+<tbody>
+<tr><td>a</td><td>b</td></tr>
+<tr><td></td><td>d</td></tr>
+</tbody>
+</table>
+</figure>
+<figure class="table" id="tab-compact">
+<figcaption>Compact table with row headers</figcaption>
+<table class="compact">
+<thead>
+<tr><th></th><th class="ta-c">2026</th></tr>
+</thead>
+<tbody>
+<tr><th>North</th><td class="ta-r"><strong>1.2</strong></td></tr>
+<tr class="total"><th>Total</th><td class="ta-r">1.2</td></tr>
+</tbody>
+</table>
+</figure>
+<figure class="table" id="tab-merged">
+<figcaption>Merged cells, <a href="https://example.org/data">source</a></figcaption>
+<table>
+<colgroup><col data-width="25"><col data-width="25"><col data-width="25"><col data-width="25"></colgroup>
+<tbody>
+<tr><td colspan="2" rowspan="2">2×2</td><td>c</td><td rowspan="3">tall</td></tr>
+<tr><td>f</td></tr>
+<tr><td>i</td><td colspan="2">wide</td></tr>
+</tbody>
+</table>
+</figure>
+<figure class="table" id="tab-covered">
+<table>
+<tbody>
+<tr><td rowspan="2">A row covered by this cell has no cell of its own</td><td>b</td></tr>
+<tr><td>c</td></tr>
+<tr><td colspan="2" rowspan="2">covered</td></tr>
+<tr></tr>
+</tbody>
+</table>
+</figure>
+</article>
+</body>
+</html>

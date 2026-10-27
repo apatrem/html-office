@@ -14,7 +14,7 @@ The minified engine, base64 assets, and cached SVGs are technical blocks; ordina
 
 | Zone | Contents and editing |
 | --- | --- |
-| `main#deck` | Slides, chart data, deck metadata, and notes; primary content editing zone |
+| `main#deck` | Slides, chart data, deck metadata (footer, theme, font), and notes; primary content editing zone |
 | `style#charte` | Colours, fonts, and sizes; preserve unless branding changes are requested |
 | `style#theme` | Layouts and CSS primitives; preserve during content edits |
 | `script#assets` (`application/json`) | Embedded images/fonts; retain referenced resources |
@@ -32,7 +32,7 @@ Keep slide `id`, element `data-id`, order, classes, `data-layout`, `data-detache
 
 A template slide follows its grid. A `data-detached` slide uses explicit placement: every content child has four unitless pixel numbers `--x`, `--y`, `--w`, `--h`. The editor freezes all elements on the first move so neighbours remain in place. Removing `data-detached` and coordinates reactivates the layout: do this only for a requested recomposition. The **Reset layout** button does the same.
 
-Use only classes from the reference below. Do not invent layouts, colours, fonts, free styles, or chart types. HTML order also determines stacking. Footers come from `main[data-footer]` with a generated page number; `data-nofoot` hides a slide's footer.
+Use only classes from the reference below. Do not invent layouts, colours, fonts, free styles, or chart types. The deck's colours and body font change only through the `data-theme` and `data-font` attributes of `main#deck` (see Theme and font below); keep them unless a change is requested. HTML order also determines stacking. Footers come from `main[data-footer]` with a generated page number; `data-nofoot` hides a slide's footer.
 
 ## Edit without the skill
 
