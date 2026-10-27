@@ -11,7 +11,11 @@ import {
 } from "../editor/schema/document.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { schema } from "../editor/schema/schema.mjs";
-import { subsetGuard, linkConflicts } from "../editor/schema/guard.mjs";
+import {
+  subsetGuard,
+  linkConflicts,
+  lostThreads,
+} from "../editor/schema/guard.mjs";
 import { pack, diffLines } from "../tools/pack.mjs";
 import { checkSource } from "../tools/check.mjs";
 import { generate, envelope } from "./generate.mjs";
@@ -381,4 +385,12 @@ test("a comment thread that text refers to cannot be deleted; with its anchors i
   assert.notEqual(both.state.doc, state.doc);
   const saved = saveFile(file, both.state.doc);
   assert.ok(open(saved).doc.eq(both.state.doc));
+});
+
+test("only comment anchors count as references to threads", () => {
+  const doc = open(
+    article('<p><mark data-ref="x">Kept as written</mark></p>\n<p>Text</p>'),
+  ).doc;
+  assert.equal(doc.child(0).type.name, "protected");
+  assert.deepEqual(lostThreads(doc), []);
 });

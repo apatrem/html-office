@@ -38,8 +38,9 @@ const LEAD = '<p class="lead"><mark class="comment"';
 // An in-page disk for showSaveFilePicker. disk.hold (a promise) delays the commit, disk.fail
 // refuses the write, disk.cancel cancels the picker.
 function stubDisk(text) {
-  const disk = (globalThis.disk = { text, writes: 0, fail: false });
+  const disk = (globalThis.disk = { text, writes: 0, picks: 0, fail: false });
   globalThis.showSaveFilePicker = async () => {
+    disk.picks++;
     if (disk.cancel)
       throw new DOMException("The user aborted a request.", "AbortError");
     return {
@@ -67,6 +68,25 @@ function stubDisk(text) {
   };
 }
 
+// Holds back the browser storage's answer (IndexedDB open) until window.releaseStorage().
+function gateStorage() {
+  const gate = new Promise((r) => (window.releaseStorage = r));
+  const open = IDBFactory.prototype.open;
+  IDBFactory.prototype.open = function (...args) {
+    const request = open.apply(this, args);
+    let handler = null;
+    Object.defineProperty(request, "onsuccess", {
+      configurable: true,
+      get: () => handler,
+      set: (f) => (handler = f),
+    });
+    request.addEventListener("success", (event) =>
+      gate.then(() => handler?.call(request, event)),
+    );
+    return request;
+  };
+}
+
 async function run(engine) {
   const pass = (name) => console.log(`PASS text saving [${engine}]: ${name}`);
   const browser = await playwright[engine].launch();
@@ -75,8 +95,9 @@ async function run(engine) {
   async function context() {
     const ctx = await browser.newContext({ acceptDownloads: true });
     const errors = [];
-    const open = async (target, { disk, picker = !!disk } = {}) => {
+    const open = async (target, { disk, picker = !!disk, gate } = {}) => {
       const page = await ctx.newPage();
+      if (gate) await page.addInitScript(gateStorage);
       page.on("pageerror", (e) => errors.push(e.message));
       page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
       if (picker) await page.addInitScript(stubDisk, disk);
@@ -194,13 +215,11 @@ async function run(engine) {
         assert.match(await lead(page), /^Overall, Revenue grew/);
         assert.match(await status(page), /^Draft restored/);
         await waitState(page, "draft");
-        await page.keyboard.press(`${mod}+z`);
-        assert.match(
-          await lead(page),
-          /^Revenue grew/,
-          "restoring is one undoable edit",
+        // Restoring starts a new history: undo cannot bring back zones the draft replaced.
+        assert.equal(
+          await page.evaluate(() => window.htmlText.commands.enabled("undo")),
+          false,
         );
-        await page.keyboard.press(`${mod}+Shift+z`);
         await page.close();
         // Discarded, it is gone.
         page = await open(url);
@@ -239,7 +258,21 @@ async function run(engine) {
         page = await open(url, {
           disk: elsewhere,
           picker: engine === "chromium",
+          gate: true,
         });
+        // Before the draft store answers, Save does nothing: the draft found next is older than
+        // the file, and a file bound now could be overwritten by it.
+        assert.equal(await recovery(page), "opening");
+        if (engine === "chromium") {
+          await typeInLead(page, "Early ");
+          await page.keyboard.press(`${mod}+s`);
+          await page.waitForTimeout(200);
+          assert.deepEqual(
+            await page.evaluate(() => [window.disk.picks, window.disk.writes]),
+            [0, 0],
+          );
+        }
+        await page.evaluate(() => window.releaseStorage());
         await page.waitForSelector("dialog.sh-dialog[open]");
         assert.match(
           await page.locator("dialog.sh-dialog").textContent(),
@@ -285,7 +318,7 @@ async function run(engine) {
         assert.deepEqual(errors, []);
         await ctx.close();
         pass(
-          "a draft is offered on reopening: restored as one undoable edit, discarded, or restored as a copy when the file changed",
+          "a draft is offered on reopening: restored (with a new history), discarded, or restored as a copy with its own zones when the file changed; Save waits for the draft store",
         );
       }
     }

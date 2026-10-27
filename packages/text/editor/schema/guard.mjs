@@ -101,9 +101,11 @@ function repair(state) {
 // Comment anchors (marks, and mark.comment in protected blocks) whose thread is missing.
 function treeRefs(tree, refs) {
   if (tree.type !== "element") return;
-  if (tree.name === "mark")
-    for (const [name, value] of tree.attrs)
-      if (name === "data-ref") refs.add(value);
+  const ref = tree.attrs.find(([name]) => name === "data-ref");
+  const comment = tree.attrs.some(
+    ([name, value]) => name === "class" && value === "comment",
+  );
+  if (tree.name === "mark" && ref && comment) refs.add(ref[1]);
   for (const child of tree.children) treeRefs(child, refs);
 }
 export function lostThreads(doc) {

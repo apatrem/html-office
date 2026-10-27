@@ -130,23 +130,20 @@ function start() {
     return { ...tree, html: swap(tree.html) };
   }
   // A draft is restored with the zones stored with it (its assets, theme…) and this editor: it
-  // must validate like a file, and it replaces the document as one undoable edit. Saving then
-  // writes those zones.
+  // must validate like a file. It replaces the document and starts a new history, since undo
+  // cannot bring back the zones it replaced; saving then writes those zones.
   function restoreDraft({ article, zones }) {
     if (article === null)
       throw new Error("it was stored by another version of the editor");
-    const engine = findEngine(file.html);
-    const tree = withEngine(read(zones), engine);
+    const tree = withEngine(read(zones), findEngine(file.html));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
-    let tr = view.state.tr.replaceWith(
-      0,
-      view.state.doc.content.size,
-      next.content,
+    view.updateState(
+      EditorState.create({ doc: next, plugins: view.state.plugins }),
     );
-    for (const [name, value] of Object.entries(next.attrs))
-      if (tr.doc.attrs[name] !== value) tr = tr.setDocAttribute(name, value);
-    view.dispatch(tr.scrollIntoView());
+    saving.edited();
+    mirrorLook(next);
+    commands.changed();
   }
   const findEngine = (node) =>
     node.type === "element" && attr(node, "id") === "engine"

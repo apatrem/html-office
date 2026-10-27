@@ -44,7 +44,6 @@ export function setupSaving({
     key,
     baseHash,
     timer = 0,
-    storedZones = null,
     queue = Promise.resolve();
   const say = (text) => {
     message = text;
@@ -76,22 +75,29 @@ export function setupSaving({
       date: new Date().toISOString(),
     };
     enqueue(async () => {
-      // The zones (assets included) are written again only when they change.
-      record.zonesHash = await digestText(text);
-      if (storedZones !== record.zonesHash) {
-        await store.put(`${key}:zones`, { hash: record.zonesHash, text });
-        storedZones = record.zonesHash;
-      }
-      await store.put(key, record);
+      // The zones (assets included) are rewritten only when the stored ones differ, read in the
+      // same transaction: another tab may have saved and removed them meanwhile.
+      const hash = (record.zonesHash = await digestText(text));
+      await store.update((drafts) => {
+        const stored = drafts.get(`${key}:zones-hash`);
+        stored.onsuccess = () => {
+          if (stored.result !== hash) {
+            drafts.put({ hash, text }, `${key}:zones`);
+            drafts.put(hash, `${key}:zones-hash`);
+          }
+          drafts.put(record, key);
+        };
+      });
       kept = Math.max(kept, revision);
       changed();
     });
   }
   const dropDraft = () =>
     enqueue(async () => {
-      await store.delete(key);
-      await store.delete(`${key}:zones`);
-      storedZones = null;
+      await store.update((drafts) => {
+        for (const k of [key, `${key}:zones`, `${key}:zones-hash`])
+          drafts.delete(k);
+      });
       kept = -1;
     });
 
@@ -260,7 +266,6 @@ export function setupSaving({
       asCopy = copy;
       // A file bound before the choice belongs to the document replaced; Save asks again.
       writer = null;
-      storedZones = null;
       recovery = "ready";
       storeDraft();
       say(
