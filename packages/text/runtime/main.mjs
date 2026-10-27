@@ -28,7 +28,9 @@ import { subsetGuard } from "../editor/schema/guard.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { mountShell, refusal } from "./shell.mjs";
+import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
+import drawerCSS from "../../shared/shell/drawer.css";
 import editorCSS from "./style.css";
 
 // Enter as in baseKeymap, except: a heading split at its end continues with a paragraph (the
@@ -80,7 +82,7 @@ function zonesAfter() {
 function start() {
   const report = file && !zonesAfter() ? validateFile(file) : misplaced;
   const style = document.createElement("style");
-  style.textContent = shellCSS + editorCSS;
+  style.textContent = shellCSS + drawerCSS + LOOK_CSS + editorCSS;
   document.head.append(style);
   if (!report.ok) {
     refusal(report);
@@ -126,10 +128,15 @@ function start() {
     { mount: article },
     {
       state,
-      attributes: { "aria-label": "Document", spellcheck: "true" },
+      attributes: (state) => ({
+        "aria-label": "Document",
+        spellcheck: "true",
+        ...lookAttributes(state.doc),
+      }),
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         if (tr.docChanged) saving.edited();
+        mirrorLook(view.state.doc);
         commands.changed();
       },
     },
@@ -143,7 +150,12 @@ function start() {
   commands.register("print", () => window.print());
   commands.register("undo", run(undo), () => undo(view.state));
   commands.register("redo", run(redo), () => redo(view.state));
-  mountShell(commands, saving, report);
+  for (const key of ["theme", "font", "page", "margins"])
+    commands.register(key, (value) =>
+      setLook(key, value)(view.state, view.dispatch),
+    );
+  mountShell(commands, saving, report, () => view.state.doc.attrs);
+  mirrorLook(doc);
   document.body.classList.add("tx-editing");
   // Tests and tools read the editor through this handle; it is not part of the file.
   window.htmlText = {

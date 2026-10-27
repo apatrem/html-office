@@ -5,6 +5,8 @@ import { h, button } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group } from "../../shared/shell/toolbar.mjs";
 import { modal } from "../../shared/shell/dialogs.mjs";
+import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
+import { documentBody, choices } from "../../shared/shell/panels.mjs";
 
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const key = (k) => (mac ? "⌘" : "Ctrl+") + k;
@@ -13,6 +15,23 @@ const SHORTCUTS = [
   ["Undo", key("Z")],
   ["Redo", `${key("Shift+Z")} or ${key("Y")}`],
   ["New paragraph", "Enter"],
+];
+
+// "document": what style#theme sets when the article has no data-page or data-margins.
+const PAGE_CHOICES = [
+  ["document", h("span", {}, "Theme default")],
+  ["a4", h("span", {}, "A4"), h("span", { class: "sh-aa" }, "210 × 297 mm")],
+  [
+    "letter",
+    h("span", {}, "Letter"),
+    h("span", { class: "sh-aa" }, "8.5 × 11 in"),
+  ],
+];
+const MARGIN_CHOICES = [
+  ["document", h("span", {}, "Theme default")],
+  ["narrow", h("span", {}, "Narrow")],
+  ["normal", h("span", {}, "Normal")],
+  ["wide", h("span", {}, "Wide")],
 ];
 
 function shortcuts(opener) {
@@ -30,7 +49,8 @@ function shortcuts(opener) {
   );
 }
 
-export function mountShell(cmd, saving, report) {
+// look(): the document's attributes (theme, font, page, margins; null when absent).
+export function mountShell(cmd, saving, report, look) {
   const binds = [];
   const item = (label, id, extra = {}) => ({
     label,
@@ -49,6 +69,8 @@ export function mountShell(cmd, saving, report) {
       items: () => [
         item("Save", "save", { shortcut: key("S") }),
         item("Save a copy", "save-copy"),
+        "-",
+        { label: "Document settings…", onSelect: () => openSettings() },
         "-",
         item("Print / PDF", "print"),
       ],
@@ -129,21 +151,113 @@ export function mountShell(cmd, saving, report) {
     ),
     h("div", { class: "sh-row sh-row2" }, bar),
   );
-  // Clicking the chrome keeps the caret in the document.
-  top.addEventListener("pointerdown", (event) => {
-    if (!event.target.closest("input, textarea")) event.preventDefault();
+  // ---- document settings (ADR-011 §7, T04): theme, font, page format and margins ----
+  // The document's own charte colours, read before any built-in overlay applies.
+  const own = getComputedStyle(document.documentElement);
+  const documentColours = Object.fromEntries(
+    ["ink", "acc", "mid", "lig", "alert"].map((t) => [
+      t,
+      own.getPropertyValue(`--${t}`).trim(),
+    ]),
+  );
+  const current = () => {
+    const a = look();
+    return {
+      theme: a.theme ?? "document",
+      font: a.font ?? "document",
+      page: a.page ?? "document",
+      margins: a.margins ?? "document",
+    };
+  };
+  const settings = () => ({
+    title: "Document settings",
+    subtitle: "Theme, font and page apply to the whole document",
+    body: () =>
+      documentBody({
+        ...current(),
+        documentColours,
+        onTheme: (t) => cmd.run("theme", t),
+        onFont: (f) => cmd.run("font", f),
+        fontNote: "Body text only; headings keep the charte font.",
+        extra: [
+          h("h3", {}, "Page format"),
+          choices(
+            "Page format",
+            "sh-fonts tx-pages",
+            PAGE_CHOICES,
+            current().page,
+            (v) => cmd.run("page", v),
+          ),
+          h("h3", {}, "Margins"),
+          choices(
+            "Margins",
+            "sh-fonts tx-margins",
+            MARGIN_CHOICES,
+            current().margins,
+            (v) => cmd.run("margins", v),
+          ),
+          h(
+            "p",
+            { class: "sh-hint" },
+            "You edit at the text width of the page, so lines break where they print.",
+          ),
+        ],
+      }),
   });
+  const panel = createDrawer(h("div", { class: "sh-root tx-drawer" }));
+  const width = h("span", { class: "sh-finfo", role: "status" });
+  const settingsButton = panel.toggle(
+    button({
+      label: "Theme & page",
+      ic: "sliders",
+      text: "Theme & page",
+      title: "Document settings: theme, font, page format and margins",
+    }),
+    "settings",
+    settings,
+  );
+  // Opened from a menu, the panel returns focus to the settings-bar button when it closes.
+  const openSettings = () =>
+    panel.open("settings", { ...settings(), trigger: settingsButton });
+  const float = h(
+    "div",
+    {
+      class: "sh-root sh-float tx-float",
+      role: "group",
+      "aria-label": "Document settings",
+    },
+    settingsButton,
+    width,
+  );
+
+  // Clicking the chrome keeps the caret in the document.
+  for (const el of [top, float])
+    el.addEventListener("pointerdown", (event) => {
+      if (!event.target.closest("input, textarea")) event.preventDefault();
+    });
   document.body.prepend(top);
+  document.body.append(float, panel.host);
+  // The editor handles its own Mod-s, Mod-z and Mod-y; this covers focus in the chrome (a panel
+  // choice, a toolbar button). Text fields keep their own undo.
   document.addEventListener("keydown", (event) => {
-    // The editor handles its own Mod-s; this covers focus in the chrome.
-    if (
-      !event.defaultPrevented &&
-      (mac ? event.metaKey : event.ctrlKey) &&
-      event.key === "s"
-    ) {
-      event.preventDefault();
-      cmd.run("save");
-    }
+    if (event.defaultPrevented || !(mac ? event.metaKey : event.ctrlKey))
+      return;
+    const k = event.key.toLowerCase();
+    const id =
+      k === "s"
+        ? "save"
+        : event.target.closest?.("input, textarea, [contenteditable]")
+          ? null
+          : k === "z"
+            ? event.shiftKey
+              ? "redo"
+              : "undo"
+            : k === "y"
+              ? "redo"
+              : null;
+    if (!id) return;
+    event.preventDefault();
+    cmd.run(id);
   });
   const text = (el, t) => {
     if (el.textContent !== t) el.textContent = t;
@@ -159,8 +273,33 @@ export function mountShell(cmd, saving, report) {
       .filter(Boolean)
       .join(" · "),
   );
+  const article = document.getElementById("doc");
+  let measured = "";
   function sync() {
     for (const [b, id] of binds) b.disabled = !cmd.enabled(id);
+    // The open panel follows undo and redo.
+    if (panel.current()) {
+      const c = current();
+      for (const [sel, v] of [
+        [".sh-themes > button", c.theme],
+        [".sh-fonts:not(.tx-pages, .tx-margins) > button", c.font],
+        [".tx-pages > button", c.page],
+        [".tx-margins > button", c.margins],
+      ])
+        for (const b of panel.host.querySelectorAll(sel))
+          b.setAttribute("aria-checked", String(b.dataset.value === v));
+    }
+    // The editing width, measured when the look changes: the page's text width in millimetres.
+    const key = JSON.stringify(look());
+    if (key !== measured) {
+      measured = key;
+      const cs = getComputedStyle(article);
+      const px =
+        article.clientWidth -
+        parseFloat(cs.paddingLeft) -
+        parseFloat(cs.paddingRight);
+      text(width, `Text width ${Math.round((px * 25.4) / 96)} mm`);
+    }
     text(
       status,
       saving.busy

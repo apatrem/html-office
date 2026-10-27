@@ -11,7 +11,8 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `model/validate.mjs` | Validator: errors, protected blocks and warnings |
 | `model/file.mjs` | File layout of the canonical form: one zone per line, article#doc from the editor |
 | `editor/schema/` | ProseMirror schema of the subset, parser (tree to document), serialiser (document to canonical HTML), `document.mjs` (validated open, save, read-back check) and `guard.mjs` (keeps links off footnotes and cross-references while editing) (T02) |
-| `runtime/` | The editor (T03): bootstrap (`main.mjs`), variant A shell (`shell.mjs`, shared components), saving through `packages/shared/persistence.mjs` (`saving.mjs`), editor-only CSS |
+| `runtime/` | The editor (T03): bootstrap (`main.mjs`), variant A shell (`shell.mjs`, shared components, document settings), theme, font, page and margins (`look.mjs`, T04), saving through `packages/shared/persistence.mjs` (`saving.mjs`), editor-only CSS |
+| `theme/` | Default look (T04): `layout.css` is the default `style#theme` (page format, margins, type scale, blocks, tables); `index.mjs` gives it and the default charte to tools and tests |
 | `tools/build.mjs` | `node tools/build.mjs <document.html> [<output.html>] [--json]`: builds the editor with its notices into `script#engine` and reports bytes by zone |
 | `tools/check.mjs` | `node tools/check.mjs <document.html> [--json]`; also reports a valid document that is not in canonical form |
 | `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form and lists changed lines |
@@ -28,4 +29,4 @@ npm run test:text
 node packages/text/tools/build.mjs packages/text/fixtures/valid/example.html
 ```
 
-The built file (`dist/text/example.html`) opens from `file://`: type, undo and redo, Save (Chrome and Edge, File System Access API) or Save a copy. Save writes only an empty file or the file as opened, in canonical form; nothing is normalised silently.
+The built file (`dist/text/example.html`) opens from `file://`: type, undo and redo, choose the theme, font, page format and margins (Theme & page), Save (Chrome and Edge, File System Access API) or Save a copy. Save writes only an empty file or the file as opened, in canonical form; nothing is normalised silently.

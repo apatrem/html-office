@@ -22,7 +22,7 @@ export const CELL_STYLES = [
 ];
 
 // A radio group of buttons: arrows move, click or Enter applies.
-function choices(label, cls, items, current, onPick) {
+export function choices(label, cls, items, current, onPick) {
   const group = h("div", {
     class: cls,
     role: "radiogroup",

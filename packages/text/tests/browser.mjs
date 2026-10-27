@@ -221,7 +221,9 @@ try {
     )
   ).replace(
     "</body>",
-    `<script id="engine" data-version="${engine.version}">${engine.code}</script>\n</body>`,
+    // A function: the engine's code may contain "$'" or "$&", special in a replacement string.
+    () =>
+      `<script id="engine" data-version="${engine.version}">${engine.code}</script>\n</body>`,
   );
   const refused = await open(await write("refused.html", invalid));
   await refused.page.waitForSelector(".tx-refusal");
@@ -247,7 +249,8 @@ try {
     )
     .replace(
       "</body>",
-      `<script id="engine" data-version="${engine.version}">${engine.code}</script>\n</body>`,
+      () =>
+        `<script id="engine" data-version="${engine.version}">${engine.code}</script>\n</body>`,
     );
   const unstable = await open(await write("unstable.html", repaired), "");
   await unstable.page.waitForFunction(() => window.htmlText);
