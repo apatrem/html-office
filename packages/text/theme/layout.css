@@ -1,0 +1,57 @@
+/* html-text layout theme 1 (style#theme). Colours and fonts come from style#charte; page format A4, margins 25 mm. */
+html{background:var(--tint)}
+body{margin:0;color:var(--ink);font:11pt/1.45 var(--body-font,var(--font))}
+#doc{--page-w:210mm;--margin:25mm;page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+#doc[data-page=letter]{--page-w:215.9mm;page:letter}
+#doc[data-margins=narrow]{--margin:15mm;page:a4-narrow}
+#doc[data-margins=wide]{--margin:35mm;page:a4-wide}
+#doc[data-page=letter][data-margins=narrow]{page:letter-narrow}
+#doc[data-page=letter][data-margins=wide]{page:letter-wide}
+@page{size:A4;margin:25mm}
+@page a4{size:A4;margin:25mm}
+@page a4-narrow{size:A4;margin:15mm}
+@page a4-wide{size:A4;margin:35mm}
+@page letter{size:letter;margin:25mm}
+@page letter-narrow{size:letter;margin:15mm}
+@page letter-wide{size:letter;margin:35mm}
+h1,h2,h3,h4,.title{font-family:var(--title-font,var(--font));color:var(--acc);line-height:1.2;margin:1.3em 0 .45em;break-after:avoid}
+h1{font-size:20pt}h2{font-size:15pt}h3{font-size:12.5pt}h4{font-size:11pt}
+p{margin:0 0 .7em}
+.lead{font-size:13pt;line-height:1.4}
+.ta-l{text-align:left}.ta-c{text-align:center}.ta-r{text-align:right}.ta-j{text-align:justify}
+.cover{margin:0 0 2.5em;padding:0 0 1em;border-bottom:2px solid var(--acc)}
+.cover .title{font-size:30pt;color:var(--ink);margin:0 0 .25em}
+.cover .subtitle{font-size:15pt;color:var(--acc)}
+.cover p{color:var(--t2);margin:0 0 .3em}
+blockquote{margin:1em 0;padding:0 0 0 1.2em;border-left:3px solid var(--lig);color:var(--t2);font-style:italic}
+.callout{margin:1em 0;padding:.6em 1em;background:var(--callout,var(--tint));border-left:4px solid var(--mid)}
+.callout.warning{border-left-color:var(--alert)}
+.callout.key{border-left-color:var(--acc);color:var(--acc);font-weight:bold;font-size:12pt}
+.callout>:last-child,blockquote>:last-child{margin-bottom:0}
+ul,ol{margin:0 0 .7em;padding-left:1.6em}li>ul,li>ol{margin:0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em}
+pre{margin:1em 0;padding:.6em .8em;background:var(--tint);font:9.5pt/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+pre code{font:inherit}
+mark{background:color-mix(in srgb,var(--lig) 55%,var(--bg));color:inherit}
+mark.comment{background:none;border-bottom:2px solid var(--alert)}
+a{color:var(--acc)}
+.footnote{font-size:.85em;color:var(--t2)}.footnote::before{content:" ["}.footnote::after{content:"]"}
+hr.page-break{border:0;border-top:1px dashed var(--bd);margin:1.5em 0}
+.toc ol{list-style:none;margin:0;padding-left:1.2em}.toc>ol{padding:0}.toc a{color:inherit;text-decoration:none}
+figure{margin:1.2em 0}
+figcaption{font-size:9.5pt;color:var(--t2);margin:.4em 0 0}
+figure.table figcaption{margin:0 0 .4em}
+figure img,figure svg.render{display:block;width:100%;height:auto}
+figure.image img{background:var(--tint);min-height:4em}
+figure.image[data-wrap=left]{float:left;margin:.2em 1.2em .6em 0}
+figure.image[data-wrap=right]{float:right;margin:.2em 0 .6em 1.2em}
+figure.image[data-width="25"]{width:25%}figure.image[data-width="33"]{width:33%}figure.image[data-width="40"]{width:40%}figure.image[data-width="50"]{width:50%}
+table{width:100%;border-collapse:collapse;font-size:10pt}
+th,td{padding:.3em .5em;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+thead th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
+tbody th{color:var(--row-label-ink,var(--acc));font-weight:normal}
+tr.total>*{font-weight:bold;border-top:1.5px solid var(--ink);border-bottom:0}
+col.emphasis{background:var(--tint)}
+table.compact th,table.compact td{padding:.1em .4em}
+.comments{margin:2em 0 0;padding:.5em 1em;border-top:1px solid var(--bd);font-size:9.5pt;color:var(--t2)}
+@media print{html,body{background:none}#doc{margin:0;padding:0;box-shadow:none;background:none}hr.page-break{break-after:page;border:0;margin:0}.new-page{break-before:page}figure,tr{break-inside:avoid}.comments{display:none}}

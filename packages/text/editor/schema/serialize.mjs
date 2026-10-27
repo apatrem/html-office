@@ -330,6 +330,7 @@ const ARTICLE = [
   ["data-theme", (a) => a.theme],
   ["data-font", (a) => a.font],
   ["data-page", (a) => a.page],
+  ["data-margins", (a) => a.margins],
 ];
 
 // The article#doc element as a plain tree. A protected text block keeps its own surrounding
