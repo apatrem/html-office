@@ -11,7 +11,11 @@ import {
 } from "../editor/schema/document.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { schema } from "../editor/schema/schema.mjs";
-import { subsetGuard, linkConflicts } from "../editor/schema/guard.mjs";
+import {
+  subsetGuard,
+  linkConflicts,
+  lostThreads,
+} from "../editor/schema/guard.mjs";
 import { pack, diffLines } from "../tools/pack.mjs";
 import { checkSource } from "../tools/check.mjs";
 import { generate, envelope } from "./generate.mjs";
@@ -350,4 +354,67 @@ test("the guard repairs footnotes inserted in links, repeated IDs and short tabl
     table.state.tr.delete(cellPos, cellPos + 3),
   );
   assert.match(table.reopen(deleted), /<tr><td>z<\/td><td><\/td><\/tr>/);
+});
+
+test("a comment thread that text refers to cannot be deleted; with its anchors it can", () => {
+  const source = article(
+    '<p><mark class="comment" data-ref="c1">Quoted</mark> text.</p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="Quoted">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>',
+  );
+  const file = parseFile(source);
+  const state = EditorState.create({
+    doc: openFile(file).doc,
+    plugins: [subsetGuard()],
+  });
+  const comments = state.doc.lastChild;
+  const at = state.doc.content.size - comments.nodeSize;
+  // Deleting the comments section alone would leave the mark without its thread.
+  const alone = state.applyTransaction(
+    state.tr.delete(at, state.doc.content.size),
+  );
+  assert.equal(alone.state.doc, state.doc);
+  // Deleting the paragraph too removes the anchor: allowed, and the file reopens.
+  const both = state.applyTransaction(
+    state.tr
+      .delete(at, state.doc.content.size)
+      .replaceWith(
+        0,
+        state.doc.child(0).nodeSize,
+        schema.nodes.paragraph.create(),
+      ),
+  );
+  assert.notEqual(both.state.doc, state.doc);
+  const saved = saveFile(file, both.state.doc);
+  assert.ok(open(saved).doc.eq(both.state.doc));
+});
+
+test("only comment anchors count as references to threads", () => {
+  const doc = open(
+    article('<p><mark data-ref="x">Kept as written</mark></p>\n<p>Text</p>'),
+  ).doc;
+  assert.equal(doc.child(0).type.name, "protected");
+  assert.deepEqual(lostThreads(doc), []);
+});
+
+test("a thread anchored inside a protected block cannot be deleted, whatever its class list", () => {
+  const thread =
+    '<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>';
+  for (const cls of ["comment other", " comment "]) {
+    const state = EditorState.create({
+      doc: open(
+        article(
+          `<div><mark class="${cls}" data-ref="c1">x</mark></div>\n<p>Text</p>\n${thread}`,
+        ),
+      ).doc,
+      plugins: [subsetGuard()],
+    });
+    assert.equal(state.doc.child(0).type.name, "protected");
+    const comments = state.doc.lastChild;
+    const result = state.applyTransaction(
+      state.tr.delete(
+        state.doc.content.size - comments.nodeSize,
+        state.doc.content.size,
+      ),
+    );
+    assert.equal(result.state.doc, state.doc, cls);
+  }
 });
