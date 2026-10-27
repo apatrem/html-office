@@ -258,6 +258,11 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
     ok(!c.errors.length && !again.errors.length, `no JavaScript error (${[...c.errors, ...again.errors]})`);
     await off.close();
 
+    // Repeated pastes step down and right, never onto each other, and stay above the footer.
+    for (let i = 0; i < 9; i++) await paste(b, 's05', column);
+    const spots = await b.evaluate(() => [...document.querySelectorAll('#s05 > figure.chart')].slice(-9).map(f => [f.style.getPropertyValue('--x'), f.style.getPropertyValue('--y'), f.style.getPropertyValue('--h')].map(Number)));
+    ok(new Set(spots.map(([x, y]) => x + ',' + y)).size === 9 && spots.every(([, y, h]) => y + h <= 668), `nine pastes: distinct positions above the footer (${spots.map(([x, y]) => x + ',' + y).join(' ')})`);
+    for (let i = 0; i < 9; i++) await b.keyboard.press('ControlOrMeta+z');
     // 5. Save and reopen an online paste.
     await paste(b, 's05', column);
     const file = path.join(DIR, 'b/saved.html');

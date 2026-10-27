@@ -345,11 +345,13 @@ export function currentSlide() {
 
 // ---------- inserting elements ----------
 const fromHTML = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+// Each repeat steps down and right; a position is checked once kept above the footer, so repeats
+// near the bottom keep stepping right instead of landing on each other.
 function placeNew(slide, el, w, h) {
-  const taken = items(slide).filter(x => x !== el).map(getPos);
+  const taken = items(slide).filter(x => x !== el).map(getPos), bottom = Math.max(CONTENT.y, CONTENT.y + CONTENT.h - h);
   let x = Math.round((1280 - w) / 2 / GRID) * GRID, y = 224;
-  while (taken.some(r => r.x === x && r.y === y)) { x += 16; y += 16; }
-  setPos(el, { x, y, w, h });
+  while (taken.some(r => r.x === x && r.y === Math.min(y, bottom))) { x += 16; y += 16; }
+  setPos(el, { x, y: Math.min(y, bottom), w, h });
 }
 function insertNode(html, w, h) {
   const slide = currentSlide();
@@ -640,8 +642,6 @@ let pastes = 0;
 function pasteChart({ type, data, svg }, notices) {
   const r = insertNode(`<figure class="chart" data-type="${type}"><script type="application/json">${jsonForScript(data)}</script></figure>`, 640, 360);
   if (!r) return;
-  const p = getPos(r.el); // repeated pastes step down, but stay above the footer
-  setPos(r.el, { ...p, y: Math.min(p.y, CONTENT.y + CONTENT.h - p.h) });
   const preview = !echartsReady() && svg ? sanitizeSVG(svg, { prefix: `p${Date.now().toString(36)}${++pastes}-` }) : null;
   if (preview) r.el.appendChild(preview);
   if (!r.slide.querySelector(':scope > .source')) {
