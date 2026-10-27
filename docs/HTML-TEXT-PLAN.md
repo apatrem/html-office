@@ -1,6 +1,19 @@
 # HTML Text V1 implementation plan
 
-Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. All tasks below are **not started**.
+Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. Text started on 25 October 2026 with T01–T03; the other tasks are not started.
+
+## Shared decisions since this plan
+
+Decisions taken for the whole family after 15 October supersede parts of the tasks below. The task text is kept; read it with these changes:
+
+- **Start condition.** Data Checkpoint B is met: T07–T11 are merged ([progress](HTML-DATA-PROGRESS.md)).
+- **Editor shell (U04-Text).** The editor uses variant A built from the shared framework-free components in [`packages/shared/shell/`](../packages/shared/shell/README.md) ([ADR-011](decisions/011-html-office-shared-principles.md) §7): file bar with menus, one toolbar, the floating settings bar (theme and font, page count, zoom), and side panels for document settings, comments and outline. "Toolbar" in T06 means that toolbar; every command also has a menu entry. U04-Text starts in T03.
+- **Brand theme and font (T04).** `style#charte` with the built-in chartes of TH01 ([`packages/shared/themes/chartes.mjs`](../packages/shared/themes/chartes.mjs)) applied as overlays, and the shared theme and font pickers. The document stores `data-theme` and `data-font` on `article#doc` (ADR-011 §10, TH02-Text); page format, margins, running header and heading numbers are Text's extras in the document-settings panel. "Data T11 role colours" now means the TH01 chartes.
+- **Persistence (T03, T05).** The persistence module is still Data's (`packages/data/runtime/persistence.mjs`). T03 moves it to `packages/shared/` for both products, as U04-Slides did with the command module, without changing Data's behaviour.
+- **Charts (T11).** X03 extracted the chart contract to [`packages/shared/charts/`](../packages/shared/charts/README.md) (PR #60), so T11 is only the Text part; the Slides PR #1 dependency is obsolete. T01 already validates chart JSON with the shared strict schemas.
+- **Clipboard (T07, T10, T11).** Tables and charts copy through [ADR-013](decisions/013-cross-product-clipboard.md); the subset in [`packages/text/FORMAT.md`](../packages/text/FORMAT.md) maps onto its portable table.
+- **Notices (T17, T18, T20).** ProseMirror's licences are embedded once each through the shared generator [`packages/shared/notices.mjs`](../packages/shared/notices.mjs) (L01, ADR-011 §9). They count in the 500,000-byte code budget.
+
 
 ## Delivery rules and dependencies
 
@@ -23,6 +36,7 @@ Dependencies: Data Checkpoint B. Scope: M. Paths: `packages/text/model/`, format
 - Acceptance: the subset is documented element by element: `article#doc` attributes, cover, headings with stable IDs, paragraphs and semantic block classes, inline marks, `ta-*` alignment, lists, figures (chart, image, table), cross-references, inline footnotes, page breaks, table of contents and `section.comments`. Section extent is defined as heading to next heading of the same or a higher level.
 - Acceptance: validation rejects `style` attributes, scripts, event handlers, executable URLs, external resources, duplicate or missing IDs and malformed figures/threads, and reports each with a location. Unknown but inert content is classified as protectable rather than silently accepted or dropped.
 - Verification: fixed fixtures for every construct and every rejection; a compact human-readable example reviewed without any editor or engine state.
+- Status: implemented 25 October 2026 on `feature/text-t01-subset`, in review. [Format reference](../packages/text/FORMAT.md), validator and `tools/check.mjs` in `packages/text/`; 10 valid and 40 invalid fixtures; the compact example is `fixtures/valid/example.html`. The canonical byte form is documented in the format reference and enforced with the schema in T02.
 
 ### T02 — Build the ProseMirror schema with a byte-identical round trip
 

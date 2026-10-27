@@ -1,0 +1,14 @@
+{
+  "name": "@html-office/text",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "node tools/check.mjs",
+    "format:check": "prettier --check \"{model,tools,tests}/**/*.mjs\""
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}

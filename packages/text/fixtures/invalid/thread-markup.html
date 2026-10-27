@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invalid: markup in a comment</title>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB">
+<h1 id="sec-a">Heading</h1>
+<p><mark class="comment" data-ref="c1">Text</mark></p>
+<section class="comments">
+<aside class="comment-thread" id="c1" data-status="open" data-quote="Text">
+<p class="comment" data-author="Alex" data-date="2026-10-15T14:02Z">Look <a href="https://example.org/">here</a>.</p>
+</aside>
+</section>
+</article>
+</body>
+</html>
