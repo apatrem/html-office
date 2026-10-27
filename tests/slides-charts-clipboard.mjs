@@ -14,9 +14,10 @@ import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
-import { ASSETS, upgrade } from '../plugin/skills/html-slides/tools/lib.mjs';
+import { ASSETS, upgrade, zone, setZone } from '../plugin/skills/html-slides/tools/lib.mjs';
 import { MIME, SCHEMA } from '../packages/shared/clipboard/index.mjs';
 import { strictValidate } from '../packages/shared/charts/schema.mjs';
+import { chartTable } from '../packages/shared/charts/clipboard.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-charts-clipboard');
@@ -42,6 +43,9 @@ const example = upgrade(fs.readFileSync(path.join(ROOT, 'plugin/skills/html-slid
 const A = path.join(DIR, 'a/deck.html'), B = path.join(DIR, 'b/deck.html');
 fs.writeFileSync(A, example.replace('</main>', slides + '</main>'));
 fs.writeFileSync(B, example);
+// A deck without charts: ECharts is loaded only when a chart is pasted.
+const C = path.join(DIR, 'b/no-charts.html');
+fs.writeFileSync(C, setZone(example, 'main', zone(example, 'main').replace(/<figure class="chart[\s\S]*?<\/figure>/g, '')));
 const SLIDE = { column: 's90', hbar: 's91', stacked: 's92', line: 's93', waterfall: 's94', bubble: 's95', gantt: 's96' };
 
 const listen = server => new Promise(done => server.listen(0, '127.0.0.1', () => done(`http://127.0.0.1:${server.address().port}`)));
@@ -166,19 +170,29 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
 
     // 3. Hostile charts: refused, deck unchanged.
     const envelope = chart => JSON.stringify({ schema: SCHEMA, kind: 'chart', chart });
+    const points = n => ({ type: 'line', data: { title: 'Many', unit: 'u', categories: Array.from({ length: n }, (_, i) => 'c' + i), series: [{ name: 's', values: Array.from({ length: n }, () => 1) }] } });
     const refused = [
-      ['an invalid chart (no categories)', { type: 'column', data: { series: [] } }],
-      ['an unknown chart field', { type: 'column', data: { ...CHARTS.column, onclick: 'x' } }],
-      ['a wrongly typed title', { type: 'column', data: { ...CHARTS.column, title: 42 } }],
-      ['__proto__ in chart data', JSON.parse(`{"type":"column","data":{"categories":["a"],"series":[{"name":"s","values":[1]}],"__proto__":{"x":1}}}`)],
-      ['an unknown type', { type: 'pie', data: {} }],
-      ['chart JSON over 1 Mi', { type: 'column', data: { ...CHARTS.column, title: 'x'.repeat(2 ** 20) } }],
-      ['more than 10,000 points', { type: 'line', data: { categories: Array.from({ length: 10001 }, (_, i) => 'c' + i), series: [{ name: 's', values: Array.from({ length: 10001 }, () => 1) }] } }]];
+      ['an invalid chart (no categories)', { type: 'column', data: { unit: 'u', series: [] } }, /categories/],
+      ['an unknown chart field', { type: 'column', data: { ...CHARTS.column, onclick: 'x' } }, /onclick: unknown field/],
+      ['a wrongly typed title', { type: 'column', data: { ...CHARTS.column, title: 42 } }, /title: string required/],
+      ['__proto__ in chart data', JSON.parse(`{"type":"column","data":{"unit":"u","categories":["a"],"series":[{"name":"s","values":[1]}],"__proto__":{"x":1}}}`), /__proto__: unknown field/],
+      ['an unknown type', { type: 'pie', data: {} }, /unknown type "pie"/],
+      ['chart JSON over 1 Mi', { type: 'column', data: { ...CHARTS.column, title: 'x'.repeat(2 ** 20) } }, /chart data is too large/],
+      ['10,001 points', points(10001), /more than 10,000 data points/]];
     const unchanged = await mainHTML(b);
-    for (const [what, chart] of refused) {
+    for (const [what, chart, why] of refused) {
       const msg = await paste(b, 's05', { [MIME]: envelope(chart), 'text/html': '<table><tr><td>valid</td></tr></table>', 'text/plain': 'x' });
-      ok(/^Paste failed/.test(msg) && await mainHTML(b) === unchanged, `refused, deck unchanged: ${what} ("${msg.slice(0, 110)}")`);
+      ok(/^Paste failed/.test(msg) && why.test(msg) && await mainHTML(b) === unchanged, `refused, deck unchanged: ${what} ("${msg.slice(0, 110)}")`);
     }
+    const most = await paste(b, 's05', { [MIME]: envelope(points(10000)) });
+    ok(most.startsWith('Chart pasted'), `10,000 points are accepted ("${most}")`);
+    await b.keyboard.press('ControlOrMeta+z');
+    // A chart's data table may be larger than a slide table (50 × 12).
+    const wide = { title: 'Wide', unit: 'u', categories: Array.from({ length: 301 }, (_, i) => 'c' + i), series: [{ name: 's', values: Array.from({ length: 301 }, (_, i) => i) }] };
+    const wideMsg = await paste(b, 's05', { [MIME]: JSON.stringify({ schema: SCHEMA, kind: 'chart', chart: { type: 'column', data: wide }, table: chartTable('column', wide) }) });
+    ok(wideMsg.startsWith('Chart pasted') && (await last(b, 's05'))?.json === JSON.stringify(wide), `a chart with a 604-cell data table pastes ("${wideMsg}")`);
+    await b.keyboard.press('ControlOrMeta+z');
+    ok(await mainHTML(b) === unchanged, 'undone');
     ok(!a.errors.length && !b.errors.length, `no JavaScript error (${[...a.errors, ...b.errors]})`);
 
     // 4. Offline: the sanitised preview, with ids of its own, then hostile SVG.
@@ -214,12 +228,23 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
     ok(hostileMsg.startsWith('Chart pasted') && elements.every(e => ['svg', 'defs', 'clipPath', 'rect', 'g', 'path', 'text'].includes(e)) &&
       !/script|foreignObject|image|<use|<a |href|onload|onclick|style|@import|url\(http|expression|filter|\\\\/.test(cleaned),
       `hostile SVG rebuilt from the allow-list only\n      ${cleaned}`);
-    ok(/clip-path="url\(#p[\w-]*k\)"/.test(cleaned) && !/stroke="url/.test(cleaned) && /<rect width="5" height="5" fill="url\(#p[\w-]*k\)">/.test(cleaned),
+    const clip = /<clipPath id="([\w-]+)"/.exec(cleaned)?.[1];
+    ok(/^p[\w-]+$/.test(clip) && cleaned.includes(`clip-path="url(#${clip})"`) && !/stroke="url/.test(cleaned) && cleaned.includes(`<rect width="5" height="5" fill="url(#${clip})">`),
       'references to ids of the pasted SVG are rewritten, others removed');
     ok(cleaned.includes('<text x="1" font-size="12px" font-family="x">a</text>') && cleaned.includes('<text x="2">b</text>') &&
       cleaned.includes('<text x="3" font-weight="bold" fill="#abc">c</text>') && cleaned.includes('<text x="4" font-size="13px" font-family="Georgia" font-weight="bold">d</text>') &&
       cleaned.includes('<text x="5">e</text>'), 'only strict font sizes, families, weights and colours become attributes (no url, expression, escape, oversize or overlong value)');
     ok(hits.length === 0 && await c.evaluate(() => globalThis.ran) === undefined, `no request and no script from the pasted SVG (${hits})`);
+    // A pasted preview copied and pasted again keeps short ids and working references.
+    let repasted = null;
+    for (let i = 0; i < 3; i++) {
+      await c.evaluate(() => { const f = [...document.querySelectorAll('#s05 > figure.chart')].find(f => f.querySelector('.hs-chart-preview') && f.dataset.type === 'line'); f.id = 'repaste'; });
+      const f = await (async () => { await c.locator('main#deck #repaste').scrollIntoViewIfNeeded(); await c.locator('main#deck #repaste').click({ position: { x: 120, y: 12 } }); await c.evaluate(() => { globalThis.copied = null; document.querySelectorAll('[id=repaste]').forEach(n => n.removeAttribute('id')); }); await c.keyboard.press('ControlOrMeta+c'); await c.waitForFunction(() => globalThis.copied); return c.evaluate(() => globalThis.copied); })();
+      await paste(c, 's05', f);
+      repasted = await c.evaluate(() => { const s = [...document.querySelectorAll('#s05 > figure.chart')].pop().querySelector(':scope > svg.render'), ids = [...s.querySelectorAll('[id]')].map(n => n.id);
+        return { ids, resolved: [...s.querySelectorAll('[clip-path]')].every(n => ids.includes(n.getAttribute('clip-path').slice(5, -1))) }; });
+    }
+    ok(repasted.resolved && repasted.ids.length > 0 && repasted.ids.every(id => id.length < 20), `a preview pasted three times over keeps short, resolved ids (${repasted.ids})`);
     const big = await paste(c, 's05', { [MIME]: envelope({ type: 'column', data: CHARTS.column, svg: '<svg viewBox="0 0 1 1">' + ' '.repeat(2 * 2 ** 20) + '</svg>' }) });
     ok(/drawn when ECharts loads/.test(big) && await c.evaluate(() => /Chart unavailable/.test([...document.querySelectorAll('#s05 > figure.chart')].pop().textContent)),
       `a preview over 2 Mi is dropped ("${big}")`);
@@ -272,7 +297,36 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       await a2.waitForTimeout(1500);
       const upgraded = /with a picture/.test(await banner(a2));
       await paste(b2, 's05');
-      ok((await last(b2, 's05'))?.json === JSON.stringify(CHARTS.hbar), `not granted: the paste works (${upgraded ? 'async write accepted' : 'event strings kept'})`);
+      ok(upgraded && (await last(b2, 's05'))?.json === JSON.stringify(CHARTS.hbar), `not granted: user activation alone adds the picture, and the paste works (${upgraded ? 'async write accepted' : 'event strings kept'})`);
+      await g.close();
+    }
+    {
+      // HTML that cannot fit (a title of 900,000 ampersands): no text/html, no async write; the custom type carries the chart.
+      const g = await context(browser, { grant: true });
+      const a2 = await open(g, A), b2 = await open(g, B);
+      const huge = { ...CHARTS.column, title: '&'.repeat(900000) };
+      await a2.evaluate(json => { const f = document.querySelector('#s90 > figure.chart'); f.querySelector('script').textContent = json; }, JSON.stringify(huge));
+      await a2.evaluate(() => window.deckEngine.renderAll());
+      const f = await copy(a2, 'column', { wait: 1500 });
+      await a2.waitForTimeout(1500);
+      const types = await b2.evaluate(async () => (await navigator.clipboard.read()).flatMap(i => i.types));
+      await paste(b2, 's05');
+      ok(!('text/html' in f) && !types.includes('image/png') && (await last(b2, 's05'))?.json === JSON.stringify(huge), `HTML over 8 Mi is left out, and so is the async write (${Object.keys(f)}; ${types})`);
+      await g.close();
+    }
+    {
+      // Undo and redo while ECharts is still loading: the chart is drawn once it has loaded.
+      const g = await context(browser, { grant: true });
+      await g.unroute(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/);
+      await g.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/, async r => { await new Promise(done => setTimeout(done, 2500)); await r.fulfill({ path: path.join(ASSETS, 'echarts.min.js'), contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }); });
+      const a2 = await open(g, A), c2 = await open(g, C);
+      await copy(a2, 'line');
+      await paste(c2, 's05');
+      await c2.keyboard.press('ControlOrMeta+z');
+      await c2.keyboard.press('ControlOrMeta+Shift+z');
+      await c2.waitForTimeout(4000);
+      const drawn = await c2.evaluate(() => [...document.querySelectorAll('#s05 > figure.chart')].map(f => f.classList.contains('live')));
+      ok(drawn.length === 1 && drawn[0], `undo and redo while ECharts loads: the chart is drawn when it arrives (${drawn})`);
       await g.close();
     }
     {

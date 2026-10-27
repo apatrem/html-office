@@ -577,7 +577,7 @@ function copyFigure(data, fig, n) {
   try { copied = copyChart(data, fig, picture?.url); }
   catch (x) { return banner('Copy failed: ' + x.message + '.', [], 5000); }
   banner('Chart copied. Paste it into a slide; other applications receive a picture.', [], 3000);
-  if (!picture || !navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return;
+  if (!picture || !copied.html(null) || !navigator.clipboard?.write || typeof ClipboardItem === 'undefined') return;
   const png = picture.promise.then(v => { if (n !== copies) throw new Error('a newer copy replaced this one'); return v; });
   try {
     navigator.clipboard.write([new ClipboardItem({
@@ -640,6 +640,8 @@ let pastes = 0;
 function pasteChart({ type, data, svg }, notices) {
   const r = insertNode(`<figure class="chart" data-type="${type}"><script type="application/json">${jsonForScript(data)}</script></figure>`, 640, 360);
   if (!r) return;
+  const p = getPos(r.el); // repeated pastes step down, but stay above the footer
+  setPos(r.el, { ...p, y: Math.min(p.y, CONTENT.y + CONTENT.h - p.h) });
   const preview = !echartsReady() && svg ? sanitizeSVG(svg, { prefix: `p${Date.now().toString(36)}${++pastes}-` }) : null;
   if (preview) r.el.appendChild(preview);
   if (!r.slide.querySelector(':scope > .source')) {
@@ -655,7 +657,14 @@ function pasteChart({ type, data, svg }, notices) {
   if (!echartsReady()) {
     if (preview) r.el.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
     notes.push(preview ? 'Shown as a preview until ECharts loads.' : 'The chart is drawn when ECharts loads.');
-    loadECharts().then(ec => { if (ec && r.el.isConnected) { renderChart(r.el); refreshCaches(r.slide); persistDraft(); } });
+    // Undo and redo may have replaced the figure meanwhile: every chart still waiting is drawn.
+    loadECharts().then(ec => {
+      if (!ec) return;
+      const waiting = [...state.main.querySelectorAll('figure.chart:not(.live)')];
+      waiting.forEach(renderChart);
+      new Set(waiting.map(slideOf)).forEach(refreshCaches);
+      persistDraft();
+    });
   }
   banner(['Chart pasted.', ...notes].join(' '), [], notes.length ? 6000 : 3000);
 }

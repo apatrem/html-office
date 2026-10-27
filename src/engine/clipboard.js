@@ -4,7 +4,7 @@
 // table (html-office, Excel, Sheets, Word, Docs, web pages, TSV) becomes a new table.t built from
 // the validated portable model, and a pasted chart a new figure.chart from its validated JSON:
 // clipboard nodes are never inserted into the deck.
-import { SCHEMA, ClipboardError, readClipboard, writeClipboard, figureHTML, validateTable, tableText, fromTSV } from '../../packages/shared/clipboard/index.mjs';
+import { SCHEMA, LIMITS, ClipboardError, readClipboard, writeClipboard, figureHTML, validateTable, tableText, fromTSV } from '../../packages/shared/clipboard/index.mjs';
 import { registry, readData, previewOf } from '../../packages/shared/charts/index.mjs';
 import { readChart, chartTable, chartText, CHART_LIMITS } from '../../packages/shared/charts/clipboard.mjs';
 import { FORMAT_VERSION } from '../format.js';
@@ -147,16 +147,22 @@ export function copyTable(data, table) {
 // ---------- charts ----------
 // The saved preview travels for destinations without ECharts; the picture (a PNG data: URL), when
 // ready, goes in text/html for other applications. Returns what the async upgrade needs.
+// A writer never produces what a reader refuses: the chart passes the same checks as a paste
+// (strict schema, validate, limits), and its data table travels only up to the text/html cell limit.
 export function copyChart(data, fig, png) {
-  const type = fig.dataset.type, def = registry[type], { data: chart, error } = readData(fig);
-  const errors = error ? [error] : def ? def.validate(chart) : ['unknown chart type'];
-  if (errors.length) throw new ClipboardError('the chart is invalid: ' + errors.join('; '));
-  const preview = previewOf(fig) || fig.querySelector(':scope > svg.render'), svg = preview?.outerHTML;
+  const { data: json, error } = readData(fig);
+  if (error) throw new ClipboardError('the chart is invalid: ' + error);
+  const { type, data: chart } = readChart({ type: fig.dataset.type, data: json });
+  const preview = previewOf(fig) || fig.querySelector(':scope > svg.render'), svg = preview?.outerHTML, table = chartTable(type, chart);
   const envelope = { schema: SCHEMA, kind: 'chart', source: { product: 'slides', format: FORMAT_VERSION },
-    chart: { type, data: chart, ...(svg && svg.length <= CHART_LIMITS.svg ? { svg } : {}) }, table: chartTable(type, chart) };
-  const caption = chart.title || def.label, text = chartText(type, chart), json = JSON.stringify(envelope);
+    chart: { type, data: chart, ...(svg && svg.length <= CHART_LIMITS.svg ? { svg } : {}) },
+    ...(table.rows.length * table.rows[0].length <= LIMITS.htmlCells ? { table } : {}) };
+  const caption = chart.title || registry[type].label, text = chartText(type, chart), encoded = JSON.stringify(envelope);
   writeClipboard(data, { envelope, figure: { caption, png }, text });
-  return { text, html: url => figureHTML({ envelope: json, png: url, caption }) };
+  // The async write's text/html, bounded as the copy event's: without the picture if needed, and
+  // null when even that does not fit (the async write is then skipped).
+  const html = url => [url, null].map(p => figureHTML({ envelope: encoded, png: p, caption })).find(h => h.length <= LIMITS.html) ?? null;
+  return { text, html };
 }
 
 // ---------- a portable table as a new table.t ----------
@@ -207,7 +213,9 @@ export function tableElement(table) {
 // holds no table. Throws a ClipboardError when the paste must be refused (deck unchanged).
 export function readPaste(data, options = {}) {
   let read;
-  try { read = readClipboard(data, { ...options, maxCells: LIMIT.rows * LIMIT.columns }); }
+  // A chart's data table may exceed a slide table: the reader's bound is the text/html cell limit, and
+  // tables are held to the slide limit right after.
+  try { read = readClipboard(data, { ...options, maxCells: LIMITS.htmlCells }); }
   catch (e) { throw e instanceof ClipboardError && /more than|larger than/.test(e.message) ? tooLarge() : e; }
   const notices = [...read.notices];
   let table, dropped = 0;

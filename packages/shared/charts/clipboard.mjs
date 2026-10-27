@@ -86,32 +86,33 @@ const safeValue = (name, value) => {
 };
 
 // Returns a new svg.render element built in this document, or null when nothing usable remains.
-// Every id gets the per-paste `prefix`; url(#id) to an id of this SVG follows it, any other
-// reference is removed.
+// Every id is replaced by a short fresh one starting with the per-paste `prefix` (so repeated
+// pastes never lengthen it); url(#id) to an id of this SVG follows it, any other reference is removed.
 export function sanitizeSVG(text, { prefix, parse = parseInert } = {}) {
   if (typeof text !== 'string' || text.length > CHART_LIMITS.svg) return null;
   const source = [...parse(text).childNodes].find(n => n.nodeType === 1);
   if (!source || source.localName !== 'svg' || source.namespaceURI !== SVG) return null;
   const allowed = n => n.nodeType === 1 && n.namespaceURI === SVG && ELEMENTS.has(n.localName);
   // ids first, so that references can be checked
-  const ids = new Set(), stack = [[source, 0]];
+  const ids = new Map(), stack = [[source, 0]];
   let count = 0;
   while (stack.length) {
     const [n, depth] = stack.pop();
     if (++count > MAX_NODES) return null;
     const id = n.getAttribute('id');
-    if (id && safeValue('id', id)) ids.add(id);
+    if (id && safeValue('id', id) && !ids.has(id)) ids.set(id, prefix + ids.size.toString(36));
     if (depth < MAX_DEPTH) for (const c of n.children) if (allowed(c)) stack.push([c, depth + 1]);
   }
   const rewrite = value => {
     const m = /^url\(#([\w-]{1,64})\)$/.exec(value);
-    return m ? (ids.has(m[1]) ? `url(#${prefix}${m[1]})` : null) : value;
+    return m ? (ids.has(m[1]) ? `url(#${ids.get(m[1])})` : null) : value;
   };
   const build = (n, depth) => {
     const out = document.createElementNS(SVG, n.localName);
     for (const a of n.attributes) {
       if (a.namespaceURI || !ATTRIBUTES.has(a.name) || !safeValue(a.name, a.value)) continue;
-      let value = a.name === 'id' ? prefix + a.value : a.value;
+      let value = a.name === 'id' ? ids.get(a.value) : a.value;
+      if (value === undefined) continue;
       if (REFERENCE.has(a.name) && (value = rewrite(value)) === null) continue;
       out.setAttribute(a.name, value);
     }
