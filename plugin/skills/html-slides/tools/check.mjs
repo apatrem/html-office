@@ -77,6 +77,30 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES,
       if (d.tagName === 'FONT') add('error', sid, el.dataset.id, 'Forbidden <font> tag: use <span class="c-…">');
       if (d.tagName === 'SPAN') for (const c of d.classList) if (!/^(c-(ink|acc|mid|alert|t2|bg)|hl|neg|t2)$/.test(c)) add('error', sid, el.dataset.id, `Text class outside theme "${c}"`);
     }));
+    // merged cells: whole spans that stay inside the table and do not overlap; rows of equal width
+    kids.forEach(el => [...(el.matches('table') ? [el] : []), ...el.querySelectorAll('table')].forEach(t => {
+      const rows = [...t.rows], taken = rows.map(() => []), problems = new Set();
+      rows.forEach((tr, r) => {
+        let c = 0;
+        for (const cell of tr.cells) {
+          for (const name of ['colspan', 'rowspan']) {
+            const v = cell.getAttribute(name);
+            if (v !== null && !/^\s*[1-9]\d*\s*$/.test(v)) problems.add(`Invalid ${name}="${v}": use a whole number from 1`);
+          }
+          while (taken[r][c]) c++;
+          const rs = cell.rowSpan || rows.length - r;
+          if (r + rs > rows.length) problems.add(`Merged cell "${cell.textContent.trim().slice(0, 30)}" extends past the last row (rowspan ${rs})`);
+          for (let i = r; i < Math.min(r + rs, rows.length); i++) for (let j = c; j < c + cell.colSpan; j++) {
+            if (taken[i][j]) problems.add(`Merged cells overlap in row ${i + 1}, column ${j + 1}`);
+            taken[i][j] = true;
+          }
+          c += cell.colSpan;
+        }
+      });
+      problems.forEach(m => add('error', sid, el.dataset.id, m));
+      const widths = taken.map(row => row.length);
+      if (new Set(widths).size > 1) add('warning', sid, el.dataset.id, `Table rows cover different numbers of columns (${widths.join(', ')}): add cells or adjust colspan`);
+    }));
     // safety: content must never be able to run code when the file is opened
     [s, ...s.querySelectorAll('*')].forEach(d => {
       if (d.closest('[data-ui]')) return;

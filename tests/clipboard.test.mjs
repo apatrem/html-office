@@ -8,7 +8,7 @@ import { parseInert } from './helpers/inert-dom.mjs';
 import {
   SCHEMA, MIME, LEGACY_MIME, LIMITS, ClipboardError,
   decodeEnvelope, validateTable, readTable, readClipboard, findEnvelope,
-  tableHTML, writeClipboard, excelFormat, toTSV, tableText,
+  tableHTML, writeClipboard, excelFormat, toTSV, tableText, fromTSV,
 } from '../packages/shared/clipboard/index.mjs';
 
 const fixture = name => readFileSync(new URL(`../packages/shared/clipboard/fixtures/${name}.html`, import.meta.url), 'utf8');
@@ -258,6 +258,13 @@ test('writeClipboard: every flavour from one copy, HTML left out above its limit
   assert.throws(() => writeClipboard(data, { envelope, table, text: 'x'.repeat(LIMITS.text + 1) }), /too large/);
 });
 
+test('TSV read back as Excel quotes it, bounded before the grid grows', () => {
+  const rows = [['a', 'b\tc'], ['"q"', 'line\nbreak'], ['', 'x']];
+  assert.deepEqual(fromTSV(toTSV(rows)), rows);
+  assert.deepEqual(fromTSV('a\tb\r\nc\n'), [['a', 'b'], ['c', '']], 'CRLF, a final line break, short rows padded');
+  assert.deepEqual(fromTSV('"a""b"\t"open'), [['a"b', 'open']], 'doubled quotes; an unclosed quote runs to the end');
+  assert.throws(() => fromTSV('a\tb\nc\td', { maxCells: 3 }), ClipboardError);
+});
 test('TSV quoting as Excel writes it', () => {
   assert.equal(toTSV([['a', 'b\tc'], ['"q"', 'line\nbreak']]), 'a\t"b\tc"\n"""q"""\t"line\nbreak"');
   assert.equal(tableText(table), 'Region\t2026\t\nNorth\t1 234,5 €\t12 %');

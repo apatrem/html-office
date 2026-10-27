@@ -20,6 +20,7 @@ export {
   toTSV,
   quoteTSV,
   tableText,
+  fromTSV,
 } from "./table.mjs";
 export {
   tableHTML,

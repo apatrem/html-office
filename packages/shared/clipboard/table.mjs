@@ -208,3 +208,50 @@ export const toTSV = (rows) =>
   rows.map((row) => row.map(quoteTSV).join("\t")).join("\n");
 export const tableText = (table) =>
   toTSV(table.rows.map((row) => row.map((slot) => slot?.text ?? "")));
+// TSV as Excel and toTSV write it, back to rows of strings: quoted fields may
+// hold tabs, line breaks and doubled quotes; one final line break is not a
+// row. Short rows are padded. Counting stops above maxCells, before the grid
+// grows further.
+export function fromTSV(text, { maxCells = Infinity } = {}) {
+  const rows = [[]];
+  let field = "",
+    i = 0,
+    cells = 0;
+  const end = () => {
+    rows.at(-1).push(field);
+    field = "";
+    if (++cells > maxCells)
+      fail(`table: more than ${maxCells.toLocaleString("en-US")} cells`);
+  };
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === '"' && field === "") {
+      // The closing quote is the first one not doubled.
+      let at = i + 1;
+      for (;;) {
+        at = text.indexOf('"', at);
+        if (at < 0 || text[at + 1] !== '"') break;
+        at += 2;
+      }
+      if (at < 0) at = text.length;
+      field = text.slice(i + 1, at).replaceAll('""', '"');
+      i = at + 1;
+      // Text after a closing quote stays in the field, as Excel reads it.
+      while (i < text.length && !"\t\r\n".includes(text[i])) field += text[i++];
+    } else if (ch === "\t") {
+      end();
+      i++;
+    } else if (ch === "\r" || ch === "\n") {
+      end();
+      i += ch === "\r" && text[i + 1] === "\n" ? 2 : 1;
+      if (i < text.length) rows.push([]);
+    } else field += text[i++];
+  }
+  if (field !== "" || rows.at(-1).length) end();
+  if (rows.length > 1 && !rows.at(-1).length) rows.pop();
+  const width = Math.max(...rows.map((row) => row.length));
+  return rows.map((row) => [
+    ...row,
+    ...Array.from({ length: width - row.length }, () => ""),
+  ]);
+}

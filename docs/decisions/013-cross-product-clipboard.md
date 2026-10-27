@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03 and X02a are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md)); X02b–X02f remain.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a and X02b are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)); X02c–X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
 
 ## Context
 

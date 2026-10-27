@@ -1,11 +1,11 @@
 # Shared clipboard module
 
-The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisions/013-cross-product-clipboard.md) (task X02a). Each product bundles it into its own runtime; Data is the first user. It has no dependencies and no DOM access outside `parseInert`.
+The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisions/013-cross-product-clipboard.md) (task X02a). Each product bundles it into its own runtime: Data (X02a) and Slides (X02b, [`src/engine/clipboard.js`](../../../src/engine/clipboard.js)). It has no dependencies and no DOM access outside `parseInert`.
 
 | File | Contents |
 | --- | --- |
 | `envelope.mjs` | `html-office-clip/1`: `SCHEMA`, the carriers (`MIME`, the `data-html-office` `ATTRIBUTE`, Data's read-only `LEGACY_MIME`), `LIMITS`, `decodeEnvelope` / `checkEnvelope` / `encodeEnvelope` |
-| `table.mjs` | The portable table model (§3): vocabulary (`TEXT_COLORS`, `FILLS`, `CELL_STYLES`), `validateTable`, and TSV (`toTSV`, `tableText`) |
+| `table.mjs` | The portable table model (§3): vocabulary (`TEXT_COLORS`, `FILLS`, `CELL_STYLES`), `validateTable`, and TSV (`toTSV`, `tableText`, and `fromTSV`, which reads Excel's quoting back with a cell bound) |
 | `read.mjs` | `readClipboard` (reader precedence), `parseInert` (a detached `<template>`), `findEnvelope`, `readTable` (the HTML table reader) |
 | `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `excelFormat` |
 | `errors.mjs` | `ClipboardError`, allow-listed field checks, `safeURL` |
@@ -37,3 +37,4 @@ Data includes the portable `table` in its envelope up to the same 20,000 cells; 
 - `tests/clipboard.test.mjs` (root): the module in Node, with parse5 standing in for the browser's parser (`tests/helpers/inert-dom.mjs`).
 - `tests/clipboard-engines.mjs` (root, CI job `clipboard-engines`): in Chromium, Firefox and WebKit, the zero-request and no-script check for resource-bearing HTML, the fixtures read as in Node, the envelope through dispatched paste events, and a Data paste of its own `text/html` (formulas relocated) undone in one step. Native pasteboards across documents and browsers stay in ADR-013's manual matrix. `CLIPBOARD_ENGINES=chromium,webkit` limits the engines.
 - `packages/data/tests/clipboard.test.mjs` and `clipboard-html-browser.mjs`: Data's mapping and Data ⇄ Data, Data ⇄ other applications in the browser.
+- `tests/slides-clipboard.mjs` (root; Chromium in `npm test`, all three engines in the `clipboard-engines` CI job): Slides ⇄ Slides tables in two tabs (`file://` and `localhost`), each carrier alone, hostile clipboards, Excel/Sheets/Word/Docs fixtures, merged cells through the editor's commands and print, and Slides ⇄ Data.
