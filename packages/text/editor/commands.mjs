@@ -104,10 +104,18 @@ function bookmark(state) {
   if (!(state.selection instanceof TextSelection) || !a || !h) return null;
   return { a, h, lo: Math.min(a[0], h[0]), hi: Math.max(a[0], h[0]) };
 }
-function restore(tr, mark) {
+// before: the document the bookmark was taken in. Code that became text lost one position per
+// "\r\n" (one line break), so offsets after them move back.
+function restore(tr, mark, before) {
   const blocks = allTextblocks(tr.doc);
-  const pos = ([i, offset]) =>
-    blocks[i].pos + 1 + Math.min(offset, blocks[i].node.content.size);
+  const old = before && allTextblocks(before);
+  const pos = ([i, offset]) => {
+    const was = old?.[i].node;
+    if (was?.type === N.code_block && blocks[i].node.type !== N.code_block)
+      offset -= (was.textContent.slice(0, offset).match(/\r(?=\n)/g) ?? [])
+        .length;
+    return blocks[i].pos + 1 + Math.min(offset, blocks[i].node.content.size);
+  };
   tr.setSelection(TextSelection.create(tr.doc, pos(mark.a), pos(mark.h)));
 }
 // The textblock around a position, and its container.
@@ -396,7 +404,7 @@ const blockCommand = (apply) => (state, dispatch) => {
   const tr = state.tr;
   if (apply(tr, mark.lo, mark.hi) === false || !tr.docChanged) return false;
   if (dispatch) {
-    restore(tr, mark);
+    restore(tr, mark, state.doc);
     dispatch(tr.scrollIntoView());
   }
   return true;
@@ -522,10 +530,11 @@ export function splitListItem(state, dispatch) {
 // into the subtitle; elsewhere it does nothing.
 export function titleEnter(state, dispatch) {
   const { $from, empty } = state.selection;
-  if ($from.parent.type !== N.title) return false;
+  // A selection goes to the usual delete-and-split path.
+  if (!empty || $from.parent.type !== N.title) return false;
   const next = $from.node(-1).maybeChild($from.indexAfter(-1));
   if (next?.type !== N.subtitle) return false;
-  if (dispatch && empty && $from.parentOffset === $from.parent.content.size)
+  if (dispatch && $from.parentOffset === $from.parent.content.size)
     dispatch(
       state.tr.setSelection(TextSelection.create(state.doc, $from.after() + 1)),
     );

@@ -557,3 +557,23 @@ test("second review: split IDs, code line endings, Enter across items and in the
     "<p>Body heading</p>",
   ]);
 });
+
+test("third review: a selection in code with CRLF keeps its text; Enter over title and subtitle", () => {
+  const code = editor("<pre><code>a&#13;\nbcde</code></pre>");
+  code.select("bcde", { to: "b" });
+  code.run((s, d) =>
+    d(
+      s.tr.setSelection(
+        TextSelection.create(s.doc, s.selection.from, s.selection.from + 1),
+      ),
+    ),
+  );
+  code.run(C.setStyle("body"));
+  const { from, to } = code.state.selection;
+  assert.equal(code.state.doc.textBetween(from, to), "b");
+  const cover = editor(
+    '<header class="cover">\n<h1 class="title">Report</h1>\n<p class="subtitle">Sub</p>\n</header>\n<p>Text</p>',
+  );
+  cover.select("port", { to: "Su" });
+  assert.equal(cover.can(C.titleEnter), false);
+});
