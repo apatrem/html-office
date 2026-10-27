@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). Nothing is implemented yet; the implementation is X02 (below) and X03.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03 and X02a are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md)); X02b–X02f remain.
 
 ## Context
 
@@ -112,7 +112,7 @@ Rules:
   - `stale: true` when copied Data results are not current.
   
   The envelope **never** contains the document URL, file path, title, author, comments or anything outside the copied selection.
-- `range` appears only in Data copies. It is today's `html-office-range/1` unchanged, so Data-to-Data paste keeps formulas, formats, styles and links exactly as now.
+- `range` appears only in Data copies. It is today's `html-office-range/1` unchanged, so Data-to-Data paste keeps formulas, formats, styles and links exactly as now. Data includes `table` only up to the `text/html` cell limit (20,000 cells), so a large copy does not format every cell twice; above it, other products fall back to `text/plain` (X02a).
 - `chart.data` is exactly the JSON of the chart contract (the Slides `figure.chart` script). `chart.svg` is the source's saved preview. Neither carries a binding to the source document (§4), and the envelope has no workbook or document identifier.
 - Unknown envelope members are ignored, for forward compatibility. Inside `range`, `table` and `chart.data`, the destination's own validators apply strictly. A new major version gets a new `schema` string.
 
