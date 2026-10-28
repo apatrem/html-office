@@ -183,6 +183,16 @@ File › Print / PDF… (or Cmd/Ctrl+P) on a sheet with a header row, more rows 
 7. Cancel the browser's print dialog: the editor is unchanged and prints again normally. Use the browser's own File › Print on a sheet larger than 50,000 cells: the page shows the refusal, not the editor.
 8. Repeat step 1 with the offline file and the network off.
 
+### T20 — Data document tools
+
+From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
+
+1. Create `budget.html` with `node packages/data/tools/workbook.mjs new budget.html --model packages/data/examples/valid/budget.json`, then open it in Chrome: the budget, the scenario dropdown, the data bars and the chart show; the status says results are current.
+2. Apply `packages/data/examples/patches/raise-price.json` with `--out budget-2.html`, open `budget-2.html`: price 40, scenario Busy, total margin €3,060, the chart redrawn; no warning about stale results.
+3. Apply it with `--no-recalculate` instead, open the result: the editor reports stale results and recalculates on the first edit.
+4. Edit `budget-2.html` in the browser (change a cost), save, then run `validate budget-2.html --since budget.html`: the browser edit is listed as unrequested until allowed with `--allow`.
+5. Repeat step 1 with `--offline`, network off.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |

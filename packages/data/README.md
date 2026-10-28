@@ -27,6 +27,17 @@ node packages/data/tools/build.mjs --input packages/data/fixtures/pnl.json --out
 node packages/data/tools/build.mjs --input packages/data/fixtures/pnl.json --offline --output dist/data/pnl-offline.html
 ```
 
+Document tools for authors and agents (T20), on a built file:
+
+```bash
+node packages/data/tools/workbook.mjs new dist/data/budget.html --model packages/data/examples/valid/budget.json
+node packages/data/tools/workbook.mjs inspect dist/data/budget.html --range "Budget!A1:D4"
+node packages/data/tools/workbook.mjs apply dist/data/budget.html packages/data/examples/patches/raise-price.json --out dist/data/budget-2.html
+node packages/data/tools/workbook.mjs validate dist/data/budget-2.html --since dist/data/budget.html --allow "Inputs!B1,Inputs!B4"
+```
+
+See [FORMAT.md › Tools and patches](model/FORMAT.md#tools-and-patches).
+
 The prototype has cell/formula editing, formatting, undo and Save a copy. The grid is a bounded preview, with all workbook cells retained in the HTML. The P&L has 12 actual and 12 forecast months. Cash flow is simplified to net income; the annual discount rate is converted to a monthly rate, with the initial investment outside NPV. Basic pivot tables (T17, [ADR-014](../../docs/decisions/014-data-pivot-tables.md)) read in-workbook ranges or row tables and write readable typed output cells on explicit refresh. Charts (T18) are bound to typed ranges through the shared chart module and open with saved SVG previews; the P&L charts revenue and net income, the operating margin and a growth-scenario comparison. Imports and a distributable Data skill belong to later tasks.
 
 The default document is hybrid JSON with every formula result saved. Declare raw-data sheets with `metadata.layout: "table"`; the writer uses bounded row blocks when dense enough and otherwise retains sparse cells. Freeform sheets remain sparse. The browser, builder and range tools share the same document codec, which derives the validated sparse 0.1 engine model and saves 0.2 documents. Legacy sparse files remain readable. `-0` is written as the valid JSON literal `-0`; native `JSON.stringify` would lose its sign. All display rounding stays separate from saved numbers. Runtime calculations use one IronCalc engine in a worker. A result delta avoids copying raw sheets back to the UI. Undo restores canonical values and results; edits made while a dependency is unavailable remain in the form for retry.
