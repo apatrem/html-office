@@ -11,6 +11,7 @@ import {
   bestOrientation,
   MAX_PRINT_CELLS,
   MIN_FIT_SCALE,
+  repeatLimit,
 } from "../runtime/print.mjs";
 import { COLUMN_WIDTH } from "../model/navigation.mjs";
 
@@ -130,4 +131,36 @@ test("huge sheets are refused with a pointer to CSV", () => {
   });
   assert.ok(10 * 10000 > MAX_PRINT_CELLS);
   assert.match(layout.refused, /too large to print.*Export it as CSV/);
+});
+
+test("repeated rows stay within a quarter of the printed page", () => {
+  const tall = sheetOf(
+    { A1: text("H", "header") },
+    {
+      rows: {
+        1: { height: 60 },
+        2: { height: 60 },
+        3: { height: 60 },
+        4: { height: 60 },
+        5: { height: 60 },
+      },
+    },
+  );
+  // Letter landscape: 191.9 mm high, a quarter is about 181 px.
+  assert.equal(
+    repeatLimit(tall, { paper: "Letter", orientation: "landscape" }),
+    3,
+  );
+  assert.equal(
+    repeatLimit(tall, {
+      paper: "Letter",
+      orientation: "landscape",
+      scale: 0.6,
+    }),
+    5,
+  );
+  assert.equal(
+    repeatLimit(sheetOf({}), { paper: "A4", orientation: "portrait" }),
+    5,
+  );
 });

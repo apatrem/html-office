@@ -12,6 +12,7 @@ import {
   defaultPaper,
   headerRows,
   printLayout,
+  repeatLimit,
 } from "./print.mjs";
 
 export function setupPrintDialog({ getBook, getSheet, print, stale, status }) {
@@ -92,7 +93,12 @@ export function setupPrintDialog({ getBook, getSheet, print, stale, status }) {
             layout.scale < 1
               ? `scaled to ${Math.floor(layout.scale * 100)}% to fit the page width`
               : "at full size"
-          }.`;
+          }.${
+            Number(repeat.value) >
+            repeatLimit(sheet, { ...options(), scale: layout.scale })
+              ? ` Only ${repeatLimit(sheet, { ...options(), scale: layout.scale })} row(s) can repeat at this size: browsers repeat headers up to a quarter of the page.`
+              : ""
+          }`;
       button.disabled = !layout || !!layout.refused;
       return !button.disabled;
     };

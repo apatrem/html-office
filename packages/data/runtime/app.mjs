@@ -111,6 +111,8 @@ const persistence = setupPersistence({
   },
   getPending: () => (pendingEdits.length ? pendingEdits : null),
   restore: (recovered) => {
+    // Pivot freshness is analysed again for the restored workbook.
+    pivotStates = null;
     revisions.cancel();
     session?.dispose();
     session = null;

@@ -51,6 +51,28 @@ export function printableWidth(paper, orientation) {
   return px((orientation === "landscape" ? height : width) - 2 * MARGIN);
 }
 
+// Printable height of a page in CSS pixels.
+export function printableHeight(paper, orientation) {
+  const { width, height } = PAPER[paper];
+  return px((orientation === "landscape" ? width : height) - 2 * MARGIN);
+}
+
+// How many of the first rows can repeat: browsers repeat a table header
+// only while it is at most a quarter of the page high (CSS Tables 3), at
+// the scale it prints.
+export function repeatLimit(sheet, { paper, orientation, scale = 1 }) {
+  const { rows } = sheetAxes(sheet, SIZES),
+    quarter = printableHeight(paper, orientation) / 4;
+  let count = 0,
+    height = 0;
+  while (count < MAX_REPEAT_ROWS) {
+    height += rows.size(count + 1) * scale;
+    if (height > quarter) break;
+    count++;
+  }
+  return count;
+}
+
 // The rows at the top that repeat: leading rows whose filled cells all use
 // the header cell style (none when the first row has no header cell).
 export function headerRows(sheet, columns) {
@@ -389,7 +411,14 @@ export function setupPrint({
     });
     if (layout.refused) return layout.refused;
     repeat ??= headerRows(sheet, layout.columns);
-    repeat = Math.max(0, Math.min(repeat, MAX_REPEAT_ROWS, layout.rows - 1));
+    repeat = Math.max(
+      0,
+      Math.min(
+        repeat,
+        repeatLimit(sheet, { paper, orientation, scale: layout.scale }),
+        layout.rows - 1,
+      ),
+    );
     let formulas = false;
     for (const cell of Object.values(sheet.cells))
       if (cell.formula) {
