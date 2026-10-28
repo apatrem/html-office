@@ -44,6 +44,8 @@ import {
   shrinkImage,
 } from "./images.mjs";
 import { mountShell, refusal } from "./shell.mjs";
+import * as C from "../editor/charts.mjs";
+import { chartManager, chartPlugin, chartDialog } from "./charts.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
@@ -210,6 +212,7 @@ function start() {
   // The layout theme's heading format (style#theme --heading-format, T08), read from the file
   // as check.mjs reads it. A restored draft brings its own theme, so the options change then.
   const numbers = { format: fileFormat(file) };
+  const charts = chartManager(() => commands.changed());
   // Generated labels and contents are rewritten on open, outside the undo history: a stale
   // label written by hand or by an LLM shows as an unsaved change and is corrected on save.
   const refresh = () => {
@@ -223,6 +226,11 @@ function start() {
       history(),
       subsetGuard(),
       imagePlugin(assets, () => commands.run("image")),
+      chartPlugin(
+        charts,
+        () => commands.run("chart"),
+        (message) => saving.say(message),
+      ),
       G.generatedContent(numbers),
       internalClipboard(),
       keymap({
@@ -444,6 +452,42 @@ function start() {
       });
     },
     () => !!I.imageAt(view.state),
+  );
+  // Charts (T11): the dialog edits type, width, title, unit and data; a new or changed chart is
+  // drawn when ECharts is available, and its preview saved.
+  commands.register("chart-insert", () => {
+    const back = keepSelection();
+    chartDialog({
+      initial: null,
+      onSave: (chart) => {
+        back();
+        C.insertChart(chart)(view.state, view.dispatch);
+      },
+      done: back,
+    });
+  });
+  commands.register(
+    "chart",
+    () => {
+      const found = C.chartAt(view.state);
+      if (!found) return;
+      const back = keepSelection();
+      const { id, type, width, data } = found.node.attrs;
+      chartDialog({
+        initial: { type, width, data: JSON.parse(data) },
+        onSave: (chart) => {
+          back();
+          C.setChart(chart, id)(view.state, view.dispatch);
+        },
+        done: back,
+      });
+    },
+    () => !!C.chartAt(view.state),
+  );
+  commands.register(
+    "draw-charts",
+    () => charts.request(),
+    () => charts.library === null,
   );
   edit("move-up", I.moveBlock(-1));
   edit("move-down", I.moveBlock(1));

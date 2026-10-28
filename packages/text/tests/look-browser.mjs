@@ -157,10 +157,19 @@ try {
     "red",
   );
   let saved = await page.evaluate(() => window.htmlText.serialize());
-  assert.deepEqual(changed(built, saved), [
-    '-<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on">',
-    '+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on" data-theme="red">',
-  ]);
+  // The chart's saved preview, drawn in the old charte, is out of date (T11): it is keyed stale,
+  // or drawn again when the library is reachable. The content itself does not change.
+  const preview = (line) => /^[-+]<svg /.test(line);
+  assert.ok(
+    changed(built, saved).some((line) => /^\+<svg .*data-key=/.test(line)),
+  );
+  assert.deepEqual(
+    changed(built, saved).filter((line) => !preview(line)),
+    [
+      '-<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on">',
+      '+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on" data-theme="red">',
+    ],
+  );
   await page.keyboard.press(
     `${process.platform === "darwin" ? "Meta" : "Control"}+z`,
   );

@@ -179,6 +179,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
         item("Page break", "page-break", { shortcut: key("Enter") }),
         "-",
         item("Image…", "image-insert"),
+        item("Chart…", "chart-insert"),
         item("Footnote", "footnote", { shortcut: alt("F") }),
         item("Contents", "contents"),
         item("Cross-reference…", "xref"),
@@ -224,6 +225,8 @@ export function mountShell(cmd, saving, report, look, editing, format) {
           item("Move down", "move-down", { shortcut: "Alt+Shift+↓" }),
           "-",
           item("Image…", "image"),
+          item("Chart…", "chart"),
+          item("Draw charts", "draw-charts"),
           ...(c.contents
             ? [
                 "-",

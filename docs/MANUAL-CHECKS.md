@@ -178,6 +178,19 @@ Use real pictures: a large phone photo (JPEG, 4,000 px wide or more), a PNG scre
 7. **Reopen** the saved file in each browser: every picture shows, the state is *No unsaved changes*.
 8. **Print preview** in Chrome, Safari and Firefox: pictures print at their width, wrapped text flows as on screen (page breaks around images are checked in T14).
 
+### T11 — Charts
+
+Use the standard build (`text-example.html`) online, then the offline build (`node packages/text/tools/build.mjs packages/text/fixtures/valid/example.html dist/text/example-offline.html --offline`) with the network off.
+
+1. **Previews**: open the example with the network off (standard build). The chart shows with its title and unit; nothing is reported missing. Print preview shows it too.
+2. **Edit** (double-click the chart, or Format › Chart…), online: change a value and the unit, Apply. The chart dims briefly, then redraws; save and reopen: the new chart shows at once, with the network off.
+3. **Insert › Chart…**: try each type. Waterfall, bubble and Gantt start from a sample; Add/Remove row and series work; JSON accepts an option such as `"decimals":2`. A wrong value (text in a number column) is refused with a message.
+4. **Long document**: in a copy with a dozen charts, change the theme (Theme & page): the charts on screen redraw first, the others as you scroll to them; scrolling stays smooth.
+5. **Offline build**, network off: insert a chart, edit it: it draws with no network. The file is about 1.1 MB larger.
+6. **Blocked library**: in the standard build with the network off, edit a chart: it keeps its old preview, dimmed, with *Chart library unavailable*. Save: the file still opens and prints the old preview.
+7. **Copy and paste with Slides**: copy a Slides chart (Edit › Copy) and paste it into Text: a new chart with the Slides data, redrawn in the Text charte. Copy a Text chart and paste it into a slide, and into another Text document: the caption comes with it. Paste a Text chart into Word, Google Docs and PowerPoint: a picture with the title and unit.
+8. **Safari and Firefox**: steps 2, 3 and 7.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
