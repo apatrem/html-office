@@ -246,6 +246,7 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
 4. Ask for something invalid (for example “colour the total in #ff0000”): the assistant explains the closed colour vocabulary instead of writing a literal colour.
 5. Ask for a presentation in the same conversation: the html-slides skill still works as before (`deck.mjs`, `check.mjs`).
 6. Repeat step 2 in an agent that uses skill folders (extract the archive, point it to `skills/html-data/SKILL.md`).
+7. Ask for an offline copy of the budget (`new … --offline`), open it with the network off and import an Excel workbook (Data › Import XLSX…): the embedded reader works with no request. Then ask the assistant to change a value on the imported sheet: it patches the cell and keeps `sources`; Data › Refresh source… with the same file asks before replacing that hand edit.
 
 ## Log
 
