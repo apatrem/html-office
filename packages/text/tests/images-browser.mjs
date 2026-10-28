@@ -479,7 +479,8 @@ async function pasting(browser, name, files, pass) {
       const img = document.querySelector(s);
       return img?.complete && img.naturalWidth > 0;
     }, selector);
-  const shrunk = name === "webkit" ? "image/png" : "image/webp";
+  // WebP where the browser encodes it (WebKit does on Linux, not on macOS), else the source's kind.
+  const encoded = (source) => new RegExp(`^image/(webp|${source})$`);
   const start = await saved();
 
   // ---- a screenshot: a PNG file, described in the dialog, after the caret's paragraph ----
@@ -495,7 +496,8 @@ async function pasting(browser, name, files, pass) {
     article(text),
     /the west region stayed flat\.<\/p>\n<figure class="image" id="fig-screenshot-of-the-plan" data-width="text">\n<img data-asset="a2" alt="Screenshot of the plan">\n<\/figure>\n<figure class="table" id="tab-regions">/,
   );
-  assert.equal(assetsOf(text).a2.type, shrunk);
+  const shrunk = assetsOf(text).a2.type;
+  assert.match(shrunk, encoded("png"));
   assert.equal(
     await page.evaluate(
       () =>
@@ -542,11 +544,8 @@ async function pasting(browser, name, files, pass) {
       /<p>Grow where the soil is already rich\.From Word<\/p>\n<\/blockquote>\n<figure class="image" id="fig-raised-beds" data-width="text">\n<img data-asset="(a\d+)" alt="Raised beds">\n<\/figure>\n<figure class="table" id="tab-1">[^]*?<\/figure>\n<p>Logo<\/p>\n<figure class="image" id="fig-logo" data-width="text">\n<img data-asset="(a\d+)" alt="Logo">\n<\/figure>\n<p>last<\/p>/,
     ) ?? [];
   assert.ok(beds && logo, "order: text, picture, table, text, logo, text");
-  assert.equal(
-    assetsOf(text)[beds].type,
-    name === "webkit" ? "image/jpeg" : shrunk,
-  );
-  // SVG is kept as it is; shown only through img, it loads nothing it names.
+  assert.match(assetsOf(text)[beds].type, encoded("jpeg"));
+  // SVG stays SVG, cleaned of what it would load (here an outside image).
   assert.equal(assetsOf(text)[logo].type, "image/svg+xml");
   assert.equal(await page.locator(dialog).count(), 0, "no dialog: alt kept");
   const withImages = text;
@@ -832,6 +831,59 @@ async function pasting(browser, name, files, pass) {
     "two pastes made while the first waits both land, in order, one undo step each",
   );
 
+  // ---- what a waiting paste was pasted over is deleted: nothing else is replaced ----
+  await page.evaluate(() => {
+    const { view, NodeSelection } = window.htmlText;
+    let at = null;
+    view.state.doc.forEach((node, pos) => {
+      if (node.attrs.id === "fig-site") at = pos;
+    });
+    view.dispatch(
+      view.state.tr.setSelection(NodeSelection.create(view.state.doc, at)),
+    );
+  });
+  await send("paste", {
+    files: [{ name: "a.gif", type: "image/gif", data: picture.gif }],
+  });
+  await page.waitForSelector(`${dialog} textarea`);
+  await page.evaluate(() => {
+    const { view } = window.htmlText;
+    view.dispatch(view.state.tr.deleteSelection());
+  });
+  const deleted = await saved();
+  await describe("Over a deleted figure");
+  await settled();
+  assert.equal(await saved(), deleted, "nothing else was replaced");
+  assert.match(
+    await status(),
+    /Nothing was pasted: what it was pasted over was deleted meanwhile\./,
+  );
+  await undo();
+  assert.equal(await saved(), start);
+  pass(
+    "a waiting paste whose selected figure is deleted meanwhile is refused, replacing nothing else",
+  );
+
+  // ---- text waiting behind an image goes right after it, never over what follows ----
+  await caret("The north region led growth");
+  await send("paste", {
+    files: [{ name: "a.gif", type: "image/gif", data: picture.gif }],
+  });
+  await send("paste", { types: { "text/plain": "Chained" } });
+  await describe("Before the text");
+  await settled();
+  text = check(await saved());
+  assert.match(
+    article(text),
+    /id="fig-before-the-text" data-width="text">\n[^\n]*\n<\/figure>\n<p>Chained<\/p>\n<figure class="table" id="tab-regions">/,
+  );
+  await undo();
+  await undo();
+  assert.equal(await saved(), start);
+  pass(
+    "text pasted while an image waits lands right after the image, the next block untouched",
+  );
+
   // ---- SVG is cleaned: nothing embedded, nothing that runs ----
   const embedded = `data:image/png;base64,${huge}`;
   const hostile =
@@ -840,13 +892,21 @@ async function pasting(browser, name, files, pass) {
     `<image href="${embedded}" width="10" height="10"/><image xlink:href="https://example.org/x.png"/>` +
     '<foreignObject><p xmlns="http://www.w3.org/1999/xhtml">x</p></foreignObject>' +
     '<defs><linearGradient id="g"><stop offset="0" stop-color="#14517a"/></linearGradient></defs>' +
-    '<rect width="40" height="20" fill="url(#g)" onclick="alert(1)"/><use href="#g"/><a href="https://example.org"><circle r="2"/></a></svg>';
+    '<rect width="40" height="20" fill="url(#g)" onclick="alert(1)"/><use href="#g"/><a href="https://example.org"><circle r="2"/></a>' +
+    `<image width="10" height="10"><set attributeName="href" to="${embedded}" begin="0s"/></image>` +
+    `<rect width="1" height="1"><animate attributeName="fill" values="url(${embedded})" dur="1s"/></rect>` +
+    '<rect width="2" height="2" style="fill:\\75rl(x)"/></svg>';
+  // References inside the SVG, however they are written, keep its styling.
+  const own =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><style>rect{fill:url( #g)}</style>' +
+    '<defs><linearGradient id="g"/></defs><rect width="4" height="4" stroke="url(\'#g\')"/></svg>';
   await caret("Grow where the soil is already rich");
   await send("paste", {
     types: {
       "text/html":
         `<img src="data:image/svg+xml;base64,${Buffer.from(hostile).toString("base64")}" alt="Cleaned">` +
-        `<img src="data:image/svg+xml,${encodeURIComponent('<!DOCTYPE svg [<!ENTITY a "aaaa">]><svg xmlns="http://www.w3.org/2000/svg">&a;</svg>')}" alt="Entities">`,
+        `<img src="data:image/svg+xml,${encodeURIComponent('<!DOCTYPE svg [<!ENTITY a "aaaa">]><svg xmlns="http://www.w3.org/2000/svg">&a;</svg>')}" alt="Entities">` +
+        `<img src="data:image/svg+xml;base64,${Buffer.from(own).toString("base64")}" alt="Own styles">`,
     },
   });
   await settled();
@@ -858,8 +918,16 @@ async function pasting(browser, name, files, pass) {
   assert.match(cleaned, /<linearGradient id="g">/);
   assert.doesNotMatch(
     cleaned,
-    /<image|<script|<style|foreignObject|onload|onclick|https:|data:/,
+    /<image|<script|<style|foreignObject|onload|onclick|https:|data:|<set|<animate|75rl/,
   );
+  const mine = Buffer.from(
+    assetsOf(text)[
+      article(text).match(/data-asset="(a\d+)" alt="Own styles"/)[1]
+    ].data,
+    "base64",
+  ).toString();
+  assert.match(mine, /<style>rect\{fill:url\( #g\)\}<\/style>/);
+  assert.match(mine, /stroke="url\('#g'\)"/);
   assert.doesNotMatch(article(text), /alt="Entities"/);
   assert.match(await status(), /Left out: 1 image that could not be read\./);
   await undo();

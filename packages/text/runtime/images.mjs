@@ -10,11 +10,34 @@ import { WRAP_WIDTHS } from "../model/format.mjs";
 
 // An SVG as an image may only draw itself: parsed inert (DOMParser runs nothing), it keeps SVG
 // elements, references inside itself (#id) and its own styles; scripts, foreign content, event
-// handlers, entity declarations and anything it would load or embed (an image, a font, a
-// stylesheet, even a data: one, whose size no limit has checked) are removed. Returns the SVG
-// text, or null when it is not one.
+// handlers, entity declarations, animation (which can set an address) and anything it would load
+// or embed (an image, a font, a stylesheet, even a data: one, whose size no limit has checked)
+// are removed. Returns the SVG text, or null when it is not one.
 const SVG = "http://www.w3.org/2000/svg";
-const OUTSIDE = /url\(\s*['"]?\s*(?!#)|@import/i;
+const DROPPED = new Set([
+  "script",
+  "foreignObject",
+  "image",
+  "feImage",
+  "cursor",
+  "font-face",
+  "font-face-src",
+  "font-face-uri",
+  "animate",
+  "animateColor",
+  "animateMotion",
+  "animateTransform",
+  "set",
+  "discard",
+]);
+// CSS or an attribute value that may name something outside the SVG: a url() not to #id, an
+// import, an image function, or a CSS escape that could spell one.
+const outside = (text) =>
+  /\\|@import|image-set\(|image\(|src\(/i.test(text) ||
+  [...text.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi)].some(
+    (m) => !(m[1] ?? m[2] ?? m[3]).trim().startsWith("#"),
+  ) ||
+  /url\((?![^)]*\))/i.test(text);
 export function cleanSVG(text) {
   if (/<!ENTITY/i.test(text)) return null;
   const doc = new DOMParser().parseFromString(text, "image/svg+xml");
@@ -29,8 +52,8 @@ export function cleanSVG(text) {
     if (!el.isConnected) continue;
     if (
       el.namespaceURI !== SVG ||
-      ["script", "foreignObject"].includes(el.localName) ||
-      (el.localName === "style" && OUTSIDE.test(el.textContent))
+      DROPPED.has(el.localName) ||
+      (el.localName === "style" && outside(el.textContent))
     ) {
       el.remove();
       continue;
@@ -38,14 +61,13 @@ export function cleanSVG(text) {
     for (const { name, value } of [...el.attributes]) {
       const link = name === "href" || name.endsWith(":href");
       if (link && !value.trim().startsWith("#")) {
-        // An image, filter image or use of something outside goes whole; a link loses its address.
-        if (["image", "feImage", "use"].includes(el.localName)) {
+        // A use of something outside goes whole; a link loses its address.
+        if (el.localName === "use") {
           el.remove();
           break;
         }
         el.removeAttribute(name);
-      } else if (/^on/i.test(name) || OUTSIDE.test(value))
-        el.removeAttribute(name);
+      } else if (/^on/i.test(name) || outside(value)) el.removeAttribute(name);
     }
   }
   return new XMLSerializer().serializeToString(root);

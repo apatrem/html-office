@@ -498,14 +498,15 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
         return;
       }
     }
-    // After the figure an earlier paste inserted, never over it.
-    if (after)
-      view.dispatch(
-        view.state.tr.setSelection(
-          TextSelection.near(view.state.doc.resolve(sel.to)),
-        ),
-      );
-    if (at === null && read.blocks.length && pasteIntoTable(view, read)) {
+    // Right after the figure an earlier paste inserted: at that boundary, never over the figure
+    // or whatever follows it.
+    const point = after ? sel.to : null;
+    if (
+      point === null &&
+      at === null &&
+      read.blocks.length &&
+      pasteIntoTable(view, read)
+    ) {
       const message = describeLost(read.lost);
       if (message || read.notices.length)
         notify(
@@ -515,7 +516,11 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
     }
     const tr = view.state.tr;
     if (at !== null) tr.setSelection(TextSelection.near(tr.doc.resolve(at)));
-    const slice = sliceFor(tr.selection.$from, read.blocks, read.plain);
+    const slice = sliceFor(
+      point === null ? tr.selection.$from : tr.doc.resolve(point),
+      read.blocks,
+      read.plain,
+    );
     if (!slice.size) {
       const message = describeLost(read.lost);
       notify(
@@ -525,8 +530,11 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
       );
       return;
     }
-    const from = tr.selection.from;
-    tr.replaceSelection(slice)
+    const from = point ?? tr.selection.from;
+    (point === null
+      ? tr.replaceSelection(slice)
+      : tr.replaceRange(point, point, slice)
+    )
       .scrollIntoView()
       .setMeta("paste", true)
       .setMeta("uiEvent", at === null ? "paste" : "drop");
@@ -676,7 +684,16 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
         if (tr.docChanged)
           for (const dest of pending)
             if (dest.doc === tr.before) {
-              dest.sel = dest.sel.map(tr.doc, tr.mapping);
+              // A destination whose selected node or textblock was deleted is not moved onto
+              // another one: that paste is refused.
+              const sel = dest.sel.map(tr.doc, tr.mapping);
+              if (
+                dest.sel instanceof NodeSelection
+                  ? tr.mapping.mapResult(dest.sel.anchor).deleted
+                  : !(sel instanceof TextSelection)
+              )
+                dest.gone = true;
+              dest.sel = sel;
               if (dest.at !== null) dest.at = tr.mapping.map(dest.at);
               dest.doc = tr.doc;
             }
@@ -697,6 +714,10 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
           ? await resolveImages(view, read, dest)
           : read;
         pending.delete(dest);
+        if (dest.gone)
+          throw new ClipboardError(
+            "what it was pasted over was deleted meanwhile",
+          );
         const known = dest.doc === view.state.doc;
         // Pastes waiting for the same place go after this one, in order.
         const next = [...pending].filter(
