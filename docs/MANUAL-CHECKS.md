@@ -191,6 +191,18 @@ Use the standard build (`text-example.html`) online, then the offline build (`no
 7. **Copy and paste with Slides**: copy a Slides chart (Edit › Copy) and paste it into Text: a new chart with the Slides data, redrawn in the Text charte. Copy a Text chart and paste it into a slide, and into another Text document: the caption comes with it. Paste a Text chart into Word, Google Docs and PowerPoint: a picture with the title and unit.
 8. **Safari and Firefox**: steps 2, 3 and 7.
 
+### T13 — Comments
+
+1. **Panel**: Comments (settings bar) lists the example's threads in document order; their text reads exactly as written. Clicking a thread's quotation selects its text in the page.
+2. **Name**: select a phrase, Insert › Comment (⌘⌥M / Ctrl+Alt+M). The first time, the panel asks for your name; reload the file: it is remembered. In a private window it may be asked again; nothing breaks.
+3. **Comment**: write a comment containing `<b>tags</b>` and a link `https://example.org`: both show as plain text, nothing is bold, nothing is clickable.
+4. **Reply, resolve, delete**: reply, Resolve, Reopen; Undo reverts each. Delete removes the thread and the underline.
+5. **Anchors**: type inside the commented phrase (the underline grows), before and after it (it does not), delete part of it (it shrinks). Delete all of it: the thread shows *Orphaned* and stays.
+6. **Recovery**: with an orphaned thread whose quotation appears twice (type the phrase again in two places, one in its section), Find the quoted text…: two proposals, the one in its section first, each with context; hovering one highlights it in the page. Cancel: nothing changed (Save shows no change). Search again, type a letter somewhere in the page: the proposals disappear. Search again and Attach here: the underline appears at that place only.
+7. **External rewrite**: in a copy, remove a `mark.comment` with a text editor and reopen: the thread is orphaned, never reattached on its own; `check` reports `orphaned-thread`.
+8. **Print preview**: no threads, no underline.
+9. **Safari and Firefox**: steps 2–6.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

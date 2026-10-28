@@ -33,6 +33,24 @@
 #doc .tx-notes ol{margin:0;padding-left:2em}
 #doc .tx-notes li{cursor:pointer}
 #doc .tx-notes a{pointer-events:none}
+/* Comments (T13): threads are edited in the panel, not in the page; anchors are not printed. */
+#doc > section.comments{display:none}
+#doc .tx-active{background:color-mix(in srgb,var(--alert) 18%,transparent)}
+#doc .tx-candidate{background:#fff2a8;outline:1px solid #c9a400}
+.tx-comments{display:flex;flex-direction:column;gap:10px}
+.tx-name{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.tx-comments input,.tx-comments textarea{font:13px system-ui,sans-serif;border:1px solid var(--sh-line);border-radius:4px;padding:4px 6px}
+.tx-thread,.tx-new{border:1px solid var(--sh-line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.tx-thread-head{display:flex;gap:6px;align-items:baseline;cursor:pointer}
+.tx-thread-head q,.tx-new q{font-style:italic;overflow-wrap:anywhere}
+.tx-status{font-size:11px;padding:1px 6px;border-radius:9px;background:var(--sh-bg2,#eef1f4)}
+.tx-status.tx-orphan{background:#fde8d8}
+.tx-who{margin:0;font-size:11px;color:var(--sh-mute)}
+.tx-entry p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.tx-thread-actions{display:flex;flex-wrap:wrap;gap:6px}
+.tx-candidates{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px}
+.tx-candidates p{margin:0 0 4px;font-size:12px}
+@media print{#doc mark.comment{border-bottom:0}}
 /* Charts (T11): title and unit above the saved preview; a state line when it is missing or out of date; ECharts draws off screen. */
 #doc figure.chart .tx-chart-head p{margin:0}
 #doc .tx-chart-title{font-weight:bold}
