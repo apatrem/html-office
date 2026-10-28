@@ -311,9 +311,11 @@ export const clipboardTextSerializer = (slice) =>
   );
 
 // The clipboard handlers of the editor view. notify(text) shows a message in the status line.
-// first: handlePaste functions (view, event) => boolean that may take a paste before the mapping
-// (the internal clipboard of T09, the chart envelope of T11); a plain-text paste skips them.
-export function setupClipboard(notify, first = []) {
+// internal and chart: handlePaste functions (view, event) => boolean that may take a paste
+// before the mapping: the internal clipboard of T09 (not where the paste becomes lines: a cell,
+// a caption, a cover line, a footnote, code or a cell selection) and the chart envelope of T11.
+// A plain-text paste skips both.
+export function setupClipboard(notify, { internal, chart } = {}) {
   let plainNext = false;
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -370,7 +372,14 @@ export function setupClipboard(notify, first = []) {
       // Shift held while pasting (ProseMirror's own reading of the keyboard) is plain text too.
       const plain = plainNext || !!view.input?.shiftKey;
       plainNext = false;
-      if (!plain && first.some((handle) => handle(view, event))) return true;
+      const { selection } = view.state,
+        parent = selection.$from.parent.type;
+      const lines =
+        ONE_PARAGRAPH.includes(parent) ||
+        parent.spec.code ||
+        "$anchorCell" in selection;
+      if (!plain && !lines && internal?.(view, event)) return true;
+      if (!plain && chart?.(view, event)) return true;
       attempt(view, () =>
         insert(view, readTransfer(data, view.state.doc, { plain })),
       );
