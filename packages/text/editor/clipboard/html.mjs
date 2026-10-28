@@ -309,9 +309,15 @@ const ORDERED_MARKER = /^\s*\(?([0-9]+|[a-z]{1,3}|[ivxlcdm]+)[.)]/i;
 
 export class Mapper {
   // used: every ID the document uses or may not use (usedIds); it gains the new ones.
-  constructor(root, { used = new Set(), maxCells = Infinity } = {}) {
+  // targets: the IDs of the document's headings and figures; a cross-reference to anything else
+  // (another document's heading) becomes its label's text.
+  constructor(
+    root,
+    { used = new Set(), targets = new Set(), maxCells = Infinity } = {},
+  ) {
     this.root = root;
     this.used = used;
+    this.targets = targets;
     this.maxCells = maxCells;
     this.rules = classRules(root);
     this.levels = 0;
@@ -394,7 +400,7 @@ export class Mapper {
       return flow.node(this.footnote(node, marks, depth));
     if (tag === "a" && has(node, "xref")) {
       const target = (node.getAttribute("href") ?? "").slice(1);
-      if (ID.test(target))
+      if (ID.test(target) && this.targets.has(target))
         return flow.node(
           N.xref.create(
             {

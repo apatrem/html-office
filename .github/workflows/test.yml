@@ -142,6 +142,26 @@ jobs:
         run: node packages/text/tests/editing-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Numbering, contents and cross-references in Firefox and WebKit (Text T08)
+        run: node packages/text/tests/numbering-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Footnotes and the notes list in Firefox and WebKit (Text T09)
+        run: node packages/text/tests/footnotes-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Images, wrapping and assets in Firefox and WebKit (Text T12)
+        run: node packages/text/tests/images-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Charts, previews, the pinned library and the offline build in Firefox and WebKit (Text T11)
+        run: node packages/text/tests/charts-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Comments, threads and orphan recovery in Firefox and WebKit (Text T13)
+        run: node packages/text/tests/comments-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
       - name: Paste, copy and import Markdown in Firefox and WebKit (Text T07)
         run: node packages/text/tests/clipboard-browser.mjs
         env:

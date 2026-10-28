@@ -66,10 +66,21 @@ const skipped = (schema) =>
 
 // What a DataTransfer holds, as blocks for `doc`: {blocks, lost, notices}. Throws a
 // ClipboardError when the paste must be refused (a broken envelope, a table over the limits).
+// The IDs a pasted cross-reference may keep: the document's headings and figures (T08).
+const FIGURES = new Set([N.heading, N.chart, N.image_figure, N.table_figure]);
+function referenceIds(doc) {
+  const ids = new Set();
+  doc.descendants((node) => {
+    if (FIGURES.has(node.type) && node.attrs.id) ids.add(node.attrs.id);
+  });
+  return ids;
+}
+
 export function readTransfer(data, doc, { plain = false } = {}) {
   const types = Array.from(data.types ?? []),
     get = (type) => (types.includes(type) ? data.getData(type) : ""),
     used = usedIds(doc),
+    targets = referenceIds(doc),
     notices = [],
     none = new Map();
   const text = () => {
@@ -98,7 +109,7 @@ export function readTransfer(data, doc, { plain = false } = {}) {
       }
     }
     if (envelope?.kind === "chart")
-      throw new ClipboardError("charts cannot be pasted into Text yet");
+      throw new ClipboardError("a chart is pasted (Edit › Paste), not dropped");
     if (envelope?.table)
       return {
         blocks: [tableFigure(envelope.table, used)],
@@ -122,7 +133,7 @@ export function readTransfer(data, doc, { plain = false } = {}) {
         notices,
       };
     if (root) {
-      const read = fromHTML(root, { used, maxCells: MAX_CELLS });
+      const read = fromHTML(root, { used, targets, maxCells: MAX_CELLS });
       if (read.blocks.length || !types.includes("text/plain"))
         return { ...read, notices };
     }
@@ -290,9 +301,30 @@ export function copyTable(view, data, { table, pos, rect }) {
   });
 }
 
+// What leaves the document: no comment anchors or threads, and no images (their assets stay in
+// this file). A copy inside the document keeps them through the internal clipboard (T09).
+const comment = schema.marks.comment;
+function outward(fragment) {
+  const kept = [];
+  fragment.forEach((node) => {
+    if ([N.comments, N.comment_thread, N.image_figure].includes(node.type))
+      return;
+    const marks = comment.removeFromSet(node.marks);
+    kept.push(
+      node.isLeaf
+        ? node.mark(marks)
+        : node.type.create(node.attrs, outward(node.content), marks),
+    );
+  });
+  return Fragment.fromArray(kept);
+}
+
 // Subset HTML for a copied slice (ProseMirror adds its context and data-pm-slice): what Text
-// reads back exactly, and other applications as semantic HTML.
-function trees(fragment) {
+// reads back exactly, and other applications as semantic HTML. An element is always written,
+// for the internal clipboard's token.
+function trees(whole) {
+  const fragment = outward(whole);
+  if (!fragment.size) return [element("p", [], [])];
   if (fragment.firstChild?.isInline) return inlineTrees(fragment);
   const out = [];
   fragment.forEach((node) => {
@@ -327,7 +359,9 @@ export const clipboardTextSerializer = (slice) =>
   );
 
 // The clipboard handlers of the editor view. notify(text) shows a message in the status line.
-export function setupClipboard(notify) {
+// first: handlePaste functions (view, event) => boolean that may take a paste before the mapping
+// (the internal clipboard of T09, the chart envelope of T11); a plain-text paste skips them.
+export function setupClipboard(notify, first = []) {
   let plainNext = false;
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -389,8 +423,10 @@ export function setupClipboard(notify) {
       const data = event.clipboardData;
       if (!data) return false;
       event.preventDefault();
-      const plain = plainNext;
+      // Shift held while pasting (ProseMirror's own reading of the keyboard) is plain text too.
+      const plain = plainNext || !!view.input?.shiftKey;
       plainNext = false;
+      if (!plain && first.some((handle) => handle(view, event))) return true;
       attempt(view, () =>
         insert(view, readTransfer(data, view.state.doc, { plain })),
       );
@@ -464,6 +500,7 @@ export function setupClipboard(notify) {
     try {
       const read = fromHTML(parseInert(markdownHTML(source)), {
         used: usedIds(view.state.doc),
+        targets: referenceIds(view.state.doc),
         maxCells: MAX_CELLS,
       });
       if (!read.blocks.length) return "There is nothing to insert.";

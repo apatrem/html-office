@@ -255,8 +255,6 @@ export function setupSaving({
     direct,
     save,
     saveCopy,
-    // A message for the status line until the next edit (paste and import reports).
-    notify: say,
     edited() {
       dirty.change();
       message = "";
@@ -293,6 +291,8 @@ export function setupSaving({
     get message() {
       return message;
     },
+    // A message from another part of the editor (a paste, a copy), shown until the next edit.
+    say,
     // saved, unsaved, draft (kept in this browser) or copied (downloaded, this file unchanged).
     get state() {
       if (!dirty.dirty) return "saved";

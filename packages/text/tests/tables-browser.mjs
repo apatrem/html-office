@@ -373,6 +373,30 @@ async function run(engine) {
     await cmd("undo");
     pass("Shift+arrow selects cells; text pasted on a merged cell keeps it");
 
+    // ---- numbering (T08): a caption added to a table numbers it among the tables ----
+    const labels = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll("#doc figure.table > figcaption")].map(
+          (f) => [f.parentElement.id, f.dataset.txLabel],
+        ),
+      );
+    const labelled = await labels();
+    assert.ok(!labelled.some(([id]) => id === "tab-1"));
+    await caretIn("tab-1", "Site");
+    await cmd("caption");
+    await page.keyboard.type("Sites");
+    const after = await labels();
+    assert.ok(after.some(([id]) => id === "tab-1"));
+    assert.deepEqual(
+      after.map(([, label]) => label),
+      after.map((_, i) => `Table ${i + 1}`),
+    );
+    check(await saved());
+    await cmd("undo");
+    await cmd("undo");
+    assert.deepEqual(await labels(), labelled);
+    pass("a caption added to a table numbers it, and the others follow");
+
     // ---- print ----
     await page.emulateMedia({ media: "print" });
     const shown = await page.evaluate(() => {
