@@ -352,7 +352,9 @@ const shiftArrow = (axis, dir) => (state, dispatch, view) => {
   const $next = cellBeside($cell, axis, dir);
   if (!$next) return false;
   if (dispatch)
-    dispatch(state.tr.setSelection(new CellSelection($cell, $next)));
+    dispatch(
+      state.tr.setSelection(new CellSelection($cell, $next)).scrollIntoView(),
+    );
   return true;
 };
 // Before tableEditing() in the plugins.
@@ -386,34 +388,33 @@ export const pasteTable = (table) => (state, dispatch) => {
     rect = TableMap.get($cell.node(-1)).findCell($cell.pos - start);
   }
   if (dispatch) {
-    let tr = null,
-      out = null;
+    let tr = null;
     const proxy = {
       doc: state.doc,
       get tr() {
         return (tr = state.tr);
       },
     };
+    // prosemirror-tables 1.8.1 selects the pasted cells by positionAt, which is not the covering
+    // cell when a span from above covers the last slot (a pasted vertical merge): it fails, or
+    // selects cells beside the paste. The cells are in place either way; the selection is always
+    // set here from the map.
     try {
-      insertCells(proxy, (done) => (out = done), start, rect, cells);
+      insertCells(proxy, () => {}, start, rect, cells);
     } catch (error) {
-      // prosemirror-tables 1.8.1 selects the pasted cells by positionAt, which is no cell when a
-      // span from above covers the last slot (a pasted vertical merge): the cells are in place,
-      // the selection is set here from the map.
       if (!/^No cell with offset/.test(error?.message) || !tr?.docChanged)
         throw error;
-      const map = TableMap.get(tr.doc.nodeAt(start - 1)),
-        bottom = rect.top + cells.height,
-        right = rect.left + cells.width;
-      tr.setSelection(
-        new CellSelection(
-          tr.doc.resolve(start + map.map[rect.top * map.width + rect.left]),
-          tr.doc.resolve(start + map.map[(bottom - 1) * map.width + right - 1]),
-        ),
-      );
-      out = tr;
     }
-    dispatch(out.scrollIntoView());
+    const map = TableMap.get(tr.doc.nodeAt(start - 1)),
+      bottom = rect.top + cells.height,
+      right = rect.left + cells.width;
+    tr.setSelection(
+      new CellSelection(
+        tr.doc.resolve(start + map.map[rect.top * map.width + rect.left]),
+        tr.doc.resolve(start + map.map[(bottom - 1) * map.width + right - 1]),
+      ),
+    );
+    dispatch(tr.scrollIntoView());
   }
   return true;
 };

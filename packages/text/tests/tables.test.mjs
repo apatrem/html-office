@@ -436,6 +436,9 @@ test("review: a pasted vertical merge lands and is selected", () => {
   e.at("North");
   assert.ok(e.run(T.pasteTable(pasted)));
   assert.ok(e.state.selection instanceof T.CellSelection);
+  const selected = [];
+  e.state.selection.forEachCell((cell) => selected.push(cell.textContent));
+  assert.deepEqual(selected, ["a", "m", "b"], "only the pasted cells");
   const html = e.table().join("\n");
   assert.match(html, /<tr><td>a<\/td><td rowspan="2">m<\/td>/);
   assert.match(html, /<tr><td>b<\/td>/);
