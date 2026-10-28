@@ -154,6 +154,17 @@ Each task adds its checks here, under its own heading (`### T07 — …`), in ta
 6. **Stale labels from an LLM**: in a copy of the file, change a cross-reference text to `Figure 9` with a text editor. `node packages/text/tools/check.mjs <file>` reports a `stale-label` warning with its line. Open the file: the label reads correctly, the state is *Unsaved changes*, and Undo is unavailable. Save: only that line changes.
 7. **Safari and Firefox**: steps 3–5 behave the same; the cross-reference dialog accepts double-click and Enter.
 
+### T09 — Footnotes
+
+1. **Reading**: the note after *ahead of plan.* shows as a small raised **1**. Hovering it shows the note's text in a box. The **Notes** list at the end of the document (before the comments) lists it.
+2. **Insert** (Insert › Footnote, or ⌘⌥F / Ctrl+Alt+F) in the middle of a sentence, then at the very end of a paragraph: the note opens with a tinted box, and what you type goes into it. Escape closes it and the cursor stays right after the number; typing then goes after the note, not into it. The notes renumber in document order, and the list follows as you type.
+3. **Open a note**: click its number, or click its line in the Notes list: the note opens with the cursor at its end.
+4. **Move**: cut a sentence that holds a note and paste it elsewhere in the same document, or drag it: the note moves with it and the numbers follow. Undo restores the order. Bold a word inside an open note: the Notes list shows it bold.
+5. **Screen reader** (VoiceOver in Safari): reading the paragraph reads the note's text where it is written; the Notes list is not read a second time.
+6. **Print preview** in Chrome, Safari and Firefox, with a note open: the references print as raised numbers, never as open text, and the Notes list prints at the end with the same numbers.
+7. **Safari and Firefox**: steps 2 and 3, including typing at the end of a paragraph after Escape, and a Japanese or Chinese input method right after Escape.
+8. Save and reopen: the notes are kept where they were written; the saved file holds no numbers and no Notes list.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

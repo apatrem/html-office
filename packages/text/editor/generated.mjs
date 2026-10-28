@@ -1,8 +1,16 @@
 // Generated content in the editor (T08): heading numbers and caption labels drawn as decorations
 // (never saved), cross-references to missing targets flagged, and the saved generated content,
 // cross-reference labels and contents lists, rewritten after every edit that can change them.
-// The numbers come from numbering.mjs, the one function every view uses.
-import { Plugin, PluginKey, NodeSelection } from "prosemirror-state";
+// Footnotes (T09) show as numbered references with a hover preview, open for editing while the
+// cursor is in them, and are listed as notes at the end. The numbers come from numbering.mjs,
+// the one function every view uses.
+import { DOMSerializer } from "prosemirror-model";
+import {
+  Plugin,
+  PluginKey,
+  NodeSelection,
+  TextSelection,
+} from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import {
   AddMarkStep,
@@ -22,8 +30,15 @@ export const generatedKey = new PluginKey("generated");
 // Numbers and labels cannot change then, so the decorations are only mapped.
 function textOnly(tr) {
   return tr.steps.every((step, i) => {
-    if (step instanceof AddMarkStep || step instanceof RemoveMarkStep)
-      return true;
+    // Marks change no number, except inside a note, whose text the notes list shows.
+    if (step instanceof AddMarkStep || step instanceof RemoveMarkStep) {
+      let note = false;
+      tr.docs[i].nodesBetween(step.from, step.to, (n) => {
+        note ||= n.type === N.footnote;
+        return !note;
+      });
+      return !note;
+    }
     if (!(step instanceof ReplaceStep) || step.structure) return false;
     const doc = tr.docs[i];
     const $from = doc.resolve(step.from);
@@ -79,7 +94,80 @@ function decorations(doc, result) {
             : "This figure has no caption, so it has no number",
         }),
       );
+  for (const { pos, number, text } of result.footnotes)
+    out.push(
+      Decoration.node(pos, pos + doc.nodeAt(pos).nodeSize, {
+        "data-tx-note": String(number),
+        "data-tx-preview": text || "Empty note",
+      }),
+    );
+  if (result.footnotes.length) {
+    // The notes list goes at the end of the content, before the comments section.
+    const last = doc.lastChild;
+    const at =
+      doc.content.size - (last.type === N.comments ? last.nodeSize : 0);
+    const notes = result.footnotes.map((f) => doc.nodeAt(f.pos).content);
+    out.push(
+      Decoration.widget(at, (view) => notesList(view, notes), {
+        key: `tx-notes:${JSON.stringify(notes.map((n) => n.toJSON()))}`,
+        side: -1,
+        ignoreSelection: true,
+        stopEvent: () => true,
+      }),
+    );
+  }
   return DecorationSet.create(doc, out);
+}
+
+// Puts the cursor at the end of footnote `index` (0-based), opening it for editing.
+function goToNote(view, index) {
+  const note = currentNumbering(view.state).footnotes[index];
+  if (!note) return;
+  const end = note.pos + view.state.doc.nodeAt(note.pos).nodeSize - 1;
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, end))
+      .scrollIntoView(),
+  );
+  view.focus();
+}
+
+// The generated notes list (endnotes): read-only, never saved; a click opens that note.
+function notesList(view, notes) {
+  const serializer = DOMSerializer.fromSchema(schema);
+  const section = document.createElement("section");
+  section.className = "tx-notes";
+  section.contentEditable = "false";
+  // A drawn copy of the notes, which assistive technology reads where they are written.
+  section.setAttribute("aria-hidden", "true");
+  const title = section.appendChild(document.createElement("p"));
+  title.className = "tx-notes-title";
+  title.textContent = "Notes";
+  const list = section.appendChild(document.createElement("ol"));
+  notes.forEach((content, i) => {
+    const item = list.appendChild(document.createElement("li"));
+    item.appendChild(serializer.serializeFragment(content));
+    // A hidden copy holds no tab stop: its links and cross-references are reached in the text.
+    for (const link of item.querySelectorAll("a")) link.tabIndex = -1;
+    item.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      goToNote(view, i);
+    });
+  });
+  return section;
+}
+
+// The footnote holding the selection: {pos, end}, or null.
+function openNote(state) {
+  const { $from, $to } = state.selection;
+  for (let d = $from.depth; d > 0; d--)
+    if ($from.node(d).type === N.footnote) {
+      const pos = $from.before(d);
+      const end = pos + $from.node(d).nodeSize;
+      // Both ends inside the note's content.
+      return $to.pos < end ? { pos, end } : null;
+    }
+  return null;
 }
 
 // options: {format}, the theme's heading format; the editor changes it when a restored draft
@@ -105,14 +193,82 @@ export function generatedContent(options = { format: DEFAULT_HEADING_FORMAT }) {
       },
     },
     props: {
-      decorations: (state) => generatedKey.getState(state).decorations,
+      // The footnote holding the cursor is open: its text shows for editing.
+      decorations(state) {
+        const set = generatedKey.getState(state).decorations;
+        const open = openNote(state);
+        return open
+          ? set.add(state.doc, [
+              // An empty note is an inline block, so the caret stays inside it.
+              Decoration.node(open.pos, open.end, {
+                class: open.end - open.pos > 2 ? "tx-open" : "tx-open tx-empty",
+              }),
+            ])
+          : set;
+      },
+      // A click on a closed footnote reference opens it, with the cursor at its end.
+      handleClick(view, _pos, event) {
+        const el = event.target.closest?.(".footnote[data-tx-note]");
+        if (!el || el.classList.contains("tx-open")) return false;
+        goToNote(view, Number(el.dataset.txNote) - 1);
+        return true;
+      },
+      // Right after a note, browsers type into the note's last text: typing goes after it.
+      handleDOMEvents: {
+        beforeinput(view, event) {
+          const { selection } = view.state;
+          if (
+            event.inputType !== "insertText" ||
+            !event.data ||
+            !selection.empty ||
+            selection.$from.nodeBefore?.type !== N.footnote
+          )
+            return false;
+          event.preventDefault();
+          view.dispatch(view.state.tr.insertText(event.data).scrollIntoView());
+          return true;
+        },
+      },
+      // Escape leaves an open footnote, after its reference.
+      handleKeyDown(view, event) {
+        if (event.key !== "Escape") return false;
+        const open = openNote(view.state);
+        if (!open) return false;
+        view.dispatch(
+          view.state.tr.setSelection(
+            TextSelection.create(view.state.doc, open.end),
+          ),
+        );
+        return true;
+      },
     },
+    // ProseMirror may put the browser's caret after the text before an empty note, where
+    // typing would land outside it: the caret goes into the note's element.
+    view: () => ({
+      update(view) {
+        const open = openNote(view.state);
+        if (
+          !open ||
+          open.end - open.pos > 2 ||
+          !view.state.selection.empty ||
+          view.composing ||
+          !view.hasFocus()
+        )
+          return;
+        const el = view.nodeDOM(open.pos);
+        const dom = view.dom.ownerDocument.getSelection();
+        if (el && dom && !el.contains(dom.anchorNode)) dom.collapse(el, 0);
+      },
+    }),
     // Labels and contents follow every edit that changes structure, in the same undo step.
     appendTransaction(transactions, _old, state) {
       if (!transactions.some((tr) => tr.docChanged && !textOnly(tr)))
         return null;
       const tr = state.tr;
-      return regenerate(tr, options) ? tr.setMeta("generated", true) : null;
+      const known = generatedKey.getState(state).result;
+      return regenerate(tr, options, known)
+        ? tr.setMeta("generated", true)
+        : null;
     },
   });
 }
@@ -127,6 +283,26 @@ export function currentNumbering(state) {
 }
 
 // ---------- commands ----------
+// A footnote at the end of the selection, with the cursor in it (not inside code or a note).
+export function insertFootnote(state, dispatch) {
+  const { $to } = state.selection;
+  const parent = $to.parent;
+  if (!parent.inlineContent) return false;
+  const index = $to.index();
+  if (!parent.canReplaceWith(index, index, N.footnote)) return false;
+  if (dispatch) {
+    // Not inside a link: HTML cannot nest <a> (the guard would unlink it anyway).
+    const marks = $to.marks().filter((m) => m.type !== schema.marks.link);
+    const tr = state.tr.insert($to.pos, N.footnote.create(null, null, marks));
+    dispatch(
+      tr
+        .setSelection(TextSelection.create(tr.doc, $to.pos + 1))
+        .scrollIntoView(),
+    );
+  }
+  return true;
+}
+
 // Heading numbers on or off.
 export const setHeadingNumbers = (on) => (state, dispatch) => {
   if (state.doc.attrs.headingNumbers === on) return false;

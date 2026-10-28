@@ -30,6 +30,7 @@ import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as G from "../editor/generated.mjs";
 import { regenerate, fileFormat } from "../editor/numbering.mjs";
+import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
@@ -206,6 +207,7 @@ function start() {
       history(),
       subsetGuard(),
       G.generatedContent(numbers),
+      internalClipboard(),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -223,6 +225,7 @@ function start() {
         Tab: (s, d) => E.inList(s) && (E.indent(s, d), true),
         "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
         "Mod-Enter": E.insertPageBreak,
+        "Mod-Alt-f": G.insertFootnote,
         "Mod-k": () => (commands.run("link"), true),
         Backspace: E.liftListItem,
         "Mod-s": () => (
@@ -333,6 +336,7 @@ function start() {
     G.setHeadingFormat(value, numbers.format)(view.state, view.dispatch),
   );
   edit("contents", G.insertContents);
+  edit("footnote", G.insertFootnote);
   for (const depth of [1, 2, 3, 4])
     edit(`contents-${depth}`, G.setContentsDepth(depth));
   // The cross-reference dialog lists the targets; as with links, the selection is put back
