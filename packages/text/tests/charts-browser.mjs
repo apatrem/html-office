@@ -186,6 +186,22 @@ async function run(name) {
         .evaluate((el) => el.scrollIntoView({ block: "center" }));
       await page.dblclick("#fig-revenue .tx-plot");
       await page.waitForSelector("dialog.sh-dialog");
+      // In JSON, the JSON is the whole chart: the other controls wait, and it has a name.
+      await page.click("dialog.sh-dialog button:text-is('JSON')");
+      assert.equal(
+        await page.isDisabled("dialog.sh-dialog input >> nth=0"),
+        true,
+      );
+      assert.equal(
+        await page.isDisabled("dialog.sh-dialog select >> nth=0"),
+        true,
+      );
+      assert.equal(
+        await page.getByLabel("Chart JSON").count(),
+        1,
+        "the JSON editor has a name",
+      );
+      await page.click("dialog.sh-dialog button:text-is('JSON')");
       await page.fill("dialog.sh-dialog input >> nth=1", "EUR m");
       await page.click("dialog.sh-dialog button:text-is('Apply')");
       await drawnFor(page, "fig-revenue", '"unit":"EUR m"');
@@ -214,7 +230,30 @@ async function run(name) {
 
       // ---- copy a chart and paste it: a new figure with its caption and width ----
       await selectChart(page, "fig-revenue");
+      // The native picture: the async clipboard receives image/png (stubbed: no permission here).
+      await page.evaluate(() => {
+        window.written = null;
+        navigator.clipboard.write = async (items) => {
+          window.written = await Promise.all(
+            items.flatMap((item) =>
+              item.types.map(async (t) => [t, (await item.getType(t)).size]),
+            ),
+          );
+        };
+      });
       const copied = await clip(page, "copy");
+      // Where the browser has the async clipboard (ClipboardItem), it gets the picture too.
+      if (await page.evaluate(() => typeof ClipboardItem === "function")) {
+        await page.waitForFunction(() => window.written);
+        const written = Object.fromEntries(
+          await page.evaluate(() => window.written),
+        );
+        assert.ok(
+          written["image/png"] > 0,
+          "a PNG picture for other applications",
+        );
+        assert.ok(written["text/html"] > 0);
+      }
       const env = JSON.parse(copied["application/x-html-office+json"]);
       assert.equal(env.kind, "chart");
       assert.equal(env.source.product, "text");
@@ -236,6 +275,19 @@ async function run(name) {
         /<figure class="chart" id="fig-revenue-by-quarter" data-type="column" data-width="text">[^]*?<figcaption>Revenue by quarter, 2026<\/figcaption>/,
       );
       pass("a chart copies as an ADR-013 envelope and pastes as a new figure");
+      assert.deepEqual(errors, []);
+      await context.close();
+    }
+
+    // ---- a new theme makes a preview written elsewhere (no key) out of date ----
+    {
+      const { context, page, errors } = await open(standard);
+      await page
+        .locator("#fig-revenue .tx-plot")
+        .evaluate((el) => el.scrollIntoView({ block: "center" }));
+      await page.evaluate(() => window.htmlText.commands.run("theme", "red"));
+      await drawnFor(page, "fig-revenue");
+      pass("a theme change redraws a preview written elsewhere");
       assert.deepEqual(errors, []);
       await context.close();
     }
@@ -266,8 +318,24 @@ async function run(name) {
           ),
         );
       });
+      // A newer envelope on the custom type is skipped for the HTML carrier; a caption with a
+      // control character and longer than 1,000 characters arrives whole and saves.
+      const caption = `Long\u0000caption ${"x".repeat(1200)}`;
+      const html = `<figure data-html-office="${JSON.stringify({
+        ...slides,
+        chart: { ...slides.chart, caption },
+      })
+        .replace(/&/g, "&amp;")
+        .replace(
+          /"/g,
+          "&quot;",
+        )}"><figcaption>From Slides</figcaption></figure>`;
       await clip(page, "paste", {
-        "application/x-html-office+json": JSON.stringify(slides),
+        "application/x-html-office+json": JSON.stringify({
+          schema: "html-office-clip/9",
+          kind: "chart",
+        }),
+        "text/html": html,
         "text/plain": "From Slides",
       });
       await page.waitForFunction(() =>
@@ -279,11 +347,15 @@ async function run(name) {
       const article = check(await saved());
       const fig = figure(article, "fig-from-slides");
       assert.match(fig, /data-key="pasted"/);
+      assert.match(
+        fig,
+        new RegExp(`<figcaption>Long caption x{1200}</figcaption>`),
+      );
       assert.doesNotMatch(
         fig.slice(fig.indexOf("<svg")),
         /script|onclick|<image|zr0-c0|https:/,
       );
-      assert.match(fig, /clip-path="url\(#tx-p[a-z0-9]+-0\)"/);
+      assert.match(fig, /clip-path="url\(#tx-c\d+-0\)"/);
       assert.equal(
         await page.locator("#fig-revenue .tx-plot > svg").count(),
         1,
@@ -335,11 +407,11 @@ async function run(name) {
           .locator(`#fig-c${i} .tx-plot`)
           .evaluate((el) => el.scrollIntoView({ block: "center" }));
         await drawnFor(page, `fig-c${i}`);
-        if (i === 2)
-          assert.ok(
-            (await page.locator(".tx-chart-draw").count()) <= 4,
-            "instances only for the charts that came into view",
-          );
+        assert.equal(
+          await page.locator(".tx-chart-draw").count(),
+          i + 1,
+          "an instance only for each chart that came into view",
+        );
       }
       assert.equal(await drawn(), 8);
       check(await saved());
