@@ -70,7 +70,7 @@ export function markdownHTML(source) {
     (block.type === "paragraph" ||
       (block.type === "heading" &&
         block.sourcepos[1][0] > block.sourcepos[0][0]));
-  for (let block = doc.firstChild; block; ) {
+  for (let block = doc.firstChild; block;) {
     let next = block.next;
     // A paragraph, or a setext heading whose text holds a table: in GitHub's Markdown the table
     // ends only at a blank line or another block, so the underline is one more row and the
