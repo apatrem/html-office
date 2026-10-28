@@ -2,17 +2,14 @@
 // Embedded code budget by component (T02): minified browser bundles, as a product build would embed them.
 //   node tools/measure.mjs [--write]   (--write updates bench/code-size.json)
 // Each ProseMirror package is measured alone with its dependencies; our modules with ProseMirror external.
-// "Editor core" is everything together, the floor of the Text standard build before shell, CSS and UI.
+// "Editor core" is everything together, the floor of the Text standard build before shell, CSS and UI
+// (with the T07 paste mapping and Markdown import).
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { inlineScript } from "../../../tools/inline-script.mjs";
-import {
-  bundledPackages,
-  packageEntries,
-  groupNotices,
-  formatNotices,
-} from "../../shared/notices.mjs";
+import { groupNotices, formatNotices } from "../../shared/notices.mjs";
+import { licenceEntries, escapeComments } from "./build.mjs";
 
 export const STANDARD_CODE_CEILING = 500000;
 const root = new URL("../", import.meta.url);
@@ -24,6 +21,7 @@ const PACKAGES = [
   "prosemirror-history",
   "prosemirror-keymap",
   "prosemirror-commands",
+  "commonmark",
 ];
 const OURS = {
   "HTML tree and serialiser": "./model/html.mjs",
@@ -34,6 +32,8 @@ const OURS = {
   "File layout": "./model/file.mjs",
   "Editing guard": "./editor/schema/guard.mjs",
   "Editing commands": "./editor/commands.mjs",
+  "Paste mapping (HTML, tables)": "./editor/clipboard/html.mjs",
+  "Markdown import": "./editor/clipboard/markdown.mjs",
 };
 
 async function bundle(contents, external = []) {
@@ -48,6 +48,8 @@ async function bundle(contents, external = []) {
     target: "es2022",
     legalComments: "none",
     external,
+    // As the editor is built: the browser decodes Markdown character references.
+    alias: { entities: "./editor/clipboard/entities.mjs" },
   });
   const code = result.outputFiles[0].contents;
   return {
@@ -77,7 +79,9 @@ export async function measure() {
     });
   const core = await bundle(
     [
-      ...PACKAGES.map((p) => `export * as ${p.slice(12)} from "${p}";`),
+      ...PACKAGES.map(
+        (p) => `export * as ${p.replace(/\W/g, "_")} from "${p}";`,
+      ),
       ...Object.values(OURS).map((p, i) => `export * as m${i} from "${p}";`),
     ].join("\n"),
   );
@@ -88,8 +92,7 @@ export async function measure() {
         label: "html-text/LICENSE",
         text: await readFile(new URL("../../LICENSE", root), "utf8"),
       },
-      // esbuild reports inputs relative to the working directory.
-      ...packageEntries(bundledPackages([core.metafile])),
+      ...licenceEntries(core.metafile, root.pathname),
     ]),
     { title: "Licence notices" },
   );
@@ -108,7 +111,10 @@ export async function measure() {
   );
   // As embedded: notices comment, then the code prepared for an inline <script>.
   const total = Buffer.byteLength(
-    inlineScript(`/*! html-text\n${notices}*/\n${core.text}`, "core"),
+    inlineScript(
+      `/*! html-text\n${notices}*/\n${escapeComments(core.text)}`,
+      "core",
+    ),
     "utf8",
   );
   return {

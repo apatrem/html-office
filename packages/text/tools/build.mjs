@@ -50,8 +50,9 @@ export const escapeComments = (code) => code.replaceAll("<!--", "\\x3c!--");
 // decoder (ENTITIES), and minimist, for its command line: neither is in the editor. commonmark's
 // and mdurl's licence files separate their notices with "---" lines; each part is an entry, so
 // their MIT texts are stored once, like the other packages'.
-export function licenceEntries(metafile) {
-  return packageEntries(bundledPackages([metafile], repo))
+// cwd: esbuild's working directory, to which the metafile's paths are relative.
+export function licenceEntries(metafile, cwd = repo) {
+  return packageEntries(bundledPackages([metafile], cwd))
     .filter((e) => !/^(entities|minimist)@/.test(e.label))
     .flatMap((e) =>
       /^(commonmark|mdurl)@/.test(e.label)

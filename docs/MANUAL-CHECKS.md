@@ -144,6 +144,31 @@ Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https:
 
 Each task adds its checks here, under its own heading (`### T07 — …`), in task order.
 
+### T07 — Paste and import Markdown
+
+Use `text-example.html`. After each paste: the result uses the document's own styles (no foreign fonts, colours or sizes), one Undo removes the whole paste, and Save (or Save a copy) then reopening shows the same content. Put the caret in an empty paragraph first unless a step says otherwise.
+
+1. **Word (desktop, macOS and Windows)**: copy a page with a Title, Heading 1 and 2, bold, italic, underline, a link, a bulleted list with a second level, a numbered list, a footnote, a comment, a picture and a 3 × 3 table with a merged header cell, and paste it.
+   - Title and headings become headings; the lists keep their levels and kinds; the table keeps its merged cell.
+   - The footnote, the comment and the picture are left out, and the status line says so ("Left out: 1 image, 2 Word footnotes or comments").
+2. **Google Docs**: the same kind of content. Headings, bold, italic, links and nested lists arrive; nothing is bold that was not bold in Docs.
+3. **Excel and Google Sheets**: copy a block with a bold header row, a merged title and a right-aligned number column. It becomes a table with a header row, the merge and right-aligned numbers. Paste 31 columns: nothing is pasted, and the status line says why.
+4. **Web pages**: copy part of a news article (headings, paragraphs, links, an image, a quote) and part of a Wikipedia table.
+   - The text, headings, quote and table arrive. Navigation, buttons, images and videos do not.
+   - Relative links ("/about") are kept as text and counted in the status line.
+   - In the browser's developer tools (Network), the paste loads nothing.
+5. **Plain text**: ⌘⇧V / Ctrl+Shift+V (Chrome, Edge, Firefox), or Edit › Paste as plain text (Safari asks for permission with a Paste button), pastes the same copied web page as plain paragraphs.
+6. **Where the paste lands**: paste a heading and a list at the end of a paragraph (they stay a heading and a list after it); paste two paragraphs into a table cell (one cell, the lines joined by line breaks); paste into the code block (plain text).
+7. **html-office tables**: copy a range in `data-pnl.html` and a table in `slides-catalogue.html` and paste each into Text: a table with its header and total rows, merges and alignment. Repeat across Chrome and Safari (the HTML carrier).
+8. **Copying a Text table**: ⌘-click (Ctrl-click) inside the regions table until the whole table is outlined, copy, and paste it into Word, Google Docs, Excel, Google Sheets, `data-pnl.html` and `slides-catalogue.html`.
+   - Each gets the table with its header rows, the merged "Revenue" cell (Data: centred across the cells) and the numbers right-aligned; Word and Docs show the header colours of the theme.
+   - Pasted back into Text, it becomes a new table (new ID, no caption: the caption stays with the original).
+9. **Copying text into other applications**: select from "2027 plan" to the quote and paste into Word and Google Docs: headings, the justified paragraph's text, the list and the quote arrive as headings, a list and a quote.
+10. **Markdown**: Insert › Markdown…, paste a README from GitHub (headings, lists, a table, code, an image), Insert. The status line lists what was left out (the image) or adapted. Open a `.md` file with "Or open a file" too.
+11. **Drag and drop**: drag a selection from a web page or Word into the document: it is inserted where it is dropped, mapped as a paste.
+12. **Safari and Firefox**: repeat steps 1, 4, 5 and 10.
+13. **Print**: print preview of a document with pasted tables and lists looks like the document's own tables and lists.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

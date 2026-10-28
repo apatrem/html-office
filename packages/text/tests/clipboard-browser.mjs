@@ -462,7 +462,10 @@ async function run(engine) {
     assert.equal(await saved(), mdBefore, "one undo removes the import");
     await page.evaluate(() => window.htmlText.commands.run("markdown"));
     await page.click("dialog .sh-primary");
-    assert.match(await page.textContent("dialog .tx-md-err"), /nothing to insert/);
+    assert.match(
+      await page.textContent("dialog .tx-md-err"),
+      /nothing to insert/,
+    );
     await page.keyboard.press("Escape");
     pass(
       "Insert › Markdown: CommonMark with tables, reported, undone in one step",

@@ -1,12 +1,12 @@
 # Shared clipboard module
 
-The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisions/013-cross-product-clipboard.md) (task X02a). Each product bundles it into its own runtime: Data (X02a) and Slides (X02b, [`src/engine/clipboard.js`](../../../src/engine/clipboard.js)). It has no dependencies and no DOM access outside `parseInert`.
+The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisions/013-cross-product-clipboard.md) (task X02a). Each product bundles it into its own runtime: Data (X02a), Slides (X02b, [`src/engine/clipboard.js`](../../../src/engine/clipboard.js)) and Text (T07, [`packages/text/runtime/clipboard.mjs`](../../text/runtime/clipboard.mjs)). It has no dependencies and no DOM access outside `parseInert`.
 
 | File | Contents |
 | --- | --- |
 | `envelope.mjs` | `html-office-clip/1`: `SCHEMA`, the carriers (`MIME`, the `data-html-office` `ATTRIBUTE`, Data's read-only `LEGACY_MIME`), `LIMITS`, `decodeEnvelope` / `checkEnvelope` / `encodeEnvelope` |
 | `table.mjs` | The portable table model (§3): vocabulary (`TEXT_COLORS`, `FILLS`, `CELL_STYLES`), `validateTable`, and TSV (`toTSV`, `tableText`, and `fromTSV`, which reads Excel's quoting back with a cell bound) |
-| `read.mjs` | `readClipboard` (reader precedence), `parseInert` (a detached `<template>`), `findEnvelope`, `readTable` (the HTML table reader) |
+| `read.mjs` | `readClipboard` (reader precedence), `parseInert` (a detached `<template>`), `findEnvelope`, `readTable` (the HTML table reader), `readTableElement` (one table of a larger fragment, with its cell elements on request), and the style helpers `classRules`, `declarations`, `hidden`, `weight`, `slant` |
 | `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `figureHTML` (a chart's picture and caption, X02c), `excelFormat` |
 | `errors.mjs` | `ClipboardError`, allow-listed field checks, `safeURL` |
 | `fixtures/` | Excel, Google Sheets, Word and Google Docs table HTML (see its README) |
@@ -23,6 +23,8 @@ The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisio
 6. `none`.
 
 An envelope with another `schema` string is skipped with a message in `notices`. A recognised envelope that is malformed, over a limit or unsafe throws a `ClipboardError`: the paste is aborted, never continued with displayed values. `text/html` over 8 Mi code units is treated as absent; other flavours over their limits throw.
+
+Text reads a whole pasted fragment, not only a lone table: `readTableElement(table, { rules, sources })` reads one `<table>` of it with the fragment's class rules, and `sources` receives each cell element, so Text maps cell text with its own inline marks while the reader decides the grid.
 
 The table reader keeps displayed text (white space collapsed, `<br>` and blocks as line breaks), `th`/`thead` header rows, `colspan`/`rowspan` (HTML's own limits, and the expanded size checked against `maxCells` before any grid is allocated), bold and italic from tags, inline styles and the fragment's own class rules, cell or paragraph alignment, and `https:`, `http:` and `mailto:` links. Mixed formatting becomes `runs`. Colours, fonts and every other literal style are dropped: pasted content takes the destination's charte. Script, style, template, hidden elements and comments are never text. Exact-value hints (`x:num`, `data-sheets-value`) are not read.
 

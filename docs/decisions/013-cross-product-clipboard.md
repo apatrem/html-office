@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a, X02b and X02c are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`packages/shared/charts/clipboard.mjs`](../../packages/shared/charts/clipboard.mjs), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)); X02d and X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a, X02b and X02c are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`packages/shared/charts/clipboard.mjs`](../../packages/shared/charts/clipboard.mjs), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)), and Text's table pairs with Text T07 ([`packages/text/runtime/clipboard.mjs`](../../packages/text/runtime/clipboard.mjs)); X02d and X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
 
 ## Context
 
@@ -326,7 +326,7 @@ Each increment is one PR (scope M), values only, and keeps every existing clipbo
 | **X03** | — | Shared chart module extraction, Slides byte-identical; then strict schemas and lossless adapters. PR 1 of the shared chart module / T18 session. | — |
 | **X02c** | Slides ⇄ Slides charts, charts → other applications | Chart copy (envelope, PNG, async upgrade) and paste in Slides; SVG sanitiser | X02a, X03 |
 | **X02d** | Data charts → Slides; Slides charts → Data | Snapshot from bindings; cells plus bound chart (decision 1). Data T18 delivers only the binding model; the clipboard behaviour is here. | X02c, Data T18 |
-| Text T07 / T10 | Text ⇄ Data, Text ⇄ Slides tables | Acceptance items of those Text tasks (copy writes the envelope; paste uses §3) | X02a, X02b |
+| Text T07 / T10 | Text ⇄ Data, Text ⇄ Slides tables | Acceptance items of those Text tasks (copy writes the envelope; paste uses §3). Done in T07: a selected Text table copies as the envelope, and Text reads envelopes and every table of a pasted HTML fragment (the shared reader's `readTableElement`) | X02a, X02b |
 | Text T11 | Text ⇄ Slides charts | Acceptance item of T11 (Text part) | X02c, X03 |
 | **X02f** | Text ⇄ Data charts | Data chart snapshot into Text; Text chart into Data as cells plus a bound chart | X02d, Text T11 |
 
