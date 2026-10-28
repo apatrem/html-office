@@ -30,6 +30,7 @@ import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as G from "../editor/generated.mjs";
 import { regenerate, fileFormat } from "../editor/numbering.mjs";
+import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
@@ -206,6 +207,7 @@ function start() {
       history(),
       subsetGuard(),
       G.generatedContent(numbers),
+      internalClipboard(),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,

@@ -166,6 +166,88 @@ async function run(name) {
     await page.emulateMedia({ media: "screen" });
     pass("a click in the notes list opens that note; print keeps the endnotes");
 
+    // ---- formatting inside a note shows in the list; print never shows a preview ----
+    await page.locator("#doc .tx-notes li").nth(1).click();
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      const { $from } = view.state.selection;
+      const start = $from.start();
+      view.dispatch(
+        view.state.tr.setSelection(
+          view.state.selection.constructor.create(
+            view.state.doc,
+            start + 2,
+            start + 8,
+          ),
+        ),
+      );
+    });
+    await page.keyboard.press(`${mod}+b`);
+    assert.equal(
+      await page.locator("#doc .tx-notes li").nth(1).innerHTML(),
+      "A <strong>second</strong> note.",
+    );
+    await page.keyboard.press(`${mod}+b`);
+    await page.keyboard.press("Escape");
+    await page.hover(note);
+    await page.emulateMedia({ media: "print" });
+    assert.equal(
+      await page.evaluate(
+        (s) => getComputedStyle(document.querySelector(s), "::after").content,
+        note,
+      ),
+      "none",
+      "no hover preview in print",
+    );
+    await page.emulateMedia({ media: "screen" });
+    pass(
+      "formatting inside a note shows in the notes list; print shows no preview",
+    );
+
+    // ---- cut a sentence with its note and paste it elsewhere ----
+    const before = await saved();
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      let from, to;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          from === undefined &&
+          node.isText &&
+          node.text.startsWith(", ahead of plan.")
+        )
+          from = pos;
+        if (
+          node.type.name === "footnote" &&
+          from !== undefined &&
+          to === undefined
+        )
+          to = pos + node.nodeSize;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(
+          view.state.selection.constructor.create(view.state.doc, from, to),
+        ),
+      );
+      view.focus();
+    });
+    await page.keyboard.press(`${mod}+x`);
+    await cursorAtEnd("#doc ul > li:last-child");
+    await page.keyboard.press(`${mod}+v`);
+    lines = check(await saved());
+    assert.ok(
+      lines.some((l) =>
+        /, ahead of plan\.<span class="footnote">Fictional management accounts, unaudited\.<\/span><\/li>/.test(
+          l,
+        ),
+      ),
+      lines.join("\n"),
+    );
+    assert.deepEqual((await notes())[0], "A second note.");
+    for (let i = 0; i < 4 && (await saved()) !== before; i++)
+      await page.keyboard.press(`${mod}+z`);
+    assert.equal(await saved(), before, "undo restores the cut and the paste");
+    pass("cut and paste carry a sentence's note, and the numbers follow");
+
     // ---- undo: the last note goes first, and the list follows ----
     for (let i = 0; i < 5 && (await notes()).length === 3; i++)
       await page.keyboard.press(`${mod}+z`);

@@ -30,8 +30,15 @@ export const generatedKey = new PluginKey("generated");
 // Numbers and labels cannot change then, so the decorations are only mapped.
 function textOnly(tr) {
   return tr.steps.every((step, i) => {
-    if (step instanceof AddMarkStep || step instanceof RemoveMarkStep)
-      return true;
+    // Marks change no number, except inside a note, whose text the notes list shows.
+    if (step instanceof AddMarkStep || step instanceof RemoveMarkStep) {
+      let note = false;
+      tr.docs[i].nodesBetween(step.from, step.to, (n) => {
+        note ||= n.type === N.footnote;
+        return !note;
+      });
+      return !note;
+    }
     if (!(step instanceof ReplaceStep) || step.structure) return false;
     const doc = tr.docs[i];
     const $from = doc.resolve(step.from);
@@ -131,7 +138,8 @@ function notesList(view, notes) {
   const section = document.createElement("section");
   section.className = "tx-notes";
   section.contentEditable = "false";
-  section.setAttribute("aria-label", "Notes");
+  // A drawn copy of the notes, which assistive technology reads where they are written.
+  section.setAttribute("aria-hidden", "true");
   const title = section.appendChild(document.createElement("p"));
   title.className = "tx-notes-title";
   title.textContent = "Notes";
@@ -154,7 +162,8 @@ function openNote(state) {
     if ($from.node(d).type === N.footnote) {
       const pos = $from.before(d);
       const end = pos + $from.node(d).nodeSize;
-      return $to.pos <= end ? { pos, end } : null;
+      // Both ends inside the note's content.
+      return $to.pos < end ? { pos, end } : null;
     }
   return null;
 }
@@ -236,7 +245,14 @@ export function generatedContent(options = { format: DEFAULT_HEADING_FORMAT }) {
     view: () => ({
       update(view) {
         const open = openNote(view.state);
-        if (!open || open.end - open.pos > 2 || !view.hasFocus()) return;
+        if (
+          !open ||
+          open.end - open.pos > 2 ||
+          !view.state.selection.empty ||
+          view.composing ||
+          !view.hasFocus()
+        )
+          return;
         const el = view.nodeDOM(open.pos);
         const dom = view.dom.ownerDocument.getSelection();
         if (el && dom && !el.contains(dom.anchorNode)) dom.collapse(el, 0);

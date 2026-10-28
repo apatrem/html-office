@@ -195,3 +195,17 @@ test("typing in a note updates its preview and the notes list", () => {
     "the list is drawn again",
   );
 });
+
+test("formatting inside a note draws the notes list again; elsewhere it only maps", () => {
+  const e = editor();
+  const at = e.find("Plain");
+  e.dispatch(e.state.tr.addMark(at, at + 5, schema.marks.strong.create()));
+  assert.equal(generatedKey.getState(e.state).result, null, "mapped only");
+  const note = e.find("Three.");
+  e.dispatch(e.state.tr.addMark(note, note + 5, schema.marks.strong.create()));
+  const set = generatedKey.getState(e.state).decorations.find();
+  assert.ok(
+    set.some((d) => d.spec.key?.includes('"strong"')),
+    "the list shows the bold text",
+  );
+});
