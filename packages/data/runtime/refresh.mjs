@@ -1,10 +1,13 @@
 // Refresh dialog (T16), part of the import chunk. The replacement file is read
 // the way the source was (its saved options), compared with the source range
 // as it is now, and nothing changes until the person has settled every
-// missing column, seen what a refresh overwrites and confirmed it.
+// missing column, seen what a refresh overwrites and confirmed it. An XLSX
+// source is refreshed from one worksheet of the replacement workbook.
 import { readCSV, ENCODINGS, DELIMITERS, CSV_LIMITS } from "../model/csv.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
 import { planRefresh, dependents } from "../model/refresh.mjs";
+import { mapSheet, importable, diagnostics } from "../model/xlsx.mjs";
+import { readXLSX } from "./xlsx-reader.mjs";
 
 const plural = (n, one, many) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -23,9 +26,30 @@ function typesFor(source, names) {
     (name) => source.columns.find((c) => c.name === name)?.type ?? "auto",
   );
 }
+// Formulas of a refreshed XLSX sheet read other sheets by their names in the
+// file: each maps to the Data sheet imported from it (by its source), the
+// refreshed sheet to itself; any other is not imported.
+function sheetNames(book, source, workbook, index) {
+  const names = new Map(
+    workbook.sheets.map((s) => [s.name.toLowerCase(), null]),
+  );
+  for (const other of book.sources ?? []) {
+    if (other.kind !== "xlsx" || other.id === source.id) continue;
+    const key = other.options.sheet.toLowerCase();
+    if (!names.has(key)) continue;
+    const data = book.sheets.find((s) => s.id === other.sheetId).name;
+    if (names.get(key) === null || other.file.name === source.file.name)
+      names.set(key, data);
+  }
+  names.set(
+    workbook.sheets[index].name.toLowerCase(),
+    book.sheets.find((s) => s.id === source.sheetId).name,
+  );
+  return names;
+}
 export async function openRefresh({ file, book, source, deps, onRefresh }) {
   const { h, modal, field, display } = deps;
-  if (file.size > CSV_LIMITS.bytes)
+  if (source.kind === "csv" && file.size > CSV_LIMITS.bytes)
     throw new Error(
       `${file.name} is larger than ${CSV_LIMITS.bytes / 1024 / 1024} MB, the import limit.`,
     );
@@ -48,7 +72,9 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     source.ref !== "#REF!" &&
     (await columnFingerprints(sheet.cells, source.ref)).length !==
       source.columns.length;
-  const encoding = select(h, "refresh-encoding", ENCODINGS, options.encoding),
+  const xlsx = source.kind === "xlsx",
+    worksheet = h("select", { id: "refresh-sheet", disabled: true }),
+    encoding = select(h, "refresh-encoding", ENCODINGS, options.encoding),
     delimiter = select(h, "refresh-delimiter", DELIMITERS, options.delimiter),
     decimal = select(
       h,
@@ -102,10 +128,14 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
       h(
         "div",
         { class: "imp-options" },
-        field("Encoding", encoding),
-        field("Delimiter", delimiter),
-        field("Decimal separator", decimal),
-        field("Date order", dates),
+        ...(xlsx
+          ? [field("Sheet in the new file", worksheet)]
+          : [
+              field("Encoding", encoding),
+              field("Delimiter", delimiter),
+              field("Decimal separator", decimal),
+              field("Date order", dates),
+            ]),
       ),
       alerts,
       columns,
@@ -117,8 +147,64 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
   dialog.classList.add("imp-dialog");
   cancel.onclick = () => dialog.close();
   let plan = null,
-    fresh = null;
+    fresh = null,
+    workbook = null;
+  if (xlsx) {
+    const reading = new AbortController();
+    dialog.addEventListener("close", () => reading.abort());
+    apply.disabled = true;
+    summary.textContent = `Reading ${file.name}…`;
+    try {
+      workbook = await readXLSX(bytes, {
+        name: file.name,
+        signal: reading.signal,
+      });
+    } catch (error) {
+      if (!reading.signal.aborted)
+        summary.textContent = `${file.name} cannot be used: ${error.message.replace(`${file.name} cannot be read: `, "")}`;
+      return dialog;
+    }
+    if (!dialog.open) return dialog;
+    const usable = workbook.sheets
+      .map((s, i) => [s, i])
+      .filter(([s]) => importable(s));
+    if (!usable.length) {
+      summary.textContent = `${file.name} has no worksheet with data.`;
+      return dialog;
+    }
+    for (const [s, i] of usable)
+      worksheet.append(h("option", { value: String(i) }, s.name));
+    // The worksheet with the source's name, else the first one.
+    worksheet.value = String(
+      (usable.find(([s]) => s.name === source.options.sheet) ??
+        usable.find(
+          ([s]) => s.name.toLowerCase() === source.options.sheet.toLowerCase(),
+        ) ??
+        usable[0])[1],
+    );
+    worksheet.disabled = false;
+    worksheet.onchange = draw;
+  }
   function read() {
+    if (xlsx) {
+      const index = Number(worksheet.value),
+        mapped = mapSheet(workbook, index, {
+          sheets: sheetNames(book, source, workbook, index),
+          header: source.options.header,
+        }),
+        name = workbook.sheets[index].name;
+      return {
+        ...mapped,
+        ambiguity: [],
+        diagnostics: diagnostics(
+          workbook,
+          [{ index, original: name, name, ...mapped }],
+          [index],
+          [],
+          false,
+        ),
+      };
+    }
     const first = readCSV(bytes, { ...options, header: options.header });
     return readCSV(bytes, {
       ...options,
@@ -298,7 +384,11 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         };
       } else from = c.from === null ? "—" : c.from;
       const shown = (cell) =>
-        cell?.input ? display(cell, book.locale) || "(empty)" : "(empty)";
+        cell?.formula
+          ? cell.formula
+          : cell?.input
+            ? display(cell, book.locale) || "(empty)"
+            : "(empty)";
       body.append(
         h(
           "tr",
@@ -361,13 +451,18 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
             sha256: await fileDigest(bytes),
           },
           importedAt: new Date().toISOString(),
-          options: {
-            encoding: fresh.encoding,
-            delimiter: fresh.delimiter,
-            header: source.options.header,
-            decimal: fresh.conventions.decimal,
-            dates: fresh.conventions.dates,
-          },
+          options: xlsx
+            ? {
+                sheet: workbook.sheets[Number(worksheet.value)].name,
+                header: source.options.header,
+              }
+            : {
+                encoding: fresh.encoding,
+                delimiter: fresh.delimiter,
+                header: source.options.header,
+                decimal: fresh.conventions.decimal,
+                dates: fresh.conventions.dates,
+              },
           columns: plan.columns.map((c, i) => ({
             name:
               c.status === "cleared" ? "" : (c.from ?? c.name).slice(0, 255),

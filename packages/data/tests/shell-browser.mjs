@@ -73,6 +73,7 @@ const MENUS = {
   ],
   Data: [
     "Import CSV…",
+    "Import XLSX…",
     "Refresh source…",
     "Recalculate",
     "Pivot tables…",

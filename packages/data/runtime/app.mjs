@@ -1085,7 +1085,12 @@ function loadImporter() {
   });
   return importer;
 }
-function importCSV() {
+const ACCEPT = {
+  csv: ".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain",
+  xlsx: ".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12",
+};
+// Data › Import CSV… and Import XLSX… (the XLSX reader loads only then).
+function importFile(kind) {
   if (loading) return;
   if (pendingEdits.length)
     return void status(
@@ -1093,13 +1098,13 @@ function importCSV() {
     );
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain";
+  input.accept = ACCEPT[kind];
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
     try {
-      const { openCSVImport } = await loadImporter();
-      await openCSVImport({
+      const chunk = await loadImporter();
+      await chunk[kind === "xlsx" ? "openXLSXImport" : "openCSVImport"]({
         file,
         book,
         deps: {
@@ -1119,15 +1124,21 @@ function importCSV() {
   };
   input.click();
 }
-// An import adds one table sheet (in Raw Data) and its source description,
-// recalculated with IronCalc and recorded as one undoable step.
+// An import adds table sheets (in Raw Data), their source descriptions and
+// any named ranges, recalculated with IronCalc and recorded as one undoable
+// step. A CSV import passes one sheet; an XLSX import passes `sheets`, and
+// `check` reports formulas whose result differs from the file's saved one.
 async function applyImport({
   name,
   cells,
   height,
   width,
   source,
-  diagnostics,
+  diagnostics = [],
+  sheets: parts = [{ name, cells, height, width, source }],
+  names = [],
+  file = source?.file.name,
+  check,
 }) {
   if (loading) return false;
   const epoch = revisions.begin();
@@ -1137,44 +1148,66 @@ async function applyImport({
     const free = (prefix, taken) => {
         let n = 1;
         while (taken.has(`${prefix}-${n}`)) n++;
+        taken.add(`${prefix}-${n}`);
         return `${prefix}-${n}`;
       },
-      id = free("import", new Set(book.sheets.map((s) => s.id))),
-      raw = groupView(book).find((g) => g.kind === "raw"),
-      next = organizeWorkbook(book, {
+      sheetIds = new Set(book.sheets.map((s) => s.id)),
+      sourceIds = new Set((book.sources ?? []).map((s) => s.id)),
+      raw = groupView(book).find((g) => g.kind === "raw");
+    let next = book;
+    const ids = parts.map((part) => {
+      const id = free("import", sheetIds);
+      next = organizeWorkbook(next, {
         type: "create",
         id,
-        name,
+        name: part.name,
         groupId: raw.id,
-      }),
-      sheet = next.sheets.find((s) => s.id === id);
-    sheet.metadata = { layout: "table" };
-    sheet.cells = cells;
+      });
+      const sheet = next.sheets.find((s) => s.id === id);
+      sheet.metadata = { layout: "table" };
+      sheet.cells = part.cells;
+      return id;
+    });
     next.sources = [
       ...(book.sources ?? []),
-      {
-        id: free("source", new Set((book.sources ?? []).map((s) => s.id))),
-        sheetId: id,
-        ...source,
-      },
+      ...parts.map((part, k) => ({
+        id: free("source", sourceIds),
+        sheetId: ids[k],
+        ...part.source,
+      })),
     ];
+    if (names.length)
+      next.names = [
+        ...next.names,
+        ...names.map((n) => ({
+          name: n.name,
+          sheetId: ids[parts.findIndex((p) => p.name === n.sheet)],
+          ref: n.ref,
+        })),
+      ];
     // The worker validates the whole workbook as it loads it.
     validateSources(next);
     loading = new AbortController();
     loading.operation = "import";
     render();
-    status(`Importing ${source.file.name}: recalculating locally…`);
+    status(`Importing ${file}: recalculating locally…`);
     if (!session)
       session = new EngineClient(config, $("worker-source").textContent);
     await session.load(next);
     if (!revisions.current(epoch)) return false;
     const result = await session.calculate();
     if (!revisions.current(epoch)) return false;
-    const others = result.results.filter((r) => r.sheetId !== id),
+    const added = new Set(ids),
+      others = result.results.filter((r) => !added.has(r.sheetId)),
       before = captureCells(book, others),
       headBefore = captureHead(book),
       snapshotBefore = book.snapshot,
-      selectionBefore = { sheetId, ...grid.selection };
+      selectionBefore = { sheetId, ...grid.selection },
+      differ = check?.(
+        Object.fromEntries(parts.map((part, k) => [ids[k], part.cells])),
+        result.results,
+        Object.fromEntries(next.sheets.map((s) => [s.id, s.name])),
+      );
     for (const r of result.results)
       next.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
@@ -1182,11 +1215,13 @@ async function applyImport({
     book = next;
     trustSnapshot();
     // Imported cells are new objects: history.record clones them once.
-    const imported = Object.entries(cells).map(([ref, cell]) => ({
-        sheetId: id,
-        ref,
-        cell,
-      })),
+    const imported = parts.flatMap((part, k) =>
+        Object.entries(part.cells).map(([ref, cell]) => ({
+          sheetId: ids[k],
+          ref,
+          cell,
+        })),
+      ),
       headAfter = captureHead(book),
       after = [...captureCells(book, others), ...imported];
     history.record({
@@ -1197,18 +1232,20 @@ async function applyImport({
       snapshotBefore,
       snapshotAfter: book.snapshot,
       selectionBefore,
-      selectionAfter: { sheetId: id, anchor: "A1", focus: "A1" },
+      selectionAfter: { sheetId: ids[0], anchor: "A1", focus: "A1" },
       calculate: true,
     });
     persistence.changed([...cellEdits(others), ...imported], {
       head: headAfter,
     });
-    sheetId = id;
+    sheetId = ids[0];
     loading = null;
     render();
     choose("A1");
     status(
-      `Imported ${source.file.name}: ${height.toLocaleString("en-US")} rows × ${width.toLocaleString("en-US")} columns into the sheet "${name}". ${diagnostics.length ? diagnostics.join(" ") + " " : ""}Unsaved changes.`,
+      parts.length === 1 && !check
+        ? `Imported ${file}: ${height.toLocaleString("en-US")} rows × ${width.toLocaleString("en-US")} columns into the sheet "${name}". ${diagnostics.length ? diagnostics.join(" ") + " " : ""}Unsaved changes.`
+        : `Imported ${file}: ${parts.length === 1 ? "the sheet" : `${parts.length} sheets`} ${parts.map((p) => `"${p.name}"`).join(", ")}${names.length ? ` and ${names.length === 1 ? "1 named range" : `${names.length} named ranges`}` : ""}. ${differ ? differ + " " : ""}Unsaved changes.`,
     );
     return true;
   } catch (error) {
@@ -1239,11 +1276,11 @@ function refreshSource() {
   const source = book.sources?.find((s) => s.sheetId === sheetId);
   if (!source)
     return void status(
-      "This sheet has no imported source. Select a sheet made by Data › Import CSV…",
+      "This sheet has no imported source. Select a sheet made by Data › Import CSV… or Import XLSX…",
     );
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain";
+  input.accept = ACCEPT[source.kind];
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) return;
@@ -1559,7 +1596,8 @@ register(
   () => idle() && history.canRedo,
 );
 register("paste-table", () => clipboard.open());
-register("import-csv", importCSV);
+register("import-csv", () => importFile("csv"));
+register("import-xlsx", () => importFile("xlsx"));
 register(
   "refresh-source",
   refreshSource,

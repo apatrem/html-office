@@ -21,7 +21,7 @@ const id = (v) => typeof v === "string" && /^[a-zA-Z][\w-]{0,79}$/.test(v);
 const iso = (v) =>
   typeof v === "string" && v.length <= 40 && Number.isFinite(Date.parse(v));
 const hex64 = (v) => typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
-const OPTIONS = {
+const CSV_OPTIONS = {
   encoding: (v) =>
     [
       "utf-8",
@@ -36,6 +36,12 @@ const OPTIONS = {
   decimal: (v) => ["point", "comma"].includes(v),
   dates: (v) => ["dmy", "mdy"].includes(v),
 };
+// An XLSX source is one worksheet of the file, by its name there.
+const XLSX_OPTIONS = {
+  sheet: (v) => typeof v === "string" && v.length >= 1 && v.length <= 31,
+  header: (v) => typeof v === "boolean",
+};
+const OPTIONS = { csv: CSV_OPTIONS, xlsx: XLSX_OPTIONS };
 const TYPES = ["auto", "text", "number", "date", "boolean"];
 export function validateSources(book) {
   const sources = book.sources;
@@ -63,7 +69,9 @@ export function validateSources(book) {
     ids.add(source.id);
     if (!sheets.has(source.sheetId)) fail(`unknown sheet ${source.sheetId}`);
     if (source.ref !== "#REF!") parseRange(source.ref);
-    if (source.kind !== "csv") fail(`unsupported kind ${source.kind}`);
+    const options = Object.hasOwn(OPTIONS, source.kind)
+      ? OPTIONS[source.kind]
+      : fail(`unsupported kind ${source.kind}`);
     fields(source.file, ["name", "bytes", "modified", "sha256"], "file");
     const { name, bytes, modified, sha256 } = source.file;
     if (typeof name !== "string" || !name || name.length > 255)
@@ -74,8 +82,8 @@ export function validateSources(book) {
       fail("file modified must be an ISO date");
     if (!hex64(sha256)) fail("file sha256 must be 64 hex digits");
     if (!iso(source.importedAt)) fail("importedAt must be an ISO date");
-    fields(source.options, Object.keys(OPTIONS), "options");
-    for (const [key, check] of Object.entries(OPTIONS))
+    fields(source.options, Object.keys(options), "options");
+    for (const [key, check] of Object.entries(options))
       if (!check(source.options[key])) fail(`invalid option ${key}`);
     if (
       !Array.isArray(source.columns) ||
