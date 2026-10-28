@@ -161,7 +161,7 @@ File › Export sheet as CSV… on the selected sheet. Use a sheet with text, ne
    - Import the semicolon file into **Sheets** with the spreadsheet locale set to France (File › Settings): numbers are numbers.
 3. *Displayed text*: the CSV shows each value as the grid does (currency signs, grouping, `k`/`M` scales, parentheses).
 4. Accents and symbols (`é`, `€`, `—`) display correctly in Excel and Sheets (the file is UTF-8 with a BOM).
-5. Open `packages/data/dist/data-test/csv-stale-offline.html` (written by `node tests/csv-browser.mjs` run in `packages/data`), whose saved results are out of date, and select Summary. The dialog warns, offers *Recalculate and export* and *Export saved values*, and no plain *Export CSV*. *Export saved values* names the file `…-stale.csv`; *Recalculate and export* exports current values. In the P&L, change the scenario: the CSV dialog on the sheet holding a pivot table says it is out of date until refreshed.
+5. Open `packages/data/dist/data-test/csv-stale-offline.html` (written by `node tests/csv-browser.mjs` run in `packages/data`), whose saved results are out of date, and select Summary. The dialog warns, offers *Recalculate and export* and *Export saved values*, and no plain *Export CSV*. *Export saved values* names the file `…-stale.csv`; *Recalculate and export* exports current values. Insert a pivot table (Insert › Pivot table…), refresh it, then change one of its source values: the CSV dialog on the pivot's sheet says it is out of date until refreshed.
 6. With the standard file and the network off, edit an input: the calculation cannot load. The CSV dialog says the uncalculated edit is not exported.
 7. Repeat step 1 with the offline file and the network off.
 
