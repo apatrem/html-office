@@ -59,13 +59,19 @@ async function run(name) {
     await page.goto(url);
     await page.waitForFunction(() => window.htmlText);
     const saved = () => page.evaluate(() => window.htmlText.serialize());
+    // A computed style; for content, the text as drawn (Firefox keeps attr() unresolved, WebKit
+    // lists the strings).
     const style = (selector, pseudo, prop) =>
       page.evaluate(
-        ([s, p, k]) =>
-          getComputedStyle(document.querySelectorAll(s)[0], p)[k].replace(
-            /^"(.*)"$/,
-            "$1",
-          ),
+        ([s, p, k]) => {
+          const el = document.querySelector(s);
+          const value = getComputedStyle(el, p)[k];
+          if (k !== "content" || value === "none" || value === "normal")
+            return value;
+          return [...value.matchAll(/attr\(([\w-]+)\)|"([^"]*)"/g)]
+            .map((m) => (m[1] ? (el.getAttribute(m[1]) ?? "") : m[2]))
+            .join("");
+        },
         [selector, pseudo, prop],
       );
     // The cursor at the end of an element's text (End does not move the caret on macOS).
@@ -103,13 +109,8 @@ async function run(name) {
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await page.hover(note);
     assert.equal(
-      await page.evaluate(
-        (s) =>
-          getComputedStyle(document.querySelector(`${s}:hover`), "::after")
-            .content,
-        note,
-      ),
-      '"Fictional management accounts, unaudited."',
+      await style(`${note}:hover`, "::after", "content"),
+      "Fictional management accounts, unaudited.",
     );
     pass("a numbered reference with a hover preview, and the notes list");
 
@@ -192,10 +193,7 @@ async function run(name) {
     await page.hover(note);
     await page.emulateMedia({ media: "print" });
     assert.equal(
-      await page.evaluate(
-        (s) => getComputedStyle(document.querySelector(s), "::after").content,
-        note,
-      ),
+      await style(note, "::after", "content"),
       "none",
       "no hover preview in print",
     );
