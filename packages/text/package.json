@@ -16,6 +16,7 @@
     "prettier": "3.6.2"
   },
   "dependencies": {
+    "commonmark": "0.31.2",
     "prosemirror-commands": "1.7.2",
     "prosemirror-history": "1.5.1",
     "prosemirror-keymap": "1.2.3",

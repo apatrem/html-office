@@ -89,7 +89,7 @@ export function findEnvelope(root) {
 // Class rules from the fragment's own <style> elements (Excel and Word put
 // bold, italic and alignment there), for `.name` and `tag.name` selectors.
 const MAX_CSS = 2 ** 20;
-function classRules(root) {
+export function classRules(root) {
   const rules = new Map();
   let css = "";
   walk(root, (node) => {
@@ -131,7 +131,7 @@ function classRules(root) {
   }
   return rules;
 }
-function declarations(element, rules) {
+export function declarations(element, rules) {
   let text = "";
   for (const name of (element.getAttribute("class") ?? "").split(/\s+/))
     if (rules.has(name)) text += ";" + rules.get(name);
@@ -150,18 +150,18 @@ function declarations(element, rules) {
   }
   return out;
 }
-const hidden = (css) =>
+export const hidden = (css) =>
   css.get("display") === "none" ||
   css.get("mso-hide") === "all" ||
   css.get("visibility") === "hidden";
-function weight(value) {
+export function weight(value) {
   if (value === undefined) return undefined;
   if (value === "bold" || value === "bolder") return true;
   if (value === "normal" || value === "lighter") return false;
   const n = parseInt(value, 10);
   return Number.isFinite(n) ? n >= 600 : undefined;
 }
-function slant(value) {
+export function slant(value) {
   if (value === undefined) return undefined;
   return value.startsWith("italic") || value.startsWith("oblique");
 }
@@ -329,8 +329,18 @@ export function readTable(root, { maxCells = Infinity } = {}) {
     }
   });
   if (tables.length !== 1 || outside) return null;
-  const rules = classRules(root),
-    rows = tableRows(tables[0]),
+  return readTableElement(tables[0], { maxCells, rules: classRules(root) });
+}
+
+// One table element of a fragment as a portable table (Text reads each table
+// of a mixed selection). rules: classRules() of the whole fragment; sources,
+// when given, receives {r, c, cell, row} for each cell element read, so a
+// destination with richer cell text can read it itself.
+export function readTableElement(
+  element,
+  { maxCells = Infinity, rules = new Map(), sources = null } = {},
+) {
+  const rows = tableRows(element),
     counts = { links: 0 };
   if (!rows.length) return null;
   const cellsOf = (tr) =>
@@ -378,6 +388,7 @@ export function readTable(root, { maxCells = Infinity } = {}) {
           inner;
       for (let i = r; i < r + down; i++)
         for (let j = c; j < c + across; j++) grid[i][j] = { covered: true };
+      sources?.push({ r, c, cell: td, row: tr });
       grid[r][c] =
         content.text || across > 1 || down > 1
           ? {

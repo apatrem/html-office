@@ -4,7 +4,12 @@
 import { h, button, icon } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group } from "../../shared/shell/toolbar.mjs";
-import { modal, linkDialog, checkUrl } from "../../shared/shell/dialogs.mjs";
+import {
+  modal,
+  field,
+  linkDialog,
+  checkUrl,
+} from "../../shared/shell/dialogs.mjs";
 import { STYLES, linkProblem } from "../editor/commands.mjs";
 import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
 import { documentBody, choices } from "../../shared/shell/panels.mjs";
@@ -24,6 +29,7 @@ const SHORTCUTS = [
   ["Superscript, subscript", `${key(".")}, ${key(",")}`],
   ["Inline code", key("E")],
   ["Link", key("K")],
+  ["Paste as plain text", key("Shift+V")],
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
   ["Page break", key("Enter")],
@@ -143,6 +149,10 @@ export function mountShell(cmd, saving, report, look, editing) {
       items: () => [
         item("Undo", "undo", { shortcut: key("Z") }),
         item("Redo", "redo", { shortcut: key("Shift+Z") }),
+        "-",
+        item("Paste as plain text", "paste-plain", {
+          shortcut: key("Shift+V"),
+        }),
       ],
     },
     {
@@ -152,6 +162,8 @@ export function mountShell(cmd, saving, report, look, editing) {
         item("Remove link", "unlink"),
         "-",
         item("Page break", "page-break", { shortcut: key("Enter") }),
+        "-",
+        item("Markdown…", "markdown"),
       ],
     },
     {
@@ -604,7 +616,65 @@ export function mountShell(cmd, saving, report, look, editing) {
       opener: { isConnected: true, focus: back },
     });
   }
-  return { recover, link };
+  // Insert › Markdown: typed, pasted or read from a file; insert(source) returns an error message
+  // ("" when inserted), back() returns focus to the document.
+  function markdown(insert, back) {
+    const source = h("textarea", {
+      rows: 12,
+      spellcheck: "false",
+      class: "tx-md",
+      placeholder:
+        "# Heading\n\nText with **bold**, a [link](https://example.org) and a table:\n\n| Region | 2026 |\n| --- | ---: |\n| North | 1.9 |",
+    });
+    const file = h("input", {
+      type: "file",
+      accept: ".md,.markdown,.txt,text/markdown,text/plain",
+    });
+    const error = h("p", { class: "sh-err tx-md-err", role: "status" });
+    file.addEventListener("change", async () => {
+      const chosen = file.files?.[0];
+      if (chosen) source.value = await chosen.text();
+    });
+    const ok = h(
+      "button",
+      { type: "button", class: "sh-b sh-t sh-primary" },
+      "Insert",
+    );
+    const dialog = modal(
+      "Insert Markdown",
+      [
+        h(
+          "p",
+          { class: "sh-hint" },
+          "CommonMark with tables, inserted at the cursor in the document's styles. Raw HTML is read as text and formatting only; nothing in it runs or loads.",
+        ),
+        field("Markdown", source),
+        field("Or open a file", file),
+        error,
+      ],
+      [
+        h("span", { class: "sh-spacer" }),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => dialog.close("cancel"),
+          },
+          "Cancel",
+        ),
+        ok,
+      ],
+      { opener: { isConnected: true, focus: back } },
+    );
+    ok.addEventListener("click", () => {
+      const message = insert(source.value);
+      if (message) error.textContent = message;
+      else dialog.close("insert");
+    });
+    source.focus();
+  }
+  return { recover, link, markdown };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

@@ -357,3 +357,6 @@ export function articleTree(doc) {
 }
 
 export const articleHTML = (doc) => serialize(articleTree(doc));
+
+// The clipboard writes selected content in the subset's own markup (editor/clipboard).
+export { block as blockTree, inline as inlineTrees, cell as cellTree };

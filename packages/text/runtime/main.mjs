@@ -1,7 +1,7 @@
 // html-text editor bootstrap (T03). The file's own nodes are captured before anything else runs;
 // article#doc is validated with the same rules as tools/check.mjs, then edited with ProseMirror.
 // Saving writes the captured zones unchanged and article#doc from the editor's document.
-import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorState, TextSelection, NodeSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
@@ -31,6 +31,7 @@ import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
+import { setupClipboard } from "./clipboard.mjs";
 import { mountShell, refusal } from "./shell.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
@@ -218,10 +219,15 @@ function start() {
       keymap({ ...baseKeymap, Enter: enter }),
     ],
   });
+  // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
+  const clipboard = setupClipboard((text) => saving.notify(text));
   view = new EditorView(
     { mount: article },
     {
       state,
+      handleDOMEvents: clipboard.handleDOMEvents,
+      clipboardSerializer: clipboard.clipboardSerializer,
+      clipboardTextSerializer: clipboard.clipboardTextSerializer,
       // The caret is kept clear of the sticky file bar and the floating settings bar.
       scrollMargin: { top: 110, bottom: 90, left: 5, right: 5 },
       scrollThreshold: { top: 110, bottom: 90, left: 0, right: 0 },
@@ -304,6 +310,24 @@ function start() {
       );
     },
   );
+  commands.register("paste-plain", () => clipboard.pastePlain(view));
+  // The Markdown dialog inserts at the selection, then gives focus back with the caret after it
+  // (a native dialog refocuses the article first, which resets the caret in Safari).
+  commands.register("markdown", () => {
+    let { doc, selection } = view.state;
+    shell.markdown(
+      (source) => {
+        const error = clipboard.insertMarkdown(view, source);
+        ({ doc, selection } = view.state);
+        return error;
+      },
+      () => {
+        if (view.state.doc === doc)
+          view.dispatch(view.state.tr.setSelection(selection));
+        view.focus();
+      },
+    );
+  });
   commands.register("undo", run(undo), () => undo(view.state));
   commands.register("redo", run(redo), () => redo(view.state));
   for (const key of ["theme", "font", "page", "margins"])
@@ -340,6 +364,8 @@ function start() {
     saving,
     report,
     serialize: () => save(view.state.doc),
+    TextSelection,
+    NodeSelection,
   };
 }
 

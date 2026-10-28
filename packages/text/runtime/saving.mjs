@@ -255,6 +255,8 @@ export function setupSaving({
     direct,
     save,
     saveCopy,
+    // A message for the status line until the next edit (paste and import reports).
+    notify: say,
     edited() {
       dirty.change();
       message = "";
