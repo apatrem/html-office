@@ -435,8 +435,10 @@ function pasteChart(view, envelope) {
 // The chart plugin: views, copy of a selected chart, paste of a chart envelope. Other copies and
 // pastes are left to the editor.
 const chartKey = new PluginKey("tx-charts");
-export const chartPlugin = (manager, edit, report) =>
-  new Plugin({
+export function chartPlugin(manager, edit, report) {
+  // The theme and font of the file as opened.
+  let opened = null;
+  return new Plugin({
     key: chartKey,
     // Whether the last transaction was the person's edit: generated labels, contents and
     // previews are written outside the history.
@@ -444,15 +446,19 @@ export const chartPlugin = (manager, edit, report) =>
       init: () => false,
       apply: (tr) => tr.docChanged && tr.getMeta("addToHistory") !== false,
     },
-    // A new theme or font: previews written elsewhere are out of date, in the same undo step.
+    // A theme or font other than the file's as opened: previews written elsewhere (drawn with
+    // that look) are out of date, in the same undo step. Back to the opened look (undo), they
+    // are not.
     appendTransaction(trs, before, after) {
-      const a = before.doc.attrs,
-        b = after.doc.attrs;
-      if (a.theme === b.theme && a.font === b.font) return null;
+      const look = (d) => `${d.attrs.theme}|${d.attrs.font}`;
+      opened ??= look(before.doc);
+      if (look(before.doc) === look(after.doc) || look(after.doc) === opened)
+        return null;
       return staleKeyless(after.tr);
     },
     // The look as opened is read when the editor starts.
     view(view) {
+      opened = `${view.state.doc.attrs.theme}|${view.state.doc.attrs.font}`;
       manager.update(view.state, false);
       return {
         update(view) {
@@ -516,6 +522,7 @@ export const chartPlugin = (manager, edit, report) =>
       },
     },
   });
+}
 
 // ---------- the chart dialog ----------
 const CATEGORY = ["column", "hbar", "stacked", "line"];
