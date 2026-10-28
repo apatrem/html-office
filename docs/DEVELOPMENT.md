@@ -49,6 +49,20 @@ For a standalone extracted skill, configure its execution environment with Playw
 
 The checker parses inert HTML before running it and accepts only recognised engine scripts. CSS resource checks decode escapes and inspect every image candidate; dynamic URL substitution is rejected. `--since` detects unrequested deletions, reordering, layout, position, and geometry changes. `--allow e12,e13` permits specific elements; `--allow s04` permits recomposing a slide. It does not verify the provenance of figures or replace visual review.
 
+### html-data
+
+The `html-data` skill needs only Node.js 18+: `plugin/skills/html-data/tools/workbook.mjs` is bundled and carries no dependency.
+
+```bash
+T=plugin/skills/html-data/tools
+node $T/workbook.mjs new budget.html --model plugin/skills/html-data/examples/valid/budget.json
+node $T/workbook.mjs inspect budget.html --range "Budget!A1:D4"
+node $T/workbook.mjs apply budget.html patch.json --out budget-2.html
+node $T/workbook.mjs validate budget-2.html --since budget.html --allow "Inputs!B4"
+```
+
+The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` reports whether the committed copy still matches its sources. `packages/data/tests/skill.test.mjs` packages the skill afresh, zips the plugin and tests the extracted archive, so other Data changes never fail on a stale committed copy. Only `SKILL.md` is written by hand; regenerate the rest before a release (release.sh does it).
+
 ## Network and offline use
 
 Cached chart SVGs remain readable offline. Without an embedded library, a deck with charts requests **ECharts 6.1.0 from jsDelivr** when opened. The browser checks the pinned SHA-384 SRI digest using anonymous CORS before executing it. A rejected or unavailable response leaves cached SVGs visible; chart recalculation then requires the library.

@@ -76,7 +76,7 @@ test("embedded notices attribute every Cargo package, bundled npm package and EC
     );
   const entries = [
     ...retainedNotices(file, audit).entries,
-    ...packageEntries([...bundledPackages(metafiles), echartsPackage()]),
+    ...packageEntries([...bundledPackages(metafiles), await echartsPackage()]),
   ];
   assert.deepEqual(noticeProblems(entries, notices), []);
   const listed = new Set(noticeBlocks(notices).flatMap((b) => b.packages));

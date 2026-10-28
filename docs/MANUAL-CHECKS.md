@@ -238,6 +238,16 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
 4. Edit `budget-2.html` in the browser (change a cost), save, then run `validate budget-2.html --since budget.html`: the browser edit is listed as unrequested until allowed with `--allow`.
 5. Repeat step 1 with `--offline`, network off.
 
+### T20 — html-data skill
+
+1. Build the archive (`(cd plugin && zip -qr ../dist/html-slides.plugin . -x "*.DS_Store")`), then install it in **Claude Desktop** (Settings › Capabilities or Plugins, upload the `.plugin`). Both skills appear: html-slides and html-data.
+2. In a new conversation: “Create an html-data budget for a small event with a Base and a Busy scenario.” The assistant writes a model, runs `workbook.mjs new`, fixes errors in at most two retries, runs `validate` and reports figures it read back with `inspect`. Open the file in Chrome: values, scenario dropdown, formats and chart are as described.
+3. Ask for a change (“raise the ticket price to 40 €”): the assistant writes a patch, checks it with `--dry-run`, applies it to a copy and runs `validate --since` with only the price allowed. Compare both files in the browser.
+4. Ask for something invalid (for example “colour the total in #ff0000”): the assistant explains the closed colour vocabulary instead of writing a literal colour.
+5. Ask for a presentation in the same conversation: the html-slides skill still works as before (`deck.mjs`, `check.mjs`).
+6. Repeat step 2 in an agent that uses skill folders (extract the archive, point it to `skills/html-data/SKILL.md`).
+7. Ask for an offline copy of the budget (`new … --offline`), open it with the network off and import an Excel workbook (Data › Import XLSX…): the embedded reader works with no request. Then ask the assistant to change a value on the imported sheet: it patches the cell and keeps `sources`; Data › Refresh source… with the same file asks before replacing that hand edit.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |

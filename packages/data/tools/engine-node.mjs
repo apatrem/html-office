@@ -1,7 +1,6 @@
 // The pinned IronCalc engine for Node tools (T20): the same JavaScript
 // wrapper and WASM the browser verifies, checked against the manifest's
-// SHA-256 digests before use. Found next to the repository package
-// (engine/vendor) or inside the packaged skill (assets/engine).
+// SHA-256 digests before use.
 import { readFile, access } from "node:fs/promises";
 import { gunzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
@@ -23,24 +22,19 @@ async function exists(path) {
   }
 }
 
-// Where the engine files are: the skill layout first, then the repository.
+// Where the engine files are: engine/ next to tools/, in the repository
+// package and in the packaged skill alike.
 export async function engineFiles(base = here) {
-  for (const [dir, manifest] of [
-    [
-      join(base, "../assets/engine"),
-      join(base, "../assets/engine/manifest.json"),
-    ],
-    [join(base, "../engine/vendor"), join(base, "../engine/manifest.json")],
-  ])
-    if (await exists(join(dir, "ironcalc.mjs")))
-      return {
-        js: join(dir, "ironcalc.mjs"),
-        wasm: join(dir, "ironcalc.wasm.gz"),
-        manifest,
-      };
-  throw new Error(
-    "The calculation engine is missing: expected assets/engine/ironcalc.mjs next to the tools.",
-  );
+  const dir = join(base, "../engine/vendor");
+  if (!(await exists(join(dir, "ironcalc.mjs"))))
+    throw new Error(
+      "The calculation engine is missing: expected engine/vendor/ironcalc.mjs next to tools/.",
+    );
+  return {
+    js: join(dir, "ironcalc.mjs"),
+    wasm: join(dir, "ironcalc.wasm.gz"),
+    manifest: join(base, "../engine/manifest.json"),
+  };
 }
 
 let loaded = null;

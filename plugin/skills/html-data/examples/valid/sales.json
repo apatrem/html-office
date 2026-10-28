@@ -1,0 +1,519 @@
+{
+  "version": "html-data/0.1",
+  "id": "fictional-sales",
+  "title": "Fictional sales with a pivot table",
+  "dateSystem": "excel1900",
+  "locale": "en-US",
+  "sheets": [
+    {
+      "id": "summary",
+      "name": "Summary",
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Sales summary"
+          },
+          "cellStyle": "title"
+        }
+      }
+    },
+    {
+      "id": "inputs",
+      "name": "Inputs",
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Scenario"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Base"
+          }
+        },
+        "A2": {
+          "input": {
+            "type": "text",
+            "value": "Revenue factor"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B2": {
+          "formula": "=IF(B1=\"Upside\",1.1,1)"
+        }
+      }
+    },
+    {
+      "id": "sales",
+      "name": "Sales",
+      "metadata": {
+        "layout": "table"
+      },
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Region"
+          },
+          "cellStyle": "header"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Quarter"
+          },
+          "cellStyle": "header"
+        },
+        "C1": {
+          "input": {
+            "type": "text",
+            "value": "Channel"
+          },
+          "cellStyle": "header"
+        },
+        "D1": {
+          "input": {
+            "type": "text",
+            "value": "Units"
+          },
+          "cellStyle": "header"
+        },
+        "E1": {
+          "input": {
+            "type": "text",
+            "value": "Revenue"
+          },
+          "cellStyle": "header"
+        },
+        "F1": {
+          "input": {
+            "type": "text",
+            "value": "Adjusted"
+          },
+          "cellStyle": "header"
+        },
+        "A2": {
+          "input": {
+            "type": "text",
+            "value": "North"
+          }
+        },
+        "B2": {
+          "input": {
+            "type": "text",
+            "value": "Q1"
+          }
+        },
+        "C2": {
+          "input": {
+            "type": "text",
+            "value": "Online"
+          }
+        },
+        "D2": {
+          "input": {
+            "type": "number",
+            "value": 10
+          }
+        },
+        "E2": {
+          "input": {
+            "type": "number",
+            "value": 100
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F2": {
+          "formula": "=E2*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A3": {
+          "input": {
+            "type": "text",
+            "value": "North"
+          }
+        },
+        "B3": {
+          "input": {
+            "type": "text",
+            "value": "Q1"
+          }
+        },
+        "C3": {
+          "input": {
+            "type": "text",
+            "value": "Store"
+          }
+        },
+        "D3": {
+          "input": {
+            "type": "number",
+            "value": 5
+          }
+        },
+        "E3": {
+          "input": {
+            "type": "number",
+            "value": 50
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F3": {
+          "formula": "=E3*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A4": {
+          "input": {
+            "type": "text",
+            "value": "North"
+          }
+        },
+        "B4": {
+          "input": {
+            "type": "text",
+            "value": "Q2"
+          }
+        },
+        "C4": {
+          "input": {
+            "type": "text",
+            "value": "Online"
+          }
+        },
+        "D4": {
+          "input": {
+            "type": "number",
+            "value": 8
+          }
+        },
+        "E4": {
+          "input": {
+            "type": "number",
+            "value": 80
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F4": {
+          "formula": "=E4*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A5": {
+          "input": {
+            "type": "text",
+            "value": "South"
+          }
+        },
+        "B5": {
+          "input": {
+            "type": "text",
+            "value": "Q1"
+          }
+        },
+        "C5": {
+          "input": {
+            "type": "text",
+            "value": "Online"
+          }
+        },
+        "D5": {
+          "input": {
+            "type": "number",
+            "value": 4
+          }
+        },
+        "E5": {
+          "input": {
+            "type": "number",
+            "value": 40
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F5": {
+          "formula": "=E5*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A6": {
+          "input": {
+            "type": "text",
+            "value": "South"
+          }
+        },
+        "B6": {
+          "input": {
+            "type": "text",
+            "value": "Q2"
+          }
+        },
+        "C6": {
+          "input": {
+            "type": "text",
+            "value": "Store"
+          }
+        },
+        "D6": {
+          "input": {
+            "type": "number",
+            "value": 6
+          }
+        },
+        "E6": {
+          "input": {
+            "type": "number",
+            "value": 60
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F6": {
+          "formula": "=E6*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A7": {
+          "input": {
+            "type": "text",
+            "value": "South"
+          }
+        },
+        "B7": {
+          "input": {
+            "type": "text",
+            "value": "Q2"
+          }
+        },
+        "C7": {
+          "input": {
+            "type": "text",
+            "value": "Online"
+          }
+        },
+        "D7": {
+          "input": {
+            "type": "number",
+            "value": 2
+          }
+        },
+        "E7": {
+          "input": {
+            "type": "number",
+            "value": 20.5
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F7": {
+          "formula": "=E7*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A8": {
+          "input": {
+            "type": "text",
+            "value": "East"
+          }
+        },
+        "B8": {
+          "input": {
+            "type": "text",
+            "value": "Q1"
+          }
+        },
+        "C8": {
+          "input": {
+            "type": "text",
+            "value": "Store"
+          }
+        },
+        "D8": {
+          "input": {
+            "type": "number",
+            "value": 3
+          }
+        },
+        "E8": {
+          "input": {
+            "type": "number",
+            "value": 30
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F8": {
+          "formula": "=E8*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "B9": {
+          "input": {
+            "type": "text",
+            "value": "Q2"
+          }
+        },
+        "C9": {
+          "input": {
+            "type": "text",
+            "value": "Online"
+          }
+        },
+        "D9": {
+          "input": {
+            "type": "number",
+            "value": 1
+          }
+        },
+        "E9": {
+          "input": {
+            "type": "number",
+            "value": 10
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "F9": {
+          "formula": "=E9*Inputs!$B$2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "id": "g-summary",
+      "name": "Summary",
+      "kind": "summary",
+      "sheetIds": [
+        "summary"
+      ]
+    },
+    {
+      "id": "g-inputs",
+      "name": "Inputs",
+      "kind": "inputs",
+      "sheetIds": [
+        "inputs"
+      ]
+    },
+    {
+      "id": "g-raw",
+      "name": "Raw Data",
+      "kind": "raw",
+      "sheetIds": [
+        "sales"
+      ]
+    }
+  ],
+  "names": [],
+  "validations": [
+    {
+      "id": "scenario",
+      "sheetId": "inputs",
+      "ref": "B1",
+      "source": {
+        "kind": "list",
+        "values": [
+          {
+            "type": "text",
+            "value": "Base"
+          },
+          {
+            "type": "text",
+            "value": "Upside"
+          }
+        ]
+      }
+    }
+  ],
+  "scenario": {
+    "validationId": "scenario"
+  },
+  "pivots": [
+    {
+      "id": "byRegion",
+      "name": "Revenue by region",
+      "source": {
+        "sheetId": "sales"
+      },
+      "output": {
+        "sheetId": "summary",
+        "ref": "B3"
+      },
+      "rows": [
+        "Region"
+      ],
+      "columns": [
+        "Quarter"
+      ],
+      "filters": [],
+      "values": [
+        {
+          "field": "Adjusted",
+          "aggregate": "sum"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "fictional": true
+  }
+}

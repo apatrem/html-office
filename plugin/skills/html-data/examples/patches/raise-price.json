@@ -1,0 +1,6 @@
+{
+  "edits": [
+    { "sheet": "Inputs", "ref": "B4", "cell": { "input": { "type": "number", "value": 40 } } },
+    { "sheet": "Inputs", "ref": "B1", "cell": { "input": { "type": "text", "value": "Busy" } } }
+  ]
+}

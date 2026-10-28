@@ -1,0 +1,8 @@
+{
+  "rows": [
+    { "sheet": "Budget", "at": "A6", "values": [["Note", "Figures are invented"]] }
+  ],
+  "edits": [
+    { "sheet": "Budget", "ref": "A6", "cell": { "cellStyle": "note" } }
+  ]
+}

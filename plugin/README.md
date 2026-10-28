@@ -1,6 +1,6 @@
 # html-slides plugin in html-office
 
-The currently released plugin contains the `html-slides` skill. Data and Text skills are not included yet; the roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
+The plugin contains two skills: `html-slides` (presentations) and, from the release after 0.7.1, `html-data` (spreadsheet workbooks). Text is not included yet; the roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
 
 A skill for creating and editing a presentation in one HTML file. The file includes semantic slides, theme variables, JSON chart data, cached SVGs, a browser editor, and a self-contained editing guide.
 
@@ -34,6 +34,12 @@ ECharts 6.1.0 is fetched from jsDelivr on opening decks with charts unless embed
 
 V1 uses DOM snapshots; real-time collaboration and signed updates remain future work. Examples contain fictional, non-client data only.
 
+## html-data: workbooks in one HTML file
+
+`skills/html-data/SKILL.md` creates and edits workbooks: one HTML file holding a readable JSON workbook (typed inputs, formulas with their saved results, formats, scenarios, dropdowns, conditional formatting, pivot tables and charts) and an editor that calculates with IronCalc. Ask your agent: “Create an html-data budget for a small event with a Base and a Busy scenario.”
+
+The assistant needs only Node.js 18+ in its execution environment: `skills/html-data/tools/workbook.mjs` is self-contained (bundled; no npm install, no browser) and creates, inspects, patches, recalculates and validates workbooks. Every patch is validated before it is applied, and the tool refuses any change outside it. Recipients need only the HTML file and a browser; Chrome or Edge to save in place. Standard files load the pinned, digest-checked IronCalc engine on the first calculation-changing edit; `--offline` files embed it.
+
 ## Contents
 
 - `skills/html-slides/SKILL.md`: creation/editing workflow and writing rules.
@@ -41,5 +47,6 @@ V1 uses DOM snapshots; real-time collaboration and signed updates remain future 
 - `assets/`: engine, theme, default branding, template, embedded guide, and ECharts.
 - `tools/`: `deck.mjs`, `check.mjs`, and the bundled inert parser.
 - `examples/`: community garden presentation and visual catalogue.
+- `skills/html-data/`: `SKILL.md`, `tools/workbook.mjs`, `references/FORMAT.md` (format, tools and patches), `examples/` (valid and invalid workbooks and patches, also the test fixtures), the precompiled editor (`assets/runtime.json`), ECharts, the pinned IronCalc engine (`engine/`) and the pinned SheetJS reader that offline workbooks embed for XLSX import (`vendor/xlsx/`).
 
-MIT licence. Dependencies retain their licences: Moveable/Selecto (MIT), ECharts (Apache-2.0), and the tool parser. See `THIRD_PARTY_NOTICES.md`.
+MIT licence. Dependencies retain their licences: Moveable/Selecto (MIT), ECharts (Apache-2.0), IronCalc with its Rust dependencies and SheetJS CE (Apache-2.0), both in html-data, and the tool parser. See `THIRD_PARTY_NOTICES.md` and `skills/html-data/assets/THIRD-PARTY-NOTICES.txt`.

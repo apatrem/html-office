@@ -5,7 +5,6 @@
 // listing its licence (always: standard builds fetch it on demand).
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { packageAt } from "../../shared/notices.mjs";
 import { XLSX_VERSION, XLSX_INTEGRITY } from "../runtime/xlsx-reader.mjs";
 
 const dir = new URL("../vendor/xlsx/", import.meta.url);
@@ -32,5 +31,9 @@ export async function xlsxLibrary() {
   // byte for byte.
   return bytes.toString("base64");
 }
-export const xlsxPackage = () =>
-  packageAt(dir.pathname.replace(/\/$/, ""), [XLSX_FILE.pathname]);
+// The notices module reads licence texts when loaded: imported only here,
+// so the packaged skill, which has no such texts, never loads it.
+export async function xlsxPackage() {
+  const { packageAt } = await import("../../shared/notices.mjs");
+  return packageAt(dir.pathname.replace(/\/$/, ""), [XLSX_FILE.pathname]);
+}
