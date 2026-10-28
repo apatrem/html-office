@@ -21,12 +21,22 @@ import { validateSources } from "../model/sources.mjs";
 import { planRefresh } from "../model/refresh.mjs";
 import { XLSX_FILE, verifyXLSX } from "../tools/xlsx-library.mjs";
 import { workerParts } from "../runtime/xlsx-reader.mjs";
+import { sheetNames, changedNames } from "../runtime/refresh.mjs";
+import {
+  relocateColumns,
+  importable,
+  tooLarge,
+  XLSX_LIMITS as LIMITS,
+} from "../model/xlsx.mjs";
 
 const require = createRequire(import.meta.url),
   writer = require("xlsx"),
   mini = require(XLSX_FILE.pathname);
 
-function build(sheets, { names = [], date1904 = false, parts = {} } = {}) {
+function build(
+  sheets,
+  { names = [], date1904 = false, parts = {}, edit = {} } = {},
+) {
   const wb = writer.utils.book_new();
   for (const [name, cells, extra = {}] of sheets) {
     const ws = {};
@@ -47,8 +57,15 @@ function build(sheets, { names = [], date1904 = false, parts = {} } = {}) {
   }
   wb.Workbook = { Names: names, WBProps: { date1904 } };
   let bytes = writer.write(wb, { type: "buffer", bookType: "xlsx" });
-  if (Object.keys(parts).length) {
+  if (Object.keys(parts).length || Object.keys(edit).length) {
     const zip = writer.CFB.read(bytes, { type: "buffer" });
+    for (const [path, change] of Object.entries(edit)) {
+      const entry =
+        zip.FileIndex[zip.FullPaths.findIndex((p) => p.endsWith(path))];
+      entry.content = Buffer.from(
+        change(Buffer.from(entry.content).toString("utf8")),
+      );
+    }
     for (const [path, content] of Object.entries(parts)) {
       const index = zip.FullPaths.findIndex((p) => p.endsWith(path));
       if (index >= 0) zip.FileIndex[index].content = Buffer.from(content);
@@ -208,10 +225,11 @@ test("sheets, typed values, formulas across sheets and named ranges", () => {
   assert.deepEqual(alone.sheets[0].cells.B1, {
     input: { type: "number", value: 2469.25 },
   });
-  assert.deepEqual(alone.sheets[0].kept, { sheet: 2 });
+  // SUM(Total) reads a name on the sheet left out: kept as its value too.
+  assert.deepEqual(alone.sheets[0].kept, { sheet: 2, name: 1 });
   assert.match(
     alone.diagnostics[0],
-    /^2 formulas are imported as the value saved in the file: 2 formulas read a sheet that is not imported\.$/,
+    /^3 formulas are imported as the value saved in the file: 2 formulas read a sheet that is not imported; 1 formula uses a named range that is not imported as the file defines it\.$/,
   );
   assert.deepEqual(alone.names, []);
 });
@@ -518,5 +536,269 @@ test("an XLSX refresh carries formulas and keeps presentation", () => {
   assert.deepEqual(
     plan.columns.map((c) => c.changed),
     [1, 1],
+  );
+});
+
+// Codex review of #88.
+test("refresh moves formula references with their columns", () => {
+  const map = new Map([
+      [1, 3],
+      [2, 1],
+      [3, 2],
+    ]),
+    options = { width: 3, shift: 0, own: "plan!" };
+  // The file's Total (A) = Qty (B) × Price (C) lands in C; Qty in A, Price in B.
+  assert.equal(relocateColumns("B2*C2", map, options), "A2*B2");
+  assert.equal(relocateColumns("SUM($B$2:C2)", map, options), "SUM($A$2:B2)");
+  assert.equal(
+    relocateColumns("Plan!B2+Other!B2", map, options),
+    "Plan!A2+Other!B2",
+  );
+  assert.equal(
+    relocateColumns('"B2"&LOG10(B2)', map, options),
+    '"B2"&LOG10(A2)',
+  );
+  assert.equal(relocateColumns("SUM(B:C)", map, options), "SUM(A:B)");
+  // A range whose columns no longer sit together cannot move.
+  assert.equal(relocateColumns("SUM(A2:B2)", map, options), null);
+  const sheet = {
+    cells: {
+      A1: { input: { type: "text", value: "Qty" } },
+      B1: { input: { type: "text", value: "Price" } },
+      C1: { input: { type: "text", value: "Total" } },
+      A2: { input: { type: "number", value: 2 } },
+      B2: { input: { type: "number", value: 3 } },
+      C2: { formula: "=A2*B2", result: { type: "number", value: 6 } },
+    },
+  };
+  const bytes = build([
+    [
+      "Plan",
+      {
+        A1: { t: "s", v: "Total" },
+        B1: { t: "s", v: "Qty" },
+        C1: { t: "s", v: "Price" },
+        A2: { t: "n", f: "B2*C2", v: 20 },
+        B2: { t: "n", v: 4 },
+        C2: { t: "n", v: 5 },
+        A3: { t: "n", f: "SUM(A2:B2)", v: 24 },
+      },
+    ],
+  ]);
+  const mapped = mapSheet(read(bytes), 0, {
+    sheets: new Map([["plan", "Plan"]]),
+    header: true,
+  });
+  const fresh = {
+    ...mapped,
+    relocate: (formula, m, shift) =>
+      relocateColumns(formula, m, { width: mapped.width, shift, own: "plan!" }),
+  };
+  const plan = planRefresh({
+    sheet,
+    source: {
+      ref: "A1:C2",
+      options: { header: true },
+      columns: [{ name: "Qty" }, { name: "Price" }, { name: "Total" }],
+    },
+    fresh,
+  });
+  const at = (ref) => plan.edits.find((e) => e.ref === ref)?.cell;
+  // Total (file A2 = B2*C2) lands in C2 as =A2*B2: the formula it already
+  // has, so only the values change.
+  assert.equal(at("C2"), undefined);
+  assert.deepEqual(at("A2"), { input: { type: "number", value: 4 } });
+  assert.deepEqual(at("B2"), { input: { type: "number", value: 5 } });
+  // SUM(A2:B2) in the file would split: it keeps its saved value.
+  assert.deepEqual(at("C3"), { input: { type: "number", value: 24 } });
+  assert.equal(plan.keptFormulas, 1);
+});
+
+test("names the file defines but Data does not import never bind to others", () => {
+  const bytes = build(
+    [
+      [
+        "Data",
+        {
+          A1: { t: "n", v: 5 },
+          B1: { t: "n", f: "Total*2", v: 10 },
+          B2: { t: "n", f: "SUM(Total, 1)", v: 6 },
+          B3: { t: "n", f: "TOTALS(1)", v: 1 },
+        },
+      ],
+    ],
+    { names: [{ Name: "Total", Ref: "Data!$A$1" }] },
+  );
+  const result = mapWorkbook(read(bytes), {
+    chosen: [0],
+    book: book([{ name: "Total" }]),
+  });
+  const cells = result.sheets[0].cells;
+  assert.deepEqual(cells.B1, { input: { type: "number", value: 10 } });
+  assert.deepEqual(cells.B2, { input: { type: "number", value: 6 } });
+  assert.equal(cells.B3.formula, "=TOTALS(1)");
+  assert.deepEqual(result.sheets[0].kept, { name: 2 });
+  // A refresh compares the replacement's definitions with the workbook's.
+  const workbook = read(
+    build([["Data", { A1: { t: "n", v: 1 } }]], {
+      names: [
+        { Name: "Rate", Ref: "Data!$B$1" },
+        { Name: "Same", Ref: "Data!$A$1" },
+      ],
+    }),
+  );
+  const target = {
+    sheets: [{ id: "d", name: "Data", cells: {} }],
+    names: [
+      { name: "Rate", sheetId: "d", ref: "A1" },
+      { name: "Same", sheetId: "d", ref: "A1" },
+    ],
+  };
+  assert.deepEqual(
+    [...changedNames(target, workbook, new Map([["data", "Data"]]))],
+    ["rate"],
+  );
+});
+
+test("a refresh reads other sheets only from the same workbook", () => {
+  const workbook = read(
+    build([
+      ["Summary", { A1: { t: "n", f: "Other!A1", v: 5 } }],
+      ["Other", { A1: { t: "n", v: 5 } }],
+    ]),
+  );
+  const source = (id, sheetId, name, sheet, sha) => ({
+    id,
+    sheetId,
+    kind: "xlsx",
+    file: { name, sha256: sha.repeat(64) },
+    options: { sheet },
+  });
+  const target = {
+    sheets: [
+      { id: "s", name: "Summary", cells: {} },
+      { id: "o", name: "Other", cells: {} },
+    ],
+    sources: [
+      source("a", "s", "a.xlsx", "Summary", "a"),
+      source("b", "o", "unrelated.xlsx", "Other", "b"),
+    ],
+  };
+  const names = sheetNames(target, target.sources[0], workbook, 0);
+  assert.equal(names.get("other"), null);
+  assert.deepEqual(mapSheet(workbook, 0, { sheets: names }).cells.A1, {
+    input: { type: "number", value: 5 },
+  });
+  target.sources[1].file.name = "a.xlsx";
+  assert.equal(
+    sheetNames(target, target.sources[0], workbook, 0).get("other"),
+    "Other",
+  );
+});
+
+test("sheets spread over too many cells are not offered", () => {
+  const summary = read(
+    // One cell at XFD1048576 (SheetJS cannot write such a sheet quickly).
+    build(
+      [
+        ["Wide", { A1: { t: "n", v: 1 } }],
+        ["Small", { A1: { t: "n", v: 1 } }],
+      ],
+      {
+        edit: {
+          "xl/worksheets/sheet1.xml": (xml) =>
+            xml.replace(
+              "</sheetData>",
+              '<row r="1048576"><c r="XFD1048576"><v>2</v></c></row></sheetData>',
+            ),
+        },
+      },
+    ),
+  );
+  assert.equal(tooLarge(summary.sheets[0]), true);
+  assert.equal(importable(summary.sheets[0]), false);
+  assert.ok(LIMITS.slots >= 1_000_000);
+  const result = mapWorkbook(summary, { chosen: [1], book: book() });
+  assert.match(
+    result.diagnostics.join("\n"),
+    /"Wide" is not offered: its used range \(A1:XFD1048576\) holds more than 10,000,000 cells\./,
+  );
+});
+
+test("durations, 1904 formulas, padded and unit formats, missing caches", () => {
+  const bytes = build(
+    [
+      [
+        "S",
+        {
+          A1: { t: "n", v: 1.5, z: "[h]:mm" },
+          A2: { t: "n", v: 12, z: "00000" },
+          A3: { t: "n", v: 2, z: '0.00" kg"' },
+          A4: { t: "n", f: "[1]Other!A1" },
+          A5: { t: "n", f: "1", v: 1, z: "yyyy-mm-dd" },
+        },
+      ],
+    ],
+    { date1904: true },
+  );
+  const result = mapWorkbook(read(bytes), { chosen: [0], book: book() }),
+    cells = result.sheets[0].cells;
+  // An elapsed duration stays a number, without the 1904 shift.
+  assert.deepEqual(cells.A1, { input: { type: "number", value: 1.5 } });
+  assert.deepEqual(cells.A2, { input: { type: "number", value: 12 } });
+  assert.deepEqual(cells.A3, { input: { type: "number", value: 2 } });
+  assert.equal(cells.A4, undefined);
+  const notes = result.diagnostics.join("\n");
+  assert.match(notes, /2 numbers have custom formats Data has no preset for/);
+  assert.match(
+    notes,
+    /1 formula is left empty: Data cannot run it and the file saved no value \(1 formula reads another workbook \(external link\)\)\./,
+  );
+  assert.doesNotMatch(notes, /imported as the value saved/);
+  // A formula making a date from a plain number recalculates in Data's
+  // calendar: the difference is reported after the import.
+  assert.match(notes, /reported after the import/);
+  assert.match(
+    differences(
+      { s: { A5: cells.A5 } },
+      [{ sheetId: "s", ref: "A5", result: { type: "date", value: 1 } }],
+      { s: "S" },
+    ),
+    /S!A5: 1463 in the file, 1 here/,
+  );
+});
+
+test("relationships with single quotes still find the sheet features", () => {
+  const sheetXML =
+    '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1"><v>1</v></c></row></sheetData><conditionalFormatting sqref="A1"><cfRule type="cellIs"/></conditionalFormatting><dataValidations count="1"><dataValidation sqref="A1"/></dataValidations></worksheet>';
+  const summary = read(
+    build([["S", { A1: { t: "n", v: 1 } }]], {
+      parts: { "/xl/worksheets/sheet1.xml": sheetXML },
+      edit: {
+        "xl/_rels/workbook.xml.rels": (xml) =>
+          xml.replace(/<Relationship [^>]*>/g, (tag) =>
+            tag.replaceAll('"', "'"),
+          ),
+      },
+    }),
+  );
+  assert.equal(summary.sheets[0].features.conditional, 1);
+  assert.equal(summary.sheets[0].features.validation, 1);
+  assert.equal(summary.sheets[0].features.checked, true);
+  // A sheet whose part cannot be found says its features were not checked.
+  const unchecked = read(
+    build([["S", { A1: { t: "n", v: 1 } }]], {
+      edit: {
+        "xl/_rels/workbook.xml.rels": (xml) =>
+          xml.replace(/worksheets\/sheet1/, "worksheets/missing"),
+      },
+    }),
+  );
+  assert.equal(unchecked.sheets[0].features.checked, false);
+  assert.match(
+    mapWorkbook(unchecked, { chosen: [0], book: book() }).diagnostics.join(
+      "\n",
+    ),
+    /"S": its conditional formats, data validation, tables and drawings could not be checked/,
   );
 });

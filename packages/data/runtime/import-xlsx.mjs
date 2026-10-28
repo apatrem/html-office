@@ -2,7 +2,12 @@
 // a worker (xlsx-reader.mjs); the person chooses the sheets, sees their first
 // rows and everything Data will not keep, then imports them as one step.
 import { readXLSX } from "./xlsx-reader.mjs";
-import { mapWorkbook, importable, differences } from "../model/xlsx.mjs";
+import {
+  mapWorkbook,
+  importable,
+  differences,
+  XLSX_LIMITS,
+} from "../model/xlsx.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
 import { address } from "../model/csv.mjs";
 
@@ -20,9 +25,9 @@ function select(h, id, choices, value) {
   return s;
 }
 // The source description of one imported sheet.
-export async function xlsxSource(file, sha256, sheet, original) {
+export async function xlsxSource(file, sha256, sheet, original, signal) {
   const ref = `A1:${address(sheet.height, sheet.width)}`,
-    digests = await columnFingerprints(sheet.cells, ref);
+    digests = await columnFingerprints(sheet.cells, ref, { signal });
   return {
     ref,
     kind: "xlsx",
@@ -113,6 +118,7 @@ export async function openXLSXImport({ file, book, deps, onImport }) {
     reading.abort();
     if (!committing) return;
     committing.cancelled = true;
+    committing.stop.abort();
     deps.cancel?.();
   });
   cancel.onclick = () => dialog.close();
@@ -133,7 +139,7 @@ export async function openXLSXImport({ file, book, deps, onImport }) {
     .map((s, i) => [s, i])
     .filter(([s]) => importable(s));
   if (!usable.length) {
-    summary.textContent = `${file.name} has no worksheet with data to import.`;
+    summary.textContent = `${file.name} has no worksheet Data can import (each is empty, a chart or macro sheet, or spreads over more than ${XLSX_LIMITS.slots.toLocaleString("en-US")} cells).`;
     return dialog;
   }
   // Visible sheets are chosen by default; hidden ones can be added.
@@ -315,7 +321,7 @@ export async function openXLSXImport({ file, book, deps, onImport }) {
   apply.onclick = async () => {
     if (!result || committing) return;
     const chosenResult = result,
-      run = (committing = { cancelled: false });
+      run = (committing = { cancelled: false, stop: new AbortController() });
     for (const control of controls()) control.disabled = true;
     try {
       const sha256 = await fileDigest(bytes),
@@ -326,7 +332,13 @@ export async function openXLSXImport({ file, book, deps, onImport }) {
           cells: sheet.cells,
           height: sheet.height,
           width: sheet.width,
-          source: await xlsxSource(file, sha256, sheet, sheet.original),
+          source: await xlsxSource(
+            file,
+            sha256,
+            sheet,
+            sheet.original,
+            run.stop.signal,
+          ),
         });
       if (run.cancelled) return;
       const done = await onImport({

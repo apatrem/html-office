@@ -10,7 +10,14 @@ import {
   dependents,
   overwrittenEdits,
 } from "../model/refresh.mjs";
-import { mapSheet, importable, diagnostics } from "../model/xlsx.mjs";
+import {
+  mapSheet,
+  mapNames,
+  importable,
+  diagnostics,
+  relocateColumns,
+  sheetPrefix,
+} from "../model/xlsx.mjs";
 import { readXLSX } from "./xlsx-reader.mjs";
 
 const plural = (n, one, many) =>
@@ -38,25 +45,51 @@ export function typesFor(source, names) {
   });
 }
 // Formulas of a refreshed XLSX sheet read other sheets by their names in the
-// file: each maps to the Data sheet imported from it (by its source), the
-// refreshed sheet to itself; any other is not imported.
-function sheetNames(book, source, workbook, index) {
+// file: each maps to the Data sheet imported from it from the same workbook
+// (a source with the same file name or bytes), the refreshed sheet to
+// itself; any other counts as not imported, so its formulas keep their
+// saved values.
+export function sheetNames(book, source, workbook, index) {
   const names = new Map(
     workbook.sheets.map((s) => [s.name.toLowerCase(), null]),
   );
   for (const other of book.sources ?? []) {
     if (other.kind !== "xlsx" || other.id === source.id) continue;
+    if (
+      other.file.name !== source.file.name &&
+      other.file.sha256 !== source.file.sha256
+    )
+      continue;
     const key = other.options.sheet.toLowerCase();
-    if (!names.has(key)) continue;
-    const data = book.sheets.find((s) => s.id === other.sheetId).name;
-    if (names.get(key) === null || other.file.name === source.file.name)
-      names.set(key, data);
+    if (names.has(key))
+      names.set(key, book.sheets.find((s) => s.id === other.sheetId).name);
   }
   names.set(
     workbook.sheets[index].name.toLowerCase(),
     book.sheets.find((s) => s.id === source.sheetId).name,
   );
   return names;
+}
+// Names the replacement file defines that the workbook does not hold the
+// same way (missing, or another range): formulas using them keep their
+// saved values rather than reading the workbook's definition.
+export function changedNames(book, workbook, sheets) {
+  const { names, skipped } = mapNames(workbook, { sheets, taken: new Set() }),
+    sheetOf = (name) => book.sheets.find((s) => s.name === name)?.id;
+  return new Set([
+    ...skipped.map((n) => n.toLowerCase()),
+    ...names
+      .filter(
+        (n) =>
+          !book.names.some(
+            (b) =>
+              b.name.toLowerCase() === n.name.toLowerCase() &&
+              b.sheetId === sheetOf(n.sheet) &&
+              b.ref === n.ref,
+          ),
+      )
+      .map((n) => n.name.toLowerCase()),
+  ]);
 }
 export async function openRefresh({ file, book, source, deps, onRefresh }) {
   const { h, modal, field, display } = deps;
@@ -210,13 +243,22 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
   function read() {
     if (xlsx) {
       const index = Number(worksheet.value),
+        sheets = sheetNames(book, source, workbook, index),
         mapped = mapSheet(workbook, index, {
-          sheets: sheetNames(book, source, workbook, index),
+          sheets,
           header: source.options.header,
+          names: changedNames(book, workbook, sheets),
         }),
-        name = workbook.sheets[index].name;
+        name = workbook.sheets[index].name,
+        own = sheetPrefix(sheet.name).toLowerCase();
       return {
         ...mapped,
+        relocate: (formula, map, shift) =>
+          relocateColumns(formula, map, {
+            width: mapped.width,
+            shift,
+            own,
+          }),
         ambiguity: [],
         diagnostics: diagnostics(
           workbook,
@@ -323,6 +365,14 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         ),
       );
     for (const text of fresh.diagnostics) impact.append(h("li", {}, text));
+    if (plan.keptFormulas)
+      impact.append(
+        h(
+          "li",
+          {},
+          `${plural(plan.keptFormulas, "formula keeps its", "formulas keep their")} saved value: the columns ${plan.keptFormulas === 1 ? "it reads move" : "they read move"} apart in this sheet.`,
+        ),
+      );
     // Hand edits the refresh would replace or remove (a kept column loses
     // the rows the new file no longer has) need an explicit confirmation.
     const overwritten = overwrittenEdits(plan);

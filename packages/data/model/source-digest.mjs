@@ -27,8 +27,9 @@ async function sha256(bytes) {
 export const fileDigest = (bytes) => sha256(bytes);
 // One digest per source column over its typed inputs, top to bottom (the
 // header included), so a later refresh can tell which columns were edited by
-// hand. Formats and styles are not part of it.
-export async function columnFingerprints(cells, ref) {
+// hand. Formats and styles are not part of it. `signal` stops it between
+// columns.
+export async function columnFingerprints(cells, ref, { signal } = {}) {
   const [, l1, t1, l2, t2] = /^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/.exec(ref),
     column = (letters) =>
       [...letters].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0),
@@ -40,6 +41,7 @@ export async function columnFingerprints(cells, ref) {
     },
     digests = [];
   for (let col = r.left; col <= r.right; col++) {
+    signal?.throwIfAborted();
     const values = [];
     for (let row = r.top; row <= r.bottom; row++)
       values.push(encode(cells[columnRef(col, row)]));

@@ -10,6 +10,9 @@ export const XLSX_LIMITS = {
   cells: 2_000_000,
   rows: 1_048_576,
   columns: 16_384,
+  // Cells of a sheet's used rectangle (A1 to its last row and column): its
+  // source fingerprints visit every one.
+  slots: 10_000_000,
 };
 // SheetJS read options: formulas and number formats, no styles, no HTML, no
 // macros (bookVBA), raw parts kept so unsupported content can be reported.
@@ -44,12 +47,12 @@ export function summarise(XLSX, wb, limits) {
   for (const [tag] of text("xl/_rels/workbook.xml.rels").matchAll(
     /<(?:\w+:)?Relationship\b[^>]*>/g,
   )) {
-    const id = /\bId="([^"]*)"/.exec(tag),
-      target = /\bTarget="([^"]*)"/.exec(tag);
+    const id = /\bId=(["'])(.*?)\1/.exec(tag),
+      target = /\bTarget=(["'])(.*?)\1/.exec(tag);
     if (id && target)
-      targets[id[1]] = target[1].startsWith("/")
-        ? target[1].slice(1)
-        : "xl/" + target[1];
+      targets[id[2]] = target[2].startsWith("/")
+        ? target[2].slice(1)
+        : "xl/" + target[2];
   }
   const count = (xml, pattern) => (xml.match(pattern) || []).length;
   let total = 0;
@@ -70,6 +73,8 @@ export function summarise(XLSX, wb, limits) {
         tables: count(xml, /<(?:\w+:)?tablePart\b/g),
         drawings: count(xml, /<(?:\w+:)?drawing\b/g),
         protection: count(xml, /<(?:\w+:)?sheetProtection\b/g),
+        // Whether the sheet's own part was found and searched.
+        checked: !!xml,
       };
     let height = 0,
       width = 0;
@@ -178,8 +183,10 @@ export function sheetPrefix(name) {
 // with `sheets`: lower-case original name → Data name, or null for a sheet
 // that is not imported. Returns {formula} or {reason} when Data cannot run
 // it: "external" (another workbook), "table" (structured reference), "3d"
-// (a range across sheets) or "sheet" (a sheet not imported).
-export function rewriteFormula(text, sheets) {
+// (a range across sheets), "sheet" (a sheet not imported) or "name" (a
+// named range in `names`, lower-case: one the file defines that Data does
+// not hold as the file does, so it must not bind to another definition).
+export function rewriteFormula(text, sheets, names = new Set()) {
   let out = "",
     i = 0;
   const target = (name) => {
@@ -229,6 +236,12 @@ export function rewriteFormula(text, sheets) {
         out += t.prefix ?? word[0] + "!";
         i = end + 1;
       } else {
+        if (
+          names.has(word[0].toLowerCase()) &&
+          !/^\s*\(/.test(text.slice(end)) &&
+          !out.endsWith("!")
+        )
+          return { reason: "name" };
         out += word[0];
         i = end;
       }
@@ -238,6 +251,107 @@ export function rewriteFormula(text, sheets) {
     i++;
   }
   return { formula: out };
+}
+
+// Moves the column references of a formula on its own sheet (no sheet
+// prefix, or `own`, a lower-case prefix such as "plan!"), for a refresh
+// that puts the file's columns at other positions: `map` takes a file
+// column (1-based) to its column in the sheet; columns past the file's
+// width keep their distance from the end. Returns null when a range would
+// no longer be one contiguous block in the same order.
+export function relocateColumns(formula, map, { width, shift, own = "" }) {
+  const letters = (n) => address(1, n).replace(/\d+$/, ""),
+    number = (l) => [...l].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0),
+    to = (c) => (c <= width ? map.get(c) : c + shift);
+  let out = "",
+    i = 0,
+    foreign = false;
+  const moved = (from, last) => {
+    const a = to(from);
+    if (a === undefined) return null;
+    for (let c = from + 1; c <= last; c++)
+      if (to(c) !== a + (c - from)) return null;
+    return a;
+  };
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (
+        j < formula.length &&
+        !(formula[j] === '"' && formula[j + 1] !== '"')
+      )
+        j += formula[j] === '"' ? 2 : 1;
+      out += formula.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (ch === "'") {
+      const end = formula.indexOf("'!", i + 1);
+      let j = i + 1;
+      while (
+        j < formula.length &&
+        !(formula[j] === "'" && formula[j + 1] === "!")
+      )
+        j += formula[j] === "'" && formula[j + 1] === "'" ? 2 : 1;
+      const prefix = formula.slice(i, j + 2);
+      foreign = end >= 0 && prefix.toLowerCase() !== own;
+      out += prefix;
+      i = j + 2;
+      continue;
+    }
+    const m =
+      /^(\$?)([A-Z]{1,3})(\$?)(\d+)(?::(\$?)([A-Z]{1,3})(\$?)(\d+))?(?![\w.(!])/.exec(
+        formula.slice(i, i + 40),
+      ) ??
+      /^(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![\w.(!])/.exec(
+        formula.slice(i, i + 20),
+      );
+    const before = out.slice(-1);
+    if (m && !/[\w.$]/.test(before)) {
+      if (foreign) {
+        out += m[0];
+      } else if (m[4] !== undefined && /^\d+$/.test(m[4])) {
+        // A1 or A1:B2
+        const c1 = number(m[2]),
+          c2 = m[6] ? number(m[6]) : c1,
+          [lo, hi] = [Math.min(c1, c2), Math.max(c1, c2)],
+          a = moved(lo, hi);
+        if (a === null) return null;
+        const n1 = c1 === lo ? a : a + (hi - lo),
+          n2 = c2 === lo ? a : a + (hi - lo);
+        out +=
+          `${m[1]}${letters(n1)}${m[3]}${m[4]}` +
+          (m[6] ? `:${m[5]}${letters(n2)}${m[7]}${m[8]}` : "");
+      } else {
+        // B:D
+        const c1 = number(m[2]),
+          c2 = number(m[4]),
+          [lo, hi] = [Math.min(c1, c2), Math.max(c1, c2)],
+          a = moved(lo, hi);
+        if (a === null) return null;
+        out += `${m[1]}${letters(c1 === lo ? a : a + hi - lo)}:${m[3]}${letters(c2 === lo ? a : a + hi - lo)}`;
+      }
+      i += m[0].length;
+      foreign = false;
+      continue;
+    }
+    const word = /^[A-Za-z_\\¡-￿][\w.¡-￿]*/.exec(formula.slice(i, i + 300));
+    if (word) {
+      const end = i + word[0].length;
+      out += word[0];
+      i = end;
+      if (formula[end] === "!") {
+        foreign = (word[0] + "!").toLowerCase() !== own;
+        out += "!";
+        i++;
+      }
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
 }
 
 // A number format code as one of Data's presets, or null (General, text,
@@ -253,6 +367,13 @@ export function numberFormat(code) {
     digits = Math.min(15, /\.([0#?]+)/.exec(bare)?.[1].length ?? 0);
   if (/^(General|@)$/i.test(code.trim())) return null;
   if (!/[0#]/.test(bare) || /[eE][+-]|\?\/|\//.test(bare)) return null;
+  // Only codes a preset shows faithfully: no literal text but a currency
+  // symbol, no zero padding of the whole part (00000 shows 00012).
+  for (const section of [first, negative])
+    for (const [, literal] of section.matchAll(/"([^"]*)"|\\(.)/g))
+      if (!/^[\s€$£¥()-]*$/.test(literal)) return null;
+  if (/[^\s()\-€$£¥.,0#?%]/.test(bare.replace(/[€$£¥]/g, ""))) return null;
+  if (/0[,]?0/.test(bare.split(".")[0])) return null;
   const format = {};
   const symbol =
     /\[\$([€$£¥])[^\]]*\]/.exec(first)?.[1] ??
@@ -281,9 +402,12 @@ export function numberFormat(code) {
   }
   return format;
 }
-// Whether a date format shows only a time of day.
+// Whether a date format shows only a time of day or an elapsed duration
+// ([h]:mm shows 36:00 for 1.5): such values stay numbers.
 function timeOnly(code) {
-  const bare = code.replace(/"[^"]*"|\[[^\]]*\]|\\./g, "");
+  const plain = code.replace(/"[^"]*"|\\./g, "");
+  if (/\[(h+|m+|s+)\]/i.test(plain)) return true;
+  const bare = plain.replace(/\[[^\]]*\]/g, "");
   return !/[yd]/i.test(bare) && /[hs]/i.test(bare);
 }
 
@@ -296,6 +420,8 @@ const REASONS = {
     `${plural(n, "formula uses", "formulas use")} Excel table references`,
   "3d": (n) => `${plural(n, "formula spans", "formulas span")} several sheets`,
   array: (n) => `${plural(n, "array formula", "array formulas")}`,
+  name: (n) =>
+    `${plural(n, "formula uses", "formulas use")} a named range that is not imported as the file defines it`,
 };
 const PARTS = {
   macros: "Macros are not imported and never run.",
@@ -325,8 +451,12 @@ const FEATURES = {
   drawings: () => "drawings are not imported",
   protection: () => "sheet protection is not imported",
 };
+// A sheet whose used rectangle is too large to fingerprint (one cell at
+// XFD1048576 makes it the whole grid).
+export const tooLarge = (sheet) =>
+  sheet.height * sheet.width > XLSX_LIMITS.slots;
 export const importable = (sheet) =>
-  sheet.type === "sheet" && sheet.cells.length > 0;
+  sheet.type === "sheet" && sheet.cells.length > 0 && !tooLarge(sheet);
 
 // Whether row 1 holds column names: every column with data has a text label
 // there (no formula), and some later row holds a value that is not text.
@@ -348,13 +478,19 @@ function detectHeader(sheet) {
 // One sheet of the summary as Data cells. `sheets` maps lower-case original
 // names to Data names (null: not imported); `header` is true, false or
 // "auto". Returns {cells, height, width, header, columns, kept, counts}.
-export function mapSheet(summary, index, { sheets, header = "auto" }) {
+export function mapSheet(
+  summary,
+  index,
+  { sheets, header = "auto", names = new Set() },
+) {
   const sheet = summary.sheets[index],
     hasHeader = header === "auto" ? detectHeader(sheet) : !!header,
     cells = {},
     kept = {},
+    // Formulas Data cannot run that have no saved value: left empty.
+    lost = {},
     counts = { formulas: 0, values: 0, times: 0, formats: 0 },
-    names = new Map();
+    labels = new Map();
   const typed = (t, v, z) => {
     if (t === "s" || t === "str") return { type: "text", value: String(v) };
     if (t === "b") return { type: "boolean", value: !!v };
@@ -375,13 +511,16 @@ export function mapSheet(summary, index, { sheets, header = "auto" }) {
       value = v === undefined ? null : typed(t, v, z),
       cell = {};
     if (f) {
-      const rewritten = array ? { reason: "array" } : rewriteFormula(f, sheets);
+      const rewritten = array
+        ? { reason: "array" }
+        : rewriteFormula(f, sheets, names);
       if (rewritten.formula) {
         cell.formula = "=" + rewritten.formula;
         if (value) cell.result = value;
         counts.formulas++;
       } else {
-        kept[rewritten.reason] = (kept[rewritten.reason] ?? 0) + 1;
+        const into = value ? kept : lost;
+        into[rewritten.reason] = (into[rewritten.reason] ?? 0) + 1;
         if (!value) continue;
         cell.input = value;
       }
@@ -402,13 +541,13 @@ export function mapSheet(summary, index, { sheets, header = "auto" }) {
     }
     if (hasHeader && r === 0) {
       cell.cellStyle = "header";
-      names.set(c, String(v ?? "").trim());
+      labels.set(c, String(v ?? "").trim());
     }
     cells[ref] = cell;
   }
   const columns = Array.from({ length: sheet.width }, (_, c) => {
     const letter = address(1, c + 1).replace(/\d+$/, "");
-    return { letter, name: (hasHeader && names.get(c)) || letter };
+    return { letter, name: (hasHeader && labels.get(c)) || letter };
   });
   return {
     cells,
@@ -417,6 +556,7 @@ export function mapSheet(summary, index, { sheets, header = "auto" }) {
     header: hasHeader,
     columns,
     kept,
+    lost,
     counts,
   };
 }
@@ -466,16 +606,19 @@ export function mapWorkbook(summary, { chosen, header = "auto", book }) {
       summary.sheets[index].name.toLowerCase(),
       uniqueName(summary.sheets[index].name, taken),
     );
+  const { names, skipped } = mapNames(summary, {
+      sheets,
+      taken: new Set(book.names.map((n) => n.name.toLowerCase())),
+    }),
+    // A formula reading a name the file defines but Data does not import
+    // keeps its saved value rather than binding to the workbook's own name.
+    unavailable = new Set(skipped.map((n) => n.toLowerCase()));
   const out = chosen.map((index) => ({
     index,
     original: summary.sheets[index].name,
     name: sheets.get(summary.sheets[index].name.toLowerCase()),
-    ...mapSheet(summary, index, { sheets, header }),
+    ...mapSheet(summary, index, { sheets, header, names: unavailable }),
   }));
-  const { names, skipped } = mapNames(summary, {
-    sheets,
-    taken: new Set(book.names.map((n) => n.name.toLowerCase())),
-  });
   return {
     sheets: out,
     names,
@@ -497,6 +640,19 @@ export function diagnostics(
   for (const s of mapped)
     for (const [reason, n] of Object.entries(s.kept))
       kept[reason] = (kept[reason] ?? 0) + n;
+  const lost = {};
+  for (const s of mapped)
+    for (const [reason, n] of Object.entries(s.lost ?? {}))
+      lost[reason] = (lost[reason] ?? 0) + n;
+  const lostTotal = Object.values(lost).reduce((a, b) => a + b, 0);
+  if (lostTotal)
+    notes.push(
+      `${plural(lostTotal, "formula is", "formulas are")} left empty: Data cannot run ${lostTotal === 1 ? "it" : "them"} and the file saved no value (${Object.entries(
+        lost,
+      )
+        .map(([reason, n]) => REASONS[reason](n))
+        .join("; ")}).`,
+    );
   const keptTotal = Object.values(kept).reduce((a, b) => a + b, 0);
   if (keptTotal)
     notes.push(
@@ -514,6 +670,10 @@ export function diagnostics(
         .filter(([key]) => f[key])
         .map(([key, text]) => text(f[key]));
     if (found.length) notes.push(`"${s.original}": ${found.join("; ")}.`);
+    if (!f.checked)
+      notes.push(
+        `"${s.original}": its conditional formats, data validation, tables and drawings could not be checked; any it has are not imported.`,
+      );
     if (s.counts.formats)
       notes.push(
         `"${s.original}": ${plural(s.counts.formats, "number has a custom format", "numbers have custom formats")} Data has no preset for; shown as General.`,
@@ -529,7 +689,7 @@ export function diagnostics(
   }
   if (summary.date1904)
     notes.push(
-      "The file uses the 1904 date system; dates are converted to Data's 1900 system.",
+      "The file uses the 1904 date system; dates are converted to Data's 1900 system. Formulas that make dates from plain numbers may give other dates here; those are reported after the import.",
     );
   if (skippedNames.length)
     notes.push(
@@ -541,6 +701,12 @@ export function diagnostics(
   ).length;
   if (unchosen)
     notes.push(`${plural(unchosen, "sheet is", "sheets are")} not imported.`);
+  for (const s of summary.sheets.filter(
+    (s) => s.type === "sheet" && tooLarge(s),
+  ))
+    notes.push(
+      `"${s.name}" is not offered: its used range (A1:${address(s.height, s.width)}) holds more than ${XLSX_LIMITS.slots.toLocaleString("en-US")} cells.`,
+    );
   const other = summary.sheets.filter((s) => s.type !== "sheet").length;
   if (other)
     notes.push(
