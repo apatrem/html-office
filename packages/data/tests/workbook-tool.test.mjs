@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument, outside } from "../tools/document-html.mjs";
 import { writeModel } from "../model/document.mjs";
+import { preservation } from "../tools/workbook-ops.mjs";
 import { guide } from "../tools/build.mjs";
 
 const run = promisify(execFile),
@@ -310,4 +311,144 @@ test("extract, inspect limits and output paths", async () => {
   await writeFile(copy, await readFile(budget, "utf8"));
   assert.equal((await cli("apply", copy, patch, "--in-place")).code, 0);
   assert.equal((await cell(copy, "Budget!A6"))[0].cell.cellStyle, "note");
+});
+
+// Review regressions (GPT-6.1 Sol): pivot moves, cache-only exemptions,
+// shrinking pivots, JSON equality, kept results, removals, scenario order,
+// row-table diagnostics, atomic writes.
+test("a pivot moved onto data is refused; a shrinking one refreshes", async () => {
+  const sales = join(dir, "sales.html"),
+    model = JSON.parse((await cli("extract", sales)).out),
+    pivots = structuredClone(model.pivots);
+  pivots[0].output = { sheetId: "summary", ref: "A1" };
+  const move = join(dir, "move.json");
+  await writeFile(move, JSON.stringify({ set: { pivots } }));
+  const moved = await cli(
+    "apply",
+    sales,
+    move,
+    "--out",
+    join(dir, "moved.html"),
+    "--refresh-pivots",
+  );
+  assert.equal(moved.code, 1);
+  assert.match(moved.out, /already hold data/);
+  assert.equal(await exists(join(dir, "moved.html")), false);
+  // Every North record becomes South: the output loses a row.
+  const table = model.sheets.find((s) => s.id === "sales").table,
+    edits = table.data.flatMap((row, r) =>
+      row[0] === "North"
+        ? [
+            {
+              sheet: "Sales",
+              ref: `A${r + 1}`,
+              cell: { input: { type: "text", value: "South" } },
+            },
+          ]
+        : [],
+    ),
+    shrink = join(dir, "shrink.json");
+  await writeFile(shrink, JSON.stringify({ edits }));
+  const out = join(dir, "shrunk.html"),
+    shrunk = await cli(
+      "apply",
+      sales,
+      shrink,
+      "--out",
+      out,
+      "--refresh-pivots",
+    );
+  assert.equal(shrunk.code, 0, shrunk.out);
+  assert.equal((await cli("validate", out)).code, 0);
+  assert.equal(
+    (await readdir(dir)).some((f) => f.endsWith(".tmp")),
+    false,
+  );
+});
+
+test("validate --since flags removed charts and pivots, not refreshed caches", async () => {
+  const removal = join(dir, "removal.json"),
+    out = join(dir, "no-charts.html");
+  await writeFile(removal, JSON.stringify({ set: { charts: null } }));
+  const removed = await cli("apply", budget, removal, "--out", out);
+  assert.equal(removed.code, 0, removed.out);
+  assert.equal(
+    readDocument(await readFile(out, "utf8")).book.charts,
+    undefined,
+  );
+  const check = await cli("validate", out, "--since", budget);
+  assert.equal(check.code, 1);
+  assert.match(check.out, /Workbook field "charts" changed/);
+  // A recalculated copy (new previews, stamps) has no unrequested change.
+  const again = join(dir, "again.html");
+  await cli(
+    "recalculate",
+    join(dir, "sales.html"),
+    "--out",
+    again,
+    "--refresh-pivots",
+  );
+  assert.equal(
+    (await cli("validate", again, "--since", join(dir, "sales.html"))).code,
+    0,
+  );
+});
+
+test("formatting a formula keeps its result; key order and -0 compare exactly", async () => {
+  const bold = join(dir, "bold.json"),
+    out = join(dir, "bold.html");
+  await writeFile(
+    bold,
+    JSON.stringify({
+      edits: [{ sheet: "Budget", ref: "B2", cell: { style: { bold: true } } }],
+    }),
+  );
+  assert.equal(
+    (await cli("apply", budget, bold, "--out", out, "--no-recalculate")).code,
+    0,
+  );
+  assert.equal((await cli("validate", out)).code, 0, "results still current");
+  const before = {
+      version: "x",
+      sheets: [
+        {
+          id: "s",
+          name: "S",
+          cells: { A1: { input: { type: "number", value: 0 } } },
+        },
+      ],
+    },
+    signed = structuredClone(before),
+    reordered = structuredClone(before);
+  signed.sheets[0].cells.A1.input.value = -0;
+  reordered.sheets[0].cells.A1 = { input: { value: 0, type: "number" } };
+  assert.deepEqual(preservation(before, reordered), []);
+  assert.deepEqual(preservation(before, signed), [
+    "S!A1 changed without being requested.",
+  ]);
+});
+
+test("removing the scenario frees its selector in the same patch", async () => {
+  const patch = join(dir, "unscenario.json");
+  await writeFile(
+    patch,
+    JSON.stringify({
+      set: { scenario: null },
+      edits: [{ sheet: "Inputs", ref: "B1", cell: { formula: '="Busy"' } }],
+    }),
+  );
+  const result = await cli("apply", budget, patch, "--dry-run");
+  assert.equal(result.code, 0, result.out);
+});
+
+test("a bad value in a row table is reported at its cell", async () => {
+  const sales = join(dir, "sales.html"),
+    model = JSON.parse((await cli("extract", sales)).out),
+    table = model.sheets.find((s) => s.id === "sales").table;
+  table.data[1][3] = "bad";
+  const file = join(dir, "bad-table.json");
+  await writeFile(file, JSON.stringify(model));
+  const result = await cli("new", join(dir, "bad-table.html"), "--model", file);
+  assert.equal(result.code, 1);
+  assert.match(result.out, /Sales!D2: Expected finite number/);
 });

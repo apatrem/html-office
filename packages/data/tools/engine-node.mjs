@@ -78,8 +78,10 @@ export async function recalculate(book) {
 
 // Recalculates, then refreshes every pivot table in definition order, as
 // Data › Refresh all pivot tables does: each writes its output cells and
-// its source stamp; a failing pivot stops with its reason.
-export async function refreshPivots(book) {
+// its source stamp; a failing pivot stops with its reason. `committed` holds
+// the definitions before a patch changed them: their output is what a
+// refresh may release, and any other cell it would cover must be empty.
+export async function refreshPivots(book, committed = book.pivots ?? []) {
   const session = new EngineSession(await loadEngine());
   try {
     session.load(book);
@@ -90,7 +92,7 @@ export async function refreshPivots(book) {
       try {
         const computed = await session.pivot(definition);
         result = pivotEdits(current, definition, computed, {
-          previous: definition,
+          previous: committed.find((p) => p.id === id),
           fingerprint: computed.fingerprint,
           at: new Date().toISOString(),
         });

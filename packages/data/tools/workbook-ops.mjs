@@ -8,11 +8,14 @@ import {
   parseRange,
   validateCell,
   validateWorkbook,
+  VERSION,
 } from "../model/workbook.mjs";
+import { DOCUMENT_VERSION } from "../model/document.mjs";
 import { ownerRects, pivotOwner, pivotLabel } from "../model/pivot.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { display } from "../runtime/view.mjs";
+import { jsonStringify } from "../model/json.mjs";
 
 export const MAX_INSPECT_CELLS = 5000,
   MAX_PATCH_CELLS = 2000000;
@@ -281,11 +284,13 @@ export function applyPatch(book, patch) {
       for (const [key, value] of Object.entries(edit.cell))
         if (value === null && PRESENTATION.includes(key)) delete cell[key];
         else cell[key] = value;
-      // Presentation-only edits keep the value.
+      // Presentation-only edits keep the value, and its saved result.
       if (!("input" in edit.cell) && !("formula" in edit.cell)) {
         if (existing?.input) cell.input = existing.input;
         if (existing?.formula) cell.formula = existing.formula;
       }
+      if (cell.formula && cell.formula === existing?.formula && existing.result)
+        cell.result = existing.result;
       try {
         validateCell(cell, next);
       } catch (error) {
@@ -297,13 +302,6 @@ export function applyPatch(book, patch) {
     else delete sheet.cells[ref];
     touched.set(`${sheet.id}!${ref}`, true);
     engineEdits.push({ sheetId: sheet.id, ref, cell });
-  }
-  try {
-    assertScenarioInputs(next, engineEdits);
-  } catch (error) {
-    errors.push(
-      `scenario: ${error.message}; write the choice as a typed input.`,
-    );
   }
   if (patch.set !== undefined) {
     if (!isObject(patch.set)) errors.push('"set" must be an object.');
@@ -319,6 +317,14 @@ export function applyPatch(book, patch) {
         else next[key] = structuredClone(value);
       }
   }
+  // Against the final scenario, after set.
+  try {
+    assertScenarioInputs(next, engineEdits);
+  } catch (error) {
+    errors.push(
+      `scenario: ${error.message}; write the choice as a typed input.`,
+    );
+  }
   if (!errors.length)
     try {
       validateWorkbook(next);
@@ -328,17 +334,36 @@ export function applyPatch(book, patch) {
   return errors.length ? { errors } : { book: next, errors, touched };
 }
 
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Key order does not matter; signed zero does.
+const canonical = (value) =>
+  value === undefined
+    ? "undefined"
+    : jsonStringify(value, { pretty: false, sortKeys: true });
+const same = (a, b) => canonical(a) === canonical(b);
 const withoutResult = (cell) => {
   if (!cell) return null;
   const { result: _, ...rest } = cell;
   return rest;
 };
 
+// Derived caches inside definitions: chart previews, and the stamp and
+// output extent a pivot refresh writes.
+function withoutCaches(key, value) {
+  if (!Array.isArray(value)) return value;
+  if (key === "charts") return value.map(({ preview: _, ...chart }) => chart);
+  if (key === "pivots")
+    return value.map(({ refreshed: _, output, ...pivot }) => ({
+      ...pivot,
+      output: output && { sheetId: output.sheetId },
+    }));
+  return value;
+}
+
 // What changed between two workbooks outside the allowed cells: every
 // changed cell (results aside), sheet and workbook field. `allow` is a list
-// of {sheetId, rect}; `fields` the workbook fields allowed to change. Pivot
-// outputs may change when pivots are refreshed.
+// of {sheetId, rect}; `fields` the workbook fields a patch replaced. Caches
+// may change: results, chart previews, pivot stamps, and the cells a pivot
+// owns before or after (a refresh rewrites, grows or shrinks its output).
 export function preservation(before, after, { allow = [], fields = [] } = {}) {
   const problems = [],
     allowed = (sheetId, ref) => {
@@ -360,10 +385,14 @@ export function preservation(before, after, { allow = [], fields = [] } = {}) {
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (["sheets", "snapshot", "version"].includes(key) || fields.includes(key))
       continue;
-    if (!same(before[key], after[key]))
+    if (!same(withoutCaches(key, before[key]), withoutCaches(key, after[key])))
       problems.push(`Workbook field "${key}" changed.`);
   }
-  const owned = after.pivots?.length ? ownerRects(after) : null;
+  const owned = [before, after]
+      .filter((book) => book.pivots?.length)
+      .map((book) => ownerRects(book)),
+    pivotCell = (sheetId, ref) =>
+      owned.some((rects) => pivotOwner(rects, sheetId, ref));
   for (const sheet of before.sheets) {
     const other = after.sheets.find((s) => s.id === sheet.id);
     if (!other) continue;
@@ -381,13 +410,7 @@ export function preservation(before, after, { allow = [], fields = [] } = {}) {
         same(withoutResult(sheet.cells[ref]), withoutResult(other.cells[ref]))
       )
         continue;
-      if (allowed(sheet.id, ref)) continue;
-      if (
-        fields.includes("pivots") &&
-        owned &&
-        pivotOwner(owned, sheet.id, ref)
-      )
-        continue;
+      if (allowed(sheet.id, ref) || pivotCell(sheet.id, ref)) continue;
       if (listed < 20) {
         problems.push(`${sheet.name}!${ref} changed without being requested.`);
         listed++;
@@ -399,10 +422,44 @@ export function preservation(before, after, { allow = [], fields = [] } = {}) {
   return problems;
 }
 
+// A stored html-data/0.2 document with its row tables spread into cells,
+// without validating, so each bad table value is reported at its address.
+function spread(document) {
+  if (document?.version !== DOCUMENT_VERSION) return document;
+  const book = { ...document, version: VERSION, sheets: [] };
+  for (const sheet of Array.isArray(document.sheets) ? document.sheets : []) {
+    if (!sheet?.table) {
+      book.sheets.push(sheet);
+      continue;
+    }
+    const { table, ...rest } = sheet,
+      cells = { ...(rest.cells ?? {}) };
+    (Array.isArray(table.data) ? table.data : []).forEach((row, r) =>
+      (Array.isArray(row) ? row : []).forEach((value, c) => {
+        if (value === null) return;
+        try {
+          const ref = address(r + 1, c + 1);
+          cells[ref] = {
+            input: { type: table.columnTypes?.[c], value },
+            ...(table.cellMetadata?.[ref] ?? {}),
+          };
+        } catch {
+          // Outside the grid: the codec's own error reports it.
+        }
+      }),
+    );
+    Object.assign(cells, table.overrides ?? {});
+    book.sheets.push({ ...rest, cells });
+  }
+  return book;
+}
+
 // Every invalid cell of a workbook that fails validation, with its address,
 // then the workbook-level error: validation itself stops at the first one.
-export function locateErrors(book) {
-  const errors = [];
+// Accepts the stored document (html-data/0.2) or the sparse model.
+export function locateErrors(document) {
+  const book = spread(document),
+    errors = [];
   for (const sheet of book.sheets ?? [])
     for (const [ref, cell] of Object.entries(sheet.cells ?? {}))
       try {

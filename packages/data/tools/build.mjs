@@ -23,7 +23,7 @@ import {
   address,
 } from "../model/workbook.mjs";
 import { cellClasses } from "../model/formatting.mjs";
-import { EngineSession } from "../engine/adapter.mjs";
+import { recalculate } from "./engine-node.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
 import { renderPreviews, embeddedECharts } from "./chart-previews.mjs";
@@ -101,21 +101,8 @@ export async function buildWorkbook(
   );
   if (/<\/style/i.test(brand))
     throw new Error("Brand CSS cannot close its style element");
-  if (calculate) {
-    const module = await import("../engine/vendor/ironcalc.mjs");
-    await module.default({
-      module_or_path: await readFile(
-        new URL("engine/vendor/ironcalc.wasm", root),
-      ),
-    });
-    const session = new EngineSession(module);
-    try {
-      session.load(book);
-      book = await session.calculate();
-    } finally {
-      session.dispose();
-    }
-  }
+  // The pinned engine, its digests checked (engine-node.mjs).
+  if (calculate) book = await recalculate(book);
   // Charts open with saved previews drawn from the saved results.
   if (previews) book = await renderPreviews(book, brand);
   const config = JSON.parse(

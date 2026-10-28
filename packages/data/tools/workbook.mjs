@@ -12,7 +12,7 @@
 //               [--allow Sheet!A1:B5,...] [--allow-stale] [--json]
 // Exit code 1 when the command found errors (nothing is written then),
 // 2 for a usage error.
-import { readFile, writeFile, access } from "node:fs/promises";
+import { readFile, writeFile, access, rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readModel, writeModel } from "../model/document.mjs";
@@ -68,6 +68,12 @@ export function parseArgs(argv) {
   return out;
 }
 
+// The located errors, and the reader's own message when they miss it.
+const withCause = (detail, error) =>
+  detail.some((line) => line.endsWith(error.message))
+    ? detail
+    : [...detail, `document: ${error.message}`];
+
 class Failure extends Error {
   constructor(errors, code = 1) {
     super(errors.join("\n"));
@@ -95,7 +101,7 @@ async function load(file) {
     } catch {
       // Not parsable as JSON: the first message says why.
     }
-    throw new Failure(detail.length ? detail : [`${file}: ${error.message}`]);
+    throw new Failure(withCause(detail, error));
   }
 }
 
@@ -150,9 +156,24 @@ async function freshness(book, html) {
 }
 
 // Recalculation (with pivot refresh on request), then chart previews.
-async function calculate(book, html, { pivots }) {
-  const next = pivots ? await refreshPivots(book) : await recalculate(book);
+async function calculate(book, html, { pivots, committed }) {
+  const next = pivots
+    ? await refreshPivots(book, committed)
+    : await recalculate(book);
   return renderPreviews(next, charteCSS(html));
+}
+
+// A file is replaced only once its new content is fully written: a failed
+// or interrupted write leaves the previous file intact.
+async function writeAtomic(path, text) {
+  const temporary = `${path}.${process.pid}.tmp`;
+  try {
+    await writeFile(temporary, text);
+    await rename(temporary, path);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 const print = (args, value, text) =>
@@ -177,14 +198,14 @@ export async function run(argv) {
       } catch {
         // Not JSON: the first message says why.
       }
-      throw new Failure(detail.length ? detail : [error.message]);
+      throw new Failure(withCause(detail, error));
     }
     const { buildWorkbook } = await import("./build.mjs"),
       html = await buildWorkbook(book, {
         offline: !!args.offline,
         charte: args.charte,
       });
-    await writeFile(file, html);
+    await writeAtomic(file, html);
     const { book: built } = readDocument(html);
     print(
       args,
@@ -197,7 +218,7 @@ export async function run(argv) {
   if (command === "extract") {
     const json = writeModel(read.book);
     if (args.out) {
-      await writeFile(args.out, json + "\n");
+      await writeAtomic(args.out, json + "\n");
       console.log(`Wrote ${args.out}.`);
     } else console.log(json);
     return;
@@ -231,27 +252,21 @@ export async function run(argv) {
     const output = await target(file, args);
     let next = result.book;
     if (!args["no-recalculate"])
-      next = await calculate(next, html, { pivots: args["refresh-pivots"] });
+      next = await calculate(next, html, {
+        pivots: args["refresh-pivots"],
+        committed: read.book.pivots ?? [],
+      });
     const allow = [...result.touched.keys()].map((key) => {
         const [sheetId, ref] = key.split("!");
         return { sheetId, rect: parseTarget(next, ref, sheetId).rect };
       }),
-      fields = [
-        ...Object.keys(patch.set ?? {}),
-        "charts",
-        ...(args["refresh-pivots"] ? ["pivots"] : []),
-      ],
-      problems = preservation(read.book, next, { allow, fields });
-    // Charts may change only by their previews unless set.charts was given.
-    if (!patch.set?.charts) {
-      const strip = (b) =>
-        JSON.stringify((b.charts ?? []).map(({ preview: _, ...c }) => c));
-      if (strip(read.book) !== strip(next))
-        problems.push('Workbook field "charts" changed.');
-    }
+      problems = preservation(read.book, next, {
+        allow,
+        fields: Object.keys(patch.set ?? {}),
+      });
     if (problems.length) throw new Failure(problems);
     const updated = writeDocument(html, read, next);
-    await writeFile(output, updated);
+    await writeAtomic(output, updated);
     const state = (await snapshotState(next)).state;
     print(
       args,
@@ -270,11 +285,9 @@ export async function run(argv) {
       next = await calculate(read.book, html, {
         pivots: args["refresh-pivots"],
       }),
-      problems = preservation(read.book, next, {
-        fields: ["charts", ...(args["refresh-pivots"] ? ["pivots"] : [])],
-      });
+      problems = preservation(read.book, next);
     if (problems.length) throw new Failure(problems);
-    await writeFile(output, writeDocument(html, read, next));
+    await writeAtomic(output, writeDocument(html, read, next));
     console.log(`Recalculated ${output}.`);
     return;
   }
@@ -304,12 +317,7 @@ export async function run(argv) {
             return { sheetId: sheet.id, rect };
           },
         );
-      errors.push(
-        ...preservation(before.read.book, read.book, {
-          allow,
-          fields: ["charts", "pivots"],
-        }),
-      );
+      errors.push(...preservation(before.read.book, read.book, { allow }));
       if (outside(before.html, before.read) !== outside(html, read))
         warnings.push(
           "The file's editor, engine, brand or guide differ from the reference; only the workbook payload is expected to change.",

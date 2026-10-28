@@ -260,7 +260,7 @@ File › Print / PDF… (or Cmd/Ctrl+P) prints the selected sheet; the browser's
 | `recalculate FILE (--out OUT \| --in-place) [--refresh-pivots]` | Recalculates every result, optionally refreshes pivot tables, and redraws previews |
 | `validate FILE [--range R] [--since BEFORE --allow R1,R2] [--allow-stale]` | Reports missing or stale results, stale pivots and previews, error results in a range, and changes not allowed since BEFORE |
 
-A command that finds errors lists them all, each with its location (`Sheet!A1`, `edits[2]`, `rows[0].values[1][3]`, `set.x`, `workbook`), writes nothing and exits with code 1; usage errors exit with 2.
+A command that finds errors lists them all, each with its location (`Sheet!A1`, `edits[2]`, `rows[0].values[1][3]`, `set.x`, `workbook`), writes nothing and exits with code 1; usage errors exit with 2. Outputs are written to a temporary file and then renamed, so an interrupted write never leaves a partial file. Caches may change in any edit (results, chart previews, pivot stamps and pivot output cells); everything else outside the patch, including chart and pivot definitions, must stay identical.
 
 A patch is a JSON object:
 
