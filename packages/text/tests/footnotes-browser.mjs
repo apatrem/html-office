@@ -287,6 +287,94 @@ async function run(name) {
     lines = check(await saved());
     assert.equal(lines.length, 1);
     pass("undo removes notes and renumbers the list");
+
+    // ---- only this copy's own HTML brings its slice back ----
+    const count = () =>
+      page.evaluate(
+        () => window.htmlText.serialize().split('class="footnote"').length,
+      );
+    // Selects the first note with the three characters before it.
+    const selectNote = () =>
+      page.evaluate(() => {
+        const { view } = window.htmlText;
+        let from, to;
+        view.state.doc.descendants((node, pos) => {
+          if (node.type.name === "footnote" && from === undefined) {
+            from = pos - 3;
+            to = pos + node.nodeSize;
+          }
+        });
+        view.dispatch(
+          view.state.tr.setSelection(
+            view.state.selection.constructor.create(view.state.doc, from, to),
+          ),
+        );
+        view.focus();
+      });
+    await selectNote();
+    await clip("copy");
+    const notesBefore = await count();
+    await cursorAtEnd("#doc ul > li:last-child");
+    // Another tab's copy of the same text: same plain text, no token of this copy.
+    await page.evaluate(() => {
+      window.clipped["text/html"] = window.clipped["text/html"].replace(
+        / data-tx-clip="[^"]*"/,
+        "",
+      );
+    });
+    await clip("paste");
+    assert.equal(
+      await count(),
+      notesBefore,
+      "another copy's HTML is parsed, not this slice",
+    );
+    await selectNote();
+    await clip("copy");
+    await cursorAtEnd("#doc ul > li:last-child");
+    await page.keyboard.down("Shift");
+    await clip("paste");
+    await page.keyboard.up("Shift");
+    assert.equal(
+      await count(),
+      notesBefore,
+      "a paste as plain text stays plain",
+    );
+    await clip("paste");
+    assert.equal(
+      await count(),
+      notesBefore + 1,
+      "this copy's own HTML brings its note",
+    );
+    // The notes list holds no tab stop.
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      let at;
+      view.state.doc.descendants((node, pos) => {
+        if (node.type.name === "footnote" && at === undefined)
+          at = pos + node.nodeSize - 1;
+      });
+      view.dispatch(
+        view.state.tr.insert(
+          at,
+          view.state.schema.nodes.xref.create({
+            target: "fig-revenue",
+            label: "x",
+          }),
+        ),
+      );
+    });
+    assert.ok(
+      await page.evaluate(
+        () =>
+          document.querySelectorAll("#doc .tx-notes a").length > 0 &&
+          [...document.querySelectorAll("#doc .tx-notes a")].every(
+            (a) => a.tabIndex === -1,
+          ),
+      ),
+    );
+    pass(
+      "another tab's copy or a plain-text paste never brings back this copy's slice; the notes list holds no tab stop",
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
