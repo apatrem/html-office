@@ -222,3 +222,34 @@ Optional `charts` holds at most 50 charts (T18, [ADR-013](../../../docs/decision
 - **ECharts.** The editor loads the pinned, SRI-verified library only to draw or edit charts: after a chart command, after Redraw, or when a workbook change leaves a chart on screen out of date. A blocked or tampered library leaves the saved previews in place, marked out of date. Offline builds embed the same verified bytes as inert text (`script#echarts-source`, `type="text/plain"`), run only when a chart is first drawn or edited, so a workbook without charts never executes it. Once the library is available, a chart creates its ECharts instance only when it first scrolls into view.
 - **Structural edits.** A chart moves with its anchor cell (to the first surviving row or column when its own is deleted). Its data range shifts and shrinks like a dropdown source; a deleted range becomes `"#REF!"`, and the chart says its data range was deleted. Undo restores both. Charts own no cells and never block row or column operations; a chart may read a pivot table's output.
 - **Commands.** Insert › Chart… creates a chart from the selection, placed two columns to its right. Format › Chart settings… opens the selected chart in the side panel: type, data range, options and placement. Edit › Duplicate chart copies it with the same binding, and Edit › Delete chart (or Delete on the selected chart) removes it. Data › Redraw charts loads the library. Every change is one undoable step and needs no calculation engine. Chart copy and paste between documents are cross task X02d.
+
+## Imported sources
+
+Optional `sources` holds at most 100 descriptions of imported files (T15). The imported values are ordinary cells of a `table` sheet; a source only says where they came from, so the file reopens and stays editable without the original file or its path.
+
+```json
+{
+  "id": "source-1",
+  "sheetId": "import-1",
+  "ref": "A1:E4",
+  "kind": "csv",
+  "file": { "name": "ventes.csv", "bytes": 182, "modified": "2026-10-28T09:12:00.000Z", "sha256": "<64 hex>" },
+  "importedAt": "2026-10-28T10:00:00.000Z",
+  "options": { "encoding": "windows-1252", "delimiter": ";", "header": true, "decimal": "comma", "dates": "dmy" },
+  "columns": [{ "name": "Région", "type": "auto", "fingerprint": "<64 hex>" }]
+}
+```
+
+- **File.** `name` is the file name only, never a path (browsers do not give one). `bytes`, the optional `modified` time and `sha256` of the bytes identify the version that was read.
+- **Options.** How the file was read: `encoding` (`utf-8`, `windows-1252`, `macintosh`, `iso-8859-15`, `utf-16le`, `utf-16be`), `delimiter` (`,` `;` tab `|`), whether the first row held column names, the decimal separator (`point` or `comma`) and the date order (`dmy` or `mdy`; ISO dates read the same in both). A refresh (T16) reads a replacement file the same way.
+- **Columns.** One entry per source column, left to right: the header text (or the column letter without a header row), the type the person chose (`auto`, `text`, `number`, `date`, `boolean`), and a SHA-256 `fingerprint` of the column's typed inputs at import, header included. A refresh compares fingerprints to tell which columns were edited by hand since.
+- **Range.** `ref` shifts and shrinks with row and column operations like a dropdown source; a deleted range becomes `"#REF!"`.
+
+Reading a CSV (Data › Import CSV…):
+
+- The file is read in the page and never uploaded. The importer is a separate script (`script#import-source`, inert text) that runs only when a file is picked; the import itself recalculates with the same IronCalc worker as any edit.
+- Encoding: a byte-order mark decides, otherwise strict UTF-8, otherwise Windows-1252 (what Excel for Windows writes), with a note. The delimiter comes from an Excel `sep=` first line, or is the one giving the most consistent field count over the first 50 records.
+- Fields follow RFC 4180: quoted delimiters, doubled quotes and multiline fields (line breaks stored as `\n`). A quote inside an unquoted field is kept as text and counted; an unclosed quote refuses the file with its line number. Shorter rows are padded with missing cells and counted. Empty fields are missing cells. Limits: 64 MB, 2,000,000 cells, Excel's row and column counts; a larger file is refused, never truncated.
+- Values are typed one by one, as Excel does: `TRUE`/`FALSE` (and `VRAI`/`FAUX`), dates (ISO, year-first, day-first or month-first with `/`, `.` or `-`, two-digit years as in Excel, optional time), then numbers (thousands separators, a sign or accounting parentheses, `$ € £ ¥` giving a currency format, a trailing `%` giving a percent). Everything else is literal text; text that looks like a formula stays text and is counted. A column whose values have leading zeros or integers over 15 digits stays text, so codes and identifiers keep every digit. The person may set a column to Text, Number, Date or TRUE/FALSE; values that do not read as that type stay text and are counted.
+- The decimal separator and the date order are decided from the values: a value that reads only one way decides. When values read both ways (`1,234`, `03/04/2026`) or the file mixes conventions, the import is blocked until the person chooses. Nothing is guessed.
+- A first row of distinct labels over typed data is a header (style `header`), which the person may override. The import adds one `table` sheet in Raw Data, named after the file, and its source, as one undoable step.

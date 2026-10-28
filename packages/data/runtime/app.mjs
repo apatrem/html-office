@@ -10,11 +10,14 @@ import { organizeWorkbook } from "../model/organization.mjs";
 import { compactInputs } from "./literals.mjs";
 import { setupSheetNavigation } from "./sheets.mjs";
 import { validateCell, parseAddress, address } from "../model/workbook.mjs";
+import { validateSources } from "../model/sources.mjs";
 import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
 import { setupPersistence } from "./saving.mjs";
 import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
-import { touchPreview } from "./view.mjs";
+import { touchPreview, display } from "./view.mjs";
+import { h } from "../../shared/shell/dom.mjs";
+import { modal, field } from "../../shared/shell/dialogs.mjs";
 import { createGrid } from "./grid.mjs";
 import { setupPicture } from "./picture.mjs";
 import { setupClipboard } from "./clipboard.mjs";
@@ -538,7 +541,7 @@ $("cancel").onclick = () => {
   render();
   status(
     operation
-      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : operation === "conditional" ? "Conditional formatting" : operation === "pivot" ? "Pivot table" : "Sheet"} operation cancelled. Your previous work is retained.`
+      ? `${operation === "structure" ? "Row/column" : operation === "dropdown" ? "Dropdown" : operation === "conditional" ? "Conditional formatting" : operation === "pivot" ? "Pivot table" : operation === "import" ? "Import" : "Sheet"} operation cancelled. Your previous work is retained.`
       : !pendingEdits.length
         ? "Calculation cancelled. Your workbook remains open."
         : pendingEdits.some((edit) => edit.range)
@@ -1053,6 +1056,160 @@ function publishPivots(next, message) {
   status(message);
   return true;
 }
+// ---- import (T15) ----
+// The CSV importer is a separate chunk (script#import-source) that runs only
+// once a file is picked. The file is read in this page and never uploaded.
+let importer = null;
+function loadImporter() {
+  importer ??= (async () => {
+    const url = URL.createObjectURL(
+      new Blob([$("import-source").textContent], { type: "text/javascript" }),
+    );
+    try {
+      return await import(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  })().catch((error) => {
+    importer = null;
+    throw error;
+  });
+  return importer;
+}
+function importCSV() {
+  if (loading) return;
+  if (pendingEdits.length)
+    return void status(
+      "Apply or discard the attempted edit before importing a file.",
+    );
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain";
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const { openCSVImport } = await loadImporter();
+      await openCSVImport({
+        file,
+        book,
+        deps: { h, modal, field, display },
+        onImport: applyImport,
+      });
+    } catch (error) {
+      status(`Import failed: ${error.message} Workbook unchanged.`);
+    }
+  };
+  input.click();
+}
+// An import adds one table sheet (in Raw Data) and its source description,
+// recalculated with IronCalc and recorded as one undoable step.
+async function applyImport({
+  name,
+  cells,
+  height,
+  width,
+  source,
+  diagnostics,
+}) {
+  if (loading) return false;
+  const epoch = revisions.begin();
+  try {
+    if (pendingEdits.length)
+      throw new Error("Apply or discard the attempted edit first.");
+    const free = (prefix, taken) => {
+        let n = 1;
+        while (taken.has(`${prefix}-${n}`)) n++;
+        return `${prefix}-${n}`;
+      },
+      id = free("import", new Set(book.sheets.map((s) => s.id))),
+      raw = groupView(book).find((g) => g.kind === "raw"),
+      next = organizeWorkbook(book, {
+        type: "create",
+        id,
+        name,
+        groupId: raw.id,
+      }),
+      sheet = next.sheets.find((s) => s.id === id);
+    sheet.metadata = { layout: "table" };
+    sheet.cells = cells;
+    next.sources = [
+      ...(book.sources ?? []),
+      {
+        id: free("source", new Set((book.sources ?? []).map((s) => s.id))),
+        sheetId: id,
+        ...source,
+      },
+    ];
+    // The worker validates the whole workbook as it loads it.
+    validateSources(next);
+    loading = new AbortController();
+    loading.operation = "import";
+    render();
+    status(`Importing ${source.file.name}: recalculating locally…`);
+    if (!session)
+      session = new EngineClient(config, $("worker-source").textContent);
+    await session.load(next);
+    if (!revisions.current(epoch)) return false;
+    const result = await session.calculate();
+    if (!revisions.current(epoch)) return false;
+    const others = result.results.filter((r) => r.sheetId !== id),
+      before = captureCells(book, others),
+      headBefore = captureHead(book),
+      snapshotBefore = book.snapshot,
+      selectionBefore = { sheetId, ...grid.selection };
+    for (const r of result.results)
+      next.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
+        r.result;
+    next.snapshot = result.snapshot;
+    book = next;
+    trustSnapshot();
+    // Imported cells are new objects: history.record clones them once.
+    const imported = Object.entries(cells).map(([ref, cell]) => ({
+        sheetId: id,
+        ref,
+        cell,
+      })),
+      headAfter = captureHead(book),
+      after = [...captureCells(book, others), ...imported];
+    history.record({
+      before,
+      after,
+      headBefore,
+      headAfter,
+      snapshotBefore,
+      snapshotAfter: book.snapshot,
+      selectionBefore,
+      selectionAfter: { sheetId: id, anchor: "A1", focus: "A1" },
+      calculate: true,
+    });
+    persistence.changed([...cellEdits(others), ...imported], {
+      head: headAfter,
+    });
+    sheetId = id;
+    loading = null;
+    render();
+    choose("A1");
+    status(
+      `Imported ${source.file.name}: ${height.toLocaleString("en-US")} rows × ${width.toLocaleString("en-US")} columns into the sheet "${name}". ${diagnostics.length ? diagnostics.join(" ") + " " : ""}Unsaved changes.`,
+    );
+    return true;
+  } catch (error) {
+    if (revisions.current(epoch)) {
+      session?.dispose();
+      session = null;
+      status(
+        `Import not applied: ${error.message.replace(/\.$/, "")}. Your previous work is retained.`,
+      );
+    }
+    return false;
+  } finally {
+    if (revisions.current(epoch) && loading?.operation === "import") {
+      loading = null;
+      render();
+    }
+  }
+}
 // ---- charts (T18) ----
 // Definitions are header data: one history entry, no engine.
 function publishCharts(next, message) {
@@ -1324,6 +1481,7 @@ register(
   () => idle() && history.canRedo,
 );
 register("paste-table", () => clipboard.open());
+register("import-csv", importCSV);
 register("fill-down", () => clipboard.fill("down"));
 register("fill-right", () => clipboard.fill("right"));
 for (const axis of ["row", "column"])

@@ -219,6 +219,16 @@ export function shiftWorkbook(book, command) {
                 : chart.source,
           })),
         }),
+    // An imported source's range shifts and shrinks like a dropdown source.
+    ...(book.sources === undefined
+      ? {}
+      : {
+          sources: book.sources.map((source) =>
+            source.sheetId === command.sheetId
+              ? { ...source, ref: shiftRange(source.ref, command) }
+              : source,
+          ),
+        }),
     names: book.names.map((name) =>
       name.sheetId === command.sheetId
         ? { ...name, ref: shiftRange(name.ref, command) }

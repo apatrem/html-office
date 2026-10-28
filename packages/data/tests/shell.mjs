@@ -3,6 +3,7 @@
 const MENUS = {
   "Save a copy": ["File", "Save a copy"],
   Recalculate: ["Data", "Recalculate"],
+  "Import CSV": ["Data", "Import CSV…"],
   "Dropdown settings": ["Data", "Dropdown settings…"],
   "Manage sheets": ["Data", "Manage sheets…"],
   "Paste table": ["Edit", "Paste table…"],

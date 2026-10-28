@@ -132,13 +132,40 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 2. **Offline**: with the network off, each file opens and edits. Data and Slides show chart previews.
 3. **Keyboard only**: Tab reaches the file bar, the menus and the toolbar. The arrow keys move within the toolbar, and Escape closes menus and dialogs.
 
-## 5. Pending: needs #70 and #71
+## 5. Copy and paste between Slides and Data (X02b, X02c)
 
-Not in `main` yet. Run these once [#70](https://github.com/apatrem/html-office/pull/70) (Data ⇄ Slides tables) and [#71](https://github.com/apatrem/html-office/pull/71) (Slides charts) are merged and the files rebuilt:
+Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
 - Copy a Slides chart into Data and into another deck.
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
+
+## 6. Text, from T07
+
+Each task adds its checks here, under its own heading (`### T07 — …`), in task order.
+
+## 7. Data, from T15
+
+Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
+
+### T15 — Import CSV
+
+Build a workbook (`node packages/data/tools/build.mjs --input packages/data/fixtures/pnl.json --output dist/data/pnl.html`) and use Data › Import CSV… for each file below. Each import adds one sheet in Raw Data; check the preview first, then the sheet.
+
+1. **Real exports.** Export the same small table (a text column, a code column such as `0012`, an amount with decimals and thousands, a date, a TRUE/FALSE column, a cell with a line break, a cell with a comma and quotes, an accented name) from:
+   - Excel for Windows or Mac in French: "CSV (séparateur : point-virgule)" and "CSV UTF-8";
+   - Excel in English (US, and UK if available): "CSV (Comma delimited)" and "CSV UTF-8";
+   - Google Sheets: File › Download › CSV, with the spreadsheet locale set to France, then to United States.
+
+   For each file:
+   - the preview names the right encoding and delimiter, and accents read correctly (Excel's non-UTF-8 French CSV shows the Windows-1252 note; on a Mac, Excel may write Mac OS Roman: if accents look wrong, choose it in Encoding);
+   - codes keep their leading zeros, amounts are numbers with the right value, dates show the right day and month in long form, the line break and the quotes survive;
+   - no question is asked when the file decides (French: decimal comma and day first; US: decimal point and month first). A file whose only dates are like `03/04/2026` asks for the date order, and Import stays disabled until you choose.
+2. **Ambiguity.** Import a file whose only amounts are like `1,234`: the decimal separator is asked; choose Comma and check the preview shows 1.234; choose Point and it shows 1,234.
+3. **Undo.** Ctrl/Cmd+Z removes the imported sheet in one step; Ctrl/Cmd+Shift+Z brings it back.
+4. **Save and reopen.** Save, close and reopen the file with the network off: the imported sheet is there and editable. In the saved HTML, `sources` names the file without any folder path.
+5. **No upload.** With the browser's network panel open, import a file in the offline build: no request at all. In the standard build, only the calculation engine (`ironcalc`) is fetched, and only if it was not loaded yet.
+6. **Browsers.** Repeat 1 (one French and one US file), 3 and 4 in Safari and Firefox: the file picker opens from the menu, the dialog fits at 1280 px and at 375 px wide, and the preview scrolls.
 
 ## Log
 
