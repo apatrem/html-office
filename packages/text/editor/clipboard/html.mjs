@@ -293,12 +293,15 @@ const wordItem = (css) => {
   return m ? { list: m[1], level: Number(m[2]) } : null;
 };
 function wordMarker(node, rules) {
-  for (const kid of kids(node)) {
+  // Depth first in document order, without recursion (nesting is unbounded).
+  const stack = [];
+  pushReversed(stack, kids(node));
+  while (stack.length) {
+    const kid = stack.pop();
     if (kid.nodeType !== ELEMENT) continue;
     if (declarations(kid, rules).get("mso-list") === "ignore")
       return textOf(kid);
-    const found = wordMarker(kid, rules);
-    if (found !== null) return found;
+    pushReversed(stack, kids(kid));
   }
   return null;
 }
@@ -689,6 +692,14 @@ export class Mapper {
   }
   // Word's list paragraphs [{node, level}] as nested lists; a numbered marker makes an ordered list.
   wordList(run, marks, depth) {
+    // Levels deeper than the format holds are flattened into the deepest one it holds.
+    const base = Math.min(...run.map((r) => r.level)),
+      deepest = base + Math.max(0, MAX_LIST_LEVELS - this.levels - 1);
+    run = run.map((r) => {
+      if (r.level <= deepest) return r;
+      this.count("item");
+      return { ...r, level: deepest };
+    });
     const make = (start, level) => {
       const items = [];
       let i = start;
@@ -716,7 +727,7 @@ export class Mapper {
         end: i,
       };
     };
-    const level = Math.min(...run.map((r) => r.level));
+    const level = base;
     const out = [];
     let i = 0;
     while (i < run.length) {
@@ -847,7 +858,7 @@ export function textBlocks(text) {
 // HTML (an inert root) as blocks, with what could not be represented.
 export function fromHTML(root, options) {
   const mapper = new Mapper(root, options);
-  const cell = copiedCell(root);
+  const cell = copiedCell(root, mapper.rules);
   if (cell) {
     const content = mapper.inline(cell, [], 0);
     return {
@@ -860,28 +871,36 @@ export function fromHTML(root, options) {
 
 // Text copied inside one table cell of a ProseMirror editor (Text's own): ProseMirror wraps the
 // cell in a table for transport and says so in data-pm-slice ("1 1 -3 […]", three wrappers). It
-// is text, not a table: the cell's content is returned, or null for anything else.
-function copiedCell(root) {
-  // The wrapper alone (no other element or text beside it), and open at both ends.
-  const parts = kids(root).filter(
-    (k) => k.nodeType === ELEMENT || (k.nodeType === TEXT && /\S/.test(k.data)),
-  );
-  const first = parts[0];
+// is text, not a table: the cell's content is returned, or null for anything else. Each wrapper
+// (table, row group, row, cell) holds nothing but the next one, and none is hidden.
+function copiedCell(root, rules) {
+  const only = (node) => {
+    const parts = kids(node).filter(
+      (k) =>
+        k.nodeType === ELEMENT || (k.nodeType === TEXT && /\S/.test(k.data)),
+    );
+    return parts.length === 1 && parts[0].nodeType === ELEMENT
+      ? parts[0]
+      : null;
+  };
+  const table = only(root);
   if (
-    parts.length !== 1 ||
-    first.nodeType !== ELEMENT ||
-    !/^[1-9]\d* [1-9]\d* -\d+ /.test(first.getAttribute("data-pm-slice") ?? "")
+    table?.localName !== "table" ||
+    !/^[1-9]\d* [1-9]\d* -\d+ /.test(table.getAttribute("data-pm-slice") ?? "")
   )
     return null;
-  const cells = [],
-    stack = [root];
-  while (stack.length && cells.length < 2) {
-    const node = stack.pop();
-    for (const k of kids(node))
-      if (k.nodeType === ELEMENT)
-        (["td", "th"].includes(k.localName) ? cells : stack).push(k);
+  const chain = [table];
+  let node = only(table);
+  if (["thead", "tbody", "tfoot"].includes(node?.localName)) {
+    chain.push(node);
+    node = only(node);
   }
-  return cells.length === 1 ? cells[0] : null;
+  if (node?.localName !== "tr") return null;
+  chain.push(node);
+  node = only(node);
+  if (!["td", "th"].includes(node?.localName)) return null;
+  chain.push(node);
+  return chain.some((n) => hidden(declarations(n, rules))) ? null : node;
 }
 
 // Blocks as the inline content of one paragraph (a table cell, a caption, a title): their lines,

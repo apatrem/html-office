@@ -64,23 +64,33 @@ export function markdownHTML(source) {
     d.appendChild(paragraph(text));
     return renderer.render(d).replace(/^<p>|<\/p>\n?$/g, "");
   };
+  // Blocks made of paragraph lines: a paragraph, or a setext heading (its underline included).
+  const lineBlock = (block) =>
+    block?.sourcepos &&
+    (block.type === "paragraph" ||
+      (block.type === "heading" &&
+        block.sourcepos[1][0] > block.sourcepos[0][0]));
   for (let block = doc.firstChild; block; ) {
-    const next = block.next;
+    let next = block.next;
     // A paragraph, or a setext heading whose text holds a table: in GitHub's Markdown the table
-    // ends only at a blank line or another block, so the underline is one more row.
-    if (
-      (block.type === "paragraph" ||
-        (block.type === "heading" &&
-          block.sourcepos?.[1][0] > block.sourcepos?.[0][0])) &&
-      block.sourcepos
-    ) {
+    // ends only at a blank line or another block, so the underline is one more row and the
+    // paragraph lines right after it are more rows.
+    if (lineBlock(block)) {
       const [[start], [end]] = block.sourcepos;
-      const rows = lines.slice(start - 1, end);
+      let rows = lines.slice(start - 1, end);
       for (let k = 1; k < rows.length; k++) {
         const aligns = delimiter(rows[k]),
           head = cells(rows[k - 1]);
         if (!aligns || head.length !== aligns.length) continue;
         if (!rows[k].includes("|") && !rows[k - 1].includes("|")) continue;
+        const absorbed = [];
+        let last = end;
+        while (lineBlock(next) && next.sourcepos[0][0] === last + 1) {
+          absorbed.push(next);
+          last = next.sourcepos[1][0];
+          next = next.next;
+        }
+        rows = lines.slice(start - 1, last);
         // Refused before anything is rendered (ADR-013 §3 limits for Text).
         if (aligns.length > LIMIT.columns || rows.length - k > LIMIT.rows)
           throw new ClipboardError(
@@ -100,6 +110,7 @@ export function markdownHTML(source) {
           `<tbody>${body.join("")}</tbody></table>`;
         block.insertBefore(table);
         block.unlink();
+        for (const b of absorbed) b.unlink();
         break;
       }
     }
