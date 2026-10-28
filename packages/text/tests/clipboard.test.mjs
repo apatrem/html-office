@@ -54,7 +54,8 @@ function saved(blocks) {
   assert.equal(saveFile(file, openFile(file).doc), text, "canonical");
   return html;
 }
-const map = (html, used = new Set()) => fromHTML(parseInert(html), { used });
+const map = (html, used = new Set(), targets = used) =>
+  fromHTML(parseInert(html), { used, targets });
 const body = (html) =>
   html.replace(/^<article[^>]*>\n/, "").replace(/<\/article>$/, "");
 
@@ -222,7 +223,7 @@ test("Text's own markup reads back as itself: blocks, inline marks, footnotes, t
         "<p>Commented <strong>bold</strong> text and overlapping comments.</p>",
       )
       .replace(/<section class="comments">[^]*<\/section>\n/, "")
-      .replace(/<nav class="toc"[^>]*><\/nav>\n/, "")
+      .replace(/<nav class="toc"[^]*?<\/nav>\n/, "")
       .replace(
         /<header class="cover">\n<h1 class="title">Cover title<\/h1>\n<\/header>/,
         '<h1 id="sec-cover-title">Cover title</h1>',
@@ -600,4 +601,44 @@ test("re-verification: paragraph lines after a setext underline are still table 
     saved(map(markdownHTML("| a |\n| --- |\n| b |\n===\n\nafter")).blocks),
   );
   assert.match(after, /<p>after<\/p>/);
+});
+
+test("T08–T13 content pasted from another document: no comment, asset or chart, no dangling reference", () => {
+  // Comment anchors and threads never come in: the text stays, unmarked.
+  const comment = map(
+    '<p>A <mark class="comment" data-ref="t-open">marked</mark> word.</p>' +
+      '<section class="comments"><aside class="comment-thread" id="t-open" data-status="open" data-quote="marked">' +
+      '<p class="comment" data-author="Alex" data-date="2026-10-15T14:02Z">Delete it.</p></aside></section>' +
+      '<aside class="comment-thread" id="t-two"><p class="comment">Loose thread.</p></aside>',
+  );
+  assert.equal(body(saved(comment.blocks)), "<p>A marked word.</p>\n");
+  // Images (their assets belong to the other document) and charts are left out and reported.
+  const figures = map(
+    '<figure class="image" id="fig-a" data-width="text"><img data-asset="a1" alt="Photo"><figcaption>Site</figcaption></figure>' +
+      '<p>Inline <img data-asset="a2" alt="Logo"> logo.</p>' +
+      '<figure class="chart" id="fig-c" data-type="column" data-width="text"><script type="application/json">{}</script><figcaption>Revenue</figcaption></figure>',
+  );
+  const html = saved(figures.blocks);
+  assert.doesNotMatch(html, /data-asset|<img|class="(image|chart)"/);
+  assert.equal(figures.lost.get("image"), 2);
+  assert.equal(figures.lost.get("chart"), 1);
+  // A footnote is Text's own: it stays a footnote.
+  assert.match(
+    saved(map('<p>Text.<span class="footnote">The note.</span></p>').blocks),
+    /<p>Text\.<span class="footnote">The note\.<\/span><\/p>/,
+  );
+  // A cross-reference stays one only when its target is in this document; otherwise its label
+  // is text. Numbering labels in attributes are not read.
+  const refs = map(
+    '<p>See <a class="xref" href="#sec-here">Section 2</a> and <a class="xref" href="#fig-gone">Figure 9</a>.</p>' +
+      '<h2 id="sec-new" data-tx-label="3">Pasted</h2>',
+    new Set(["sec-here"]),
+    new Set(["sec-here"]),
+  );
+  const out = refs.blocks[0];
+  const kinds = [];
+  out.forEach((n) => kinds.push(n.type.name));
+  assert.deepEqual(kinds, ["text", "xref", "text"]);
+  assert.equal(out.textContent, "See  and Figure 9.");
+  assert.equal(refs.blocks[1].attrs.id, "sec-new");
 });

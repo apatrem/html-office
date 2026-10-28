@@ -13,7 +13,7 @@ Fictional example of the canonical Text subset. The content is article#doc; the 
 <style id="theme">/* html-text layout theme 1 (style#theme). Colours and fonts come from style#charte; page format A4, margins 25 mm. */
 html{background:var(--tint)}
 body{margin:0;color:var(--ink);font:11pt/1.45 var(--body-font,var(--font))}
-#doc{--page-w:210mm;--margin:25mm;page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+#doc{--page-w:210mm;--margin:25mm;--heading-format:"1.1.1.1";page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
 #doc[data-page=letter]{--page-w:215.9mm;page:letter}
 #doc[data-margins=narrow]{--margin:15mm;page:a4-narrow}
 #doc[data-margins=wide]{--margin:35mm;page:a4-wide}
@@ -56,8 +56,9 @@ figcaption{font-size:9.5pt;color:var(--t2);margin:.4em 0 0}
 figure.table figcaption{margin:0 0 .4em}
 figure img,figure svg.render{display:block;width:100%;height:auto}
 figure.image img{background:var(--tint);min-height:4em}
-figure.image[data-wrap=left]{float:left;margin:.2em 1.2em .6em 0}
-figure.image[data-wrap=right]{float:right;margin:.2em 0 .6em 1.2em}
+figure.image[data-wrap=left]{float:left;clear:left;margin:.2em 1.2em .6em 0}
+figure.image[data-wrap=right]{float:right;clear:right;margin:.2em 0 .6em 1.2em}
+figure[data-width=full]{margin-left:calc(var(--margin)/-2);margin-right:calc(var(--margin)/-2)}
 figure.image[data-width="25"]{width:25%}figure.image[data-width="33"]{width:33%}figure.image[data-width="40"]{width:40%}figure.image[data-width="50"]{width:50%}
 table{width:100%;border-collapse:collapse;font-size:10pt}
 th,td{padding:.3em .5em;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
@@ -79,11 +80,11 @@ col[data-width="1"]{width:1%}col[data-width="2"]{width:2%}col[data-width="3"]{wi
 </header>
 <nav class="toc" data-depth="2">
 <ol>
-<li><a href="#sec-summary">Executive summary</a></li>
-<li><a href="#sec-results">2026 results</a><ol>
-<li><a href="#sec-regions">Regions</a></li>
+<li><a href="#sec-summary">1 Executive summary</a></li>
+<li><a href="#sec-results">2 2026 results</a><ol>
+<li><a href="#sec-regions">2.1 Regions</a></li>
 </ol></li>
-<li><a href="#sec-plan">2027 plan</a></li>
+<li><a href="#sec-plan">3 2027 plan</a></li>
 </ol>
 </nav>
 <h1 id="sec-summary">Executive summary</h1>

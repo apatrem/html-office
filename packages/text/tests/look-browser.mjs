@@ -157,10 +157,19 @@ try {
     "red",
   );
   let saved = await page.evaluate(() => window.htmlText.serialize());
-  assert.deepEqual(changed(built, saved), [
-    '-<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on">',
-    '+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on" data-theme="red">',
-  ]);
+  // The chart's saved preview, drawn in the old charte, is out of date (T11): it is keyed stale,
+  // or drawn again when the library is reachable. The content itself does not change.
+  const preview = (line) => /^[-+]<svg /.test(line);
+  assert.ok(
+    changed(built, saved).some((line) => /^\+<svg .*data-key=/.test(line)),
+  );
+  assert.deepEqual(
+    changed(built, saved).filter((line) => !preview(line)),
+    [
+      '-<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on">',
+      '+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on" data-theme="red">',
+    ],
+  );
   await page.keyboard.press(
     `${process.platform === "darwin" ? "Meta" : "Control"}+z`,
   );
@@ -263,7 +272,10 @@ try {
       "#sec-plan",
     ],
   ]) {
-    const floated = built.replace(from, () => to);
+    // Without heading numbers (T08), the heading's first character starts its first line.
+    const floated = built
+      .replace(from, () => to)
+      .replace(' data-heading-numbers="on"', "");
     assert.notEqual(floated, built);
     const float = await open(await write("look-float.html", floated), floated);
     const cleared = await float.page.evaluate((selector) => {

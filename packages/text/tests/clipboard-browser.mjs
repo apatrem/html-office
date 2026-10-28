@@ -263,7 +263,8 @@ async function run(engine) {
           chart: {},
         }),
       },
-      /^Nothing was pasted: charts cannot be pasted into Text yet\./,
+      // A chart is T11's: a broken one is refused there.
+      /^Paste failed: .*Document unchanged\./,
     );
     const big = Array.from({ length: 1001 }, () => [{ text: "x" }]);
     await unchanged(
@@ -316,6 +317,8 @@ async function run(engine) {
     );
     await undo();
     assert.equal(await saved(), before);
+    // Shift released, as a real keyboard does (ProseMirror reads Shift for plain pastes).
+    await page.keyboard.press("Shift");
     pass("plain text: lines become paragraphs; Shift paste ignores the HTML");
 
     doc = await pasted(
@@ -408,14 +411,126 @@ async function run(engine) {
       mixed["text/html"],
       /<h1 class="new-page" id="sec-plan"[^>]*>2027 plan<\/h1>/,
     );
-    assert.doesNotMatch(mixed["text/html"], /tx-|style=|contenteditable/);
+    // No editor markup; the internal clipboard's token (T09) is the one attribute it adds.
+    assert.doesNotMatch(
+      mixed["text/html"].replace(/ data-tx-clip="[^"]*"/, ""),
+      /tx-|style=|contenteditable/,
+    );
     assert.match(mixed["text/plain"], /^2027 plan\n\nThe plan keeps/);
-    doc = await pasted(mixed, "Planning team");
+    // As from another Text document (without this copy's token, which the internal clipboard of
+    // T09 would take): the HTML is mapped and reads back as itself.
+    doc = await pasted(
+      {
+        ...mixed,
+        "text/html": mixed["text/html"].replace(/ data-tx-clip="[^"]*"/, ""),
+      },
+      "Planning team",
+    );
     assert.match(
       doc,
-      /^<h1 class="new-page" id="sec-2027-plan">2027 plan<\/h1>\n<p class="ta-j">The plan keeps[^\n]*\n<ul>\n<li>Open two sites in the <u>south<\/u> region<\/li>/,
+      /^(<li><a href="#sec-2027-plan">[^\n]*\n)?<h1 class="new-page" id="sec-2027-plan">2027 plan<\/h1>\n<p class="ta-j">The plan keeps[^\n]*\n<ul>\n<li>Open two sites in the <u>south<\/u> region<\/li>/,
     );
     pass("a mixed selection copies as subset HTML and pastes back as itself");
+
+    // ---- T08–T13 content: from another document, and copied out ----
+    doc = await pasted({
+      "text/html":
+        '<p>See <a class="xref" href="#sec-plan">Section 7</a>, <a class="xref" href="#sec-elsewhere">Section 9</a> and <mark class="comment" data-ref="t-x">this</mark>.</p>' +
+        '<figure class="image" id="fig-x" data-width="text"><img data-asset="a9" alt="Photo"></figure>' +
+        '<section class="comments"><aside class="comment-thread" id="t-x" data-status="open" data-quote="this"><p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Hi</p></aside></section>',
+      "text/plain": "See Section 7, Section 9 and this.",
+    });
+    assert.match(
+      doc,
+      /See <a class="xref" href="#sec-plan">Section \d+<\/a>, Section 9 and this\.<\/p>$/,
+    );
+    // The paragraph pasted into keeps its own comment (c1); nothing pasted adds one.
+    assert.doesNotMatch(doc, /t-x|data-asset|<img/);
+    const everything = await page.evaluate(() => {
+      const { view } = window.htmlText;
+      const S = window.htmlText.TextSelection;
+      view.dispatch(
+        view.state.tr.setSelection(
+          S.create(view.state.doc, 1, view.state.doc.content.size - 1),
+        ),
+      );
+      const data = new DataTransfer();
+      view.dom.dispatchEvent(clipboardEvent("copy", data));
+      return data.getData("text/html");
+    });
+    assert.match(everything, /data-pm-slice/);
+    assert.doesNotMatch(everything, /class="comment|data-asset|<img/);
+    pass(
+      "pasted content brings no comment, asset or dangling cross-reference; copies leave them out",
+    );
+
+    // Inside the document (T09's internal clipboard): a copied comment anchor is not repeated;
+    // a whole anchor cut moves with its text.
+    const anchors = () =>
+      page.evaluate(
+        () =>
+          window.htmlText
+            .serialize()
+            .split('<mark class="comment" data-ref="c1">').length - 1,
+      );
+    const clip = (name, data) =>
+      page.evaluate(
+        ([name, data]) => {
+          const { view } = window.htmlText;
+          if (name !== "paste") {
+            let from = null;
+            view.state.doc.descendants((node, pos) => {
+              if (
+                from === null &&
+                node.isText &&
+                node.text.startsWith("Revenue grew")
+              )
+                from = pos;
+            });
+            const S = window.htmlText.TextSelection;
+            view.dispatch(
+              view.state.tr.setSelection(
+                S.create(
+                  view.state.doc,
+                  from,
+                  from + "Revenue grew 18% in 2026".length,
+                ),
+              ),
+            );
+          }
+          const transfer = new DataTransfer();
+          for (const [t, v] of Object.entries(data ?? {}))
+            transfer.setData(t, v);
+          view.dom.dispatchEvent(clipboardEvent(name, transfer));
+          return Object.fromEntries(
+            [...transfer.types].map((t) => [t, transfer.getData(t)]),
+          );
+        },
+        [name, data],
+      );
+    assert.equal(await anchors(), 1);
+    const copied = await clip("copy");
+    assert.match(copied["text/html"], /data-tx-clip=/);
+    await caret("Planning team");
+    await clip("paste", copied);
+    let text = check(await saved());
+    assert.equal(await anchors(), 1, "a copy repeats no anchor");
+    assert.equal(text.split("Revenue grew").length - 1, 3);
+    await undo();
+    const cut = await clip("cut");
+    await caret("Planning team");
+    await clip("paste", cut);
+    text = check(await saved());
+    assert.equal(await anchors(), 1, "a cut anchor moves with its text");
+    assert.match(
+      text,
+      /Planning team[^\n]*<mark class="comment" data-ref="c1">Revenue grew 18% in 2026<\/mark>/,
+    );
+    await undo();
+    await undo();
+    pass(
+      "inside the document a copy repeats no comment anchor; a cut one moves",
+    );
 
     // ---- review fixes: tables in an empty paragraph, undo steps, text from a cell ----
     await caret("Northwind Gardens (fictional)");

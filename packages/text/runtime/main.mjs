@@ -1,7 +1,12 @@
 // html-text editor bootstrap (T03). The file's own nodes are captured before anything else runs;
 // article#doc is validated with the same rules as tools/check.mjs, then edited with ProseMirror.
 // Saving writes the captured zones unchanged and article#doc from the editor's document.
-import { EditorState, TextSelection, NodeSelection } from "prosemirror-state";
+import {
+  EditorState,
+  Selection,
+  TextSelection,
+  NodeSelection,
+} from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
@@ -28,11 +33,26 @@ import {
 } from "../editor/schema/document.mjs";
 import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
+import * as G from "../editor/generated.mjs";
+import { regenerate, fileFormat } from "../editor/numbering.mjs";
+import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { setupClipboard } from "./clipboard.mjs";
+import * as I from "../editor/images.mjs";
+import { assetStore } from "../model/assets.mjs";
+import {
+  imagePlugin,
+  imageDialog,
+  imageError,
+  pickImage,
+  shrinkImage,
+} from "./images.mjs";
 import { mountShell, refusal } from "./shell.mjs";
+import * as C from "../editor/charts.mjs";
+import { chartManager, chartPlugin, chartDialog } from "./charts.mjs";
+import { commentsPanel, commentHighlights } from "./comments.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
@@ -119,9 +139,12 @@ function start() {
   }
   const article = document.getElementById("doc");
   const commands = createCommands();
-  const save = (doc) => saveFile(file, doc);
+  // Images (T12): saving writes only the assets the document uses.
+  const assets = assetStore(file);
+  const save = (doc) => saveFile(assets.fileFor(file, doc), doc);
   const doc = toDoc(findArticle(file), report.blocks);
-  const opened = save(doc);
+  // The file as opened, unused assets included: Save checks the chosen file against it.
+  const opened = saveFile(file, doc);
   // A source that differs from its canonical form where the browser can see it (line breaks in
   // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
 
@@ -140,7 +163,10 @@ function start() {
     draft: () => articleHTML(view.state.doc),
     // The article is a placeholder that restoring replaces with the draft's.
     zones: () =>
-      serializeFile(withEngine(file, []), '<article id="doc"></article>'),
+      serializeFile(
+        withEngine(assets.fileFor(file, view.state.doc), []),
+        '<article id="doc"></article>',
+      ),
     onDraft: (found) => shell.recover(found, restoreDraft),
   });
   // The file tree with the engine's code replaced (a draft stores the zones without it).
@@ -164,10 +190,13 @@ function start() {
     const tree = withEngine(read(zones), findEngine(file.html));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
+    assets.reset(file);
+    numbers.format = fileFormat(file);
     E.reserveIds(fileIds(file.html));
     view.updateState(
       EditorState.create({ doc: next, plugins: view.state.plugins }),
     );
+    refresh();
     saving.edited();
     mirrorLook(next);
     commands.changed();
@@ -187,11 +216,35 @@ function start() {
       ? node
       : node.children?.map(findEngine).find(Boolean);
   const run = (command) => () => command(view.state, view.dispatch, view);
+  // The layout theme's heading format (style#theme --heading-format, T08), read from the file
+  // as check.mjs reads it. A restored draft brings its own theme, so the options change then.
+  const numbers = { format: fileFormat(file) };
+  const charts = chartManager(() => commands.changed());
+  // Generated labels and contents are rewritten on open, outside the undo history: a stale
+  // label written by hand or by an LLM shows as an unsaved change and is corrected on save.
+  const refresh = () => {
+    const tr = view.state.tr;
+    if (regenerate(tr, numbers))
+      view.dispatch(tr.setMeta("addToHistory", false));
+  };
+  // Pastes go through T07's clipboard handling, which first gives them to the internal clipboard
+  // (a copy from this document, kept whole: T09) and to the chart plugin (a chart envelope: T11).
+  const internal = internalClipboard();
+  const chartsPlugin = chartPlugin(
+    charts,
+    () => commands.run("chart"),
+    (message) => saving.say(message),
+  );
   const state = EditorState.create({
     doc,
     plugins: [
       history(),
       subsetGuard(),
+      imagePlugin(assets, () => commands.run("image")),
+      chartsPlugin,
+      G.generatedContent(numbers),
+      internal,
+      commentHighlights(),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -209,6 +262,10 @@ function start() {
         Tab: (s, d) => E.inList(s) && (E.indent(s, d), true),
         "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
         "Mod-Enter": E.insertPageBreak,
+        "Mod-Alt-f": G.insertFootnote,
+        "Mod-Alt-m": () => (commands.run("comment"), true),
+        "Alt-Shift-ArrowUp": I.moveBlock(-1),
+        "Alt-Shift-ArrowDown": I.moveBlock(1),
         "Mod-k": () => (commands.run("link"), true),
         Backspace: E.liftListItem,
         "Mod-s": () => (
@@ -220,7 +277,10 @@ function start() {
     ],
   });
   // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
-  const clipboard = setupClipboard((text) => saving.notify(text));
+  const clipboard = setupClipboard(
+    (text) => saving.say(text),
+    [internal.props.handlePaste, chartsPlugin.props.handlePaste],
+  );
   view = new EditorView(
     { mount: article },
     {
@@ -334,6 +394,152 @@ function start() {
     commands.register(key, (value) =>
       setLook(key, value)(view.state, view.dispatch),
     );
+  // Numbering, contents and cross-references (T08).
+  commands.register("heading-numbers", (on) =>
+    G.setHeadingNumbers(on)(view.state, view.dispatch),
+  );
+  commands.register("heading-format", (value) =>
+    G.setHeadingFormat(value, numbers.format)(view.state, view.dispatch),
+  );
+  edit("contents", G.insertContents);
+  edit("footnote", G.insertFootnote);
+  for (const depth of [1, 2, 3, 4])
+    edit(`contents-${depth}`, G.setContentsDepth(depth));
+  // As with links, a dialog puts the selection back once it has closed (a native dialog
+  // refocuses the article first, which resets the caret in Safari).
+  const keepSelection = () => {
+    const kept = view.state.selection.toJSON();
+    return () => {
+      try {
+        view.dispatch(
+          view.state.tr.setSelection(Selection.fromJSON(view.state.doc, kept)),
+        );
+      } catch {
+        // The document changed under the dialog: the selection stays where it is.
+      }
+      view.focus();
+    };
+  };
+  // The cross-reference dialog lists the targets; the chosen one is inserted at the selection.
+  commands.register(
+    "xref",
+    () => {
+      const back = keepSelection();
+      shell.xref(G.referenceTargets(view.state), (target) => {
+        back();
+        if (target) G.insertXref(target)(view.state, view.dispatch);
+      });
+    },
+    () => G.insertXref(null)(view.state),
+  );
+  // Images (T12): a picked file is shrunk, described in the dialog, then inserted; the
+  // selected image's dialog changes its description, layout and width, or replaces it.
+  const addImage = async () => {
+    const picked = await pickImage();
+    if (!picked) return null;
+    try {
+      return await shrinkImage(picked);
+    } catch {
+      imageError(picked.name);
+      return null;
+    }
+  };
+  const url = (image) => `data:${image.type};base64,${image.data}`;
+  commands.register("image-insert", async () => {
+    const back = keepSelection();
+    const image = await addImage();
+    if (!image) return back();
+    imageDialog({
+      initial: null,
+      preview: url(image),
+      onSave: (attrs) => {
+        back();
+        I.insertImage({ ...attrs, asset: assets.add(image) })(
+          view.state,
+          view.dispatch,
+        );
+      },
+      done: back,
+    });
+  });
+  commands.register(
+    "image",
+    () => {
+      const found = I.imageAt(view.state);
+      if (!found) return;
+      const back = keepSelection();
+      // The figure is named by its ID and its picture: an edit made while the dialog or the file
+      // picker is open (the figure deleted, another inserted with the same ID, a draft restored)
+      // never retargets the change to another image.
+      const { id, asset } = found.node.attrs;
+      const apply = (changes) => {
+        back();
+        if (I.imageById(view.state, id)?.node.attrs.asset === asset)
+          I.setImage(changes, id)(view.state, view.dispatch);
+        view.focus();
+      };
+      imageDialog({
+        initial: found.node.attrs,
+        preview: assets.url(found.node.attrs.asset),
+        onSave: apply,
+        onReplace: async () => {
+          const image = await addImage();
+          if (image) apply({ asset: assets.add(image) });
+          else back();
+        },
+        done: back,
+      });
+    },
+    () => !!I.imageAt(view.state),
+  );
+  // Charts (T11): the dialog edits type, width, title, unit and data; a new or changed chart is
+  // drawn when ECharts is available, and its preview saved.
+  commands.register("chart-insert", () => {
+    const back = keepSelection();
+    chartDialog({
+      initial: null,
+      onSave: (chart) => {
+        back();
+        C.insertChart(chart)(view.state, view.dispatch);
+      },
+      done: back,
+    });
+  });
+  commands.register(
+    "chart",
+    () => {
+      const found = C.chartAt(view.state);
+      if (!found) return;
+      const back = keepSelection();
+      const { id, type, width, data } = found.node.attrs;
+      chartDialog({
+        initial: { type, width, data: JSON.parse(data) },
+        onSave: (chart) => {
+          back();
+          C.setChart(chart, id)(view.state, view.dispatch);
+        },
+        done: back,
+      });
+    },
+    () => !!C.chartAt(view.state),
+  );
+  commands.register(
+    "draw-charts",
+    () => charts.request(),
+    () => charts.library === null,
+  );
+  // Comments (T13): the panel holds threads; a comment starts from the selected text.
+  const comments = commentsPanel(view, (message) => {
+    saving.say(message);
+  });
+  commands.register(
+    "comment",
+    () => shell.openComments(true),
+    () => !view.state.selection.empty,
+  );
+  commands.register("comments", () => shell.openComments(false));
+  edit("move-up", I.moveBlock(-1));
+  edit("move-down", I.moveBlock(1));
   // What the toolbar and menus show as current.
   const current = () => {
     const s = view.state;
@@ -346,6 +552,7 @@ function start() {
       list: E.listKind(s)?.name ?? null,
       newPage: E.newPageAt(s),
       link: E.linkAt(s),
+      contents: G.selectedContents(s)?.node.attrs.depth ?? null,
     };
   };
   shell = mountShell(
@@ -354,7 +561,10 @@ function start() {
     report,
     () => view.state.doc.attrs,
     current,
+    () => numbers.format,
+    comments,
   );
+  refresh();
   mirrorLook(doc);
   document.body.classList.add("tx-editing");
   // Tests and tools read the editor through this handle; it is not part of the file.

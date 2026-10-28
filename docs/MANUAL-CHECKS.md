@@ -168,6 +168,66 @@ Use `text-example.html`. After each paste: the result uses the document's own st
 11. **Drag and drop**: drag a selection from a web page or Word into the document: it is inserted where it is dropped, mapped as a paste.
 12. **Safari and Firefox**: repeat steps 1, 4, 5 and 10.
 13. **Print**: print preview of a document with pasted tables and lists looks like the document's own tables and lists.
+14. **Between Text documents** (with T08–T13): copy a paragraph holding a footnote, a cross-reference, a commented phrase and a picture from `text-example.html`, and paste it into another Text document. The footnote stays; the cross-reference becomes its text unless that document has the target; there is no comment underline and no thread; the picture is left out and reported. Pasted back into `text-example.html` itself, the footnote and cross-reference come back, but not the comment underline (the original keeps it); cutting the whole commented phrase and pasting it elsewhere moves the underline with it.
+
+### T08 — Numbering, contents and cross-references
+
+1. **Open**: the example opens with *Unsaved changes* only if its saved labels were stale; a freshly built example opens with *No unsaved changes*. Headings show 1, 2, 2.1, 3, 3.1; the *Contacts* heading (unnumbered) shows none. Captions read *Figure 1.*, *Figure 2.*, *Table 1.*.
+2. **Print preview** (File › Print / PDF), in Chrome, Safari and Firefox: the same heading numbers and caption labels appear, and the contents list shows its numbers. Nothing is underlined in red.
+3. **Heading numbers** (Theme & page › Heading numbers): None removes every number and the numbers from the contents; Numbered brings them back; each format (I.A.1, A.1.a, 1.a.i) renumbers headings, contents and *Section …* cross-references at once. Undo reverts one change at a time. Theme default stores nothing (check the saved file's `article` line).
+4. **Contents**: put the cursor in a paragraph, Insert › Contents. A list of the headings appears after the paragraph. With it selected, Format › Contents levels › Level 1 keeps only the top headings. Rename a heading: the contents follow as you type.
+5. **Cross-reference** (Insert › Cross-reference…): the dialog lists headings and figures in document order with their labels. Insert one to a numbered section, then delete a heading above that section: the label changes to the new number at once. Delete the target heading: the reference stays, underlined with a red wavy line, and its tooltip says it points nowhere.
+6. **Stale labels from an LLM**: in a copy of the file, change a cross-reference text to `Figure 9` with a text editor. `node packages/text/tools/check.mjs <file>` reports a `stale-label` warning with its line. Open the file: the label reads correctly, the state is *Unsaved changes*, and Undo is unavailable. Save: only that line changes.
+7. **Safari and Firefox**: steps 3–5 behave the same; the cross-reference dialog accepts double-click and Enter.
+
+### T09 — Footnotes
+
+1. **Reading**: the note after *ahead of plan.* shows as a small raised **1**. Hovering it shows the note's text in a box. The **Notes** list at the end of the document (before the comments) lists it.
+2. **Insert** (Insert › Footnote, or ⌘⌥F / Ctrl+Alt+F) in the middle of a sentence, then at the very end of a paragraph: the note opens with a tinted box, and what you type goes into it. Escape closes it and the cursor stays right after the number; typing then goes after the note, not into it. The notes renumber in document order, and the list follows as you type.
+3. **Open a note**: click its number, or click its line in the Notes list: the note opens with the cursor at its end.
+4. **Move**: cut a sentence that holds a note and paste it elsewhere in the same document, or drag it: the note moves with it and the numbers follow. Undo restores the order. Bold a word inside an open note: the Notes list shows it bold.
+5. **Screen reader** (VoiceOver in Safari): reading the paragraph reads the note's text where it is written; the Notes list is not read a second time.
+6. **Print preview** in Chrome, Safari and Firefox, with a note open: the references print as raised numbers, never as open text, and the Notes list prints at the end with the same numbers.
+7. **Safari and Firefox**: steps 2 and 3, including typing at the end of a paragraph after Escape, and a Japanese or Chinese input method right after Escape.
+8. Save and reopen: the notes are kept where they were written; the saved file holds no numbers and no Notes list.
+
+### T12 — Images
+
+Use real pictures: a large phone photo (JPEG, 4,000 px wide or more), a PNG screenshot, a PNG logo with a transparent background, an animated GIF and an SVG logo.
+
+1. **Insert** (Insert › Image…) each file in Chrome, Safari and Firefox. The dialog shows a preview; **Insert** stays disabled until the alt text is filled. Choose *Wrap left*, 33%: the picture floats left of the paragraph that held the cursor and of the following ones; the text wraps around a rectangle.
+2. **Size and kind**: save, then check the file size grew by a reasonable amount, well under the photo's own size (the photo is reduced to 1,600 px wide; WebP in Chrome and Firefox, JPEG in Safari). In Safari the transparent logo keeps its transparent background (PNG), never a black one. The GIF still animates. The SVG keeps its sharpness at any zoom.
+3. **Dialog**: double-click a picture. Change the alt text, then the layout to *Full width*, then *Wrap right* 50%. Undo reverts each change. **Replace image…** swaps the picture and keeps the caption.
+4. **Wrapping**: two wrapped images in a row on the same side stack, never overlap; a wrapped image beside a short paragraph lets the next paragraphs wrap too; a heading with *Start on a new page* starts below the image.
+5. **Anchoring**: with the cursor in the paragraph after a wrapped image, Format › Move up (Alt+Shift+↑) moves the paragraph and its image together; Move down back.
+6. **Delete**: click a picture (the figure is outlined) and press Backspace. Save: `node packages/text/tools/check.mjs <file>` reports no `unused-asset`, and the `script#assets` line no longer holds the deleted picture. Undo, save again: it is back.
+7. **Reopen** the saved file in each browser: every picture shows, the state is *No unsaved changes*.
+8. **Print preview** in Chrome, Safari and Firefox: pictures print at their width, wrapped text flows as on screen (page breaks around images are checked in T14).
+
+### T11 — Charts
+
+Use the standard build (`text-example.html`) online, then the offline build (`node packages/text/tools/build.mjs packages/text/fixtures/valid/example.html dist/text/example-offline.html --offline`) with the network off.
+
+1. **Previews**: open the example with the network off (standard build). The chart shows with its title and unit; nothing is reported missing. Print preview shows it too.
+2. **Edit** (double-click the chart, or Format › Chart…), online: change a value and the unit, Apply. The chart dims briefly, then redraws; save and reopen: the new chart shows at once, with the network off.
+3. **Insert › Chart…**: try each type. Waterfall, bubble and Gantt start from a sample; Add/Remove row and series work; JSON accepts an option such as `"decimals":2`. A wrong value (text in a number column) is refused with a message.
+4. **Long document**: in a copy with a dozen charts, change the theme (Theme & page): the charts on screen redraw first, the others as you scroll to them; scrolling stays smooth.
+5. **Offline build**, network off: insert a chart, edit it: it draws with no network. The file is about 1.1 MB larger.
+6. **Blocked library**: in the standard build with the network off, edit a chart: it keeps its old preview, dimmed, with *Chart library unavailable*. Save: the file still opens and prints the old preview.
+7. **Copy and paste with Slides**: copy a Slides chart (Edit › Copy) and paste it into Text: a new chart with the Slides data, redrawn in the Text charte. Copy a Text chart and paste it into a slide, and into another Text document: the caption comes with it. Paste a Text chart into Word, Google Docs and PowerPoint: a picture with the title and unit.
+8. **Safari and Firefox**: steps 2, 3 and 7.
+
+### T13 — Comments
+
+1. **Panel**: Comments (settings bar) lists the example's threads in document order; their text reads exactly as written. Clicking a thread's quotation selects its text in the page.
+2. **Name**: select a phrase, Insert › Comment (⌘⌥M / Ctrl+Alt+M). The first time, the panel asks for your name; reload the file: it is remembered. In a private window it may be asked again; nothing breaks.
+3. **Comment**: write a comment containing `<b>tags</b>` and a link `https://example.org`: both show as plain text, nothing is bold, nothing is clickable.
+4. **Reply, resolve, delete**: reply, Resolve, Reopen; Undo reverts each. Delete removes the thread and the underline.
+5. **Anchors**: type inside the commented phrase (the underline grows), before and after it (it does not), delete part of it (it shrinks). Delete all of it: the thread shows *Orphaned* and stays.
+6. **Recovery**: with an orphaned thread whose quotation appears twice (type the phrase again in two places, one in its section), Find the quoted text…: two proposals, the one in its section first, each with context; hovering one highlights it in the page. Cancel: nothing changed (Save shows no change). Search again, type a letter somewhere in the page: the proposals disappear. Search again and Attach here: the underline appears at that place only.
+7. **External rewrite**: in a copy, remove a `mark.comment` with a text editor and reopen: the thread is orphaned, never reattached on its own; `check` reports `orphaned-thread`.
+8. **Print preview**: no threads, no underline.
+9. **Safari and Firefox**: steps 2–6.
 
 ## 7. Data, from T15
 
