@@ -17,6 +17,7 @@ import {
   diagnostics,
   relocateColumns,
   sheetPrefix,
+  nameFilter,
 } from "../model/xlsx.mjs";
 import { readXLSX } from "./xlsx-reader.mjs";
 
@@ -76,14 +77,15 @@ export function sheetNames(book, source, workbook, index) {
   );
   return names;
 }
-// Names the replacement file defines that the workbook does not hold the
-// same way (missing, or another range): formulas using them keep their
-// saved values rather than reading the workbook's definition.
+// Workbook-wide names the replacement file defines that the workbook does
+// not hold the same way (missing, or another range): formulas using them
+// keep their saved values rather than reading the workbook's definition.
 export function changedNames(book, workbook, sheets) {
   const { names, skipped } = mapNames(workbook, { sheets, taken: new Set() }),
-    sheetOf = (name) => book.sheets.find((s) => s.name === name)?.id;
+    sheetOf = (name) => book.sheets.find((s) => s.name === name)?.id,
+    global = new Set(workbook.names.filter((n) => !n.local).map((n) => n.name));
   return new Set([
-    ...skipped.map((n) => n.toLowerCase()),
+    ...skipped.filter((n) => global.has(n)).map((n) => n.toLowerCase()),
     ...names
       .filter(
         (n) =>
@@ -253,17 +255,22 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         mapped = mapSheet(workbook, index, {
           sheets,
           header: source.options.header,
-          names: changedNames(book, workbook, sheets),
+          names: nameFilter(
+            workbook,
+            index,
+            changedNames(book, workbook, sheets),
+          ),
         }),
         name = workbook.sheets[index].name,
         own = sheetPrefix(sheet.name).toLowerCase();
       return {
         ...mapped,
-        relocate: (formula, map, shift) =>
+        relocate: (formula, map, shift, rows) =>
           relocateColumns(formula, map, {
             width: mapped.width,
             shift,
             own,
+            rows,
           }),
         ambiguity: [],
         diagnostics: diagnostics(
@@ -382,16 +389,26 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
       );
     // Hand edits the refresh would replace or remove (a kept column loses
     // the rows the new file no longer has) need an explicit confirmation.
-    const overwritten = overwrittenEdits(plan);
-    confirmLabel.hidden = !overwritten.length;
-    if (!overwritten.length) confirm.checked = false;
-    document.getElementById("refresh-confirm-text").textContent =
-      `Replace the edits made by hand in ${overwritten.map((c) => `column ${c.letter} "${c.name}"`).join(", ")}.`;
+    const overwritten = overwrittenEdits(plan),
+      lost = plan.lostFormulas ?? [],
+      confirming = overwritten.length > 0 || lost.length > 0;
+    confirmLabel.hidden = !confirming;
+    if (!confirming) confirm.checked = false;
+    document.getElementById("refresh-confirm-text").textContent = [
+      overwritten.length
+        ? `Replace the edits made by hand in ${overwritten.map((c) => `column ${c.letter} "${c.name}"`).join(", ")}.`
+        : "",
+      lost.length
+        ? `Leave ${plural(lost.length, "formula", "formulas")} empty (${lost.slice(0, 5).join(", ")}${lost.length > 5 ? "…" : ""}): the columns ${lost.length === 1 ? "it reads move" : "they read move"} apart and the file saved no value.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     apply.disabled =
       !!plan.unresolved.length ||
       !!plan.conflicts.length ||
       !!fresh.ambiguity.length ||
-      (overwritten.length > 0 && !confirm.checked);
+      (confirming && !confirm.checked);
   }
   const STATUS = {
     matched: "Same column",

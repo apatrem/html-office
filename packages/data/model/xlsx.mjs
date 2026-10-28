@@ -117,6 +117,7 @@ export function summarise(XLSX, wb, limits) {
     name: String(n.Name),
     ref: String(n.Ref || ""),
     local: n.Sheet !== undefined && n.Sheet !== null,
+    sheet: n.Sheet !== undefined && n.Sheet !== null ? Number(n.Sheet) : -1,
   }));
   return {
     date1904: !!(
@@ -183,12 +184,15 @@ export function sheetPrefix(name) {
 // with `sheets`: lower-case original name → Data name, or null for a sheet
 // that is not imported. Returns {formula} or {reason} when Data cannot run
 // it: "external" (another workbook), "table" (structured reference), "3d"
-// (a range across sheets), "sheet" (a sheet not imported) or "name" (a
-// named range in `names`, lower-case: one the file defines that Data does
-// not hold as the file does, so it must not bind to another definition).
-export function rewriteFormula(text, sheets, names = new Set()) {
+// (a range across sheets), "sheet" (a sheet not imported) or "name": a
+// named range for which `blocked(name, sheet)` is true (sheet: the lower-case
+// file name of a qualifying sheet, or null), one the file defines that Data
+// does not hold as the file does, so it must not bind to another definition.
+export function rewriteFormula(text, sheets, blocked = () => false) {
   let out = "",
-    i = 0;
+    i = 0,
+    // The file's sheet named just before the current token, if any.
+    qualifier = null;
   const target = (name) => {
     if (name.includes("[")) return { reason: "external" };
     if (name.includes(":")) return { reason: "3d" };
@@ -221,6 +225,7 @@ export function rewriteFormula(text, sheets, names = new Set()) {
       if (t.reason) return t;
       out += t.prefix ?? text.slice(i, j + 2);
       i = j + 2;
+      qualifier = name.toLowerCase();
       continue;
     }
     if (ch === "[")
@@ -235,20 +240,22 @@ export function rewriteFormula(text, sheets, names = new Set()) {
         if (t.reason) return t;
         out += t.prefix ?? word[0] + "!";
         i = end + 1;
-      } else {
-        if (
-          names.has(word[0].toLowerCase()) &&
-          !/^\s*\(/.test(text.slice(end)) &&
-          !out.endsWith("!")
-        )
-          return { reason: "name" };
-        out += word[0];
-        i = end;
+        qualifier = word[0].toLowerCase();
+        continue;
       }
+      if (
+        !/^\s*\(/.test(text.slice(end)) &&
+        blocked(word[0], out.endsWith("!") ? qualifier : null)
+      )
+        return { reason: "name" };
+      out += word[0];
+      i = end;
+      qualifier = null;
       continue;
     }
     out += ch;
     i++;
+    qualifier = null;
   }
   return { formula: out };
 }
@@ -259,7 +266,11 @@ export function rewriteFormula(text, sheets, names = new Set()) {
 // column (1-based) to its column in the sheet; columns past the file's
 // width keep their distance from the end. Returns null when a range would
 // no longer be one contiguous block in the same order.
-export function relocateColumns(formula, map, { width, shift, own = "" }) {
+export function relocateColumns(
+  formula,
+  map,
+  { width, shift, own = "", rows = 0 },
+) {
   const letters = (n) => address(1, n).replace(/\d+$/, ""),
     number = (l) => [...l].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0),
     to = (c) => (c <= width ? map.get(c) : c + shift);
@@ -320,9 +331,10 @@ export function relocateColumns(formula, map, { width, shift, own = "" }) {
         if (a === null) return null;
         const n1 = c1 === lo ? a : a + (hi - lo),
           n2 = c2 === lo ? a : a + (hi - lo);
+        // The file's row 1 is the source's first row.
         out +=
-          `${m[1]}${letters(n1)}${m[3]}${m[4]}` +
-          (m[6] ? `:${m[5]}${letters(n2)}${m[7]}${m[8]}` : "");
+          `${m[1]}${letters(n1)}${m[3]}${Number(m[4]) + rows}` +
+          (m[6] ? `:${m[5]}${letters(n2)}${m[7]}${Number(m[8]) + rows}` : "");
       } else {
         // B:D
         const c1 = number(m[2]),
@@ -367,13 +379,20 @@ export function numberFormat(code) {
     digits = Math.min(15, /\.([0#?]+)/.exec(bare)?.[1].length ?? 0);
   if (/^(General|@)$/i.test(code.trim())) return null;
   if (!/[0#]/.test(bare) || /[eE][+-]|\?\/|\//.test(bare)) return null;
+  // A zero or text section (0;-0;"–") has no preset.
+  if (code.split(";").length > 2) return null;
   // Only codes a preset shows faithfully: no literal text but a currency
   // symbol, no zero padding of the whole part (00000 shows 00012).
   for (const section of [first, negative])
     for (const [, literal] of section.matchAll(/"([^"]*)"|\\(.)/g))
       if (!/^[\s€$£¥()-]*$/.test(literal)) return null;
-  if (/[^\s()\-€$£¥.,0#?%]/.test(bare.replace(/[€$£¥]/g, ""))) return null;
-  if (/0[,]?0/.test(bare.split(".")[0])) return null;
+  for (const section of [first, negative]) {
+    const shown = section
+      .replace(/"[^"]*"|\\.|_.|\*.|\[[^\]]*\]/g, " ")
+      .replace(/[€$£¥]/g, "");
+    if (/[^\s()\-.,0#?%]/.test(shown)) return null;
+    if (/0[,]?0/.test(shown.split(".")[0])) return null;
+  }
   const format = {};
   const symbol =
     /\[\$([€$£¥])[^\]]*\]/.exec(first)?.[1] ??
@@ -420,6 +439,8 @@ const REASONS = {
     `${plural(n, "formula uses", "formulas use")} Excel table references`,
   "3d": (n) => `${plural(n, "formula spans", "formulas span")} several sheets`,
   array: (n) => `${plural(n, "array formula", "array formulas")}`,
+  date1904: (n) =>
+    `${plural(n, "formula returns a date", "formulas return dates")} in the 1904 date system`,
   name: (n) =>
     `${plural(n, "formula uses", "formulas use")} a named range that is not imported as the file defines it`,
 };
@@ -481,7 +502,7 @@ function detectHeader(sheet) {
 export function mapSheet(
   summary,
   index,
-  { sheets, header = "auto", names = new Set() },
+  { sheets, header = "auto", names = () => false },
 ) {
   const sheet = summary.sheets[index],
     hasHeader = header === "auto" ? detectHeader(sheet) : !!header,
@@ -510,10 +531,16 @@ export function mapSheet(
     const ref = address(r + 1, c + 1),
       value = v === undefined ? null : typed(t, v, z),
       cell = {};
+    const dateFormat =
+      z >= 0 && sheet.formats[z].date && !timeOnly(sheet.formats[z].code);
     if (f) {
+      // A 1904 workbook's date formulas count days from 1904; Data's from
+      // 1900: such a formula keeps the (converted) date it saved.
       const rewritten = array
         ? { reason: "array" }
-        : rewriteFormula(f, sheets, names);
+        : summary.date1904 && dateFormat
+          ? { reason: "date1904" }
+          : rewriteFormula(f, sheets, names);
       if (rewritten.formula) {
         cell.formula = "=" + rewritten.formula;
         if (value) cell.result = value;
@@ -561,12 +588,34 @@ export function mapSheet(
   };
 }
 
+// Which names a formula on sheet `index` must not read: the file's names
+// local to that sheet (or to the sheet qualifying the name), which Data
+// does not hold, and `globals` (lower-case workbook-wide names not held as
+// the file defines them).
+export function nameFilter(summary, index, globals) {
+  const locals = new Map();
+  for (const n of summary.names)
+    if (n.local && !/^_xlnm\./i.test(n.name)) {
+      if (!locals.has(n.sheet)) locals.set(n.sheet, new Set());
+      locals.get(n.sheet).add(n.name.toLowerCase());
+    }
+  return (name, qualifier) => {
+    const key = name.toLowerCase(),
+      scope =
+        qualifier === null
+          ? index
+          : summary.sheets.findIndex((s) => s.name.toLowerCase() === qualifier);
+    return !!locals.get(scope)?.has(key) || globals.has(key);
+  };
+}
 // Named ranges Data can hold: workbook-wide, one rectangle on an imported
 // sheet, a valid and free name. Excel's own names (print areas, filters) are
 // skipped silently.
 export function mapNames(summary, { sheets, taken }) {
   const names = [],
-    skipped = [];
+    skipped = [],
+    // Lower-case workbook-wide names not imported.
+    skippedGlobals = new Set();
   for (const n of summary.names) {
     if (/^_xlnm\./i.test(n.name)) continue;
     const m =
@@ -583,6 +632,7 @@ export function mapNames(summary, { sheets, taken }) {
       taken.has(n.name.toLowerCase())
     ) {
       skipped.push(n.name);
+      if (!n.local) skippedGlobals.add(n.name.toLowerCase());
       continue;
     }
     taken.add(n.name.toLowerCase());
@@ -592,7 +642,7 @@ export function mapNames(summary, { sheets, taken }) {
       ref: `${m[3]}${m[4]}${m[5] ? `:${m[5]}${m[6]}` : ""}`,
     });
   }
-  return { names, skipped };
+  return { names, skipped, skippedGlobals };
 }
 
 // The import: chosen sheet indexes in file order, the workbook's sheet and
@@ -606,18 +656,25 @@ export function mapWorkbook(summary, { chosen, header = "auto", book }) {
       summary.sheets[index].name.toLowerCase(),
       uniqueName(summary.sheets[index].name, taken),
     );
-  const { names, skipped } = mapNames(summary, {
-      sheets,
-      taken: new Set(book.names.map((n) => n.name.toLowerCase())),
-    }),
-    // A formula reading a name the file defines but Data does not import
-    // keeps its saved value rather than binding to the workbook's own name.
-    unavailable = new Set(skipped.map((n) => n.toLowerCase()));
+  // A formula reading a name the file defines but Data does not import
+  // keeps its saved value rather than binding to the workbook's own name.
+  const {
+    names,
+    skipped,
+    skippedGlobals: globals,
+  } = mapNames(summary, {
+    sheets,
+    taken: new Set(book.names.map((n) => n.name.toLowerCase())),
+  });
   const out = chosen.map((index) => ({
     index,
     original: summary.sheets[index].name,
     name: sheets.get(summary.sheets[index].name.toLowerCase()),
-    ...mapSheet(summary, index, { sheets, header, names: unavailable }),
+    ...mapSheet(summary, index, {
+      sheets,
+      header,
+      names: nameFilter(summary, index, globals),
+    }),
   }));
   return {
     sheets: out,
@@ -689,7 +746,7 @@ export function diagnostics(
   }
   if (summary.date1904)
     notes.push(
-      "The file uses the 1904 date system; dates are converted to Data's 1900 system. Formulas that make dates from plain numbers may give other dates here; those are reported after the import.",
+      "The file uses the 1904 date system; dates are converted to Data's 1900 system, and formulas showing dates keep their saved dates.",
     );
   if (skippedNames.length)
     notes.push(

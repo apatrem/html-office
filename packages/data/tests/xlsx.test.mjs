@@ -754,18 +754,12 @@ test("durations, 1904 formulas, padded and unit formats, missing caches", () => 
     notes,
     /1 formula is left empty: Data cannot run it and the file saved no value \(1 formula reads another workbook \(external link\)\)\./,
   );
-  assert.doesNotMatch(notes, /imported as the value saved/);
-  // A formula making a date from a plain number recalculates in Data's
-  // calendar: the difference is reported after the import.
-  assert.match(notes, /reported after the import/);
-  assert.match(
-    differences(
-      { s: { A5: cells.A5 } },
-      [{ sheetId: "s", ref: "A5", result: { type: "date", value: 1 } }],
-      { s: "S" },
-    ),
-    /S!A5: 1463 in the file, 1 here/,
-  );
+  // A 1904 date formula keeps the converted date it saved.
+  assert.deepEqual(cells.A5, {
+    input: { type: "date", value: 1463 },
+    format: { kind: "date" },
+  });
+  assert.match(notes, /1 formula returns a date in the 1904 date system/);
 });
 
 test("relationships with single quotes still find the sheet features", () => {
@@ -801,4 +795,118 @@ test("relationships with single quotes still find the sheet features", () => {
     ),
     /"S": its conditional formats, data validation, tables and drawings could not be checked/,
   );
+});
+
+// Codex re-verification of #88.
+test("relocation follows a source moved down by inserted rows", () => {
+  const map = new Map([
+    [1, 3],
+    [2, 1],
+    [3, 2],
+  ]);
+  assert.equal(
+    relocateColumns("B2*C2+$B$3", map, { width: 3, shift: 0, rows: 1 }),
+    "A3*B3+$A$4",
+  );
+});
+
+test("qualified and sheet-local names are blocked only where they apply", () => {
+  const bytes = build(
+    [
+      [
+        "Data",
+        {
+          A1: { t: "n", v: 5 },
+          B1: { t: "n", f: "Rate*2" },
+          B2: { t: "n", f: "Data!Rate*3", v: 15 },
+        },
+      ],
+      ["Other", { A1: { t: "n", v: 7 }, B1: { t: "n", f: "Rate*2", v: 14 } }],
+    ],
+    {
+      names: [
+        { Name: "Rate", Ref: "Data!$A$1" },
+        { Name: "Rate", Ref: "Other!$A$1", Sheet: 1 },
+      ],
+    },
+  );
+  const summary = read(bytes);
+  const fresh = mapWorkbook(summary, { chosen: [0, 1], book: book() });
+  // The global Rate is imported: Data's formulas keep reading it; the local
+  // Rate of Other is not, so Other's formula keeps its saved value.
+  assert.deepEqual(fresh.names, [{ name: "Rate", sheet: "Data", ref: "A1" }]);
+  assert.equal(fresh.sheets[0].cells.B1.formula, "=Rate*2");
+  assert.equal(fresh.sheets[0].cells.B2.formula, "=Data!Rate*3");
+  assert.deepEqual(fresh.sheets[1].cells.B1, {
+    input: { type: "number", value: 14 },
+  });
+  // With a workbook name of its own, the global is skipped: bare and
+  // qualified uses keep their saved values (B1 has none: left empty).
+  const clash = mapWorkbook(summary, {
+    chosen: [0, 1],
+    book: book([{ name: "Rate" }]),
+  });
+  assert.equal(clash.sheets[0].cells.B1, undefined);
+  assert.deepEqual(clash.sheets[0].cells.B2, {
+    input: { type: "number", value: 15 },
+  });
+  assert.deepEqual(clash.sheets[0].lost, { name: 1 });
+  assert.deepEqual(clash.sheets[0].kept, { name: 1 });
+});
+
+test("a padded negative section or a zero section is not a preset", () => {
+  assert.equal(numberFormat("0.00;00000"), null);
+  assert.equal(numberFormat('0;-0;"–"'), null);
+  assert.deepEqual(numberFormat("0.00;-0.00"), { kind: "number", digits: 2 });
+});
+
+test("a formula that cannot move and has no saved value needs confirmation", () => {
+  const sheet = {
+    cells: {
+      A1: { input: { type: "text", value: "Qty" } },
+      B1: { input: { type: "text", value: "Price" } },
+      C1: { input: { type: "text", value: "Total" } },
+      C2: { formula: "=SUM(A2:B2)", result: { type: "number", value: 9 } },
+    },
+  };
+  const bytes = build([
+    [
+      "Plan",
+      {
+        A1: { t: "s", v: "Price" },
+        B1: { t: "s", v: "Qty" },
+        C1: { t: "s", v: "Total" },
+        A2: { t: "n", v: 5 },
+        B2: { t: "n", v: 4 },
+        C2: { t: "n", f: "SUM(A2:B2)" },
+        A3: { t: "n", v: 1 },
+        B3: { t: "n", v: 1 },
+        C3: { t: "n", f: "A3+B3", v: 2 },
+      },
+    ],
+  ]);
+  const mapped = mapSheet(read(bytes), 0, {
+    sheets: new Map([["plan", "Plan"]]),
+    header: true,
+  });
+  const plan = planRefresh({
+    sheet,
+    source: {
+      ref: "A1:C2",
+      options: { header: true },
+      columns: [{ name: "Qty" }, { name: "Price" }, { name: "Total" }],
+    },
+    fresh: {
+      ...mapped,
+      relocate: (formula, m, shift, rows) =>
+        relocateColumns(formula, m, { width: 3, shift, own: "plan!", rows }),
+    },
+  });
+  // SUM(A2:B2) would read the two columns in the other order: it cannot
+  // move, and the file saved no value, so it is left empty and listed.
+  assert.deepEqual(plan.lostFormulas, ["C2"]);
+  assert.equal(plan.edits.find((e) => e.ref === "C2").cell, null);
+  assert.equal(plan.keptFormulas, 0);
+  // Single references move.
+  assert.equal(plan.edits.find((e) => e.ref === "C3").cell.formula, "=B3+A3");
 });

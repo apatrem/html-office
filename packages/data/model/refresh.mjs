@@ -141,9 +141,12 @@ export function planRefresh({
   const columnMap = new Map(
       layout.filter((c) => c.to !== null).map((c) => [c.to + 1, r.left + c.at]),
     ),
-    moved = [...columnMap].some(([from, to]) => from !== to),
+    moved = r.top !== 1 || [...columnMap].some(([from, to]) => from !== to),
     shift = r.left - 1 + layout.length - fresh.width;
   let keptFormulas = 0;
+  // Formulas that cannot move and have no saved value: left empty, which the
+  // person must confirm.
+  const lostFormulas = [];
   // Rows below or columns right of the old range that the refresh would
   // write must be empty.
   const occupied = (ref) => !!sheet.cells[ref];
@@ -172,11 +175,17 @@ export function planRefresh({
       else {
         let incoming = fresh.cells[address(row - r.top + 1, column.to + 1)];
         if (incoming?.formula && moved && fresh.relocate) {
-          const formula = fresh.relocate(incoming.formula, columnMap, shift);
+          const formula = fresh.relocate(
+            incoming.formula,
+            columnMap,
+            shift,
+            r.top - 1,
+          );
           if (formula) incoming = { ...incoming, formula };
           else {
-            keptFormulas++;
             const { formula: _, result, ...rest } = incoming;
+            if (result) keptFormulas++;
+            else lostFormulas.push(ref);
             incoming = result ? { ...rest, input: result } : null;
           }
         }
@@ -217,6 +226,7 @@ export function planRefresh({
     ref: newRef,
     rows: { before: oldHeight, after: height },
     keptFormulas,
+    lostFormulas,
   };
 }
 // Columns edited by hand that the refresh would change: a replaced value,
