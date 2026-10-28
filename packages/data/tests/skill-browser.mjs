@@ -9,12 +9,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { packageSkill } from "../tools/skill.mjs";
 
 const run = promisify(execFile),
   repo = fileURLToPath(new URL("../../../", import.meta.url)),
   dir = await mkdtemp(join(tmpdir(), "html-office-skill-")),
   skill = join(dir, "plugin/skills/html-data");
 await cp(join(repo, "plugin"), join(dir, "plugin"), { recursive: true });
+// Packaged afresh from the sources, as release.sh does.
+await packageSkill(skill);
 const tool = (...args) =>
   run(process.execPath, [join(skill, "tools/workbook.mjs"), ...args], {
     cwd: dir,

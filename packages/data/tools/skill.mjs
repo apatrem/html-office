@@ -4,7 +4,9 @@
 // reference and the examples. SKILL.md is written by hand and kept.
 // Usage: node packages/data/tools/skill.mjs [--check]
 //   --check compares a fresh build with the committed files and fails when
-//   they differ (CI: the committed skill must match its sources).
+//   they differ. tools/release.sh packages the skill before zipping, so a
+//   release always carries the current sources; CI tests a fresh package
+//   rather than the committed copy, which other Data work may outdate.
 import {
   readFile,
   writeFile,

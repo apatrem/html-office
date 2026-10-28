@@ -61,7 +61,7 @@ node $T/workbook.mjs apply budget.html patch.json --out budget-2.html
 node $T/workbook.mjs validate budget-2.html --since budget.html --allow "Inputs!B4"
 ```
 
-The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` fails when the committed skill differs from its sources, and `packages/data/tests/skill.test.mjs` runs it. Only `SKILL.md` is written by hand.
+The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` reports whether the committed copy still matches its sources. `packages/data/tests/skill.test.mjs` packages the skill afresh, zips the plugin and tests the extracted archive, so other Data changes never fail on a stale committed copy. Only `SKILL.md` is written by hand; regenerate the rest before a release (release.sh does it).
 
 ## Network and offline use
 

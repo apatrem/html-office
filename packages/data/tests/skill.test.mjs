@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildWorkbook } from "../tools/build.mjs";
 import { readModel } from "../model/document.mjs";
+import { packageSkill } from "../tools/skill.mjs";
 
 const run = promisify(execFile),
   repo = fileURLToPath(new URL("../../../", import.meta.url)),
@@ -21,25 +22,42 @@ const run = promisify(execFile),
 // empty directory; a plain copy where zip is unavailable.
 async function extract() {
   const dir = await mkdtemp(join(tmpdir(), "html-office-plugin-")),
+    source = join(dir, "source"),
     archive = join(dir, "html-slides.plugin"),
     out = join(dir, "plugin");
+  // The plugin as release.sh builds it: the Data skill packaged afresh from
+  // the sources (other Data work may have changed them since it was last
+  // committed), then zipped.
+  await cp(plugin, source, { recursive: true });
+  await packageSkill(join(source, "skills/html-data"));
   try {
     await run("zip", ["-qr", archive, ".", "-x", "*.DS_Store"], {
-      cwd: plugin,
+      cwd: source,
     });
     await run("unzip", ["-q", archive, "-d", out]);
   } catch {
-    await cp(plugin, out, { recursive: true });
+    await cp(source, out, { recursive: true });
   }
   return { dir, skill: join(out, "skills/html-data") };
 }
 
-test("the committed skill matches its sources", async () => {
-  const { stdout } = await run(process.execPath, [
-    join(repo, "packages/data/tools/skill.mjs"),
-    "--check",
-  ]);
-  assert.match(stdout, /matches its sources/);
+test("packaging is deterministic", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "html-data-skill-")),
+    a = join(dir, "a"),
+    b = join(dir, "b");
+  await packageSkill(a);
+  await packageSkill(b);
+  for (const file of [
+    "tools/workbook.mjs",
+    "assets/runtime.json",
+    "assets/THIRD-PARTY-NOTICES.txt",
+    "references/FORMAT.md",
+  ])
+    assert.equal(
+      await readFile(join(a, file), "utf8"),
+      await readFile(join(b, file), "utf8"),
+      file,
+    );
 });
 
 test("the plugin keeps its identity and the Slides skill", async () => {
