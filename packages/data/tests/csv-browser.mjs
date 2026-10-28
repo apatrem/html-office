@@ -38,10 +38,17 @@ const files = {
   stale: resolve(out, "csv-stale-offline.html"),
   pivots: resolve(out, "csv-pivots-offline.html"),
 };
-await writeFile(
-  files.pivots,
-  await buildWorkbook(pivotWorkbook(), { offline: true }),
-);
+// A second pivot writes to Inputs: refreshing Summary must leave it alone.
+const pivots = pivotWorkbook();
+pivots.pivots.push({
+  ...structuredClone(pivots.pivots[0]),
+  id: "byChannel",
+  name: "Revenue by channel",
+  output: { sheetId: "inputs", ref: "D1" },
+  rows: ["Channel"],
+  columns: [],
+});
+await writeFile(files.pivots, await buildWorkbook(pivots, { offline: true }));
 await writeFile(files.en, await buildWorkbook(workbook("en-US")));
 await writeFile(files.fr, await buildWorkbook(workbook("fr-FR")));
 // Not recalculated: B2 keeps an out-of-date saved result and B4 has none.
@@ -212,7 +219,10 @@ try {
     // The fixture's pivot was never refreshed.
     await openMenu(page, "Data");
     await menuItem(page, "Data", "Refresh all pivot tables").click();
-    await page.getByText(/refreshed from 8 records/).waitFor();
+    await page
+      .getByText(/^Pivot table "Revenue by channel" refreshed from 8 records/)
+      .waitFor();
+    await page.getByRole("button", { name: "Summary", exact: true }).click();
     assert.equal(
       parseCSV((await exportCSV(page, "Export CSV")).text)[8][4],
       "390.5",
@@ -240,6 +250,16 @@ try {
     const fresh = await exportCSV(page, "Recalculate and export");
     assert.equal(fresh.name, "fictional-sales-pivots-Summary.csv");
     assert.ok(Math.abs(total(fresh.text) - 429.55) < 1e-9);
+    // Only the Summary pivot was refreshed; the Inputs one is still stale.
+    await page.getByRole("button", { name: "Inputs", exact: true }).click();
+    await openMenu(page, "File");
+    await menuItem(page, "File", "Export sheet as CSV…").click();
+    await page
+      .getByRole("dialog", { name: "Export sheet as CSV" })
+      .getByRole("alert")
+      .filter({ hasText: "1 pivot table on this sheet is out of date" })
+      .waitFor();
+    await page.keyboard.press("Escape");
     await page.close();
   }
   assert.deepEqual(errors, []);

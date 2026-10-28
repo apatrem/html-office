@@ -11,14 +11,29 @@ const NAMES = { ",": "comma", ";": "semicolon" };
 export function setupCSV({
   getBook,
   getSheet,
+  getRevision,
   needsResolution,
   pending,
   recalculate,
   status,
 }) {
-  function download(sheet, options, stale) {
+  const sheetById = (id) => getBook().sheets.find((s) => s.id === id);
+  // The check is asynchronous (pivot fingerprints): it is repeated when the
+  // workbook changed while it ran, so a stale state is never missed.
+  async function check(id) {
+    for (let attempt = 0; ; attempt++) {
+      const revision = getRevision(),
+        problem = await needsResolution(sheetById(id));
+      if (getRevision() === revision || attempt === 4)
+        return { revision, problem };
+    }
+  }
+  // The sheet is found by ID: a pivot refresh may select another sheet.
+  function download(id, options, stale) {
     const book = getBook(),
-      csv = sheetCSV(sheet, { ...options, locale: book.locale });
+      sheet = sheetById(id);
+    if (!sheet) return status("CSV not exported: the sheet no longer exists.");
+    const csv = sheetCSV(sheet, { ...options, locale: book.locale });
     if (csv.refused) return status(csv.refused);
     if (!csv.rows) return status(`${sheet.name} has no values to export.`);
     const url = URL.createObjectURL(
@@ -55,8 +70,9 @@ export function setupCSV({
   async function open() {
     const book = getBook(),
       sheet = getSheet(),
+      id = sheet.id,
       regional = regionalSeparators(book.locale),
-      problem = await needsResolution(sheet),
+      { revision, problem } = await check(id),
       content = h(
         "select",
         {},
@@ -140,19 +156,27 @@ export function setupCSV({
         ...(problem
           ? [
               button("Export saved values", "ghost", (options) =>
-                download(sheet, options, true),
+                download(id, options, true),
               ),
               button("Recalculate and export", "primary", async (options) => {
-                if (!(await recalculate(sheet))) return;
-                const left = await needsResolution(sheet);
+                if (!(await recalculate(sheetById(id)))) return;
+                const left = (await check(id)).problem;
                 if (left) return status(`CSV not exported: ${left}`);
-                download(getSheet(), options, false);
+                download(id, options, false);
               }),
             ]
           : [
-              button("Export CSV", "primary", (options) =>
-                download(sheet, options, false),
-              ),
+              button("Export CSV", "primary", async (options) => {
+                // A change since the dialog opened is checked again.
+                if (getRevision() !== revision) {
+                  const again = (await check(id)).problem;
+                  if (again)
+                    return status(
+                      `CSV not exported: the workbook changed. ${again}`,
+                    );
+                }
+                download(id, options, false);
+              }),
             ]),
       ],
     );

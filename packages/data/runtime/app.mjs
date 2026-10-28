@@ -1448,9 +1448,14 @@ const csv = setupCSV({
     return `${problems.join(", ").replace(/^./, (c) => c.toUpperCase())}. Recalculate${pivots ? " and refresh pivot tables" : ""} to export current values, or export the saved values as they are${missing ? " (missing results are left empty)" : ""}.`;
   },
   pending: () => pendingEdits.length > 0,
-  recalculate: async (sheet) =>
-    !!(await apply({ recalculateOnly: true })) &&
-    (!(await stalePivotsOn(sheet)).length || (await refreshAllPivots())),
+  getRevision: () => persistence.revision,
+  // Recalculates, then refreshes only the pivot tables this sheet needs.
+  recalculate: async (sheet) => {
+    if (!(await apply({ recalculateOnly: true }))) return false;
+    for (const pivot of await stalePivotsOn(sheet))
+      if (!(await refreshPivot(pivot.id))) return false;
+    return true;
+  },
   status,
 });
 register("export-csv", () => csv.open());
