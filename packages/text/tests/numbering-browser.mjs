@@ -76,22 +76,18 @@ async function run(name) {
       );
       await page.click(`[role=menu] [role^=menuitem]:has-text('${item}')`);
     };
+    // The ::before text as drawn. Engines report content differently: Chromium joins the strings
+    // ("2.1 "), WebKit lists them ("2.1" " "), Firefox keeps attr() unresolved.
     const before = (selector) =>
       page
-        .evaluate(
-          (s) =>
-            getComputedStyle(document.querySelector(s), "::before").content,
-          selector,
-        )
-        // WebKit lists the strings ("2.1" " "); Chromium and Firefox join them ("2.1 ").
-        .then((content) =>
-          content === "none"
-            ? content
-            : `"${[...content.matchAll(/"([^"]*)"/g)].map((m) => m[1]).join("")}"`.replace(
-                /\u2002/g,
-                " ",
-              ),
-        );
+        .evaluate((s) => {
+          const el = document.querySelector(s);
+          const content = getComputedStyle(el, "::before").content;
+          if (content === "none" || content === "normal") return "none";
+          const parts = content.matchAll(/attr\(([\w-]+)\)|"([^"]*)"/g);
+          return `"${[...parts].map((m) => (m[1] ? (el.getAttribute(m[1]) ?? "") : m[2])).join("")}"`;
+        }, selector)
+        .then((content) => content.replace(/\u2002/g, " "));
 
     // ---- open: stale content rewritten, shown as an unsaved change ----
     assert.match(
