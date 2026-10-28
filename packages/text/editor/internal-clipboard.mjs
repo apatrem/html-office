@@ -15,7 +15,7 @@ const token = () =>
 
 // The slice without what a paste must not create: comment threads, and comment anchors except
 // one moving back (cut, then pasted) for a thread of `doc` that no longer has any.
-function withoutNewComments(slice, doc) {
+export function withoutNewComments(slice, doc) {
   const threads = new Set(),
     anchored = new Set();
   doc.descendants((node) => {
@@ -56,6 +56,15 @@ export function internalClipboard() {
   // pending: the slice ProseMirror is copying; last: the copy on the clipboard, with its token.
   let pending = null,
     last = null;
+  // This copy's slice when the paste carries its token in HTML (not a Shift paste), or null.
+  const lookup = (view, event) => {
+    const html = event.clipboardData?.getData("text/html") ?? "";
+    return last &&
+      !view.input?.shiftKey &&
+      html.includes(`${ATTRIBUTE}="${last.id}"`)
+      ? last.slice
+      : null;
+  };
   // After ProseMirror wrote the copy (its listener comes first): the token goes into the element
   // that carries data-pm-slice.
   const mark = (event) => {
@@ -70,7 +79,7 @@ export function internalClipboard() {
     last = { slice: pending, id };
     pending = null;
   };
-  return new Plugin({
+  const plugin = new Plugin({
     view(view) {
       view.dom.addEventListener("copy", mark);
       view.dom.addEventListener("cut", mark);
@@ -88,18 +97,13 @@ export function internalClipboard() {
         return slice;
       },
       handlePaste(view, event) {
-        const html = event.clipboardData?.getData("text/html") ?? "";
-        if (
-          !last ||
-          view.input?.shiftKey ||
-          !html.includes(`${ATTRIBUTE}="${last.id}"`)
-        )
-          return false;
+        const remembered = lookup(view, event);
+        if (!remembered) return false;
         let tr;
         try {
           // Anchors are counted without the text the paste replaces.
           const rest = view.state.tr.deleteSelection().doc;
-          const slice = withoutNewComments(last.slice, rest);
+          const slice = withoutNewComments(remembered, rest);
           if (!slice.size) return false;
           tr = view.state.tr.replaceSelection(slice);
         } catch {
@@ -110,4 +114,20 @@ export function internalClipboard() {
       },
     },
   });
+  // A copy written by the editor's own handler (a table as the envelope, T07) is remembered too,
+  // with its token in the HTML, so a paste in this document brings back its footnotes and
+  // cross-references.
+  plugin.remember = (slice, data) => {
+    const html = data.getData("text/html");
+    if (!html) return;
+    const id = token();
+    data.setData(
+      "text/html",
+      html.replace(/<([a-z][\w-]*)/i, `<$1 ${ATTRIBUTE}="${id}"`),
+    );
+    last = { slice, id };
+    pending = null;
+  };
+  plugin.lookup = lookup;
+  return plugin;
 }

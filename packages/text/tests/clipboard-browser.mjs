@@ -377,7 +377,14 @@ async function run(engine) {
       flavours["text/plain"],
       "Region\tRevenue\t\n\t2025\t2026\nNorth\t1.6\t1.9\nSouth\t1.2\t1.4\nWest\t0.8\t0.9\nTotal\t3.6\t4.2",
     );
-    doc = await pasted(flavours, "Grow where");
+    // As from another Text document (this copy's token dropped): the envelope is read.
+    doc = await pasted(
+      {
+        ...flavours,
+        "text/html": flavours["text/html"].replace(/ data-tx-clip="[^"]*"/, ""),
+      },
+      "Grow where",
+    );
     assert.match(
       doc,
       /<figure class="table" id="tab-1">\n<table>\n<colgroup><col data-width="40"><col data-width="30"><col data-width="30"><\/colgroup>\n<thead>\n<tr><th rowspan="2">Region<\/th><th colspan="2">Revenue<\/th><\/tr>/,
@@ -535,6 +542,205 @@ async function run(engine) {
       "inside the document a copy repeats no comment anchor; a cut one moves",
     );
 
+    // ---- integration review: rich table copies, undo steps, references, plain text ----
+    const serialize = () => page.evaluate(() => window.htmlText.serialize());
+    const count = (text, part) => text.split(part).length - 1;
+    const initial = await serialize();
+    // A table copied with a note in a cell pastes back in this document with the note.
+    const tableCopy = await page.evaluate(() => {
+      const { view, NodeSelection } = window.htmlText;
+      const { schema } = view.state;
+      let figure = null,
+        cellEnd = null;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          node.type.name === "table_figure" &&
+          node.attrs.id === "tab-regions"
+        )
+          figure = pos;
+        if (
+          figure !== null &&
+          cellEnd === null &&
+          node.type.name === "table_cell"
+        )
+          cellEnd = pos + node.nodeSize - 1;
+      });
+      view.dispatch(
+        view.state.tr.insert(
+          cellEnd,
+          schema.nodes.footnote.create(null, schema.text("Cell note.")),
+        ),
+      );
+      view.dispatch(
+        view.state.tr.setSelection(
+          NodeSelection.create(view.state.doc, figure),
+        ),
+      );
+      const data = new DataTransfer();
+      view.dom.dispatchEvent(clipboardEvent("copy", data));
+      return Object.fromEntries(
+        [...data.types].map((t) => [t, data.getData(t)]),
+      );
+    });
+    assert.equal(count(await serialize(), "Cell note."), 1, "the note is in");
+    assert.match(tableCopy["text/html"], /data-tx-clip=/);
+    await caret("Grow where");
+    const ahead = await serialize();
+    await paste(tableCopy);
+    let out = check(await serialize());
+    assert.equal(
+      count(out, "Cell note."),
+      2,
+      "the pasted table keeps its note",
+    );
+    await undo();
+    assert.equal(await serialize(), ahead);
+    await undo();
+    assert.equal(await serialize(), initial);
+
+    // Typing just before this document's own paste, or one chart pasted after another, stays
+    // when the paste is undone.
+    const textCopy = await clip("copy");
+    await caret("Planning team");
+    await page.keyboard.type("Z");
+    const afterTyping = await serialize();
+    await paste(textCopy);
+    await undo();
+    assert.equal(await serialize(), afterTyping);
+    await undo();
+    assert.equal(await serialize(), initial);
+    const chartCopy = await page.evaluate(() => {
+      const { view, NodeSelection } = window.htmlText;
+      let at = null;
+      view.state.doc.descendants((node, pos) => {
+        if (at === null && node.type.name === "chart") at = pos;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(NodeSelection.create(view.state.doc, at)),
+      );
+      const data = new DataTransfer();
+      view.dom.dispatchEvent(clipboardEvent("copy", data));
+      return Object.fromEntries(
+        [...data.types].map((t) => [t, data.getData(t)]),
+      );
+    });
+    const charts = count(initial, '<figure class="chart"');
+    await caret("Grow where");
+    await paste(chartCopy);
+    await caret("Grow where");
+    await paste(chartCopy);
+    assert.equal(
+      count(check(await serialize()), '<figure class="chart"'),
+      charts + 2,
+    );
+    await undo();
+    assert.equal(count(await serialize(), '<figure class="chart"'), charts + 1);
+    await undo();
+    assert.equal(await serialize(), initial);
+
+    // A paste that deletes a reference's target, or a copy whose target was deleted since,
+    // brings no cross-reference without its target.
+    // The target heading selected whole and replaced by the paste.
+    await page.evaluate(() => {
+      const { view, NodeSelection } = window.htmlText;
+      let at = null;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          at === null &&
+          node.type.name === "heading" &&
+          node.attrs.id === "sec-plan"
+        )
+          at = pos;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(NodeSelection.create(view.state.doc, at)),
+      );
+    });
+    await paste({
+      "text/html": '<p>See <a class="xref" href="#sec-plan">Section 3</a>.</p>',
+    });
+    out = check(await serialize());
+    assert.doesNotMatch(out, /id="sec-plan"/);
+    assert.match(out, /See Section 3\./);
+    assert.ok(
+      count(out, 'href="#sec-plan"') <= count(initial, 'href="#sec-plan"'),
+    );
+    await undo();
+    assert.equal(await serialize(), initial);
+    const refCopy = await page.evaluate(() => {
+      const { view, TextSelection } = window.htmlText;
+      let block = null;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          block === null &&
+          node.isTextblock &&
+          node.textContent.startsWith("The north region")
+        )
+          block = { pos, node };
+      });
+      view.dispatch(
+        view.state.tr.setSelection(
+          TextSelection.create(
+            view.state.doc,
+            block.pos + 1,
+            block.pos + block.node.nodeSize - 1,
+          ),
+        ),
+      );
+      const data = new DataTransfer();
+      view.dom.dispatchEvent(clipboardEvent("copy", data));
+      let figure = null;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          node.type.name === "table_figure" &&
+          node.attrs.id === "tab-regions"
+        )
+          figure = { pos, size: node.nodeSize };
+      });
+      view.dispatch(view.state.tr.delete(figure.pos, figure.pos + figure.size));
+      return Object.fromEntries(
+        [...data.types].map((t) => [t, data.getData(t)]),
+      );
+    });
+    const refs = count(await serialize(), 'href="#tab-regions"');
+    await caret("Grow where");
+    await paste(refCopy);
+    out = await serialize();
+    assert.equal(
+      count(out, 'href="#tab-regions"'),
+      refs,
+      "no new dangling reference",
+    );
+    assert.equal(count(out, "The north region led growth"), 2);
+    await undo();
+    await undo();
+    assert.equal(await serialize(), initial);
+
+    // Plain text pasted inside commented text is not commented.
+    await page.evaluate(() => {
+      const { view, TextSelection } = window.htmlText;
+      let at = null;
+      view.state.doc.descendants((node, pos) => {
+        if (at === null && node.isText && node.text.startsWith("Revenue grew"))
+          at = pos + "Revenue".length;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, at)),
+      );
+      view.focus();
+    });
+    await page.keyboard.down("Shift");
+    await paste({ "text/plain": "x\ny", "text/html": "<b>ignored</b>" });
+    await page.keyboard.up("Shift");
+    out = check(await serialize());
+    assert.match(out, /data-ref="c1">Revenue<\/mark>x<\/p>/);
+    assert.doesNotMatch(out, /data-ref="c1">y/);
+    await undo();
+    assert.equal(await serialize(), initial);
+    pass(
+      "a table copy keeps its notes; delegated pastes are undo steps; no reference without its target; plain text is not commented",
+    );
+
     // ---- review fixes: tables in an empty paragraph, undo steps, text from a cell ----
     await caret("Northwind Gardens (fictional)");
     await page.keyboard.press("Enter");
@@ -673,7 +879,16 @@ async function run(engine) {
     );
 
     assert.deepEqual(errors, []);
-    assert.deepEqual(requests, []);
+    // Nothing pasted loads anything. The chart copy draws its picture as a blob, and the pasted
+    // chart is redrawn with T11's pinned, integrity-checked library.
+    assert.deepEqual(
+      requests.filter(
+        (u) =>
+          !u.startsWith("blob:") &&
+          !u.startsWith("https://cdn.jsdelivr.net/npm/echarts@"),
+      ),
+      [],
+    );
   } finally {
     await browser.close();
   }

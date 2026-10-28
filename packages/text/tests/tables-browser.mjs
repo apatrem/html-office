@@ -373,6 +373,45 @@ async function run(engine) {
     await cmd("undo");
     pass("Shift+arrow selects cells; text pasted on a merged cell keeps it");
 
+    // ---- cells copied with a note, pasted in this document: the note comes back ----
+    const initialTables = await saved();
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      const { schema } = view.state;
+      let end = null;
+      view.state.doc.descendants((node, pos) => {
+        if (end === null && node.isTextblock && node.textContent === "1.6")
+          end = pos + node.nodeSize - 1;
+      });
+      view.dispatch(
+        view.state.tr.insert(
+          end,
+          schema.nodes.footnote.create(null, schema.text("Cell note.")),
+        ),
+      );
+    });
+    await drag("tab-regions", "1.6Cell note.", "1.2");
+    const cellCopy = await page.evaluate(() => {
+      const data = new DataTransfer();
+      window.htmlText.view.dom.dispatchEvent(clipboardEvent("copy", data));
+      return Object.fromEntries(
+        [...data.types].map((t) => [t, data.getData(t)]),
+      );
+    });
+    assert.match(cellCopy["text/html"], /data-tx-clip=/);
+    await caretIn("tab-regions", "0.9");
+    await page.evaluate((flavours) => {
+      const data = new DataTransfer();
+      for (const [t, v] of Object.entries(flavours)) data.setData(t, v);
+      window.htmlText.view.dom.dispatchEvent(clipboardEvent("paste", data));
+    }, cellCopy);
+    text = check(await saved());
+    assert.equal(text.split("Cell note.").length - 1, 2);
+    await cmd("undo");
+    await cmd("undo");
+    assert.equal(await saved(), initialTables);
+    pass("cells copied with a note and pasted in this document keep the note");
+
     // ---- numbering (T08): a caption added to a table numbers it among the tables ----
     const labels = () =>
       page.evaluate(() =>
