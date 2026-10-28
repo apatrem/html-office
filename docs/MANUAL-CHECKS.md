@@ -132,13 +132,21 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 2. **Offline**: with the network off, each file opens and edits. Data and Slides show chart previews.
 3. **Keyboard only**: Tab reaches the file bar, the menus and the toolbar. The arrow keys move within the toolbar, and Escape closes menus and dialogs.
 
-## 5. Pending: needs #70 and #71
+## 5. Copy and paste between Slides and Data (X02b, X02c)
 
-Not in `main` yet. Run these once [#70](https://github.com/apatrem/html-office/pull/70) (Data ⇄ Slides tables) and [#71](https://github.com/apatrem/html-office/pull/71) (Slides charts) are merged and the files rebuilt:
+Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
 - Copy a Slides chart into Data and into another deck.
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
+
+## 6. Text, from T07
+
+Each task adds its checks here, under its own heading (`### T07 — …`), in task order.
+
+## 7. Data, from T15
+
+Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
 
 ## Log
 
