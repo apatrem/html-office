@@ -30,39 +30,57 @@ const path = join(out, "images.html");
 await writeFile(path, built);
 const url = pathToFileURL(path).href;
 
-// Real picture files, as a person would pick: a 2,400 px wide PNG (shrunk to 1,600) and a JPEG.
+// Real picture files, as a person would pick, encoded by the browser's own canvas in every
+// engine: a 2,400 px wide PNG (shrunk to 1,600), a JPEG, a PNG with a transparent background, and
+// a GIF.
 async function pictures(browser) {
-  const page = await browser.newPage({
-    viewport: { width: 1200, height: 500 },
-  });
-  await page.setContent(
-    '<body style="margin:0;background:linear-gradient(90deg,#14517a,#c2521c)"><h1 style="font:80px sans-serif;color:#fff;margin:150px">Northwind</h1></body>',
-  );
-  const png = join(out, "picture.png"),
-    jpeg = join(out, "picture.jpg"),
-    gif = join(out, "picture.gif"),
-    clear = join(out, "picture-clear.png");
-  await page.setViewportSize({ width: 2400, height: 1000 });
-  await page.screenshot({ path: png });
-  await page.setViewportSize({ width: 800, height: 600 });
-  await page.screenshot({ path: jpeg, type: "jpeg" });
-  await page.setContent(
-    '<body style="margin:0;background:transparent"><div style="width:200px;height:100px;border-radius:50px;background:#c2521c"></div></body>',
-  );
-  await page.screenshot({
-    path: clear,
-    omitBackground: true,
-    clip: { x: 0, y: 0, width: 200, height: 100 },
+  const page = await browser.newPage();
+  const encoded = await page.evaluate(() => {
+    const draw = (width, height, type, clear) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!clear) {
+        const g = ctx.createLinearGradient(0, 0, width, 0);
+        g.addColorStop(0, "#14517a");
+        g.addColorStop(1, "#c2521c");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#fff";
+        ctx.font = `${height / 5}px sans-serif`;
+        ctx.fillText("Northwind", width / 10, height / 2);
+      } else {
+        ctx.fillStyle = "#c2521c";
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, height / 2, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      return canvas.toDataURL(type, 0.9).split(",")[1];
+    };
+    return {
+      png: draw(2400, 1000, "image/png"),
+      jpeg: draw(800, 600, "image/jpeg"),
+      clear: draw(200, 100, "image/png", true),
+    };
   });
   await page.close();
+  const files = {
+    png: join(out, "picture.png"),
+    jpeg: join(out, "picture.jpg"),
+    gif: join(out, "picture.gif"),
+    clear: join(out, "picture-clear.png"),
+  };
+  for (const kind of ["png", "jpeg", "clear"])
+    await writeFile(files[kind], Buffer.from(encoded[kind], "base64"));
   await writeFile(
-    gif,
+    files.gif,
     Buffer.from(
       "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
       "base64",
     ),
   );
-  return { png, jpeg, gif, clear };
+  return files;
 }
 
 const assetsOf = (text) =>
