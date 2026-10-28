@@ -21,6 +21,8 @@ import { modal, field } from "../../shared/shell/dialogs.mjs";
 import { createGrid } from "./grid.mjs";
 import { setupPicture } from "./picture.mjs";
 import { setupCSV } from "./csv-dialog.mjs";
+import { setupPrint } from "./print.mjs";
+import { setupPrintDialog } from "./print-dialog.mjs";
 import { setupClipboard } from "./clipboard.mjs";
 import {
   validateStructure,
@@ -112,6 +114,8 @@ const persistence = setupPersistence({
   },
   getPending: () => (pendingEdits.length ? pendingEdits : null),
   restore: (recovered) => {
+    // Pivot freshness is analysed again for the restored workbook.
+    pivotStates = null;
     revisions.cancel();
     session?.dispose();
     session = null;
@@ -1738,6 +1742,42 @@ const csv = setupCSV({
   status,
 });
 register("export-csv", () => csv.open());
+// Print / PDF of the selected sheet (T19): a print-only view built from the
+// model like the picture; Cmd/Ctrl+P prints it with the defaults.
+const staleResults = (formulas) =>
+  pendingEdits.length > 0 ||
+  (formulas &&
+    !(book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint)));
+const print = setupPrint({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  decorate: decorateCell,
+  isStale: staleResults,
+  // Pivot freshness is analysed in the recovery worker: unknown (pending or
+  // failed) counts as out of date.
+  pivotsUnverified: (id) =>
+    (book.pivots ?? []).some(
+      (pivot) =>
+        pivot.output.sheetId === id &&
+        pivotStates?.[pivot.id]?.state !== "current",
+    ),
+  gridLines: () => gridLines,
+  fontFamily: () => getComputedStyle($("grid")).fontFamily,
+  charts,
+});
+const printDialog = setupPrintDialog({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  print,
+  stale: (sheet) =>
+    staleResults(Object.values(sheet.cells).some((cell) => cell.formula)),
+  status,
+});
+register(
+  "print",
+  () => printDialog.open(),
+  () => true,
+);
 register("conditional-formatting", () => conditionalSettings.open());
 register(
   "pivot-tables",

@@ -979,9 +979,46 @@ export function setupCharts({
     renderPanel();
   }
 
+  // Charts of a sheet for printing (T19): the drawing shown on screen (a
+  // live one, or the saved SVG preview) and a note when it may be out of
+  // date. Synchronous: a revision still being computed gives no note.
+  function printable(sheetId) {
+    return chartsOf()
+      .filter((chart) => chart.sheetId === sheetId)
+      .map((chart) => {
+        const s = {
+            ...derive(chart),
+            instance: states.get(chart.id)?.instance,
+          },
+          state = previewState(chart, s),
+          svg =
+            state === "live"
+              ? s.instance.renderToSVGString()
+              : state === "invalid"
+                ? null
+                : chart.preview?.svg,
+          notes = [];
+        if (state === "invalid")
+          notes.push(`Chart cannot be drawn: ${s.errors.join(" ")}`);
+        else if (!svg) notes.push("No saved preview.");
+        else if (state === "stale") notes.push("Preview out of date.");
+        if (s.formulas && !isSnapshotCurrent())
+          notes.push("Values not recalculated.");
+        return {
+          id: chart.id,
+          title: chart.options.title ?? "",
+          unit: chart.options.unit ?? "",
+          label: describe(chart),
+          src: svg ? previewSource(svg) : null,
+          ...plotSize(chart),
+          note: notes.join(" "),
+        };
+      });
+  }
   return {
     draw,
     finalize,
+    printable,
     create,
     duplicate,
     remove,

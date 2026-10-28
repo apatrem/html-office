@@ -74,7 +74,7 @@ dialog:not(.sh-dialog){max-width:min(900px,94vw);border:1px solid var(--border);
 .conditional-fields{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}.conditional-fields label{gap:6px}.conditional-fields input,.conditional-fields select{max-width:240px}.conditional-fields .checkbox-label{flex-direction:row;align-items:center;margin-bottom:8px}.conditional-fields textarea{min-width:200px}.conditional-fields[hidden],.conditional-fields label[hidden]{display:none}#conditional-dialog>label{margin-bottom:6px}#conditional-dialog p{line-height:1.5}.grid-cell{print-color-adjust:exact;-webkit-print-color-adjust:exact}
 .data-bar-fill{position:absolute;top:4px;bottom:4px;opacity:.24;pointer-events:none}.data-bar-axis{position:absolute;top:2px;bottom:2px;border-left:1px solid var(--ink);opacity:.6;pointer-events:none}.data-bar-text{position:relative;z-index:1}
 /* ADR-012 catalogue styles, rendered with charte tokens. */
-#grid .title{color:var(--acc);font-weight:bold}#grid .output,#grid .total{font-weight:bold}#grid .note{font-style:italic;color:var(--t2)}#grid .alert{font-weight:bold;color:var(--alert)}#grid .hyperlink{color:var(--acc);text-decoration:underline}#grid .linked{text-decoration:underline}
+:is(#grid,#print-view) .title{color:var(--acc);font-weight:bold}:is(#grid,#print-view) .output,:is(#grid,#print-view) .total{font-weight:bold}:is(#grid,#print-view) .note{font-style:italic;color:var(--t2)}:is(#grid,#print-view) .alert{font-weight:bold;color:var(--alert)}:is(#grid,#print-view) .hyperlink{color:var(--acc);text-decoration:underline}:is(#grid,#print-view) .linked{text-decoration:underline}
 .grid-cell{print-color-adjust:exact;-webkit-print-color-adjust:exact}
 /* Print hides all chrome; the grid stays a bounded viewport. */
 @media print{.app-bar,.formula-bar,.sheet-bar{display:none!important}#grid .grid-cell[aria-pressed=true]{outline:0}#grid .grid-cell[aria-selected=true]{box-shadow:none}}
@@ -109,3 +109,18 @@ dialog:not(.sh-dialog){max-width:min(900px,94vw);border:1px solid var(--border);
 .imp-preview td.imp-header{font-weight:600}
 .imp-preview td.imp-exception{background:#fff8e6;color:#8a5a00}
 .imp-more{margin:4px 6px;font-size:12px;color:var(--sh-mute)}
+/* Print / PDF view (T19): built on demand, shown only when printing. */
+#print-view{display:none;font-size:var(--data-font-size,13px);color:var(--ink);background:var(--bg)}
+@media print{html.printing,html.printing body{height:auto;overflow:visible}html.printing body>:not(#print-view){display:none!important}html.printing #print-view{display:block}}
+#print-view *{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.print-title{margin:0 0 6px;font-size:12px;font-weight:bold;color:var(--t2)}
+.print-stale{margin:0 0 6px;padding:6px;background:var(--alert);color:var(--bg);font-size:12px;font-weight:bold;line-height:16px}
+.print-table{border-collapse:separate;border-spacing:0;table-layout:fixed;border:0 solid var(--grid-line);border-width:1px 0 0 1px}
+.print-table+.print-table{break-before:page;margin-top:0}.print-table thead{display:table-header-group}.print-table tr{break-inside:avoid}
+.print-table td{position:relative;padding:0;vertical-align:top}
+#print-view .grid-cell{position:relative;cursor:auto}
+#print-view.no-grid-lines .grid-cell,#print-view.no-grid-lines .print-table{border-color:transparent}
+.print-edge{position:absolute;z-index:2;pointer-events:none}
+.print-charts{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px}
+.print-chart{margin:0;max-width:100%;break-inside:avoid}.print-chart img{display:block;max-width:100%;height:auto}
+.print-chart-note{margin:4px 0 0;font-size:12px;color:var(--alert)}
