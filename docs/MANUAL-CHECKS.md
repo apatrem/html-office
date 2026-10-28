@@ -144,6 +144,16 @@ Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https:
 
 Each task adds its checks here, under its own heading (`### T07 — …`), in task order.
 
+### T08 — Numbering, contents and cross-references
+
+1. **Open**: the example opens with *Unsaved changes* only if its saved labels were stale; a freshly built example opens with *No unsaved changes*. Headings show 1, 2, 2.1, 3, 3.1; the *Contacts* heading (unnumbered) shows none. Captions read *Figure 1.*, *Figure 2.*, *Table 1.*.
+2. **Print preview** (File › Print / PDF), in Chrome, Safari and Firefox: the same heading numbers and caption labels appear, and the contents list shows its numbers. Nothing is underlined in red.
+3. **Heading numbers** (Theme & page › Heading numbers): None removes every number and the numbers from the contents; Numbered brings them back; each format (I.A.1, A.1.a, 1.a.i) renumbers headings, contents and *Section …* cross-references at once. Undo reverts one change at a time. Theme default stores nothing (check the saved file's `article` line).
+4. **Contents**: put the cursor in a paragraph, Insert › Contents. A list of the headings appears after the paragraph. With it selected, Format › Contents levels › Level 1 keeps only the top headings. Rename a heading: the contents follow as you type.
+5. **Cross-reference** (Insert › Cross-reference…): the dialog lists headings and figures in document order with their labels. Insert one to a numbered section, then delete a heading above that section: the label changes to the new number at once. Delete the target heading: the reference stays, underlined with a red wavy line, and its tooltip says it points nowhere.
+6. **Stale labels from an LLM**: in a copy of the file, change a cross-reference text to `Figure 9` with a text editor. `node packages/text/tools/check.mjs <file>` reports a `stale-label` warning with its line. Open the file: the label reads correctly, the state is *Unsaved changes*, and Undo is unavailable. Save: only that line changes.
+7. **Safari and Firefox**: steps 3–5 behave the same; the cross-reference dialog accepts double-click and Enter.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

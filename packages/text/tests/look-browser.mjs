@@ -263,7 +263,10 @@ try {
       "#sec-plan",
     ],
   ]) {
-    const floated = built.replace(from, () => to);
+    // Without heading numbers (T08), the heading's first character starts its first line.
+    const floated = built
+      .replace(from, () => to)
+      .replace(' data-heading-numbers="on"', "");
     assert.notEqual(floated, built);
     const float = await open(await write("look-float.html", floated), floated);
     const cleared = await float.page.evaluate((selector) => {

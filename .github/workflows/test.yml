@@ -142,3 +142,7 @@ jobs:
         run: node packages/text/tests/editing-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Numbering, contents and cross-references in Firefox and WebKit (Text T08)
+        run: node packages/text/tests/numbering-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

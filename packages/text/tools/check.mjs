@@ -8,14 +8,65 @@ import { readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { canonicalize } from "../editor/schema/document.mjs";
+import { classes } from "../model/html.mjs";
+import { numbering, fileFormat } from "../editor/numbering.mjs";
 
 const excerpt = (text, offset) =>
   JSON.stringify(text.slice(offset, offset + 40));
 
+// Generated content the editor would rewrite (T08): cross-reference labels and contents lists
+// that differ from the numbering, located in the source. Protected blocks are left as written.
+function staleFindings(file, doc, blocks) {
+  const result = numbering(doc, { format: fileFormat(file) });
+  const xrefs = [],
+    tocs = [];
+  const walk = (node) => {
+    if (node.type !== "element") return;
+    if (node.name === "a" && classes(node).includes("xref")) xrefs.push(node);
+    else if (node.name === "nav" && classes(node).includes("toc"))
+      tocs.push(node);
+    node.children.forEach(walk);
+  };
+  for (const block of blocks) if (!block.protected) walk(block.node);
+  const text = (node) => node.children.map((c) => c.value ?? "").join("");
+  const at = (node) =>
+    node.loc ? { line: node.loc.line, col: node.loc.col } : {};
+  const out = [];
+  result.xrefs.forEach((x, i) => {
+    const node = xrefs[i];
+    if (x.label !== null && node && text(node) !== x.label)
+      out.push({
+        code: "stale-label",
+        message: `Cross-reference to "${x.target}" says ${JSON.stringify(text(node))}, not ${JSON.stringify(x.label)}: the editor rewrites it on open and save`,
+        path: "article#doc",
+        ...at(node),
+      });
+  });
+  const entries = (list) =>
+    list.map((e) => [e.target, e.label, entries(e.children)]);
+  result.tocs.forEach((t, i) => {
+    if (
+      JSON.stringify(entries(doc.nodeAt(t.pos).attrs.entries)) !==
+      JSON.stringify(entries(t.entries))
+    )
+      out.push({
+        code: "stale-contents",
+        message:
+          "Contents differ from the headings: the editor rewrites them on open and save",
+        path: "article#doc",
+        ...at(tocs[i]),
+      });
+  });
+  return out;
+}
+
 export function checkSource(source) {
   const report = validateFile(parseFile(source));
   if (!report.ok) return report;
-  const { canonical, difference, unstable } = canonicalize(source, parseFile);
+  const { canonical, difference, unstable, file, doc } = canonicalize(
+    source,
+    parseFile,
+  );
   if (unstable) {
     report.ok = false;
     report.errors.push({
@@ -31,6 +82,8 @@ export function checkSource(source) {
       line: difference.line,
       col: difference.col,
     });
+  if (!unstable)
+    report.warnings.push(...staleFindings(file, doc, report.blocks));
   return report;
 }
 

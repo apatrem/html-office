@@ -4,7 +4,12 @@
 import { h, button, icon } from "../../shared/shell/dom.mjs";
 import { menubar, menuButton } from "../../shared/shell/menu.mjs";
 import { toolbar, group } from "../../shared/shell/toolbar.mjs";
-import { modal, linkDialog, checkUrl } from "../../shared/shell/dialogs.mjs";
+import {
+  modal,
+  field,
+  linkDialog,
+  checkUrl,
+} from "../../shared/shell/dialogs.mjs";
 import { STYLES, linkProblem } from "../editor/commands.mjs";
 import { drawer as createDrawer } from "../../shared/shell/drawer.mjs";
 import { documentBody, choices } from "../../shared/shell/panels.mjs";
@@ -76,6 +81,23 @@ const PAGE_CHOICES = [
     h("span", { class: "sh-aa" }, "8.5 × 11 in"),
   ],
 ];
+// Heading numbers (T08): on or off, and the format of each level, from the theme by default.
+const NUMBER_CHOICES = [
+  ["off", h("span", {}, "None")],
+  ["on", h("span", {}, "Numbered"), h("span", { class: "sh-aa" }, "1, 1.1")],
+];
+const FORMATS = ["1.1.1.1", "I.A.1.a", "A.1.a.i", "1.a.i.A"];
+const formatChoices = (theme) => [
+  [
+    "document",
+    h("span", {}, "Theme default"),
+    h("span", { class: "sh-aa" }, theme),
+  ],
+  ...FORMATS.filter((f) => f !== theme).map((f) => [
+    f,
+    h("span", {}, f.split(".").slice(0, 3).join(".")),
+  ]),
+];
 const MARGIN_CHOICES = [
   ["document", h("span", {}, "Theme default")],
   ["narrow", h("span", {}, "Narrow")],
@@ -107,9 +129,10 @@ function shortcuts(opener) {
   );
 }
 
-// look(): the document's attributes (theme, font, page, margins; null when absent).
-// editing(): the selection's style, marks, alignment, list, new-page and link (T06).
-export function mountShell(cmd, saving, report, look, editing) {
+// look(): the document's attributes (theme, font, page, margins, heading numbers and format).
+// editing(): the selection's style, marks, alignment, list, new-page, link (T06) and the depth
+// of a selected contents block (T08). format(): the theme's heading format.
+export function mountShell(cmd, saving, report, look, editing, format) {
   const binds = [];
   const item = (label, id, extra = {}) => ({
     label,
@@ -152,6 +175,9 @@ export function mountShell(cmd, saving, report, look, editing) {
         item("Remove link", "unlink"),
         "-",
         item("Page break", "page-break", { shortcut: key("Enter") }),
+        "-",
+        item("Contents", "contents"),
+        item("Cross-reference…", "xref"),
       ],
     },
     {
@@ -190,6 +216,18 @@ export function mountShell(cmd, saving, report, look, editing) {
           item("Start on a new page", "new-page", {
             checked: c.newPage === true,
           }),
+          ...(c.contents
+            ? [
+                "-",
+                { heading: "Contents levels" },
+                ...[1, 2, 3, 4].map((n) =>
+                  item(n === 1 ? "Level 1" : `Levels 1–${n}`, `contents-${n}`, {
+                    checked: c.contents === n,
+                    radio: true,
+                  }),
+                ),
+              ]
+            : []),
         ];
       },
     },
@@ -377,6 +415,8 @@ export function mountShell(cmd, saving, report, look, editing) {
       font: a.font ?? "document",
       page: a.page ?? "document",
       margins: a.margins ?? "document",
+      numbers: a.headingNumbers ? "on" : "off",
+      format: a.headingFormat ?? "document",
     };
   };
   const settings = () => ({
@@ -410,6 +450,26 @@ export function mountShell(cmd, saving, report, look, editing) {
             "p",
             { class: "sh-hint" },
             "You edit at the text width of the page, so lines break where they print.",
+          ),
+          h("h3", {}, "Heading numbers"),
+          choices(
+            "Heading numbers",
+            "sh-fonts tx-numbers",
+            NUMBER_CHOICES,
+            current().numbers,
+            (v) => cmd.run("heading-numbers", v === "on"),
+          ),
+          choices(
+            "Number format",
+            "sh-fonts tx-formats",
+            formatChoices(format()),
+            current().format,
+            (v) => cmd.run("heading-format", v),
+          ),
+          h(
+            "p",
+            { class: "sh-hint" },
+            "Unnumbered headings are skipped. Contents and cross-references follow the numbers.",
           ),
         ],
       }),
@@ -494,9 +554,14 @@ export function mountShell(cmd, saving, report, look, editing) {
       const c = current();
       for (const [sel, v] of [
         [".sh-themes > button", c.theme],
-        [".sh-fonts:not(.tx-pages, .tx-margins) > button", c.font],
+        [
+          ".sh-fonts:not(.tx-pages, .tx-margins, .tx-numbers, .tx-formats) > button",
+          c.font,
+        ],
         [".tx-pages > button", c.page],
         [".tx-margins > button", c.margins],
+        [".tx-numbers > button", c.numbers],
+        [".tx-formats > button", c.format],
       ])
         for (const b of panel.host.querySelectorAll(sel))
           b.setAttribute("aria-checked", String(b.dataset.value === v));
@@ -604,7 +669,72 @@ export function mountShell(cmd, saving, report, look, editing) {
       opener: { isConnected: true, focus: back },
     });
   }
-  return { recover, link };
+  // The cross-reference dialog: headings and figures in document order, with their labels.
+  // done(id) gets the chosen target, or null when cancelled.
+  function xref(targets, done) {
+    const describe = (t) =>
+      t.kind === "heading"
+        ? `${"\u2003".repeat(t.level - 1)}${t.label === t.text ? "" : `${t.label} · `}${t.text || "Untitled heading"}`
+        : `${t.label}${t.text ? ` · ${t.text}` : ""}`;
+    const list = h(
+      "select",
+      { size: String(Math.min(12, Math.max(4, targets.length))) },
+      targets.map((t, i) =>
+        h("option", { value: t.id, selected: i === 0 }, describe(t)),
+      ),
+    );
+    const body = targets.length
+      ? [
+          field("Refer to", list),
+          h(
+            "p",
+            { class: "sh-hint" },
+            "The label follows its target: renumbering or retitling updates it.",
+          ),
+        ]
+      : h("p", {}, "There is no heading or figure to refer to yet.");
+    const close = (value) => () => dialog.close(value);
+    const dialog = modal(
+      "Insert cross-reference",
+      body,
+      [
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: close("cancel"),
+          },
+          "Cancel",
+        ),
+        h("span", { class: "sh-spacer" }),
+        targets.length
+          ? h(
+              "button",
+              {
+                type: "button",
+                class: "sh-b sh-t sh-primary",
+                onclick: close("insert"),
+              },
+              "Insert",
+            )
+          : null,
+      ],
+      {
+        onClose: (value) => done(value === "insert" ? list.value : null),
+        // Focus returns through done(), which puts the editor's selection back.
+        opener: { isConnected: false },
+      },
+    );
+    list.addEventListener("dblclick", () => dialog.close("insert"));
+    list.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      dialog.close("insert");
+    });
+    list.focus();
+  }
+  return { recover, link, xref };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.
