@@ -1,7 +1,7 @@
 {
   "ceiling": 500000,
-  "total": 375836,
-  "headroom": 124164,
+  "total": 425861,
+  "headroom": 74139,
   "rows": [
     {
       "component": "prosemirror-model 1.25.12",
@@ -44,6 +44,11 @@
       "gzip": 11021
     },
     {
+      "component": "prosemirror-tables 1.8.1",
+      "bytes": 219132,
+      "gzip": 68099
+    },
+    {
       "component": "HTML tree and serialiser",
       "bytes": 2379,
       "gzip": 1163
@@ -80,8 +85,8 @@
     },
     {
       "component": "Editing commands",
-      "bytes": 22907,
-      "gzip": 8171
+      "bytes": 22931,
+      "gzip": 8190
     },
     {
       "component": "Paste mapping (HTML, tables)",
@@ -94,14 +99,19 @@
       "gzip": 3003
     },
     {
+      "component": "Table editing",
+      "bytes": 19209,
+      "gzip": 6928
+    },
+    {
       "component": "Editor core (all of the above, shared code once)",
-      "bytes": 371477,
-      "gzip": 117660
+      "bytes": 421396,
+      "gzip": 133574
     },
     {
       "component": "Licence notices of the editor core",
-      "bytes": 4315,
-      "gzip": 1922
+      "bytes": 4421,
+      "gzip": 1950
     }
   ]
 }

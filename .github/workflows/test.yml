@@ -146,3 +146,7 @@ jobs:
         run: node packages/text/tests/clipboard-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Edit report tables in Firefox and WebKit (Text T10)
+        run: node packages/text/tests/tables-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

@@ -41,6 +41,13 @@ import {
   tableGrid,
 } from "../editor/clipboard/table.mjs";
 import { usedIds } from "../editor/commands.mjs";
+import {
+  CellSelection,
+  isInTable,
+  selectedRect,
+  handlePaste as pasteCells,
+  TableMap,
+} from "prosemirror-tables";
 
 const N = schema.nodes;
 const MAX_CELLS = LIMIT.rows * LIMIT.columns;
@@ -210,7 +217,53 @@ export function selectedTable(state) {
       return { table, pos: sel.to - 1 - table.nodeSize };
     }
   }
+  if (sel instanceof CellSelection) {
+    const r = selectedRect(state);
+    return {
+      table: r.table,
+      pos: r.tableStart - 1,
+      rect: {
+        top: r.top,
+        height: r.bottom - r.top,
+        left: r.left,
+        width: r.right - r.left,
+      },
+    };
+  }
   return null;
+}
+
+// A table pasted into a table fills its cells from the selected one, adding rows and columns as
+// needed (prosemirror-tables); anything pasted on a cell selection fills each selected cell.
+// Returns false when the paste is not one of these.
+function pasteIntoTable(view, read) {
+  const state = view.state;
+  if (!isInTable(state)) return false;
+  const [first] = read.blocks;
+  const table =
+    read.blocks.length === 1 && first.type === N.table_figure
+      ? first.lastChild
+      : null;
+  if (!table && !(state.selection instanceof CellSelection)) return false;
+  if (table) {
+    const r = selectedRect(state),
+      width = TableMap.get(table).width;
+    if (r.top + table.childCount > LIMIT.rows || r.left + width > LIMIT.columns)
+      throw new ClipboardError(
+        `a Text table holds at most ${LIMIT.rows.toLocaleString("en-US")} rows and ${LIMIT.columns} columns`,
+      );
+  }
+  const slice = table
+    ? new Slice(Fragment.from(table), 0, 0)
+    : new Slice(Fragment.fromArray(inlineLines(read.blocks)), 0, 0);
+  // One undo step of its own, as any paste.
+  const done = pasteCells(
+    { state, dispatch: (tr) => view.dispatch(closeHistory(tr)) },
+    null,
+    slice,
+  );
+  if (done) view.dispatch(closeHistory(view.state.tr));
+  return done;
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.
@@ -285,6 +338,14 @@ export function setupClipboard(notify) {
 
   // Inserts blocks at the selection (or at `at`, a drop position) as one undoable step.
   function insert(view, read, at = null, what = "Pasted") {
+    if (at === null && read.blocks.length && pasteIntoTable(view, read)) {
+      const message = describeLost(read.lost);
+      if (message || read.notices.length)
+        notify(
+          [what + ".", ...read.notices, message].filter(Boolean).join(" "),
+        );
+      return;
+    }
     const tr = view.state.tr;
     if (at !== null) tr.setSelection(TextSelection.near(tr.doc.resolve(at)));
     const slice = sliceFor(tr.selection.$from, read.blocks, read.plain);

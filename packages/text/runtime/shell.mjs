@@ -32,6 +32,7 @@ const SHORTCUTS = [
   ["Paste as plain text", key("Shift+V")],
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
+  ["Next, previous table cell", "Tab, Shift+Tab"],
   ["Page break", key("Enter")],
 ];
 // Toolbar glyphs for commands without a shared icon (20 × 20, as shared/shell/icons.mjs).
@@ -162,6 +163,7 @@ export function mountShell(cmd, saving, report, look, editing) {
         item("Remove link", "unlink"),
         "-",
         item("Page break", "page-break", { shortcut: key("Enter") }),
+        item("Table", "insert-table"),
         "-",
         item("Markdown…", "markdown"),
       ],
@@ -202,6 +204,34 @@ export function mountShell(cmd, saving, report, look, editing) {
           item("Start on a new page", "new-page", {
             checked: c.newPage === true,
           }),
+        ];
+      },
+    },
+    {
+      name: "Table",
+      items: () => {
+        const t = editing().table || {};
+        return [
+          item("Insert row above", "row-above"),
+          item("Insert row below", "row-below"),
+          item("Insert column left", "column-left"),
+          item("Insert column right", "column-right"),
+          item("Delete rows", "delete-rows"),
+          item("Delete columns", "delete-columns"),
+          "-",
+          item("Merge cells", "merge-cells"),
+          item("Split cell", "split-cell"),
+          "-",
+          item("Header rows", "header-rows", { checked: !!t.header }),
+          item("Total rows", "total-rows", { checked: !!t.total }),
+          item("Row headers", "row-headers", { checked: !!t.rowHeaders }),
+          item("Emphasis column", "emphasis", { checked: !!t.emphasis }),
+          item("Compact", "compact", { checked: !!t.compact }),
+          item("Column width…", "column-width"),
+          item("Distribute columns evenly", "distribute-columns"),
+          item("Caption", "caption", { checked: !!t.caption }),
+          "-",
+          item("Delete table", "delete-table"),
         ];
       },
     },
@@ -674,7 +704,58 @@ export function mountShell(cmd, saving, report, look, editing) {
     });
     source.focus();
   }
-  return { recover, link, markdown };
+  // Table › Column width: a whole percentage of the table's width, or automatic (empty).
+  function columnWidth(current, onSave) {
+    const input = h("input", {
+      type: "number",
+      min: "1",
+      max: "100",
+      step: "1",
+      value: current ?? "",
+      inputmode: "numeric",
+    });
+    const ok = h(
+      "button",
+      { type: "button", class: "sh-b sh-t sh-primary" },
+      "Set width",
+    );
+    const box = field("Width in % of the table (empty: automatic)", input);
+    const dialog = modal(
+      "Column width",
+      [box],
+      [
+        h("span", { class: "sh-spacer" }),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => dialog.close("cancel"),
+          },
+          "Cancel",
+        ),
+        ok,
+      ],
+    );
+    const value = () => {
+      const text = input.value.trim();
+      if (!text) return null;
+      const n = Number(text);
+      return Number.isInteger(n) && n >= 1 && n <= 100 ? n : undefined;
+    };
+    ok.addEventListener("click", () => {
+      const n = value();
+      if (n === undefined) {
+        box.querySelector(".sh-err").textContent =
+          "Enter a whole number from 1 to 100, or leave it empty.";
+        return;
+      }
+      dialog.close("save");
+      onSave(n);
+    });
+    input.focus();
+  }
+  return { recover, link, markdown, columnWidth };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

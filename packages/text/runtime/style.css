@@ -16,5 +16,7 @@
 #doc .ProseMirror-selectednode{outline:2px solid var(--sh-focus)}
 /* The editing view has one row list (no thead): header rows take the charte's header role, as thead th does in the theme. */
 #doc tr.tx-head>th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
+/* Selected cells (T10). */
+#doc .selectedCell{background:rgba(47,93,138,.18)}
 @media screen{body.tx-editing{padding-bottom:64px}}
 @media print{.tx-shell,.tx-refusal{display:none!important}#doc .tx-protected{outline:none}#doc .tx-protected::after{content:none}}

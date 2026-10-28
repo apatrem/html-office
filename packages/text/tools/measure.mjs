@@ -22,6 +22,7 @@ const PACKAGES = [
   "prosemirror-keymap",
   "prosemirror-commands",
   "commonmark",
+  "prosemirror-tables",
 ];
 const OURS = {
   "HTML tree and serialiser": "./model/html.mjs",
@@ -34,6 +35,7 @@ const OURS = {
   "Editing commands": "./editor/commands.mjs",
   "Paste mapping (HTML, tables)": "./editor/clipboard/html.mjs",
   "Markdown import": "./editor/clipboard/markdown.mjs",
+  "Table editing": "./editor/tables.mjs",
 };
 
 async function bundle(contents, external = []) {

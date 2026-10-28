@@ -29,6 +29,7 @@ import {
 import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as E from "../editor/commands.mjs";
+import * as T from "../editor/tables.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { setupClipboard } from "./clipboard.mjs";
@@ -75,6 +76,26 @@ export const MARKS = [
   ["superscript", M.sup, "Superscript", "Mod-."],
   ["subscript", M.sub, "Subscript", "Mod-,"],
   ["code", M.code, "Inline code", "Mod-e"],
+];
+// Table commands (T10): command ID and command; the shell names them.
+const TABLE_COMMANDS = [
+  ["insert-table", T.insertTable()],
+  ["row-above", T.addRowBefore],
+  ["row-below", T.addRowAfter],
+  ["column-left", T.addColumnBefore],
+  ["column-right", T.addColumnAfter],
+  ["delete-rows", T.deleteRows],
+  ["delete-columns", T.deleteColumns],
+  ["delete-table", T.deleteTable],
+  ["merge-cells", T.mergeCells],
+  ["split-cell", T.splitCell],
+  ["header-rows", T.toggleHeaderRows],
+  ["total-rows", T.toggleTotalRows],
+  ["row-headers", T.toggleRowHeaders],
+  ["emphasis", T.toggleEmphasis],
+  ["compact", T.toggleCompact],
+  ["distribute-columns", T.distributeColumns],
+  ["caption", T.toggleCaption],
 ];
 const ALIGNS = [
   ["align-left", null],
@@ -191,6 +212,9 @@ function start() {
     doc,
     plugins: [
       history(),
+      // Cell selections, arrow keys and fixing table shapes, then Text's own table shape (T10).
+      T.tableEditing(),
+      T.tableGuard(),
       subsetGuard(),
       keymap({
         "Mod-z": undo,
@@ -205,9 +229,12 @@ function start() {
         ),
         "Mod-Shift-8": E.toggleList(N.bullet_list),
         "Mod-Shift-7": E.toggleList(N.ordered_list),
-        // In a list Tab changes the level, and never leaves the document.
-        Tab: (s, d) => E.inList(s) && (E.indent(s, d), true),
-        "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
+        // In a table Tab moves between cells (adding a row after the last); in a list it
+        // changes the level. It never leaves the document.
+        Tab: (s, d) =>
+          T.nextCell(s, d) || (E.inList(s) && (E.indent(s, d), true)),
+        "Shift-Tab": (s, d) =>
+          T.previousCell(s, d) || (E.inList(s) && (E.outdent(s, d), true)),
         "Mod-Enter": E.insertPageBreak,
         "Mod-k": () => (commands.run("link"), true),
         Backspace: E.liftListItem,
@@ -310,6 +337,17 @@ function start() {
       );
     },
   );
+  // Tables (T10): each command is enabled where it applies.
+  for (const [id, command] of TABLE_COMMANDS) edit(id, command);
+  commands.register(
+    "column-width",
+    () =>
+      shell.columnWidth(T.columnWidthAt(view.state), (percent) => {
+        T.setColumnWidth(percent)(view.state, view.dispatch);
+        view.focus();
+      }),
+    () => T.isInTable(view.state),
+  );
   commands.register("paste-plain", () => clipboard.pastePlain(view));
   // The Markdown dialog inserts at the selection, then gives focus back with the caret after it
   // (a native dialog refocuses the article first, which resets the caret in Safari).
@@ -346,6 +384,14 @@ function start() {
       list: E.listKind(s)?.name ?? null,
       newPage: E.newPageAt(s),
       link: E.linkAt(s),
+      table: T.isInTable(s) && {
+        header: T.headerRowsAt(s),
+        total: T.totalAt(s),
+        rowHeaders: T.rowHeadersAt(s),
+        emphasis: T.emphasisAt(s),
+        compact: T.compactAt(s),
+        caption: T.captionAt(s),
+      },
     };
   };
   shell = mountShell(
@@ -366,6 +412,7 @@ function start() {
     serialize: () => save(view.state.doc),
     TextSelection,
     NodeSelection,
+    CellSelection: T.CellSelection,
   };
 }
 

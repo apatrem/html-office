@@ -157,6 +157,8 @@ Malformed figures are errors. A `figcaption` is optional; when present it holds 
 - Cells: `colspan` (≤ 1,000) and `rowspan` (≤ 65,534), within their row group; one of `ta-l`, `ta-c`, `ta-r` (numbers use `ta-r`). Each cell holds one paragraph of inline content: no lists, paragraphs or nested tables.
 - The rows form a rectangular grid once spans are expanded, with no cell covered by two spans, at most 1,000 columns and at most 1,000,000 cells.
 
+The editor (T10) keeps this shape while tables are edited: header rows always lead the table and hold `th` cells only, at least one body row follows, no merged cell crosses from the header into the body, a total row is never a header row, and the `colgroup` (present only while a column has a width or emphasis) has one `col` per column. Merging cells joins their text with line breaks, since a cell holds one paragraph.
+
 The table model maps onto the portable table of [ADR-013](../../docs/decisions/013-cross-product-clipboard.md) §3 (header rows, total rows, merges, alignment, percentage widths, links).
 
 ## Comments
