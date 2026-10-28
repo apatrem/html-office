@@ -417,6 +417,51 @@ async function run(engine) {
     );
     pass("a mixed selection copies as subset HTML and pastes back as itself");
 
+    // ---- review fixes: tables in an empty paragraph, undo steps, text from a cell ----
+    await caret("Northwind Gardens (fictional)");
+    await page.keyboard.press("Enter");
+    const empty = await saved();
+    await paste({
+      "text/html": "<table><tr><td>A</td><td>B</td></tr></table>",
+    });
+    assert.match(
+      added(empty, check(await saved())),
+      /^<figure class="table" id="tab-1">\n<table>\n<tbody>\n<tr><td>A<\/td><td>B<\/td><\/tr>/,
+    );
+    await undo();
+    await page.keyboard.type("typed");
+    const typed = await saved();
+    await paste({ "text/plain": "pasted" });
+    await paste({ "text/plain": "again" });
+    await undo();
+    await undo();
+    assert.equal(await saved(), typed, "each paste is its own undo step");
+    await undo();
+    await undo();
+    // Text selected inside one cell pastes as text.
+    const inCell = await page.evaluate(() => {
+      const { view } = window.htmlText;
+      let at = null;
+      view.state.doc.descendants((node, pos) => {
+        if (at === null && node.isText && node.text === "South") at = pos;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(
+          window.htmlText.TextSelection.create(view.state.doc, at, at + 3),
+        ),
+      );
+      const data = new DataTransfer();
+      view.dom.dispatchEvent(clipboardEvent("copy", data));
+      return Object.fromEntries(
+        [...data.types].map((t) => [t, data.getData(t)]),
+      );
+    });
+    doc = await pasted(inCell, "Grow where");
+    assert.match(doc, /Grow where the soil is already rich\.Sou<\/p>/);
+    pass(
+      "a table stays a table in an empty paragraph; one undo per paste; text from a cell is text",
+    );
+
     // ---- drop ----
     await caret("ahead of plan");
     const dropBefore = await saved();
@@ -454,12 +499,22 @@ async function run(engine) {
     doc = article(check(await saved()));
     assert.match(doc, /<h1 id="sec-garden-report">Garden report<\/h1>/);
     assert.match(doc, /<tr><td class="ta-l"><em>Herbs<\/em> \| spices<\/td>/);
+
     assert.match(
       await status(),
       /^Markdown inserted\. Left out: 1 image, 1 horizontal rule\. Adapted to the document's styles: /,
     );
     await undo();
     assert.equal(await saved(), mdBefore, "one undo removes the import");
+    await caret("ahead of plan");
+    await page.evaluate(() => window.htmlText.commands.run("markdown"));
+    await page.fill("textarea.tx-md", "&notit; &copycat; &amp; &#x41; &copy;");
+    await page.click("dialog .sh-primary");
+    assert.match(
+      article(check(await saved())),
+      /Table 1<\/a>\.&amp;notit; &amp;copycat; &amp; A ©<\/p>/,
+    );
+    await undo();
     await page.evaluate(() => window.htmlText.commands.run("markdown"));
     await page.click("dialog .sh-primary");
     assert.match(

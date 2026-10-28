@@ -24,6 +24,8 @@ The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisio
 
 An envelope with another `schema` string is skipped with a message in `notices`. A recognised envelope that is malformed, over a limit or unsafe throws a `ClipboardError`: the paste is aborted, never continued with displayed values. `text/html` over 8 Mi code units is treated as absent; other flavours over their limits throw.
 
+A `rowspan` stops at the end of its row group (`thead`, each `tbody`, `tfoot`), as HTML lays it out; `rowspan="0"` runs to that end.
+
 Text reads a whole pasted fragment, not only a lone table: `readTableElement(table, { rules, sources })` reads one `<table>` of it with the fragment's class rules, and `sources` receives each cell element, so Text maps cell text with its own inline marks while the reader decides the grid.
 
 The table reader keeps displayed text (white space collapsed, `<br>` and blocks as line breaks), `th`/`thead` header rows, `colspan`/`rowspan` (HTML's own limits, and the expanded size checked against `maxCells` before any grid is allocated), bold and italic from tags, inline styles and the fragment's own class rules, cell or paragraph alignment, and `https:`, `http:` and `mailto:` links. Mixed formatting becomes `runs`. Colours, fonts and every other literal style are dropped: pasted content takes the destination's charte. Script, style, template, hidden elements and comments are never text. Exact-value hints (`x:num`, `data-sheets-value`) are not read.

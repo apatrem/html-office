@@ -5,6 +5,7 @@
 // semantic table for other applications and TSV; any other selection as subset HTML and text.
 import { Slice, Fragment } from "prosemirror-model";
 import { NodeSelection, TextSelection } from "prosemirror-state";
+import { closeHistory } from "prosemirror-history";
 import {
   SCHEMA,
   MIME,
@@ -157,15 +158,17 @@ function sliceFor($from, blocks, plain) {
       b.type.create(b.attrs, Fragment.fromArray(childrenOf(b).map(mark))),
     );
   // An edge opens into the textblock at the caret only when it is a paragraph (its text joins the
-  // caret's block), a list where the caret is in a list, or anything in an empty block: a pasted
-  // heading, quote or table stays itself next to the caret's paragraph.
+  // caret's block), a list where the caret is in a list, or, in an empty block, anything but a
+  // table: a pasted heading, quote or table stays itself next to the caret's paragraph, and a
+  // table is never opened (its cells would become text).
   const fragment = Fragment.fromArray(blocks),
-    open = Slice.maxOpen(fragment);
-  if (!parent.content.size) return open;
+    open = Slice.maxOpen(fragment, false);
   const opens = (node) =>
-    node.type === N.paragraph ||
-    (parent.type === N.list_text &&
-      (node.type === N.bullet_list || node.type === N.ordered_list));
+    node.type !== N.table_figure &&
+    (!parent.content.size ||
+      node.type === N.paragraph ||
+      (parent.type === N.list_text &&
+        (node.type === N.bullet_list || node.type === N.ordered_list)));
   return new Slice(
     fragment,
     opens(blocks[0]) ? open.openStart : 0,
@@ -298,7 +301,9 @@ export function setupClipboard(notify) {
       .scrollIntoView()
       .setMeta("paste", true)
       .setMeta("uiEvent", at === null ? "paste" : "drop");
-    view.dispatch(tr);
+    // One undo step of its own: neither joined to the typing before it nor to what follows.
+    view.dispatch(closeHistory(tr));
+    view.dispatch(closeHistory(view.state.tr));
     const message = describeLost(read.lost);
     const notes = [...read.notices, message].filter(Boolean);
     if (notes.length) notify(`${what}. ${notes.join(" ")}`);
@@ -385,14 +390,16 @@ export function setupClipboard(notify) {
       );
       return;
     }
-    attempt(view, () =>
+    attempt(view, () => {
+      if (text.length > LIMITS.text)
+        throw new ClipboardError("the clipboard text is too large");
       insert(view, {
         blocks: textBlocks(text),
         lost: new Map(),
         notices: [],
         plain: true,
-      }),
-    );
+      });
+    });
   }
 
   // Insert › Markdown: the source as blocks at the selection; returns an error message or "".

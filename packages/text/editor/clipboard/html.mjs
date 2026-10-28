@@ -14,6 +14,7 @@ import {
   hidden,
   weight,
   slant,
+  validateTable,
 } from "../../../shared/clipboard/index.mjs";
 import { schema } from "../schema/schema.mjs";
 import { headingId } from "../commands.mjs";
@@ -46,6 +47,7 @@ export const LOST = [
   ["heading", "heading of level 5 or 6", "headings of level 5 or 6", "adapted"],
   ["quote", "block inside a quote", "blocks inside quotes", "adapted"],
   ["item", "block inside a list item", "blocks inside list items", "adapted"],
+  ["span", "overlapping merged cell", "overlapping merged cells", "adapted"],
   [
     "link",
     "link to another kind of address",
@@ -167,10 +169,24 @@ const BLOCK = new Set([
   "ul",
 ]);
 const LISTS = ["ul", "ol"];
+// List nesting kept as lists; the format bounds nesting at 256 elements (two per level).
+const MAX_LIST_LEVELS = 64;
 // Text strips control characters other than tabs and line breaks (they have no rendering).
 const CONTROLS = /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/g;
 
 const kids = (node) => Array.from(node.childNodes ?? []);
+// The text of a subtree, without recursion (clipboard HTML may be nested arbitrarily deep).
+function textOf(node) {
+  let text = "";
+  const stack = [node];
+  while (stack.length) {
+    const n = stack.pop();
+    if (n.nodeType === TEXT) text += n.data;
+    else if (!(n.nodeType === ELEMENT && SKIP.has(n.localName)))
+      stack.push(...kids(n).reverse());
+  }
+  return text;
+}
 const classOf = (node) => (node.getAttribute("class") ?? "").split(/\s+/);
 const has = (node, name) => classOf(node).includes(name);
 
@@ -276,7 +292,7 @@ function wordMarker(node, rules) {
   for (const kid of kids(node)) {
     if (kid.nodeType !== ELEMENT) continue;
     if (declarations(kid, rules).get("mso-list") === "ignore")
-      return kid.textContent ?? "";
+      return textOf(kid);
     const found = wordMarker(kid, rules);
     if (found !== null) return found;
   }
@@ -291,6 +307,7 @@ export class Mapper {
     this.used = used;
     this.maxCells = maxCells;
     this.rules = classRules(root);
+    this.levels = 0;
     // Text's alignment classes, as rules the shared table reader applies to cells.
     for (const [name, align] of [
       ["ta-l", "left"],
@@ -362,7 +379,7 @@ export class Mapper {
     )
       return this.count("note");
     // Deep structures keep their text only, without recursion.
-    if (depth > 200) return flow.text(node.textContent ?? "", marks);
+    if (depth > 200) return flow.text(textOf(node), marks);
     if (tag === "img") return this.count("image");
     if (tag === "br") return flow.node(N.hard_break.create(null, null, marks));
     if (BLOCK.has(tag)) return this.block(node, tag, css, flow, marks, depth);
@@ -375,7 +392,7 @@ export class Mapper {
           N.xref.create(
             {
               target,
-              label: (node.textContent ?? "")
+              label: textOf(node)
                 .replace(/\s+/g, " ")
                 .replace(CONTROLS, "")
                 .trim(),
@@ -546,16 +563,16 @@ export class Mapper {
   // pre: its text, with line breaks kept and the final one dropped.
   code(node, flow) {
     let text = "";
-    const walk = (n) => {
-      for (const k of kids(n)) {
-        if (k.nodeType === TEXT) text += k.data;
-        else if (k.nodeType === ELEMENT && !SKIP.has(k.localName)) {
-          if (k.localName === "br") text += "\n";
-          else if (k.localName !== "img") walk(k);
-        }
+    // Without recursion: clipboard HTML may be nested arbitrarily deep.
+    const stack = kids(node).reverse();
+    while (stack.length) {
+      const k = stack.pop();
+      if (k.nodeType === TEXT) text += k.data;
+      else if (k.nodeType === ELEMENT && !SKIP.has(k.localName)) {
+        if (k.localName === "br") text += "\n";
+        else if (k.localName !== "img") stack.push(...kids(k).reverse());
       }
-    };
-    walk(node);
+    }
     // The HTML parser already turned CR LF into LF: a CR left is a written &#13; and stays.
     text = text.replace(CONTROLS, "").replace(/\n$/, "");
     flow.blocks.push(
@@ -595,6 +612,23 @@ export class Mapper {
   // A list: each item's text (its paragraphs joined by breaks) and one nested list (several are
   // joined). A list directly inside a list (Docs writes nested levels so) nests in the item before.
   list(node, marks, depth) {
+    // Lists nested deeper than the format holds: the rest is the text of one item.
+    if (this.levels >= MAX_LIST_LEVELS) {
+      this.count("item");
+      return [
+        N.bullet_list.create(null, [
+          this.listItem({ text: this.inline(node, marks, depth), nested: [] }),
+        ]),
+      ];
+    }
+    this.levels++;
+    try {
+      return this.items(node, marks, depth);
+    } finally {
+      this.levels--;
+    }
+  }
+  items(node, marks, depth) {
     const items = [];
     for (const kid of kids(node)) {
       if (kid.nodeType === TEXT && !/\S/.test(kid.data)) continue;
@@ -707,6 +741,19 @@ export class Mapper {
       sources,
     });
     if (!read) return;
+    // Spans that overlap (malformed HTML) cannot be kept: the cells stay, unmerged.
+    try {
+      validateTable(read.table);
+    } catch {
+      this.count("span");
+      read.table.rows = read.table.rows.map((row) =>
+        row.map((slot) => {
+          if (!slot || slot.covered) return null;
+          const { colspan: _c, rowspan: _r, ...rest } = slot;
+          return rest;
+        }),
+      );
+    }
     // The reader gives the grid (spans, header rows, alignment); each cell's text is mapped here,
     // with every mark of the subset, its paragraphs as lines. Bold and italic set on the row or
     // the cell (Excel's class rules) apply to the whole cell.
@@ -796,7 +843,33 @@ export function textBlocks(text) {
 // HTML (an inert root) as blocks, with what could not be represented.
 export function fromHTML(root, options) {
   const mapper = new Mapper(root, options);
+  const cell = copiedCell(root);
+  if (cell) {
+    const content = mapper.inline(cell, [], 0);
+    return {
+      blocks: content.length ? [N.paragraph.create(null, content)] : [],
+      lost: mapper.lost,
+    };
+  }
   return { blocks: mapper.blocks(), lost: mapper.lost };
+}
+
+// Text copied inside one table cell of a ProseMirror editor (Text's own): ProseMirror wraps the
+// cell in a table for transport and says so in data-pm-slice ("1 1 -3 […]", three wrappers). It
+// is text, not a table: the cell's content is returned, or null for anything else.
+function copiedCell(root) {
+  const first = kids(root).find((k) => k.nodeType === ELEMENT);
+  if (!/^\d+ \d+ -\d+ /.test(first?.getAttribute("data-pm-slice") ?? ""))
+    return null;
+  const cells = [],
+    stack = [root];
+  while (stack.length && cells.length < 2) {
+    const node = stack.pop();
+    for (const k of kids(node))
+      if (k.nodeType === ELEMENT)
+        (["td", "th"].includes(k.localName) ? cells : stack).push(k);
+  }
+  return cells.length === 1 ? cells[0] : null;
 }
 
 // Blocks as the inline content of one paragraph (a table cell, a caption, a title): their lines,

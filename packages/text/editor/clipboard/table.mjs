@@ -22,6 +22,8 @@ export function freshId(prefix, used) {
 }
 
 const ALIGN = { left: "ta-l", center: "ta-c", right: "ta-r" };
+// Characters the HTML parser would drop or change when the file reopens.
+const CONTROLS = /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/g;
 // Data cell styles as Text marks (ADR-013 §3): alert, title and output are bold, note italic.
 const STYLE_BOLD = ["alert", "title", "output"];
 
@@ -47,7 +49,7 @@ function cellContent(slot) {
       .split("\n")
       .forEach((line, i) => {
         if (i) out.push(N.hard_break.create(null, null, marks));
-        const clean = line.replace(/[\t\f\v]/g, " ");
+        const clean = line.replace(/[\t\f]/g, " ").replace(CONTROLS, "");
         if (clean) out.push(schema.text(clean, marks));
       });
   }

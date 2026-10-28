@@ -465,3 +465,78 @@ test("pasted heading IDs: kept when free and valid, otherwise new", () => {
     ["free", "sec-b", "sec-c", "sec-d", "sec-e"],
   );
 });
+
+test("review: overlapping spans are kept as plain cells; spans stop at their row group", () => {
+  const { blocks, lost } = map(
+    '<table><tr><td>A</td><td rowspan="2">B</td></tr><tr><td colspan="2">C</td></tr></table>',
+  );
+  assert.match(
+    saved(blocks),
+    /<tr><td>A<\/td><td>B<\/td><\/tr>\n<tr><td>C<\/td><td><\/td><\/tr>/,
+  );
+  assert.equal(lost.get("span"), 1);
+  const head = map(
+    '<table><thead><tr><th rowspan="0">A</th><th>B</th></tr></thead><tbody><tr><td>C</td><td>D</td></tr></tbody></table>',
+  );
+  assert.match(
+    saved(head.blocks),
+    /<thead>\n<tr><th>A<\/th><th>B<\/th><\/tr>\n<\/thead>\n<tbody>\n<tr><td>C<\/td><td>D<\/td><\/tr>/,
+  );
+});
+
+test("review: deep lists stay within the format, very deep ones do not overflow the stack", () => {
+  const nested = (n) => "<ul><li>".repeat(n) + "x" + "</li></ul>".repeat(n);
+  saved(map(nested(150)).blocks);
+  const { blocks, lost } = map(nested(5000));
+  saved(blocks);
+  assert.ok(lost.get("item") >= 1);
+  saved(
+    map(
+      "<pre>" +
+        "<span>".repeat(5000) +
+        "deep" +
+        "</span>".repeat(5000) +
+        "</pre>",
+    ).blocks,
+  );
+});
+
+test("review: control characters in envelope text are dropped, so the file reopens the same", () => {
+  saved([
+    tableFigure(
+      validateTable({ rows: [[{ text: "a\u0000b\u0007" }]] }),
+      new Set(),
+    ),
+  ]);
+});
+
+test("review: text copied inside one Text table cell pastes as text, not as a table", () => {
+  const { blocks } = map(
+    '<table data-pm-slice="1 1 -3 [&quot;table_figure&quot;,{&quot;id&quot;:&quot;tab-a&quot;}]"><tbody><tr><td><strong>b</strong></td></tr></tbody></table>',
+  );
+  assert.equal(body(saved(blocks)), "<p><strong>b</strong></p>\n");
+  // A whole copied table keeps its shape.
+  assert.equal(
+    map('<table data-pm-slice="0 0 []"><tr><td>b</td></tr></table>').blocks[0]
+      .type.name,
+    "table_figure",
+  );
+});
+
+test("review: Markdown tables over the limits are refused before rendering; a setext line is a row", () => {
+  const wide = `|${" a |".repeat(31)}\n|${" - |".repeat(31)}\n`;
+  assert.throws(() => markdownHTML(wide), ClipboardError);
+  const started = Date.now();
+  const long =
+    `|${" a |".repeat(30)}\n|${" - |".repeat(30)}\n` + "| x |\n".repeat(1001);
+  assert.throws(() => markdownHTML(long), ClipboardError);
+  assert.ok(Date.now() - started < 2000);
+  assert.match(
+    body(
+      saved(
+        map(markdownHTML("| a | b |\n| --- | --- |\n| c | d |\n===")).blocks,
+      ),
+    ),
+    /<tr><td>c<\/td><td>d<\/td><\/tr>\n<tr><td>===<\/td><td><\/td><\/tr>/,
+  );
+});

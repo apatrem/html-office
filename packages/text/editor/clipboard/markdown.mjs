@@ -3,6 +3,8 @@
 // same mapping as pasted HTML (html.mjs): raw HTML in the Markdown is data like any pasted HTML,
 // and what the subset cannot represent is reported the same way.
 import { Parser, HtmlRenderer, Node } from "commonmark";
+import { ClipboardError } from "../../../shared/clipboard/index.mjs";
+import { LIMIT } from "./table.mjs";
 
 // Longer sources are refused (the clipboard's HTML limit, ADR-013 §1).
 export const MAX_MARKDOWN = 8 * 2 ** 20;
@@ -64,7 +66,14 @@ export function markdownHTML(source) {
   };
   for (let block = doc.firstChild; block; ) {
     const next = block.next;
-    if (block.type === "paragraph" && block.sourcepos) {
+    // A paragraph, or a setext heading whose text holds a table: in GitHub's Markdown the table
+    // ends only at a blank line or another block, so the underline is one more row.
+    if (
+      (block.type === "paragraph" ||
+        (block.type === "heading" &&
+          block.sourcepos?.[1][0] > block.sourcepos?.[0][0])) &&
+      block.sourcepos
+    ) {
       const [[start], [end]] = block.sourcepos;
       const rows = lines.slice(start - 1, end);
       for (let k = 1; k < rows.length; k++) {
@@ -72,6 +81,11 @@ export function markdownHTML(source) {
           head = cells(rows[k - 1]);
         if (!aligns || head.length !== aligns.length) continue;
         if (!rows[k].includes("|") && !rows[k - 1].includes("|")) continue;
+        // Refused before anything is rendered (ADR-013 §3 limits for Text).
+        if (aligns.length > LIMIT.columns || rows.length - k > LIMIT.rows)
+          throw new ClipboardError(
+            `a Text table holds at most ${LIMIT.rows.toLocaleString("en-US")} rows and ${LIMIT.columns} columns`,
+          );
         if (k > 1)
           block.insertBefore(paragraph(rows.slice(0, k - 1).join("\n")));
         const cell = (tag, text, i) =>
