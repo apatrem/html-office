@@ -39,8 +39,10 @@ import {
   tableFigure,
   portableTable,
   tableGrid,
+  freshId,
 } from "../editor/clipboard/table.mjs";
 import { usedIds } from "../editor/commands.mjs";
+import { withoutNewComments } from "../editor/internal-clipboard.mjs";
 
 const N = schema.nodes;
 const MAX_CELLS = LIMIT.rows * LIMIT.columns;
@@ -144,11 +146,16 @@ function sliceFor($from, blocks, plain) {
       .join("\n");
     return new Slice(Fragment.from(text ? schema.text(text) : []), 0, 0);
   }
-  // Plain text takes the marks where it lands, as typing does.
+  // Plain text takes the marks where it lands, as typing does, but not a link or a comment
+  // anchor (the pasted text was not commented).
   const marks = plain ? $from.marks() : null;
   const mark = (node) =>
     marks && node.isText
-      ? node.mark(node.type.schema.marks.link.removeFromSet(marks))
+      ? node.mark(
+          node.type.schema.marks.link.removeFromSet(
+            node.type.schema.marks.comment.removeFromSet(marks),
+          ),
+        )
       : node;
   if (ONE_PARAGRAPH.includes(parent.type)) {
     let nodes = inlineLines(blocks);
@@ -222,6 +229,12 @@ export function selectedTable(state) {
     }
   }
   return null;
+}
+
+// The copied table as a figure, for the internal clipboard: the selected table's figure.
+function copiedFigure(state, { pos }) {
+  const parent = state.doc.resolve(pos).parent;
+  return parent.type === N.table_figure ? parent : null;
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.
@@ -310,6 +323,31 @@ export const clipboardTextSerializer = (slice) =>
         : "",
   );
 
+// Cross-references a paste inserted between `from` and `to` whose target is not in the resulting
+// document (deleted by the paste, or never there) become their label's text.
+function flattenRefs(tr, from, to) {
+  const targets = referenceIds(tr.doc),
+    found = [];
+  tr.doc.nodesBetween(from, Math.min(to, tr.doc.content.size), (node, pos) => {
+    if (node.type === N.xref && !targets.has(node.attrs.target))
+      found.push({ node, pos });
+  });
+  for (const { node, pos } of found.reverse())
+    if (node.attrs.label)
+      tr.replaceWith(
+        pos,
+        pos + node.nodeSize,
+        schema.text(node.attrs.label, node.marks),
+      );
+    else tr.delete(pos, pos + node.nodeSize);
+}
+// A pasted transaction as one undo step of its own, without dangling cross-references.
+function dispatchPaste(view, tr, from) {
+  flattenRefs(tr, tr.mapping.map(from, -1), tr.selection.to);
+  view.dispatch(closeHistory(tr));
+  view.dispatch(closeHistory(view.state.tr));
+}
+
 // The clipboard handlers of the editor view. notify(text) shows a message in the status line.
 // internal and chart: handlePaste functions (view, event) => boolean that may take a paste
 // before the mapping: the internal clipboard of T09 (not where the paste becomes lines: a cell,
@@ -333,13 +371,13 @@ export function setupClipboard(notify, { internal, chart } = {}) {
       );
       return;
     }
+    const from = tr.selection.from;
     tr.replaceSelection(slice)
       .scrollIntoView()
       .setMeta("paste", true)
       .setMeta("uiEvent", at === null ? "paste" : "drop");
     // One undo step of its own: neither joined to the typing before it nor to what follows.
-    view.dispatch(closeHistory(tr));
-    view.dispatch(closeHistory(view.state.tr));
+    dispatchPaste(view, tr, from);
     const message = describeLost(read.lost);
     const notes = [...read.notices, message].filter(Boolean);
     if (notes.length) notify(`${what}. ${notes.join(" ")}`);
@@ -355,6 +393,49 @@ export function setupClipboard(notify, { internal, chart } = {}) {
       );
     }
     view.focus();
+  }
+
+  // A paste taken by another handler (the internal clipboard, the chart paste), through a view
+  // whose dispatch makes it one undo step without dangling cross-references.
+  function handOver(view, handle, event) {
+    const from = view.state.selection.from;
+    const own = Object.create(view, {
+      dispatch: { value: (tr) => dispatchPaste(view, tr, from) },
+    });
+    return handle(own, event);
+  }
+  // This document's own copy of a table: its rich cells (footnotes, cross-references) as a new
+  // table, as the envelope would give it (new ID, the caption stays with the original).
+  function ownTable(view, figure) {
+    const rest = view.state.tr.deleteSelection().doc;
+    const table = withoutNewComments(
+      new Slice(Fragment.from(figure.lastChild), 0, 0),
+      rest,
+    ).content.firstChild;
+    return {
+      blocks: [
+        N.table_figure.create({ id: freshId("tab", usedIds(view.state.doc)) }, [
+          table,
+        ]),
+      ],
+      lost: new Map(),
+      notices: [],
+    };
+  }
+
+  // A remembered slice open into a table (text copied inside cells): the mapping reads it, as text
+  // or whole rows, instead of a piece of table.
+  const TABLE_PARTS = [N.table_figure, N.table, N.table_row];
+  function opensTable(slice) {
+    for (const [side, depth] of [
+      ["firstChild", slice.openStart],
+      ["lastChild", slice.openEnd],
+    ]) {
+      let node = slice.content[side];
+      for (let d = 0; node && d < depth; d++, node = node[side])
+        if (TABLE_PARTS.includes(node.type)) return true;
+    }
+    return false;
   }
 
   const handleDOMEvents = {
@@ -378,8 +459,20 @@ export function setupClipboard(notify, { internal, chart } = {}) {
         ONE_PARAGRAPH.includes(parent) ||
         parent.spec.code ||
         "$anchorCell" in selection;
-      if (!plain && !lines && internal?.(view, event)) return true;
-      if (!plain && chart?.(view, event)) return true;
+      let own = plain ? null : internal?.lookup(view, event);
+      if (own && opensTable(own)) own = null;
+      const figure =
+        own?.content.childCount === 1 &&
+        own.content.firstChild.type === N.table_figure
+          ? own.content.firstChild
+          : null;
+      if (figure) {
+        attempt(view, () => insert(view, ownTable(view, figure)));
+        return true;
+      }
+      if (own && !lines && handOver(view, internal.props.handlePaste, event))
+        return true;
+      if (!plain && chart && handOver(view, chart, event)) return true;
       attempt(view, () =>
         insert(view, readTransfer(data, view.state.doc, { plain })),
       );
@@ -410,6 +503,13 @@ export function setupClipboard(notify, { internal, chart } = {}) {
     event.preventDefault();
     try {
       copyTable(view, event.clipboardData, found);
+      // Remembered whole for a paste in this document (T09's internal clipboard).
+      const figure = copiedFigure(view.state, found);
+      if (figure)
+        internal?.remember(
+          new Slice(Fragment.from(figure), 0, 0),
+          event.clipboardData,
+        );
     } catch (error) {
       notify(`Copy failed: ${error.message}.`);
       return true;
