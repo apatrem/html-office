@@ -17,6 +17,7 @@ import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
 import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
 import { setupPicture } from "./picture.mjs";
+import { setupCSV } from "./csv-dialog.mjs";
 import { setupClipboard } from "./clipboard.mjs";
 import {
   validateStructure,
@@ -1404,6 +1405,26 @@ const picture = setupPicture({
   status,
 });
 register("download-png", () => picture.download());
+// Export sheet as CSV (T19): values only; stale or missing saved results on
+// a sheet with formulas need a choice, recalculate or export them as saved.
+const csv = setupCSV({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  needsResolution: (sheet) => {
+    const formulas = Object.values(sheet.cells).filter((cell) => cell.formula);
+    if (
+      !formulas.length ||
+      (book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint))
+    )
+      return "";
+    const missing = formulas.filter((cell) => !cell.result).length;
+    return `Saved results are not verified as current${missing ? `, and ${missing} formula${missing > 1 ? "s have" : " has"} no result` : ""}. Recalculate to export current values, or export the saved values as they are${missing ? " (missing results are left empty)" : ""}.`;
+  },
+  pending: () => pendingEdits.length > 0,
+  recalculate: () => apply({ recalculateOnly: true }),
+  status,
+});
+register("export-csv", () => csv.open());
 register("conditional-formatting", () => conditionalSettings.open());
 register(
   "pivot-tables",

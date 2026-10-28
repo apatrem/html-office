@@ -132,13 +132,38 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 2. **Offline**: with the network off, each file opens and edits. Data and Slides show chart previews.
 3. **Keyboard only**: Tab reaches the file bar, the menus and the toolbar. The arrow keys move within the toolbar, and Escape closes menus and dialogs.
 
-## 5. Pending: needs #70 and #71
+## 5. Copy and paste between Slides and Data (X02b, X02c)
 
-Not in `main` yet. Run these once [#70](https://github.com/apatrem/html-office/pull/70) (Data ⇄ Slides tables) and [#71](https://github.com/apatrem/html-office/pull/71) (Slides charts) are merged and the files rebuilt:
+Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
 - Copy a Slides chart into Data and into another deck.
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
+
+## 6. Text, from T07
+
+Each task adds its checks here, under its own heading (`### T07 — …`), in task order.
+
+## 7. Data, from T15
+
+Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
+
+### T19 — CSV export
+
+File › Export sheet as CSV… on the selected sheet. Use a sheet with text, negative amounts, percentages, dates, a formula error, a text cell starting with `=` (for example `=1+1`) and one holding a comma, a semicolon and a quote.
+
+1. **English locale** (Regional settings… › English (United States)), *Calculated values*, default separators:
+   - Double-click the file to open it in **Excel** on a computer set to English: one value per column, numbers are numbers (right-aligned, they add up), dates are dates, `=1+1` shows as text with its apostrophe and is not calculated.
+   - **Google Sheets** › File › Import › Upload, separator *Detect automatically*: same result.
+2. **French locale** (Regional settings… › Français (France)): the dialog proposes *Semicolons, decimal comma (fr-FR)*.
+   - Open by double-click in **Excel** on a computer set to French: columns split on semicolons, `-1234,5` is a number, dates are dates.
+   - Choose *Commas, decimal point* instead and open in Excel set to English, then in Sheets with an English spreadsheet locale: numbers are numbers.
+   - Import the semicolon file into **Sheets** with the spreadsheet locale set to France (File › Settings): numbers are numbers.
+3. *Displayed text*: the CSV shows each value as the grid does (currency signs, grouping, `k`/`M` scales, parentheses).
+4. Accents and symbols (`é`, `€`, `—`) display correctly in Excel and Sheets (the file is UTF-8 with a BOM).
+5. Open `packages/data/dist/data-test/csv-stale-offline.html` (written by `node tests/csv-browser.mjs` run in `packages/data`), whose saved results are out of date, and select Summary. The dialog warns, offers *Recalculate and export* and *Export saved values*, and no plain *Export CSV*. *Export saved values* names the file `…-stale.csv`; *Recalculate and export* exports current values.
+6. With the standard file and the network off, edit an input: the calculation cannot load. The CSV dialog says the uncalculated edit is not exported.
+7. Repeat step 1 with the offline file and the network off.
 
 ## Log
 
