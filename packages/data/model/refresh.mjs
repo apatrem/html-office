@@ -49,9 +49,13 @@ function equalCell(a, b) {
 // exact header text (in order for duplicates); otherwise by position.
 // resolutions[oldIndex] settles an old column the new file lacks:
 // {kind:"map", to:newIndex} (renamed), {kind:"clear"} or {kind:"keep"}.
+// A null name is a column the person inserted after the import: it takes
+// nothing from the file and its cells are left alone.
 export function matchColumns(oldNames, newNames, { header, resolutions = {} }) {
   const used = new Set(),
     columns = oldNames.map((name, i) => {
+      if (name === null)
+        return { index: i, name: "", to: null, status: "inserted" };
       let to = -1;
       if (header) {
         to = newNames.findIndex((n, j) => n === name && !used.has(j));
@@ -60,7 +64,7 @@ export function matchColumns(oldNames, newNames, { header, resolutions = {} }) {
       return { index: i, name, to: to >= 0 ? to : null, status: "matched" };
     });
   for (const column of columns) {
-    if (column.to !== null) continue;
+    if (column.to !== null || column.status === "inserted") continue;
     const r = resolutions[column.index];
     if (
       r?.kind === "map" &&
@@ -99,10 +103,11 @@ export function planRefresh({
   const r = bounds(source.ref),
     oldWidth = r.right - r.left + 1,
     header = source.options.header && fresh.header,
-    oldNames = Array.from(
-      { length: oldWidth },
-      (_, i) =>
-        source.columns[i]?.name ?? address(1, r.left + i).replace(/\d+$/, ""),
+    oldNames = Array.from({ length: oldWidth }, (_, i) =>
+      source.columns[i]?.inserted
+        ? null
+        : (source.columns[i]?.name ??
+          address(1, r.left + i).replace(/\d+$/, "")),
     ),
     { columns, added } = matchColumns(
       oldNames,
@@ -144,6 +149,7 @@ export function planRefresh({
   for (const column of layout) {
     const col = r.left + column.at,
       stats = perColumn[layout.indexOf(column)];
+    if (column.status === "inserted") continue;
     for (let row = r.top; row <= bottom; row++) {
       const ref = address(row, col),
         old = sheet.cells[ref] ?? null,
@@ -194,6 +200,10 @@ export function planRefresh({
     rows: { before: oldHeight, after: height },
   };
 }
+// Columns edited by hand that the refresh would change: a replaced value,
+// or a kept column losing the rows the new file no longer has.
+export const overwrittenEdits = (plan) =>
+  plan.columns.filter((c) => c.edited && c.changed);
 function equalValue(a, b) {
   const va = a?.formula ? { formula: a.formula } : a?.input,
     vb = b?.formula ? { formula: b.formula } : b?.input;
@@ -210,6 +220,16 @@ export function dependents(book, sheetId) {
     plain = `${name}!`,
     // Only a name without spaces or punctuation may appear unquoted.
     simple = /^[a-z_][\w.]*$/i.test(name),
+    // Named ranges on the sheet: formulas may read it through them.
+    named = (book.names ?? [])
+      .filter((n) => n.sheetId === sheetId)
+      .map(
+        (n) =>
+          new RegExp(
+            `(^|[^\\w.!'"])${n.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w.(!])`,
+            "i",
+          ),
+      ),
     formulas = new Map();
   for (const s of book.sheets)
     for (const cell of Object.values(s.cells)) {
@@ -218,6 +238,7 @@ export function dependents(book, sheetId) {
       if (
         s.id === sheetId ||
         text.includes(quoted) ||
+        named.some((pattern) => pattern.test(text.replace(/"[^"]*"/g, '""'))) ||
         (simple &&
           new RegExp(
             `(^|[^\\w.'])${plain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,

@@ -103,6 +103,47 @@ try {
   await page.locator("dialog.imp-dialog").waitFor({ state: "detached" });
   assert.equal(await text(page, "C3"), "8");
 
+  // Refresh cancelled while it commits: the plan is locked, and closing the
+  // dialog stops it before anything changes.
+  await pick(page, "ventes-v2.csv", replacement, "Refresh source");
+  await page.locator("#refresh-columns table").waitFor();
+  await page
+    .getByLabel('Column C "Montant" in the new file')
+    .selectOption({ label: 'Use "Montant HT"' });
+  await page
+    .getByLabel('Column D "Date" in the new file')
+    .selectOption({ label: "Clear this column" });
+  await page.locator("#refresh-confirm").check();
+  await page.evaluate(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    window.held = Promise.withResolvers();
+    crypto.subtle.digest = async (...args) => {
+      await window.held.promise;
+      return digest(...args);
+    };
+    window.restoreDigest = () => {
+      crypto.subtle.digest = digest;
+    };
+  });
+  await page.locator("#refresh-apply").click();
+  for (const control of [
+    page.getByLabel('Column D "Date" in the new file'),
+    page.locator("#refresh-confirm"),
+    page.locator("#refresh-delimiter"),
+    page.locator("#refresh-apply"),
+  ])
+    assert.equal(await control.isDisabled(), true);
+  await page.keyboard.press("Escape");
+  await page.locator("dialog.imp-dialog").waitFor({ state: "detached" });
+  await page.evaluate(() => {
+    window.restoreDigest();
+    window.held.resolve();
+  });
+  await page.waitForTimeout(500);
+  assert.equal(await text(page, "C3"), "8");
+  assert.equal(await text(page, "E1"), "");
+  assert.doesNotMatch(await page.locator("#status").textContent(), /Refreshed/);
+
   await pick(page, "ventes-v2.csv", replacement, "Refresh source");
   await page.locator("#refresh-columns table").waitFor();
   const alerts = page.locator("#refresh-alerts li"),

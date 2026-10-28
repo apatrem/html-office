@@ -5,7 +5,11 @@
 // source is refreshed from one worksheet of the replacement workbook.
 import { readCSV, ENCODINGS, DELIMITERS, CSV_LIMITS } from "../model/csv.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
-import { planRefresh, dependents } from "../model/refresh.mjs";
+import {
+  planRefresh,
+  dependents,
+  overwrittenEdits,
+} from "../model/refresh.mjs";
 import { mapSheet, importable, diagnostics } from "../model/xlsx.mjs";
 import { readXLSX } from "./xlsx-reader.mjs";
 
@@ -20,11 +24,18 @@ function select(h, id, choices, value) {
   }
   return s;
 }
-// Column types chosen at import follow their column by name.
-function typesFor(source, names) {
-  return names.map(
-    (name) => source.columns.find((c) => c.name === name)?.type ?? "auto",
-  );
+// Column types chosen at import follow their column by name; with repeated
+// names, the n-th column of a name takes the n-th such column's type.
+export function typesFor(source, names) {
+  const seen = new Map();
+  return names.map((name) => {
+    const n = seen.get(name) ?? 0;
+    seen.set(name, n + 1);
+    return (
+      source.columns.filter((c) => !c.inserted && c.name === name)[n]?.type ??
+      "auto"
+    );
+  });
 }
 // Formulas of a refreshed XLSX sheet read other sheets by their names in the
 // file: each maps to the Data sheet imported from it (by its source), the
@@ -64,7 +75,10 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     edited =
       now.length === source.columns.length
         ? now.flatMap((digest, i) =>
-            digest === source.columns[i].fingerprint ? [] : [i],
+            source.columns[i].inserted ||
+            digest === source.columns[i].fingerprint
+              ? []
+              : [i],
           )
         : now.map((_, i) => i);
   }
@@ -148,7 +162,15 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
   cancel.onclick = () => dialog.close();
   let plan = null,
     fresh = null,
-    workbook = null;
+    workbook = null,
+    // The refresh being committed, while Refresh runs.
+    committing = null;
+  // Cancel, Escape or any other close during the commit stops it.
+  dialog.addEventListener("close", () => {
+    if (!committing) return;
+    committing.cancelled = true;
+    deps.cancel?.();
+  });
   if (xlsx) {
     const reading = new AbortController();
     dialog.addEventListener("close", () => reading.abort());
@@ -216,6 +238,8 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     });
   }
   function draw() {
+    // Nothing changes while Refresh commits the plan the person saw.
+    if (committing) return;
     alerts.replaceChildren();
     impact.replaceChildren();
     plan = null;
@@ -299,10 +323,9 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         ),
       );
     for (const text of fresh.diagnostics) impact.append(h("li", {}, text));
-    // Hand edits the refresh would replace need an explicit confirmation.
-    const overwritten = plan.columns.filter(
-      (c) => c.edited && c.status !== "kept" && c.changed,
-    );
+    // Hand edits the refresh would replace or remove (a kept column loses
+    // the rows the new file no longer has) need an explicit confirmation.
+    const overwritten = overwrittenEdits(plan);
     confirmLabel.hidden = !overwritten.length;
     if (!overwritten.length) confirm.checked = false;
     document.getElementById("refresh-confirm-text").textContent =
@@ -320,6 +343,7 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     cleared: "Cleared",
     kept: "Values kept",
     missing: "Not in the new file",
+    inserted: "Inserted after the import; left alone",
   };
   function table() {
     const t = h(
@@ -428,64 +452,88 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
       options[key] = control.value;
       draw();
     };
+  // Every control that could change the plan.
+  const controls = () => [
+    ...dialog.querySelectorAll(".imp-options select"),
+    ...columns.querySelectorAll("select"),
+    confirm,
+    apply,
+  ];
   apply.onclick = async () => {
-    if (!plan || apply.disabled) return;
-    apply.disabled = true;
+    if (!plan || apply.disabled || committing) return;
+    const run = (committing = {
+        cancelled: false,
+        plan,
+        fresh,
+        sheet: xlsx ? workbook.sheets[Number(worksheet.value)].name : null,
+      }),
+      { plan: chosen } = run;
+    for (const control of controls()) control.disabled = true;
     try {
       // The new source: where it now is, the file read and the fingerprints
       // of the refreshed columns.
       const cells = { ...sheet.cells };
-      for (const { ref, cell } of plan.edits)
+      for (const { ref, cell } of chosen.edits)
         if (cell === null) delete cells[ref];
         else cells[ref] = cell;
-      const digests = await columnFingerprints(cells, plan.ref),
-        next = {
-          ...source,
-          ref: plan.ref,
-          file: {
-            name: file.name.slice(0, 255),
-            bytes: file.size,
-            ...(file.lastModified
-              ? { modified: new Date(file.lastModified).toISOString() }
-              : {}),
-            sha256: await fileDigest(bytes),
-          },
-          importedAt: new Date().toISOString(),
-          options: xlsx
-            ? {
-                sheet: workbook.sheets[Number(worksheet.value)].name,
-                header: source.options.header,
-              }
+      const digests = await columnFingerprints(cells, chosen.ref),
+        sha256 = await fileDigest(bytes);
+      if (run.cancelled) return;
+      const next = {
+        ...source,
+        ref: chosen.ref,
+        file: {
+          name: file.name.slice(0, 255),
+          bytes: file.size,
+          ...(file.lastModified
+            ? { modified: new Date(file.lastModified).toISOString() }
+            : {}),
+          sha256,
+        },
+        importedAt: new Date().toISOString(),
+        options: xlsx
+          ? { sheet: run.sheet, header: source.options.header }
+          : {
+              encoding: run.fresh.encoding,
+              delimiter: run.fresh.delimiter,
+              header: source.options.header,
+              decimal: run.fresh.conventions.decimal,
+              dates: run.fresh.conventions.dates,
+            },
+        columns: chosen.columns.map((c, i) =>
+          c.status === "inserted"
+            ? { inserted: true }
             : {
-                encoding: fresh.encoding,
-                delimiter: fresh.delimiter,
-                header: source.options.header,
-                decimal: fresh.conventions.decimal,
-                dates: fresh.conventions.dates,
+                name:
+                  c.status === "cleared"
+                    ? ""
+                    : (c.from ?? c.name).slice(0, 255),
+                type:
+                  c.index === null
+                    ? "auto"
+                    : (source.columns[c.index]?.type ?? "auto"),
+                fingerprint: digests[i],
               },
-          columns: plan.columns.map((c, i) => ({
-            name:
-              c.status === "cleared" ? "" : (c.from ?? c.name).slice(0, 255),
-            type:
-              source.columns.find((s) => s.name === (c.from ?? c.name))?.type ??
-              "auto",
-            fingerprint: digests[i],
-          })),
-        };
+        ),
+      };
       const done = await onRefresh({
         source: next,
-        edits: plan.edits.map((e) => ({ sheetId: source.sheetId, ...e })),
-        summary: `Refreshed "${sheet.name}" from ${file.name}: ${plural(plan.rows.after, "row", "rows")}, ${plural(
-          plan.columns.reduce((n, c) => n + c.changed, 0),
+        edits: chosen.edits.map((e) => ({ sheetId: source.sheetId, ...e })),
+        summary: `Refreshed "${sheet.name}" from ${file.name}: ${plural(chosen.rows.after, "row", "rows")}, ${plural(
+          chosen.columns.reduce((n, c) => n + c.changed, 0),
           "value changed",
           "values changed",
         )}.`,
       });
       if (done) dialog.close();
-      else apply.disabled = false;
     } catch (error) {
       alerts.replaceChildren(h("li", {}, error.message));
-      apply.disabled = false;
+    } finally {
+      committing = null;
+      if (dialog.open) {
+        for (const control of controls()) control.disabled = false;
+        draw();
+      }
     }
   };
   draw();
