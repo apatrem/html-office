@@ -19,7 +19,8 @@ const run = promisify(execFile),
   plugin = join(repo, "plugin");
 
 // The release archive (tools/release.sh zips plugin/), extracted into an
-// empty directory; a plain copy where zip is unavailable.
+// empty directory; a plain copy where zip is unavailable. The directory is
+// an ESM project ("type": "module"), as a user's project may be.
 async function extract() {
   const dir = await mkdtemp(join(tmpdir(), "html-office-plugin-")),
     source = join(dir, "source"),
@@ -28,6 +29,7 @@ async function extract() {
   // The plugin as release.sh builds it: the Data skill packaged afresh from
   // the sources (other Data work may have changed them since it was last
   // committed), then zipped.
+  await writeFile(join(dir, "package.json"), '{ "type": "module" }\n');
   await cp(plugin, source, { recursive: true });
   await packageSkill(join(source, "skills/html-data"));
   try {

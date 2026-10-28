@@ -2,7 +2,7 @@
 // ECharts' server-side SVG renderer, so a built workbook shows its charts
 // without loading ECharts. Previews that already match their data are kept.
 import { readFile, access } from "node:fs/promises";
-import { createRequire } from "node:module";
+import { runInThisContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 import { CHARTES } from "../../shared/themes/chartes.mjs";
 import {
@@ -40,10 +40,17 @@ async function echartsFile() {
 let library = null;
 async function loadECharts() {
   if (library) return library;
-  const file = await echartsFile();
-  verifyECharts(await readFile(file), ECHARTS_VERSION);
-  // The browser build is UMD: required as CommonJS for server-side SVG.
-  return (library = createRequire(import.meta.url)(fileURLToPath(file)));
+  const file = await echartsFile(),
+    bytes = await readFile(file);
+  verifyECharts(bytes, ECHARTS_VERSION);
+  // The browser build is UMD, run as CommonJS from the verified bytes for
+  // server-side SVG: require() would follow the package scope of the folder
+  // it sits in, and a "type": "module" project would load it as ESM.
+  const module = { exports: {} };
+  runInThisContext(`(function (exports, module) {${bytes}\n})`, {
+    filename: fileURLToPath(file),
+  })(module.exports, module);
+  return (library = module.exports);
 }
 
 // The theme() of the shared chart module, read from charte CSS text: the

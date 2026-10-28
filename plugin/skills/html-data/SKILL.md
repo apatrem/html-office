@@ -32,7 +32,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
 3. Write a patch (FORMAT.md › Tools and patches): `edits` for typed cells or formulas, `rows` for blocks of plain values, `set` for whole workbook fields (dropdowns, conditional formats, charts, pivots…). Change only what was asked; presentation you leave out is kept.
 4. Validate the patch before applying it, **with at most two corrective retries**: `apply file.html patch.json --dry-run`. If it lists errors, correct only those and try again; after two failed corrections, stop, report the errors and leave the file unchanged.
 5. Apply: `apply file.html patch.json --out edited.html` (it recalculates, redraws chart previews, and refuses any change outside the patch). Add `--refresh-pivots` when the workbook has pivot tables whose sources changed.
-6. Check preservation: `validate edited.html --since before.html --allow "Sheet!B2:B9,Inputs!C4"` listing exactly the ranges you were asked to change. Any other change is blocking. Then inspect the affected outputs.
+6. Check preservation: `validate edited.html --since before.html --allow "Sheet!B2:B9,Inputs!C4"` listing exactly the ranges you were asked to change, plus `--allow-fields charts,validations` naming exactly the fields the patch replaced with `set`. Any other change is blocking. Then inspect the affected outputs.
 7. Deliver the edited file and summarise the changes with the new key figures.
 
 ## Rules
