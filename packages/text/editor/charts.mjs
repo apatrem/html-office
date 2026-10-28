@@ -7,7 +7,7 @@ import { schema } from "./schema/schema.mjs";
 import { usedIds } from "./commands.mjs";
 import { figureId } from "./images.mjs";
 import { registry } from "../../shared/charts/index.mjs";
-import { strictValidate } from "../../shared/charts/schema.mjs";
+import { strictValidate, schemas } from "../../shared/charts/schema.mjs";
 import { CHART_WIDTHS } from "../model/format.mjs";
 
 const N = schema.nodes;
@@ -187,3 +187,43 @@ export function setPreview(state, pos, preview) {
     tr.setSelection(NodeSelection.create(tr.doc, pos));
   return tr;
 }
+
+// IDs prefix for a chart's drawn preview: "tx-c1-", "tx-c2-"… not used by any other preview of
+// the document (content IDs never start with "tx-"), so fragment references never cross previews;
+// short whatever the figure's ID. except: the position of the chart being drawn, whose own old
+// preview is replaced.
+export function previewPrefix(doc, except = -1) {
+  const ids = [];
+  const walk = (tree) => {
+    if (tree.type !== "element") return;
+    for (const [n, v] of tree.attrs) if (n === "id") ids.push(v);
+    tree.children.forEach(walk);
+  };
+  doc.forEach((node, pos) => {
+    if (node.type === N.chart && pos !== except && node.attrs.preview)
+      walk(node.attrs.preview);
+  });
+  let n = 1;
+  while (ids.some((id) => id.startsWith(`tx-c${n}-`))) n++;
+  return `tx-c${n}-`;
+}
+
+// A pasted caption as inline text: control characters and broken surrogate pairs, which the HTML
+// parser would change on reopening, become spaces and U+FFFD; white space runs become one space.
+export const captionText = (text) =>
+  String(text)
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(
+      /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g,
+      "\ufffd",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Chart data kept across a change of type: the fields the new type's schema accepts.
+export const keepFields = (type, data) =>
+  Object.fromEntries(
+    Object.entries(data).filter(([k]) =>
+      Object.hasOwn(schemas[type].object, k),
+    ),
+  );

@@ -11,7 +11,7 @@ import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { schema } from "../editor/schema/schema.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
-import { assetStore } from "../model/assets.mjs";
+import { assetStore, fontCSS } from "../model/assets.mjs";
 import {
   insertImage,
   setImage,
@@ -238,4 +238,32 @@ test("a dialog's change targets its figure by ID; a restored store replaces the 
     restored,
     "its zone as it is",
   );
+});
+
+test("store fonts become @font-face rules; a field that could end the rule leaves the font out", () => {
+  const font = {
+    kind: "font",
+    family: "Brand Serif",
+    type: "font/woff2",
+    data: "AAAA",
+  };
+  const css = (extra) => fontCSS({ fonts: () => [{ ...font, ...extra }] });
+  assert.equal(
+    css({}),
+    '@font-face{font-family:"Brand Serif";src:url(data:font/woff2;base64,AAAA);font-weight:400;font-style:normal}',
+  );
+  assert.equal(
+    css({ weight: "700", style: "italic" }).includes(
+      "font-weight:700;font-style:italic",
+    ),
+    true,
+  );
+  for (const bad of [
+    { weight: "400}body{display:none}/*" },
+    { style: "normal}body{display:none}" },
+    { family: 'x";}body{display:none}' },
+    { type: "font/woff2);}body{display:none" },
+    { data: "AA)}body{x" },
+  ])
+    assert.equal(css(bad), "", JSON.stringify(bad));
 });

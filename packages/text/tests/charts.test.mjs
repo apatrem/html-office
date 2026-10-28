@@ -20,6 +20,9 @@ import {
   setPreview,
   previewKey,
   keyOf,
+  previewPrefix,
+  captionText,
+  keepFields,
 } from "../editor/charts.mjs";
 import { envelope } from "./generate.mjs";
 
@@ -159,4 +162,43 @@ test("preview keys follow type, width, data and charte", () => {
   );
   assert.equal(keyOf(element("svg", [["data-key", "k"]], [], "svg")), "k");
   assert.equal(keyOf(element("svg", [], [], "svg")), null);
+});
+
+test("preview ID prefixes are short and used by no other preview", () => {
+  const svg = (ids) =>
+    element(
+      "svg",
+      [["class", "render"]],
+      ids.map((id) => element("clipPath", [["id", id]], [], "svg")),
+      "svg",
+    );
+  const e = editor(
+    `${CHART}\n${CHART.replace('id="fig-a"', 'id="fig-b"')}\n<p>End.</p>`,
+  );
+  let a, b;
+  e.state.doc.forEach((n, p) => {
+    if (n.attrs.id === "fig-a") a = p;
+    if (n.attrs.id === "fig-b") b = p;
+  });
+  e.dispatch(setPreview(e.state, a, svg(["tx-c1-0", "tx-c2-0"])));
+  assert.equal(previewPrefix(e.state.doc), "tx-c3-");
+  // A chart's own old preview does not count: it is replaced.
+  assert.equal(previewPrefix(e.state.doc, a), "tx-c1-");
+  assert.equal(previewPrefix(e.state.doc, b), "tx-c3-");
+});
+
+test("pasted captions keep their length and lose what the parser would change", () => {
+  const long = "x".repeat(1200);
+  assert.equal(captionText(long), long);
+  assert.equal(captionText("bad\u0000cap\ttion\n"), "bad cap tion");
+  assert.equal(captionText("a\ud800b"), "a\ufffdb");
+  assert.equal(captionText("ok \ud83d\ude00"), "ok \ud83d\ude00");
+});
+
+test("a change of type keeps only the fields the new type accepts", () => {
+  const line = { ...SAMPLES.line, labels: "all", scale: true, decimals: 1 };
+  const column = keepFields("column", line);
+  assert.equal(chartProblem("column", column), "");
+  assert.equal(column.decimals, 1);
+  assert.equal("labels" in column || "scale" in column, false);
 });

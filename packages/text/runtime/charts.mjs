@@ -38,6 +38,9 @@ import {
   keyOf,
   previewKey,
   setPreview,
+  previewPrefix,
+  captionText,
+  keepFields,
 } from "../editor/charts.mjs";
 import { FORMAT_VERSION } from "../model/format.mjs";
 
@@ -50,7 +53,8 @@ export function chartManager(onChange) {
   // null until requested, then "loading", "ready" or "failed".
   let library = window.echarts ? "ready" : null,
     edited = false,
-    look = "";
+    look = "",
+    opened = null;
   const views = new Set();
   const observer = new IntersectionObserver(
     (entries) => {
@@ -60,7 +64,8 @@ export function chartManager(onChange) {
         if (view?.visible) view.draw();
       }
     },
-    { rootMargin: "200px" },
+    // Only charts actually in view: an instance is created when a chart scrolls into it.
+    { rootMargin: "0px" },
   );
   const manager = {
     views,
@@ -83,6 +88,7 @@ export function chartManager(onChange) {
     update(state, edit) {
       if (edit) edited = true;
       const next = `${state.doc.attrs.theme}|${state.doc.attrs.font}`;
+      opened ??= next;
       if (next !== look) {
         if (look) edited = true;
         look = next;
@@ -91,6 +97,11 @@ export function chartManager(onChange) {
     },
     get edited() {
       return edited;
+    },
+    // Whether the theme or font differs from the opened document's: a preview written elsewhere
+    // (no key) was drawn with the opened look.
+    get lookChanged() {
+      return opened !== null && look !== opened;
     },
     observer,
   };
@@ -131,12 +142,14 @@ function chartView(manager, edit) {
     });
     const expected = () =>
       previewKey(node.attrs.type, node.attrs.width, parse(node), theme());
-    // "fresh", "missing" or "stale". A preview without a key (written elsewhere) counts as fresh.
+    // "fresh", "missing" or "stale". A preview without a key (written elsewhere) counts as fresh
+    // until the theme or font changes.
     const status = () => {
       const p = node.attrs.preview;
       if (!p) return "missing";
       const key = keyOf(p);
-      return key === null || key === expected() ? "fresh" : "stale";
+      if (key === null) return manager.lookChanged ? "stale" : "fresh";
+      return key === expected() ? "fresh" : "stale";
     };
     function paint() {
       const data = parse(node);
@@ -215,13 +228,12 @@ function chartView(manager, edit) {
         return paint();
       }
       const drawn = box.querySelector("svg");
-      const clean =
-        drawn &&
-        sanitizeSVG(new XMLSerializer().serializeToString(drawn), {
-          prefix: `tx-${node.attrs.id}-`,
-        });
       const pos = getPos();
-      if (!clean || pos === undefined) return paint();
+      if (!drawn || pos === undefined) return paint();
+      const clean = sanitizeSVG(new XMLSerializer().serializeToString(drawn), {
+        prefix: previewPrefix(view.state.doc, pos),
+      });
+      if (!clean) return paint();
       const tree = fromDom(clean);
       tree.attrs.push(["data-key", key]);
       const tr = setPreview(view.state, pos, tree);
@@ -283,11 +295,12 @@ function pictureFor(view, node) {
     picture.preview !== node.attrs.preview
   ) {
     const p = { data: node.attrs.data, preview: node.attrs.preview, url: null };
-    chartPicture(svg, {
+    p.promise = chartPicture(svg, {
       title: data.title,
       unit: data.unit,
       theme: theme(),
-    }).then(
+    });
+    p.promise.then(
       (v) => (p.url = v.url),
       () => {},
     );
@@ -325,39 +338,82 @@ function copyChart(event, view, node) {
   if (text.length > LIMITS.text)
     throw new ClipboardError("the chart is too large for the clipboard");
   const label = data.title || caption || registry[type].label;
-  const png = pictureFor(view, node)?.url ?? null;
-  const html = [png, null]
-    .map((p) => figureHTML({ envelope: json, png: p, caption: label }))
-    .find((h) => h.length <= LIMITS.html);
+  const html = (png) =>
+    [png, null]
+      .map((p) => figureHTML({ envelope: json, png: p, caption: label }))
+      .find((h) => h.length <= LIMITS.html) ?? null;
+  const picture = pictureFor(view, node);
   const out = event.clipboardData;
   out.setData(MIME, json);
-  if (html) out.setData("text/html", html);
+  if (html(picture?.url ?? null))
+    out.setData("text/html", html(picture?.url ?? null));
   out.setData("text/plain", text);
+  // The native picture (ADR-013 §4, as Slides): in the same gesture, the async API adds
+  // image/png for other applications once the picture is drawn. A rejected write leaves the copy
+  // event's strings; a later copy always wins over an earlier picture still being drawn.
+  const n = ++copies;
+  if (
+    !picture ||
+    !navigator.clipboard?.write ||
+    typeof ClipboardItem === "undefined"
+  )
+    return null;
+  const png = picture.promise.then((v) => {
+    if (n !== copies) throw new Error("a newer copy replaced this one");
+    return v;
+  });
+  try {
+    return navigator.clipboard
+      .write([
+        new ClipboardItem({
+          "text/html": png.then(
+            (v) => new Blob([html(v.url) ?? ""], { type: "text/html" }),
+          ),
+          "text/plain": new Blob([text], { type: "text/plain" }),
+          "image/png": png.then((v) => v.blob),
+        }),
+      ])
+      .then(
+        () => n === copies,
+        () => false,
+      );
+  } catch {
+    return null;
+  }
 }
+let copies = 0;
 
 // The chart envelope on a pasted clipboard, from the custom type or the HTML attribute; null
 // when there is none (other pastes are left to the editor).
+// An envelope of an unknown schema (a newer version) is skipped for the next carrier, as
+// readClipboard does (ADR-013 §1); a recognised but malformed one throws.
 function chartEnvelope(data) {
   const types = Array.from(data?.types ?? []);
-  let json = types.includes(MIME) ? data.getData(MIME) : "";
-  if (!json && types.includes("text/html")) {
-    const html = data.getData("text/html");
-    if (html.length <= LIMITS.html) json = findEnvelope(parseInert(html)) ?? "";
+  const carriers = [
+    () => (types.includes(MIME) ? data.getData(MIME) : ""),
+    () => {
+      const html = types.includes("text/html") ? data.getData("text/html") : "";
+      return html && html.length <= LIMITS.html
+        ? (findEnvelope(parseInert(html)) ?? "")
+        : "";
+    },
+  ];
+  for (const carrier of carriers) {
+    const json = carrier();
+    if (!json) continue;
+    const { envelope } = decodeEnvelope(json, { maxCells: LIMITS.htmlCells });
+    if (envelope) return envelope.kind === "chart" ? envelope : null;
   }
-  if (!json) return null;
-  const { envelope } = decodeEnvelope(json, { maxCells: LIMITS.htmlCells });
-  return envelope?.kind === "chart" ? envelope : null;
+  return null;
 }
 
 // A pasted chart: a new figure with a new ID, its caption and width when the source gave them.
 // Its pasted preview is shown, sanitised, until this document's charte draws it again.
-let pastes = 0;
 function pasteChart(view, envelope) {
   const { type, data, svg } = readChart(envelope.chart);
   const { width, caption } = envelope.chart;
   const clean =
-    svg &&
-    sanitizeSVG(svg, { prefix: `tx-p${Date.now().toString(36)}${++pastes}-` });
+    svg && sanitizeSVG(svg, { prefix: previewPrefix(view.state.doc) });
   const preview = clean ? fromDom(clean) : null;
   // Drawn in another charte: never current here.
   preview?.attrs.push(["data-key", "pasted"]);
@@ -367,12 +423,8 @@ function pasteChart(view, envelope) {
     width: ["text", "full"].includes(width) ? width : "text",
     preview,
     caption:
-      typeof caption === "string" && caption.trim()
-        ? [
-            view.state.schema.text(
-              caption.replace(/\s+/g, " ").trim().slice(0, 1000),
-            ),
-          ]
+      typeof caption === "string" && captionText(caption)
+        ? [view.state.schema.text(captionText(caption))]
         : null,
   })(view.state, view.dispatch);
 }
@@ -389,14 +441,18 @@ export const chartPlugin = (manager, edit, report) =>
       init: () => false,
       apply: (tr) => tr.docChanged && tr.getMeta("addToHistory") !== false,
     },
-    view: () => ({
-      update(view) {
-        manager.update(view.state, chartKey.getState(view.state));
-        const found = chartAt(view.state);
-        if (found && view.state.selection instanceof NodeSelection)
-          pictureFor(view, found.node);
-      },
-    }),
+    // The look as opened is read when the editor starts.
+    view(view) {
+      manager.update(view.state, false);
+      return {
+        update(view) {
+          manager.update(view.state, chartKey.getState(view.state));
+          const found = chartAt(view.state);
+          if (found && view.state.selection instanceof NodeSelection)
+            pictureFor(view, found.node);
+        },
+      };
+    },
     props: {
       nodeViews: { chart: chartView(manager, edit) },
       handleDOMEvents: {
@@ -406,10 +462,14 @@ export const chartPlugin = (manager, edit, report) =>
             return false;
           event.preventDefault();
           try {
-            copyChart(event, view, sel.node);
+            const native = copyChart(event, view, sel.node);
             report(
               "Chart copied. Paste it into Text or Slides; other applications receive a picture.",
             );
+            native?.then((latest) => {
+              if (latest)
+                report("Chart copied, with a picture for other applications.");
+            });
           } catch (error) {
             report(`Copy failed: ${error.message}.`);
           }
@@ -464,7 +524,9 @@ export function chartDialog({ initial, onSave, done }) {
   const title = h("input", { type: "text" });
   const unit = h("input", { type: "text" });
   const grid = h("table", { class: "tx-chart-grid" });
-  const json = h("textarea", { rows: "10", hidden: true, spellcheck: "false" });
+  const json = h("textarea", { rows: "10", spellcheck: "false" });
+  const jsonField = field("Chart JSON", json);
+  jsonField.hidden = true;
   const error = h("p", { class: "sh-err", role: "status" });
   let headers, rows;
   const load = () => {
@@ -521,7 +583,7 @@ export function chartDialog({ initial, onSave, done }) {
   // The chart data from the form, or a message.
   const collect = () => {
     let next;
-    if (!json.hidden) {
+    if (!jsonField.hidden) {
       try {
         next = JSON.parse(json.value);
       } catch (e) {
@@ -552,7 +614,7 @@ export function chartDialog({ initial, onSave, done }) {
     // Category charts share their data; another type starts from its sample.
     data =
       got.data && CATEGORY.includes(was) && CATEGORY.includes(type)
-        ? got.data
+        ? keepFields(type, got.data)
         : structuredClone(SAMPLES[type]);
     load();
   });
@@ -591,17 +653,23 @@ export function chartDialog({ initial, onSave, done }) {
     }),
     button("JSON", () => {
       const got = collect();
-      if (json.hidden && got.data)
-        json.value = JSON.stringify(got.data, null, 2);
-      else if (!json.hidden) {
-        if (!got.data) return void (error.textContent = got.problem);
+      if (!got.data) return void (error.textContent = got.problem);
+      error.textContent = "";
+      if (jsonField.hidden) json.value = JSON.stringify(got.data, null, 2);
+      else {
         data = got.data;
         load();
       }
-      json.hidden = !json.hidden;
-      grid.hidden = !json.hidden;
+      jsonMode(jsonField.hidden);
     }),
   );
+  // In JSON, the JSON is the whole chart: the type, title, unit and rows are not edited apart.
+  const jsonMode = (on) => {
+    jsonField.hidden = !on;
+    grid.hidden = on;
+    for (const el of [typeSelect, title, unit, ...edits.children])
+      if (el.textContent !== "JSON") el.disabled = on;
+  };
   load();
   let result = null;
   const dialog = modal(
@@ -614,7 +682,7 @@ export function chartDialog({ initial, onSave, done }) {
         field("Width", width),
       ),
       h("div", { class: "sh-two" }, field("Title", title), field("Unit", unit)),
-      h("div", { class: "tx-chart-table" }, grid, json),
+      h("div", { class: "tx-chart-table" }, grid, jsonField),
       edits,
       h(
         "p",

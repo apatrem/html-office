@@ -99,3 +99,26 @@ export function assetStore(file) {
   load(file);
   return store;
 }
+
+// The fonts of the asset store as @font-face rules. Their fields passed the asset contract when
+// the file or draft was opened; each is checked again here, and a font that fails is left out,
+// so no field can end the rule.
+const FONT = {
+  family: /^[\w -]{1,100}$/,
+  type: /^font\/(woff2?|otf|ttf)$/,
+  data: /^[A-Za-z0-9+/]*={0,2}$/,
+};
+export const fontCSS = (store) =>
+  store
+    .fonts()
+    .filter(
+      (a) =>
+        Object.entries(FONT).every(([k, re]) => re.test(a[k] ?? "")) &&
+        (a.weight === undefined || /^\d{3}$/.test(String(a.weight))) &&
+        (a.style === undefined || /^(normal|italic|oblique)$/.test(a.style)),
+    )
+    .map(
+      (a) =>
+        `@font-face{font-family:"${a.family}";src:url(data:${a.type};base64,${a.data});font-weight:${a.weight ?? 400};font-style:${a.style ?? "normal"}}`,
+    )
+    .join("");
