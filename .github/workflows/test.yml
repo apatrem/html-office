@@ -162,3 +162,7 @@ jobs:
         run: node packages/text/tests/comments-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Paste, copy and import Markdown in Firefox and WebKit (Text T07)
+        run: node packages/text/tests/clipboard-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser.mjs && node tests/look-browser.mjs && node tests/saving-browser.mjs && node tests/editing-browser.mjs && node tests/numbering-browser.mjs && node tests/footnotes-browser.mjs && node tests/images-browser.mjs && node tests/charts-browser.mjs && node tests/comments-browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/look-browser.mjs && node tests/saving-browser.mjs && node tests/editing-browser.mjs && node tests/numbering-browser.mjs && node tests/footnotes-browser.mjs && node tests/images-browser.mjs && node tests/charts-browser.mjs && node tests/comments-browser.mjs && node tests/clipboard-browser.mjs",
     "build": "node tools/build.mjs",
     "check": "node tools/check.mjs",
     "pack": "node tools/pack.mjs",
@@ -16,6 +16,7 @@
     "prettier": "3.6.2"
   },
   "dependencies": {
+    "commonmark": "0.31.2",
     "prosemirror-commands": "1.7.2",
     "prosemirror-history": "1.5.1",
     "prosemirror-keymap": "1.2.3",

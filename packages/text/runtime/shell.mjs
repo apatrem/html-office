@@ -29,6 +29,7 @@ const SHORTCUTS = [
   ["Superscript, subscript", `${key(".")}, ${key(",")}`],
   ["Inline code", key("E")],
   ["Link", key("K")],
+  ["Paste as plain text", key("Shift+V")],
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
   ["Page break", key("Enter")],
@@ -178,6 +179,10 @@ export function mountShell(
       items: () => [
         item("Undo", "undo", { shortcut: key("Z") }),
         item("Redo", "redo", { shortcut: key("Shift+Z") }),
+        "-",
+        item("Paste as plain text", "paste-plain", {
+          shortcut: key("Shift+V"),
+        }),
       ],
     },
     {
@@ -194,6 +199,7 @@ export function mountShell(
         item("Contents", "contents"),
         item("Cross-reference…", "xref"),
         item("Comment", "comment", { shortcut: alt("M") }),
+        item("Markdown…", "markdown"),
       ],
     },
     {
@@ -716,6 +722,64 @@ export function mountShell(
       opener: { isConnected: true, focus: back },
     });
   }
+  // Insert › Markdown: typed, pasted or read from a file; insert(source) returns an error message
+  // ("" when inserted), back() returns focus to the document.
+  function markdown(insert, back) {
+    const source = h("textarea", {
+      rows: 12,
+      spellcheck: "false",
+      class: "tx-md",
+      placeholder:
+        "# Heading\n\nText with **bold**, a [link](https://example.org) and a table:\n\n| Region | 2026 |\n| --- | ---: |\n| North | 1.9 |",
+    });
+    const file = h("input", {
+      type: "file",
+      accept: ".md,.markdown,.txt,text/markdown,text/plain",
+    });
+    const error = h("p", { class: "sh-err tx-md-err", role: "status" });
+    file.addEventListener("change", async () => {
+      const chosen = file.files?.[0];
+      if (chosen) source.value = await chosen.text();
+    });
+    const ok = h(
+      "button",
+      { type: "button", class: "sh-b sh-t sh-primary" },
+      "Insert",
+    );
+    const dialog = modal(
+      "Insert Markdown",
+      [
+        h(
+          "p",
+          { class: "sh-hint" },
+          "CommonMark with tables, inserted at the cursor in the document's styles. Raw HTML is read as text and formatting only; nothing in it runs or loads.",
+        ),
+        field("Markdown", source),
+        field("Or open a file", file),
+        error,
+      ],
+      [
+        h("span", { class: "sh-spacer" }),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => dialog.close("cancel"),
+          },
+          "Cancel",
+        ),
+        ok,
+      ],
+      { opener: { isConnected: true, focus: back } },
+    );
+    ok.addEventListener("click", () => {
+      const message = insert(source.value);
+      if (message) error.textContent = message;
+      else dialog.close("insert");
+    });
+    source.focus();
+  }
   // The cross-reference dialog: headings and figures in document order, with their labels.
   // done(id) gets the chosen target, or null when cancelled.
   function xref(targets, done) {
@@ -781,7 +845,7 @@ export function mountShell(
     });
     list.focus();
   }
-  return { recover, link, xref, openComments };
+  return { recover, link, markdown, xref, openComments };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

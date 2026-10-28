@@ -1,7 +1,12 @@
 // html-text editor bootstrap (T03). The file's own nodes are captured before anything else runs;
 // article#doc is validated with the same rules as tools/check.mjs, then edited with ProseMirror.
 // Saving writes the captured zones unchanged and article#doc from the editor's document.
-import { EditorState, Selection, TextSelection } from "prosemirror-state";
+import {
+  EditorState,
+  Selection,
+  TextSelection,
+  NodeSelection,
+} from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
@@ -34,6 +39,7 @@ import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
+import { setupClipboard } from "./clipboard.mjs";
 import * as I from "../editor/images.mjs";
 import { assetStore } from "../model/assets.mjs";
 import {
@@ -221,19 +227,23 @@ function start() {
     if (regenerate(tr, numbers))
       view.dispatch(tr.setMeta("addToHistory", false));
   };
+  // Pastes go through T07's clipboard handling, which first gives them to the internal clipboard
+  // (a copy from this document, kept whole: T09) and to the chart plugin (a chart envelope: T11).
+  const internal = internalClipboard();
+  const chartsPlugin = chartPlugin(
+    charts,
+    () => commands.run("chart"),
+    (message) => saving.say(message),
+  );
   const state = EditorState.create({
     doc,
     plugins: [
       history(),
       subsetGuard(),
       imagePlugin(assets, () => commands.run("image")),
-      chartPlugin(
-        charts,
-        () => commands.run("chart"),
-        (message) => saving.say(message),
-      ),
+      chartsPlugin,
       G.generatedContent(numbers),
-      internalClipboard(),
+      internal,
       commentHighlights(),
       keymap({
         "Mod-z": undo,
@@ -266,10 +276,18 @@ function start() {
       keymap({ ...baseKeymap, Enter: enter }),
     ],
   });
+  // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
+  const clipboard = setupClipboard((text) => saving.say(text), {
+    internal,
+    chart: chartsPlugin.props.handlePaste,
+  });
   view = new EditorView(
     { mount: article },
     {
       state,
+      handleDOMEvents: clipboard.handleDOMEvents,
+      clipboardSerializer: clipboard.clipboardSerializer,
+      clipboardTextSerializer: clipboard.clipboardTextSerializer,
       // The caret is kept clear of the sticky file bar and the floating settings bar.
       scrollMargin: { top: 110, bottom: 90, left: 5, right: 5 },
       scrollThreshold: { top: 110, bottom: 90, left: 0, right: 0 },
@@ -352,6 +370,24 @@ function start() {
       );
     },
   );
+  commands.register("paste-plain", () => clipboard.pastePlain(view));
+  // The Markdown dialog inserts at the selection, then gives focus back with the caret after it
+  // (a native dialog refocuses the article first, which resets the caret in Safari).
+  commands.register("markdown", () => {
+    let { doc, selection } = view.state;
+    shell.markdown(
+      (source) => {
+        const error = clipboard.insertMarkdown(view, source);
+        ({ doc, selection } = view.state);
+        return error;
+      },
+      () => {
+        if (view.state.doc === doc)
+          view.dispatch(view.state.tr.setSelection(selection));
+        view.focus();
+      },
+    );
+  });
   commands.register("undo", run(undo), () => undo(view.state));
   commands.register("redo", run(redo), () => redo(view.state));
   for (const key of ["theme", "font", "page", "margins"])
@@ -538,6 +574,8 @@ function start() {
     saving,
     report,
     serialize: () => save(view.state.doc),
+    TextSelection,
+    NodeSelection,
   };
 }
 

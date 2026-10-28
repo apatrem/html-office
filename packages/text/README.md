@@ -12,7 +12,8 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `model/file.mjs` | File layout of the canonical form: one zone per line, article#doc from the editor |
 | `editor/schema/` | ProseMirror schema of the subset, parser (tree to document), serialiser (document to canonical HTML), `document.mjs` (validated open, save, read-back check) and `guard.mjs` (keeps links off footnotes and cross-references while editing) (T02) |
 | `editor/commands.mjs` | Editing commands (T06): paragraph styles, lists, marks, links, alignment, page breaks, stable heading IDs |
-| `runtime/` | The editor (T03): bootstrap (`main.mjs`), variant A shell (`shell.mjs`, shared components, document settings), theme, font, page and margins (`look.mjs`, T04), saving and draft recovery through `packages/shared/persistence.mjs` (`saving.mjs`, T05), editor-only CSS |
+| `editor/clipboard/` | Paste and import (T07): `html.mjs` maps pasted HTML (Word, Docs, Excel, Sheets, web pages, Text) onto the subset and counts what it cannot hold; `markdown.mjs` turns CommonMark with tables into HTML for the same mapping; `table.mjs` converts Text tables and ADR-013 portable tables both ways; `entities.mjs` lets the browser decode Markdown character references |
+| `runtime/` | The editor (T03): bootstrap (`main.mjs`), variant A shell (`shell.mjs`, shared components, document settings), theme, font, page and margins (`look.mjs`, T04), saving and draft recovery through `packages/shared/persistence.mjs` (`saving.mjs`, T05), clipboard (`clipboard.mjs`, T07: paste, drop, copy, Markdown import), editor-only CSS |
 | `theme/` | Default look (T04): `layout.css` is the default `style#theme` (page format, margins, type scale, blocks, tables); `index.mjs` gives it and the default charte to tools and tests |
 | `tools/build.mjs` | `node tools/build.mjs <document.html> [<output.html>] [--json]`: builds the editor with its notices into `script#engine` and reports bytes by zone |
 | `tools/check.mjs` | `node tools/check.mjs <document.html> [--json]`; also reports a valid document that is not in canonical form |
@@ -20,6 +21,7 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `tools/measure.mjs` | Code budget by component (`--write` updates `bench/code-size.json`) |
 | `fixtures/valid/` | One fixture per construct; `example.html` is a compact complete document |
 | `fixtures/invalid/` | One fixture per rejection; `expected.json` lists each error and its location |
+| `fixtures/clipboard/` | Clipboard HTML in the shape Word, Google Docs and web pages write it, and a Markdown report (hand-written, fictional; see FORMAT.md › Paste and Markdown import) |
 | `tests/generate.mjs` | Seeded random documents for the round-trip properties |
 
 The validator reuses the Slides safety rules (`src/format.js`) and the strict chart schemas (`packages/shared/charts/schema.mjs`). Fixtures are fictional.
@@ -32,4 +34,4 @@ node packages/text/tools/build.mjs packages/text/fixtures/valid/example.html
 
 The built file (`dist/text/example.html`) opens from `file://`: type, undo and redo, choose the theme, font, page format and margins (Theme & page), Save (Chrome and Edge, File System Access API) or Save a copy (every browser; the only save in Safari and Firefox). Save writes only an empty file or the file as opened, in canonical form; nothing is normalised silently. Unsaved changes are kept as a draft in the browser and offered when the file is reopened.
 
-`TEXT_ENGINES=chromium,firefox,webkit node packages/text/tests/saving-browser.mjs` runs the saving tests in other engines (CI runs Firefox and WebKit).
+`TEXT_ENGINES=chromium,firefox,webkit node packages/text/tests/saving-browser.mjs` runs the saving tests in other engines (CI runs Firefox and WebKit); so do `editing-browser.mjs` and `clipboard-browser.mjs`.

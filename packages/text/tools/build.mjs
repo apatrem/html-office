@@ -44,6 +44,30 @@ const cssText = {
     })),
 };
 
+// commonmark's HTML patterns hold "<!--", which an inline script cannot carry. esbuild writes it
+// only inside strings and regular expressions, where \x3c is the same character.
+// The browser decodes commonmark's character references (editor/clipboard/entities.mjs).
+export const ENTITIES = "./packages/text/editor/clipboard/entities.mjs";
+export const escapeComments = (code) => code.replaceAll("<!--", "\\x3c!--");
+
+// Licence entries of what esbuild bundled. commonmark declares entities, replaced by the browser's
+// decoder (ENTITIES), and minimist, for its command line: neither is in the editor. commonmark's
+// and mdurl's licence files separate their notices with "---" lines; each part is an entry, so
+// their MIT texts are stored once, like the other packages'.
+// cwd: esbuild's working directory, to which the metafile's paths are relative.
+export function licenceEntries(metafile, cwd = repo) {
+  return packageEntries(bundledPackages([metafile], cwd))
+    .filter((e) => !/^(entities|minimist)@/.test(e.label))
+    .flatMap((e) =>
+      /^(commonmark|mdurl)@/.test(e.label)
+        ? e.text
+            .split(/^-{3,}[ \t]*$/m)
+            .filter((part) => part.trim())
+            .map((text) => ({ label: e.label, text }))
+        : [e],
+    );
+}
+
 export async function buildEngine() {
   const version = JSON.parse(
     await readFile(join(pkg, "package.json"), "utf8"),
@@ -59,6 +83,7 @@ export async function buildEngine() {
     legalComments: "none",
     metafile: true,
     absWorkingDir: repo,
+    alias: { entities: ENTITIES },
   });
   // The file embeds the editor, so the editor carries the notices of everything bundled in it (ADR-011 §9).
   const notices = formatNotices(
@@ -67,7 +92,7 @@ export async function buildEngine() {
         label: `html-text@${version}/LICENSE`,
         text: await readFile(join(repo, "LICENSE"), "utf8"),
       },
-      ...packageEntries(bundledPackages([result.metafile], repo)),
+      ...licenceEntries(result.metafile),
     ]),
     {
       title:
@@ -77,7 +102,7 @@ export async function buildEngine() {
   if (/\*\/|\r/.test(notices))
     throw new Error('Notices cannot contain "*/" or a carriage return');
   const code = inlineScript(
-    `/*! html-text ${version} — MIT — Copyright (c) 2026 Pierre Supau.\n${notices}*/\n${result.outputFiles[0].text}`,
+    `/*! html-text ${version} — MIT — Copyright (c) 2026 Pierre Supau.\n${notices}*/\n${escapeComments(result.outputFiles[0].text)}`,
     "engine",
   );
   return { version, code, notices, metafile: result.metafile };

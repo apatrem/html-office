@@ -29,4 +29,15 @@ export {
   excelFormat,
   escapeAttribute,
 } from "./write.mjs";
-export { readClipboard, readTable, findEnvelope, parseInert } from "./read.mjs";
+export {
+  readClipboard,
+  readTable,
+  readTableElement,
+  classRules,
+  declarations,
+  hidden,
+  weight,
+  slant,
+  findEnvelope,
+  parseInert,
+} from "./read.mjs";

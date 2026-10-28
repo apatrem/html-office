@@ -5,6 +5,7 @@
 .tx-refusal{padding:12px 16px;background:#fff4e5;border-bottom:1px solid var(--sh-warn)}
 .tx-refusal ul{margin:6px 0 0 18px;padding:0}
 .tx-keys th{text-align:left;font-weight:400;padding:4px 16px 4px 0}
+.tx-md{width:min(640px,80vw);font:13px/1.45 ui-monospace,monospace;resize:vertical}
 .tx-keys td{font-family:ui-monospace,monospace}
 #doc.ProseMirror{white-space:pre-wrap;word-wrap:break-word;outline:none;font-variant-ligatures:none;font-feature-settings:"liga" 0}
 #doc.ProseMirror pre{white-space:pre-wrap}

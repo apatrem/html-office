@@ -315,19 +315,22 @@ async function run(name) {
     await clip("copy");
     const notesBefore = await count();
     await cursorAtEnd("#doc ul > li:last-child");
-    // Another tab's copy of the same text: same plain text, no token of this copy.
+    // Another tab's copy of the same text: same plain text, no token of this copy, and a note
+    // edited there. It is read through the paste mapping (T07), which keeps Text's footnotes.
     await page.evaluate(() => {
-      window.clipped["text/html"] = window.clipped["text/html"].replace(
-        / data-tx-clip="[^"]*"/,
-        "",
-      );
+      window.clipped["text/html"] = window.clipped["text/html"]
+        .replace(/ data-tx-clip="[^"]*"/, "")
+        .replace(/(class="footnote"[^>]*>)/, "$1Edited elsewhere. ");
     });
     await clip("paste");
-    assert.equal(
-      await count(),
-      notesBefore,
+    assert.equal(await count(), notesBefore + 1);
+    assert.match(
+      await page.evaluate(() => window.htmlText.serialize()),
+      /Edited elsewhere\. /,
       "another copy's HTML is parsed, not this slice",
     );
+    await page.keyboard.press(`${mod}+z`);
+    assert.equal(await count(), notesBefore);
     await selectNote();
     await clip("copy");
     await cursorAtEnd("#doc ul > li:last-child");

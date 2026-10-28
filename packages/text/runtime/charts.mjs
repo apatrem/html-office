@@ -405,7 +405,18 @@ function chartEnvelope(data) {
   for (const carrier of carriers) {
     const json = carrier();
     if (!json) continue;
-    const { envelope } = decodeEnvelope(json, { maxCells: LIMITS.htmlCells });
+    let envelope;
+    try {
+      ({ envelope } = decodeEnvelope(json, { maxCells: LIMITS.htmlCells }));
+    } catch (error) {
+      // A malformed envelope of another kind (a table) is the editor's to refuse (T07).
+      let kind = null;
+      try {
+        kind = JSON.parse(json)?.kind;
+      } catch {}
+      if (kind === "chart") throw error;
+      return null;
+    }
     if (envelope) return envelope.kind === "chart" ? envelope : null;
   }
   return null;

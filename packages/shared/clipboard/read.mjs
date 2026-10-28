@@ -89,7 +89,7 @@ export function findEnvelope(root) {
 // Class rules from the fragment's own <style> elements (Excel and Word put
 // bold, italic and alignment there), for `.name` and `tag.name` selectors.
 const MAX_CSS = 2 ** 20;
-function classRules(root) {
+export function classRules(root) {
   const rules = new Map();
   let css = "";
   walk(root, (node) => {
@@ -131,7 +131,7 @@ function classRules(root) {
   }
   return rules;
 }
-function declarations(element, rules) {
+export function declarations(element, rules) {
   let text = "";
   for (const name of (element.getAttribute("class") ?? "").split(/\s+/))
     if (rules.has(name)) text += ";" + rules.get(name);
@@ -150,18 +150,18 @@ function declarations(element, rules) {
   }
   return out;
 }
-const hidden = (css) =>
+export const hidden = (css) =>
   css.get("display") === "none" ||
   css.get("mso-hide") === "all" ||
   css.get("visibility") === "hidden";
-function weight(value) {
+export function weight(value) {
   if (value === undefined) return undefined;
   if (value === "bold" || value === "bolder") return true;
   if (value === "normal" || value === "lighter") return false;
   const n = parseInt(value, 10);
   return Number.isFinite(n) ? n >= 600 : undefined;
 }
-function slant(value) {
+export function slant(value) {
   if (value === undefined) return undefined;
   return value.startsWith("italic") || value.startsWith("oblique");
 }
@@ -290,24 +290,36 @@ const spanOf = (element, name, max) => {
   if (!Number.isFinite(n) || n < (name === "rowspan" ? 0 : 1)) return 1;
   return Math.min(n, max);
 };
+// Rows with `end`, the index after the last row of their row group: as in
+// HTML, a rowspan stops there (rows outside any section form one group).
 function tableRows(table) {
   const body = [],
     foot = [],
     head = [];
+  let group = 0,
+    bare = null;
   for (const child of children(table)) {
     if (child.nodeType !== ELEMENT) continue;
     const tag = child.localName;
-    if (tag === "tr") body.push({ tr: child });
-    else if (["thead", "tbody", "tfoot"].includes(tag))
+    if (tag === "tr") body.push({ tr: child, group: (bare ??= ++group) });
+    else if (["thead", "tbody", "tfoot"].includes(tag)) {
+      bare = null;
+      group++;
       for (const tr of children(child))
         if (tr.nodeType === ELEMENT && tr.localName === "tr")
           (tag === "thead" ? head : tag === "tfoot" ? foot : body).push({
             tr,
             header: tag === "thead",
+            group,
           });
+    }
   }
   // Header rows render first and footers last, wherever they are written.
-  return [...head, ...body, ...foot];
+  const rows = [...head, ...body, ...foot];
+  for (let r = rows.length - 1; r >= 0; r--)
+    rows[r].end =
+      rows[r + 1]?.group === rows[r].group ? rows[r + 1].end : r + 1;
+  return rows;
 }
 
 // The one table of an HTML fragment as a portable table, or null when the
@@ -329,8 +341,18 @@ export function readTable(root, { maxCells = Infinity } = {}) {
     }
   });
   if (tables.length !== 1 || outside) return null;
-  const rules = classRules(root),
-    rows = tableRows(tables[0]),
+  return readTableElement(tables[0], { maxCells, rules: classRules(root) });
+}
+
+// One table element of a fragment as a portable table (Text reads each table
+// of a mixed selection). rules: classRules() of the whole fragment; sources,
+// when given, receives {r, c, cell, row} for each cell element read, so a
+// destination with richer cell text can read it itself.
+export function readTableElement(
+  element,
+  { maxCells = Infinity, rules = new Map(), sources = null } = {},
+) {
+  const rows = tableRows(element),
     counts = { links: 0 };
   if (!rows.length) return null;
   const cellsOf = (tr) =>
@@ -339,28 +361,24 @@ export function readTable(root, { maxCells = Infinity } = {}) {
     );
   // Bound the expanded size before allocating anything.
   let area = 0;
-  rows.forEach(({ tr }, r) => {
+  rows.forEach(({ tr, end }, r) => {
     for (const td of cellsOf(tr)) {
-      const down = spanOf(td, "rowspan", MAX_ROWSPAN) || rows.length - r;
-      area +=
-        spanOf(td, "colspan", MAX_COLSPAN) * Math.min(down, rows.length - r);
+      const down = spanOf(td, "rowspan", MAX_ROWSPAN) || end - r;
+      area += spanOf(td, "colspan", MAX_COLSPAN) * Math.min(down, end - r);
     }
   });
   const limit = `The pasted table is larger than ${maxCells.toLocaleString("en-US")} cells`;
   if (area > maxCells) throw new ClipboardError(limit);
   const grid = rows.map(() => []);
   let width = 0;
-  rows.forEach(({ tr, header }, r) => {
+  rows.forEach(({ tr, header, end }, r) => {
     let c = 0;
     const rowCss = declarations(tr, rules);
     if (hidden(rowCss)) return;
     for (const td of cellsOf(tr)) {
       while (grid[r][c] !== undefined) c++;
       const across = spanOf(td, "colspan", MAX_COLSPAN),
-        down = Math.min(
-          spanOf(td, "rowspan", MAX_ROWSPAN) || rows.length - r,
-          rows.length - r,
-        ),
+        down = Math.min(spanOf(td, "rowspan", MAX_ROWSPAN) || end - r, end - r),
         css = declarations(td, rules),
         th = td.localName === "th" || header,
         { align: inner, ...content } = cellContent(
@@ -378,6 +396,7 @@ export function readTable(root, { maxCells = Infinity } = {}) {
           inner;
       for (let i = r; i < r + down; i++)
         for (let j = c; j < c + across; j++) grid[i][j] = { covered: true };
+      sources?.push({ r, c, cell: td, row: tr });
       grid[r][c] =
         content.text || across > 1 || down > 1
           ? {
