@@ -59,13 +59,19 @@ async function run(name) {
     await page.goto(url);
     await page.waitForFunction(() => window.htmlText);
     const saved = () => page.evaluate(() => window.htmlText.serialize());
+    // A computed style; for content, the text as drawn (Firefox keeps attr() unresolved, WebKit
+    // lists the strings).
     const style = (selector, pseudo, prop) =>
       page.evaluate(
-        ([s, p, k]) =>
-          getComputedStyle(document.querySelectorAll(s)[0], p)[k].replace(
-            /^"(.*)"$/,
-            "$1",
-          ),
+        ([s, p, k]) => {
+          const el = document.querySelector(s);
+          const value = getComputedStyle(el, p)[k];
+          if (k !== "content" || value === "none" || value === "normal")
+            return value;
+          return [...value.matchAll(/attr\(([\w-]+)\)|"([^"]*)"/g)]
+            .map((m) => (m[1] ? (el.getAttribute(m[1]) ?? "") : m[2]))
+            .join("");
+        },
         [selector, pseudo, prop],
       );
     // The cursor at the end of an element's text (End does not move the caret on macOS).
@@ -103,13 +109,8 @@ async function run(name) {
       .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await page.hover(note);
     assert.equal(
-      await page.evaluate(
-        (s) =>
-          getComputedStyle(document.querySelector(`${s}:hover`), "::after")
-            .content,
-        note,
-      ),
-      '"Fictional management accounts, unaudited."',
+      await style(`${note}:hover`, "::after", "content"),
+      "Fictional management accounts, unaudited.",
     );
     pass("a numbered reference with a hover preview, and the notes list");
 
@@ -165,6 +166,85 @@ async function run(name) {
     );
     await page.emulateMedia({ media: "screen" });
     pass("a click in the notes list opens that note; print keeps the endnotes");
+
+    // ---- formatting inside a note shows in the list; print never shows a preview ----
+    await page.locator("#doc .tx-notes li").nth(1).click();
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      const { $from } = view.state.selection;
+      const start = $from.start();
+      view.dispatch(
+        view.state.tr.setSelection(
+          view.state.selection.constructor.create(
+            view.state.doc,
+            start + 2,
+            start + 8,
+          ),
+        ),
+      );
+    });
+    await page.keyboard.press(`${mod}+b`);
+    assert.equal(
+      await page.locator("#doc .tx-notes li").nth(1).innerHTML(),
+      "A <strong>second</strong> note.",
+    );
+    await page.keyboard.press(`${mod}+b`);
+    await page.keyboard.press("Escape");
+    await page.hover(note);
+    await page.emulateMedia({ media: "print" });
+    assert.equal(
+      await style(note, "::after", "content"),
+      "none",
+      "no hover preview in print",
+    );
+    await page.emulateMedia({ media: "screen" });
+    pass(
+      "formatting inside a note shows in the notes list; print shows no preview",
+    );
+
+    // ---- cut a sentence with its note and paste it elsewhere ----
+    const before = await saved();
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      let from, to;
+      view.state.doc.descendants((node, pos) => {
+        if (
+          from === undefined &&
+          node.isText &&
+          node.text.startsWith(", ahead of plan.")
+        )
+          from = pos;
+        if (
+          node.type.name === "footnote" &&
+          from !== undefined &&
+          to === undefined
+        )
+          to = pos + node.nodeSize;
+      });
+      view.dispatch(
+        view.state.tr.setSelection(
+          view.state.selection.constructor.create(view.state.doc, from, to),
+        ),
+      );
+      view.focus();
+    });
+    await page.keyboard.press(`${mod}+x`);
+    await cursorAtEnd("#doc ul > li:last-child");
+    await page.keyboard.press(`${mod}+v`);
+    lines = check(await saved());
+    assert.ok(
+      lines.some((l) =>
+        /, ahead of plan\.<span class="footnote">Fictional management accounts, unaudited\.<\/span><\/li>/.test(
+          l,
+        ),
+      ),
+      lines.join("\n"),
+    );
+    assert.deepEqual((await notes())[0], "A second note.");
+    for (let i = 0; i < 4 && (await saved()) !== before; i++)
+      await page.keyboard.press(`${mod}+z`);
+    assert.equal(await saved(), before, "undo restores the cut and the paste");
+    pass("cut and paste carry a sentence's note, and the numbers follow");
 
     // ---- undo: the last note goes first, and the list follows ----
     for (let i = 0; i < 5 && (await notes()).length === 3; i++)

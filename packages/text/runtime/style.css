@@ -25,7 +25,7 @@
 #doc .footnote[data-tx-note]:not(.tx-open)::before{vertical-align:baseline}
 #doc .footnote[data-tx-note]::before{content:attr(data-tx-note);font-size:7.5pt;vertical-align:super;line-height:1;color:var(--acc);cursor:pointer;padding:0 .1em}
 #doc .footnote[data-tx-note]::after{content:none}
-#doc .footnote[data-tx-note]:not(.tx-open):hover::after{content:attr(data-tx-preview);position:absolute;z-index:5;left:0;bottom:1.6em;width:max-content;max-width:60ch;padding:4px 8px;font:9pt/1.35 var(--body-font,var(--font));color:var(--ink);background:var(--bg);border:1px solid var(--bd);box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:normal}
+@media screen{#doc .footnote[data-tx-note]:not(.tx-open):hover::after{content:attr(data-tx-preview);position:absolute;z-index:5;left:0;bottom:1.6em;width:max-content;max-width:60ch;padding:4px 8px;font:9pt/1.35 var(--body-font,var(--font));color:var(--ink);background:var(--bg);border:1px solid var(--bd);box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:normal}}
 #doc .footnote.tx-open{font-size:.85em;background:var(--tint);outline:1px solid var(--bd);border-radius:2px}
 #doc .footnote.tx-empty{display:inline-block;min-width:3em}
 #doc .tx-notes{margin:2em 0 0;padding-top:.6em;border-top:1px solid var(--bd);font-size:9.5pt;clear:both}
