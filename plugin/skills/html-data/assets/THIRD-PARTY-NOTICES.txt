@@ -28,7 +28,7 @@ Each distinct licence text appears once, after the packages and copyright holder
   regex-lite@0.1.9, rustversion@1.0.23, ryu@1.0.23, serde@1.0.229, serde_core@1.0.229
   serde_derive@1.0.229, syn@2.0.119, syn@3.0.3, unicode-ident@1.0.24
   wasm-bindgen-macro-support@0.2.126, wasm-bindgen-macro@0.2.126, wasm-bindgen-shared@0.2.126
-  wasm-bindgen@0.2.126, wasm@0.9.0
+  wasm-bindgen@0.2.126, wasm@0.9.0, xlsx@0.20.3
     (no copyright line in this licence file)
 
 TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
@@ -105,7 +105,7 @@ END OF TERMS AND CONDITIONS
   quote@1.0.47, regex-lite@0.1.9, rustversion@1.0.23, ryu@1.0.23, serde@1.0.229, serde_core@1.0.229
   serde_derive@1.0.229, syn@2.0.119, syn@3.0.3, unicode-ident@1.0.24
   wasm-bindgen-macro-support@0.2.126, wasm-bindgen-macro@0.2.126, wasm-bindgen-shared@0.2.126
-  wasm-bindgen@0.2.126, wasm@0.9.0
+  wasm-bindgen@0.2.126, wasm@0.9.0, xlsx@0.20.3
     (no copyright line in this licence file)
 
 Apache License
@@ -497,7 +497,34 @@ The following files embed [d3.js](https://github.com/d3/d3) BSD 3-Clause:
     `/src/util/number.ts`
 See `/licenses/LICENSE-d3` for details of the license.
 
-== 16. LLVM exception ==
+== 16. Apache License 2.0 appendix ==
+  xlsx@0.20.3
+    Copyright (C) 2012-present   SheetJS LLC
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "{}"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+== 17. LLVM exception ==
   Rust 1.95.0 LLVM-exception.txt
     (no copyright line in this licence file)
 
@@ -517,7 +544,7 @@ See `/licenses/LICENSE-d3` for details of the license.
    the License, but only in their entirety and only with respect to the Combined
    Software.
 
-== 17. Apache License 2.0 appendix ==
+== 18. Apache License 2.0 appendix ==
   Rust 1.95.0 standard-library notice 26
     (no copyright line in this licence file)
 
@@ -532,7 +559,7 @@ APPENDIX: How to apply the Apache License to your work.
    same "printed page" as the copyright notice for easier
    identification within third-party archives.
 
-== 18. BSD-style licence ==
+== 19. BSD-style licence ==
   echarts@6.1.0
     Copyright 2010-2016 Mike Bostock
 
@@ -563,7 +590,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-== 19. Notice ==
+== 20. Notice ==
   echarts@6.1.0
     Copyright 2017-2026 The Apache Software Foundation
 
@@ -572,7 +599,7 @@ Apache ECharts
 This product includes software developed at
 The Apache Software Foundation (https://www.apache.org/).
 
-== 20. BSD-style licence ==
+== 21. BSD-style licence ==
   zrender@6.1.0
     Copyright (c) 2017, Baidu Inc.
 
@@ -605,7 +632,7 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-== 21. Boost Software License 1.0 ==
+== 22. Boost Software License 1.0 ==
   ryu@1.0.23
     (no copyright line in this licence file)
 
@@ -633,7 +660,7 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-== 22. Notice ==
+== 23. Notice ==
   Rust 1.95.0 standard-library copyright/attributions
     (no copyright line in this licence file)
 
@@ -704,7 +731,7 @@ The Rust Standard Library is dual-licensed under Apache 2.0 and MIT terms.
 
       Copyright:  The Rust Project Developers (see https://thanks.rust-lang.org)
 
-== 23. Notice ==
+== 24. Notice ==
   Rust 1.95.0 standard-library notice 21
     Copyright (C) 2017-2022 Red Hat, Inc.
     Copyright (C) 2022-2025 David Rheinsberg
@@ -745,7 +772,7 @@ AUTHORS: (ordered alphabetically)
         Tom Gundersen <teg@jklm.no>
         Trevor Gross <tmgross@umich.edu>
 
-== 24. Notice ==
+== 25. Notice ==
   Rust 1.95.0 standard-library notice 20
     Copyright (C) 2017-2023 Red Hat, Inc.
     Copyright (C) 2019-2023 Microsoft Corporation
@@ -799,7 +826,7 @@ AUTHORS: (ordered alphabetically)
         Tom Gundersen <teg@jklm.no>
         Trevor Gross <tmgross@umich.edu>
 
-== 25. MIT License ==
+== 26. MIT License ==
   bytemuck@1.25.2
     Copyright (c) 2019 Daniel "Lokathor" Gee.
 
@@ -809,7 +836,7 @@ The above copyright notice and this permission notice (including the next paragr
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-== 26. BSD-style licence ==
+== 27. BSD-style licence ==
   Rust 1.95.0 BSD-2-Clause.txt
     Copyright (c) <year> <owner>
 
@@ -821,7 +848,7 @@ Redistribution and use in source and binary forms, with or without modification,
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-== 27. Notice ==
+== 28. Notice ==
   chrono@0.4.45
     Copyright (c) 2014, Kang Seonghoon.
 
@@ -845,7 +872,7 @@ Copyright (c) 2014, Kang Seonghoon.
 
 [Apache License 2.0 appendix text: see 4.]
 
-== 28. Notice ==
+== 29. Notice ==
   echarts@6.1.0
     Copyright (c) 2013, Baidu Inc.
 

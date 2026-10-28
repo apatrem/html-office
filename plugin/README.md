@@ -47,6 +47,6 @@ The assistant needs only Node.js 18+ in its execution environment: `skills/html-
 - `assets/`: engine, theme, default branding, template, embedded guide, and ECharts.
 - `tools/`: `deck.mjs`, `check.mjs`, and the bundled inert parser.
 - `examples/`: community garden presentation and visual catalogue.
-- `skills/html-data/`: `SKILL.md`, `tools/workbook.mjs`, `references/FORMAT.md` (format, tools and patches), `examples/` (valid and invalid workbooks and patches, also the test fixtures), the precompiled editor (`assets/runtime.json`), ECharts, and the pinned IronCalc engine (`engine/`).
+- `skills/html-data/`: `SKILL.md`, `tools/workbook.mjs`, `references/FORMAT.md` (format, tools and patches), `examples/` (valid and invalid workbooks and patches, also the test fixtures), the precompiled editor (`assets/runtime.json`), ECharts, the pinned IronCalc engine (`engine/`) and the pinned SheetJS reader that offline workbooks embed for XLSX import (`vendor/xlsx/`).
 
-MIT licence. Dependencies retain their licences: Moveable/Selecto (MIT), ECharts (Apache-2.0), IronCalc and its Rust dependencies (html-data), and the tool parser. See `THIRD_PARTY_NOTICES.md` and `skills/html-data/assets/THIRD-PARTY-NOTICES.txt`.
+MIT licence. Dependencies retain their licences: Moveable/Selecto (MIT), ECharts (Apache-2.0), IronCalc with its Rust dependencies and SheetJS CE (Apache-2.0), both in html-data, and the tool parser. See `THIRD_PARTY_NOTICES.md` and `skills/html-data/assets/THIRD-PARTY-NOTICES.txt`.

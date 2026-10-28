@@ -42,6 +42,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
 - One value source per cell. Keep text that looks like a number (`"0012"`) as text. Use the scenario dropdown for alternatives instead of copying sheets.
 - Charts take one rectangular block, header row first (FORMAT.md › Charts); pivot tables read a range or a table sheet and own their output cells.
 - Match the user's language in labels; formulas stay in English with decimal points. Set `locale` for display.
+- CSV and XLSX files are imported by the person in the browser (Data › Import CSV…, Import XLSX…, Refresh source…), never by the tools. Keep `sources` as it is: patches cannot set it. A patched cell of an imported sheet is a hand edit; a later refresh asks before replacing it.
 - Do not use the html-slides skill or its tools on a Data file, or the reverse.
 
 ## Never do these

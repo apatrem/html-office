@@ -68,6 +68,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 - IronCalc 0.9.0 (MIT OR Apache-2.0) compiled to WebAssembly with its Rust dependencies (`engine/vendor/`), pinned by SHA-256 in `engine/manifest.json`;
 - the editor runtime embedded in each workbook (`assets/runtime.json`), built from this repository (MIT);
 - ECharts 6.1.0 (Apache-2.0, `assets/echarts.min.js`), checked against its pinned digest before use.
+- SheetJS Community Edition 0.20.3 (Apache-2.0, `vendor/xlsx/xlsx.mini.min.js` with its `LICENSE`), embedded by offline workbooks for XLSX import and checked against its pinned SHA-384 digest before each build; standard workbooks fetch it from cdn.sheetjs.com only when an XLSX file is imported.
 
 Their complete notices, each licence text stored once, are in `skills/html-data/assets/THIRD-PARTY-NOTICES.txt`; each workbook also embeds them under Help › Third-party notices. The bundled `tools/workbook.mjs` includes parse5 (MIT, above) and keeps the licence comments of what it bundles at its end.
 
