@@ -45,9 +45,9 @@ import {
   CellSelection,
   isInTable,
   selectedRect,
-  handlePaste as pasteCells,
   TableMap,
 } from "prosemirror-tables";
+import { own, pasteTable, fillCells } from "../editor/tables.mjs";
 
 const N = schema.nodes;
 const MAX_CELLS = LIMIT.rows * LIMIT.columns;
@@ -234,8 +234,8 @@ export function selectedTable(state) {
 }
 
 // A table pasted into a table fills its cells from the selected one, adding rows and columns as
-// needed (prosemirror-tables); anything pasted on a cell selection fills each selected cell.
-// Returns false when the paste is not one of these.
+// needed (prosemirror-tables); anything else pasted on a cell selection replaces each selected
+// cell's text. Returns false when the paste is not one of these.
 function pasteIntoTable(view, read) {
   const state = view.state;
   if (!isInTable(state)) return false;
@@ -253,17 +253,12 @@ function pasteIntoTable(view, read) {
         `a Text table holds at most ${LIMIT.rows.toLocaleString("en-US")} rows and ${LIMIT.columns} columns`,
       );
   }
-  const slice = table
-    ? new Slice(Fragment.from(table), 0, 0)
-    : new Slice(Fragment.fromArray(inlineLines(read.blocks)), 0, 0);
   // One undo step of its own, as any paste.
-  const done = pasteCells(
-    { state, dispatch: (tr) => view.dispatch(closeHistory(tr)) },
-    null,
-    slice,
-  );
-  if (done) view.dispatch(closeHistory(view.state.tr));
-  return done;
+  return own(
+    table
+      ? pasteTable(table)
+      : fillCells(Fragment.fromArray(inlineLines(read.blocks))),
+  )(state, view.dispatch, view);
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.

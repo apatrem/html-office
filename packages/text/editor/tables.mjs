@@ -4,13 +4,16 @@
 // table and hold th cells only, at least one body row follows, no span crosses from the header
 // into the body, and the colgroup, when present, has one col per column. Each cell holds one
 // paragraph of inline content (the schema), so merged cells join their text with line breaks.
-import { Fragment } from "prosemirror-model";
+import { Fragment, Slice } from "prosemirror-model";
 import { Plugin, TextSelection } from "prosemirror-state";
+import { closeHistory } from "prosemirror-history";
+import { keymap } from "prosemirror-keymap";
 import {
   tableEditing,
   CellSelection,
   TableMap,
   selectedRect,
+  selectionCell,
   isInTable,
   addRow,
   addColumn,
@@ -18,10 +21,14 @@ import {
   deleteColumn as removeColumns,
   splitCell as split,
   goToNextCell,
+  nextCell as cellBeside,
+  __pastedCells as pastedCells,
+  __clipCells as clipCells,
+  __insertCells as insertCells,
 } from "prosemirror-tables";
 import { schema } from "./schema/schema.mjs";
 import { usedIds } from "./commands.mjs";
-import { freshId } from "./clipboard/table.mjs";
+import { freshId, LIMIT } from "./clipboard/table.mjs";
 
 const N = schema.nodes;
 export { CellSelection, isInTable, tableEditing };
@@ -69,6 +76,20 @@ function setCols(tr, pos, cols) {
   const keep = cols?.some((c) => c.width || c.emphasis) ? cols : null;
   tr.setNodeAttribute(pos, "cols", keep);
 }
+
+// A table command as an undo step of its own: history is closed before it and, with an empty
+// step, after it, so typing just before or after is undone apart; the guard's repairs, appended
+// to the command, stay in its step. `view` gives the state after the command.
+export const own = (command) => (state, dispatch, view) =>
+  command(
+    state,
+    dispatch &&
+      ((tr) => {
+        dispatch(closeHistory(tr));
+        if (view) view.dispatch(closeHistory(view.state.tr));
+      }),
+    view,
+  );
 
 // ---------- the table shape, kept after every change ----------
 // Header rows first and th only; at least one body row; no total in the header; no span from the
@@ -155,9 +176,10 @@ export const insertTable =
   };
 
 // Rows above or below the selection. A row added inside the header belongs to it.
+// Never past the limits of a Text table (1,000 rows, 30 columns: ADR-013 §3).
 const rowCommand = (below) => (state, dispatch) => {
   const t = around(state);
-  if (!t) return false;
+  if (!t || t.rect.map.height >= LIMIT.rows) return false;
   if (dispatch) {
     const index = below ? t.rect.bottom : t.rect.top;
     const head =
@@ -177,7 +199,7 @@ export const addRowAfter = rowCommand(true);
 // Columns left or right of the selection, with a col (no width) when the table has a colgroup.
 const columnCommand = (right) => (state, dispatch) => {
   const t = around(state);
-  if (!t) return false;
+  if (!t || t.rect.map.width >= LIMIT.columns) return false;
   if (dispatch) {
     const index = right ? t.rect.right : t.rect.left;
     const tr = addColumn(state.tr, t.rect, index);
@@ -298,12 +320,13 @@ export function mergeCells(state, dispatch) {
 export const splitCell = (state, dispatch) => split(state, dispatch);
 
 // ---------- Tab ----------
-// Tab moves to the next cell, adding a row after the last one; Shift-Tab to the previous cell.
+// Tab moves to the next cell, adding a row after the last one (none at the row limit);
+// Shift-Tab to the previous cell.
 export const nextCell = (state, dispatch) => {
   if (!isInTable(state)) return false;
   if (goToNextCell(1)(state, dispatch)) return true;
-  if (dispatch) {
-    const t = around(state);
+  const t = around(state);
+  if (dispatch && t.rect.map.height < LIMIT.rows) {
     const tr = addRow(state.tr, t.rect, t.rect.map.height);
     const { map } = tableAt(tr, t.pos);
     const first = t.pos + 1 + map.map[(map.height - 1) * map.width];
@@ -314,6 +337,104 @@ export const nextCell = (state, dispatch) => {
 };
 export const previousCell = (state, dispatch) =>
   isInTable(state) && (goToNextCell(-1)(state, dispatch), true);
+
+// Shift+arrow at the edge of a cell's text selects cells (prosemirror-tables looks for a paragraph
+// inside the cell; a Text cell is itself the textblock). In a cell selection the library goes on.
+const shiftArrow = (axis, dir) => (state, dispatch, view) => {
+  const { selection } = state;
+  if (!view || !(selection instanceof TextSelection)) return false;
+  const { $head } = selection;
+  if (!$head.parent.type.spec.tableRole?.endsWith("cell")) return false;
+  const side =
+    axis === "horiz" ? (dir > 0 ? "right" : "left") : dir > 0 ? "down" : "up";
+  if (!view.endOfTextblock(side)) return false;
+  const $cell = state.doc.resolve($head.before());
+  const $next = cellBeside($cell, axis, dir);
+  if (!$next) return false;
+  if (dispatch)
+    dispatch(state.tr.setSelection(new CellSelection($cell, $next)));
+  return true;
+};
+// Before tableEditing() in the plugins.
+export const cellKeys = () =>
+  keymap({
+    "Shift-ArrowLeft": shiftArrow("horiz", -1),
+    "Shift-ArrowRight": shiftArrow("horiz", 1),
+    "Shift-ArrowUp": shiftArrow("vert", -1),
+    "Shift-ArrowDown": shiftArrow("vert", 1),
+  });
+
+// ---------- paste ----------
+// A table pasted at the caret fills cells from its cell, adding rows and columns as needed; on a
+// cell selection it is cut or repeated to fill it (prosemirror-tables).
+export const pasteTable = (table) => (state, dispatch) => {
+  if (!isInTable(state)) return false;
+  let cells = pastedCells(new Slice(Fragment.from(table), 0, 0));
+  if (!cells) return false;
+  const sel = state.selection;
+  let start, rect;
+  if (sel instanceof CellSelection) {
+    start = sel.$anchorCell.start(-1);
+    rect = TableMap.get(sel.$anchorCell.node(-1)).rectBetween(
+      sel.$anchorCell.pos - start,
+      sel.$headCell.pos - start,
+    );
+    cells = clipCells(cells, rect.right - rect.left, rect.bottom - rect.top);
+  } else {
+    const $cell = selectionCell(state);
+    start = $cell.start(-1);
+    rect = TableMap.get($cell.node(-1)).findCell($cell.pos - start);
+  }
+  if (dispatch) {
+    let tr = null,
+      out = null;
+    const proxy = {
+      doc: state.doc,
+      get tr() {
+        return (tr = state.tr);
+      },
+    };
+    try {
+      insertCells(proxy, (done) => (out = done), start, rect, cells);
+    } catch (error) {
+      // prosemirror-tables 1.8.1 selects the pasted cells by positionAt, which is no cell when a
+      // span from above covers the last slot (a pasted vertical merge): the cells are in place,
+      // the selection is set here from the map.
+      if (!/^No cell with offset/.test(error?.message) || !tr?.docChanged)
+        throw error;
+      const map = TableMap.get(tr.doc.nodeAt(start - 1)),
+        bottom = rect.top + cells.height,
+        right = rect.left + cells.width;
+      tr.setSelection(
+        new CellSelection(
+          tr.doc.resolve(start + map.map[rect.top * map.width + rect.left]),
+          tr.doc.resolve(start + map.map[(bottom - 1) * map.width + right - 1]),
+        ),
+      );
+      out = tr;
+    }
+    dispatch(out.scrollIntoView());
+  }
+  return true;
+};
+// Inline content pasted on a cell selection replaces each selected cell's content; the cells keep
+// their kind, spans and alignment.
+export const fillCells = (content) => (state, dispatch) => {
+  const sel = state.selection;
+  if (!(sel instanceof CellSelection)) return false;
+  if (dispatch) {
+    const tr = state.tr;
+    sel.forEachCell((cell, pos) =>
+      tr.replaceWith(
+        tr.mapping.map(pos + 1),
+        tr.mapping.map(pos + 1 + cell.content.size),
+        content,
+      ),
+    );
+    dispatch(tr);
+  }
+  return true;
+};
 
 // ---------- header rows, total rows, row headers ----------
 // Rows where the selection is: header rows when they are not, body rows when they all are. A
@@ -380,9 +501,16 @@ function bodyCells(state) {
   const t = around(state);
   if (!t) return [];
   const head = headCount(t.table),
-    { map, top, bottom, left, right } = t.rect,
+    { map, top, bottom, left, right, tableStart } = t.rect,
     seen = new Set(),
     out = [];
+  // A cell selection holds the cells that start in its rectangle, not a span from outside it.
+  if (state.selection instanceof CellSelection) {
+    state.selection.forEachCell((node, pos) => {
+      if (map.findCell(pos - tableStart).top >= head) out.push({ pos, node });
+    });
+    return out;
+  }
   for (let r = Math.max(top, head); r < bottom; r++)
     for (let c = left; c < right; c++) {
       const at = map.map[r * map.width + c];
@@ -436,10 +564,10 @@ export const columnWidthAt = (state) => {
   const w = t?.table.attrs.cols?.[t.rect.left]?.width;
   return w ? Number(w) : null;
 };
-// Every column the same width, adding up to 100%.
+// Every column the same width, adding up to 100% (at most 100 columns: widths are whole percents).
 export function distributeColumns(state, dispatch) {
   const t = around(state);
-  if (!t) return false;
+  if (!t || t.rect.map.width > 100) return false;
   if (dispatch) {
     const n = t.rect.map.width,
       cols = colsOf(t.table, n);

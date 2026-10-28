@@ -213,6 +213,7 @@ function start() {
     plugins: [
       history(),
       // Cell selections, arrow keys and fixing table shapes, then Text's own table shape (T10).
+      T.cellKeys(),
       T.tableEditing(),
       T.tableGuard(),
       subsetGuard(),
@@ -231,8 +232,8 @@ function start() {
         "Mod-Shift-7": E.toggleList(N.ordered_list),
         // In a table Tab moves between cells (adding a row after the last); in a list it
         // changes the level. It never leaves the document.
-        Tab: (s, d) =>
-          T.nextCell(s, d) || (E.inList(s) && (E.indent(s, d), true)),
+        Tab: (s, d, v) =>
+          T.own(T.nextCell)(s, d, v) || (E.inList(s) && (E.indent(s, d), true)),
         "Shift-Tab": (s, d) =>
           T.previousCell(s, d) || (E.inList(s) && (E.outdent(s, d), true)),
         "Mod-Enter": E.insertPageBreak,
@@ -338,12 +339,12 @@ function start() {
     },
   );
   // Tables (T10): each command is enabled where it applies.
-  for (const [id, command] of TABLE_COMMANDS) edit(id, command);
+  for (const [id, command] of TABLE_COMMANDS) edit(id, T.own(command));
   commands.register(
     "column-width",
     () =>
       shell.columnWidth(T.columnWidthAt(view.state), (percent) => {
-        T.setColumnWidth(percent)(view.state, view.dispatch);
+        T.own(T.setColumnWidth(percent))(view.state, view.dispatch, view);
         view.focus();
       }),
     () => T.isInTable(view.state),

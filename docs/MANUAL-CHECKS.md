@@ -178,9 +178,10 @@ Use `text-example.html`, in Chrome, then Safari and Firefox. After each step, on
 3. **Rows and columns** (Table menu): insert rows above and below (inside the regions table's two header rows the new row joins the header), columns left and right (the merged "Revenue" header widens), delete rows and columns. Deleting every row or column is unavailable; Delete table removes the figure with its caption.
 4. **Merge and split**: merge a 2 × 2 block of body cells (their texts stay, one per line), split it again. Merging across the header's last row is unavailable. Select a block that includes merged cells and press Backspace: the cells are emptied, the merges kept.
 5. **Styles**: Header rows (on a body row: it and the rows above become the header, repeated on each printed page), Total rows, Row headers, Emphasis column, Compact, Column width… (55 %), Distribute columns evenly, Caption (removes it; again adds an empty caption above the table).
-6. **Clipboard**: copy a block of cells and paste it into Excel, Google Sheets, Word, Docs, `data-pnl.html` and another place of the table (it fills from the caret's cell and grows the table). Paste a range from Excel into a cell: the cells fill and the table grows. Paste a word on a selection of cells: each cell gets it.
+6. **Clipboard**: copy a block of cells and paste it into Excel, Google Sheets, Word, Docs, `data-pnl.html` and another place of the table (it fills from the caret's cell and grows the table). Paste a range from Excel into a cell: the cells fill and the table grows. Paste a word on a selection of cells: each cell gets it, and a merged cell stays merged with its alignment.
 7. **Print**: print preview of a long table: the header rows repeat on each page, total rows are bold with their rule, emphasis columns are tinted, compact tables are denser, and nothing of the editing highlight shows.
 8. **Narrow window**: the Table menu is reachable through ☰.
+9. **Undo steps**: type a character in a cell and at once merge or insert a row: one Undo reverts the table change only, the next the typing.
 
 ## 7. Data, from T15
 

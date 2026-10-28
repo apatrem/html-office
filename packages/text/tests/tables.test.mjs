@@ -13,6 +13,8 @@ import { articleHTML } from "../editor/schema/serialize.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as T from "../editor/tables.mjs";
 import { setAlign } from "../editor/commands.mjs";
+import { Fragment } from "prosemirror-model";
+import { schema } from "../editor/schema/schema.mjs";
 import { envelope, random } from "./generate.mjs";
 
 const TABLE = `<figure class="table" id="tab-a">
@@ -42,6 +44,12 @@ function editor(body = `<p>Intro</p>\n${TABLE}\n<p>After</p>`) {
     plugins: [history(), T.tableEditing(), T.tableGuard(), subsetGuard()],
   });
   const dispatch = (tr) => (state = state.apply(tr));
+  const view = {
+    get state() {
+      return state;
+    },
+    dispatch,
+  };
   // Position of the cell (anchor) holding `text`.
   const cell = (text) => {
     let at = null;
@@ -76,7 +84,7 @@ function editor(body = `<p>Intro</p>\n${TABLE}\n<p>After</p>`) {
       );
       return this;
     },
-    run: (command) => command(state, dispatch),
+    run: (command) => command(state, dispatch, view),
     can: (command) => command(state),
     undo: () => undo(state, dispatch),
     // The table's lines, after checking that the file saves valid and reopens identically.
@@ -377,4 +385,91 @@ test("random command sequences on cell selections always save as valid, canonica
       e.table();
     }
   }
+});
+
+const grid = (id, rows, columns) =>
+  `<figure class="table" id="${id}">\n<table>\n<tbody>\n` +
+  Array.from(
+    { length: rows },
+    (_, r) =>
+      `<tr>${Array.from({ length: columns }, (_, c) => `<td>${r}-${c}</td>`).join("")}</tr>\n`,
+  ).join("") +
+  `</tbody>\n</table>\n</figure>`;
+
+test("review: no distribution over 100 columns; rows, columns and Tab stop at the limits", () => {
+  let e = editor(grid("tab-w", 1, 101));
+  e.at("0-0");
+  assert.ok(!e.can(T.distributeColumns));
+  e = editor(grid("tab-c", 1, 30));
+  e.at("0-29");
+  assert.ok(!e.can(T.addColumnAfter) && !e.can(T.addColumnBefore));
+  e = editor(grid("tab-r", 1000, 1));
+  e.at("999-0");
+  assert.ok(!e.can(T.addRowAfter) && !e.can(T.addRowBefore));
+  assert.ok(e.run(T.nextCell), "Tab is consumed");
+  assert.equal(e.state.doc.firstChild.lastChild.childCount, 1000);
+});
+
+test("review: text pasted on a cell selection keeps merged cells, their kind and alignment", () => {
+  const e = editor();
+  e.cells("1.6", "1.2").run(T.mergeCells);
+  e.run(setAlign("ta-r"));
+  assert.ok(e.run(T.fillCells(Fragment.from(schema.text("X")))));
+  const lines = e.table();
+  assert.ok(
+    lines.some((l) => /<td class="ta-r" rowspan="2">X<\/td>/.test(l)),
+    lines.join("\n"),
+  );
+  e.cells("Region", "2026").run(T.fillCells(Fragment.empty));
+  assert.match(e.table().join("\n"), /<tr><th rowspan="2"><\/th>/);
+});
+
+test("review: a pasted vertical merge lands and is selected", () => {
+  const N = schema.nodes;
+  const td = (text, attrs = null) =>
+    N.table_cell.create(attrs, schema.text(text));
+  const pasted = N.table.create(null, [
+    N.table_row.create(null, [td("a"), td("m", { rowspan: 2 })]),
+    N.table_row.create(null, [td("b")]),
+  ]);
+  const e = editor();
+  e.at("North");
+  assert.ok(e.run(T.pasteTable(pasted)));
+  assert.ok(e.state.selection instanceof T.CellSelection);
+  const html = e.table().join("\n");
+  assert.match(html, /<tr><td>a<\/td><td rowspan="2">m<\/td>/);
+  assert.match(html, /<tr><td>b<\/td>/);
+});
+
+test("review: each table command is an undo step apart from typing just before it", () => {
+  const e = editor();
+  e.at("1.2");
+  e.run((s, d) => (d(s.tr.insertText("5")), true));
+  e.cells("1.6", "51.2").run(T.own(T.mergeCells));
+  e.undo();
+  assert.ok(e.state.doc.textContent.includes("51.2"), "the typing stays");
+  assert.match(e.table().join("\n"), /<tr><td>North<\/td><td>1\.6<\/td>/);
+  e.at("North").run(T.own(T.addRowAfter));
+  e.run(T.own(T.addRowAfter));
+  e.undo();
+  assert.equal(e.state.doc.child(1).lastChild.childCount, 6);
+});
+
+test("review: row headers change only the cells the selection holds, not a span from outside it", () => {
+  const body = `<figure class="table" id="tab-m">
+<table>
+<tbody>
+<tr><td>a1</td><td rowspan="3">m</td><td>c1</td></tr>
+<tr><td>a2</td><td>c2</td></tr>
+<tr><td>a3</td><td>c3</td></tr>
+</tbody>
+</table>
+</figure>`;
+  const e = editor(body);
+  e.cells("a2", "c3").run(T.toggleRowHeaders);
+  assert.deepEqual(e.table().slice(2, 5), [
+    '<tr><td>a1</td><td rowspan="3">m</td><td>c1</td></tr>',
+    "<tr><th>a2</th><th>c2</th></tr>",
+    "<tr><th>a3</th><th>c3</th></tr>",
+  ]);
 });

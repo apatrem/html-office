@@ -342,6 +342,37 @@ async function run(engine) {
     await cmd("undo");
     pass("a cell selection across merged cells empties them");
 
+    // ---- Shift+arrow from a cell's text; text pasted on merged cells ----
+    await caretIn("tab-regions", "1.6");
+    await page.keyboard.press("Shift+ArrowRight");
+    assert.equal(
+      await page.evaluate(() => {
+        const { view, CellSelection } = window.htmlText;
+        const sel = view.state.selection;
+        return sel instanceof CellSelection
+          ? [
+              sel.$anchorCell.nodeAfter.textContent,
+              sel.$headCell.nodeAfter.textContent,
+            ].join(",")
+          : sel.constructor.name;
+      }),
+      "1.6,1.9",
+    );
+    await drag("tab-regions", "1.6", "1.2");
+    await cmd("merge-cells");
+    await page.evaluate(() => {
+      const data = new DataTransfer();
+      data.setData("text/plain", "X");
+      window.htmlText.view.dom.dispatchEvent(clipboardEvent("paste", data));
+    });
+    assert.match(
+      figure(check(await saved()), "tab-regions"),
+      /<td class="ta-r" rowspan="2">X<\/td>/,
+    );
+    await cmd("undo");
+    await cmd("undo");
+    pass("Shift+arrow selects cells; text pasted on a merged cell keeps it");
+
     // ---- print ----
     await page.emulateMedia({ media: "print" });
     const shown = await page.evaluate(() => {
