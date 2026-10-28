@@ -33,6 +33,7 @@ const SHORTCUTS = [
   ["List level down, up", "Tab, Shift+Tab"],
   ["Page break", key("Enter")],
   ["Footnote (Escape leaves it)", alt("F")],
+  ["Comment on the selection", alt("M")],
   ["Move block up, down (with its wrapped images)", "Alt+Shift+↑, Alt+Shift+↓"],
 ];
 // Toolbar glyphs for commands without a shared icon (20 × 20, as shared/shell/icons.mjs).
@@ -134,7 +135,16 @@ function shortcuts(opener) {
 // look(): the document's attributes (theme, font, page, margins, heading numbers and format).
 // editing(): the selection's style, marks, alignment, list, new-page, link (T06) and the depth
 // of a selected contents block (T08). format(): the theme's heading format.
-export function mountShell(cmd, saving, report, look, editing, format) {
+// comments: the comments panel (T13), {root, render, start}.
+export function mountShell(
+  cmd,
+  saving,
+  report,
+  look,
+  editing,
+  format,
+  comments,
+) {
   const binds = [];
   const item = (label, id, extra = {}) => ({
     label,
@@ -183,6 +193,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
         item("Footnote", "footnote", { shortcut: alt("F") }),
         item("Contents", "contents"),
         item("Cross-reference…", "xref"),
+        item("Comment", "comment", { shortcut: alt("M") }),
       ],
     },
     {
@@ -500,6 +511,29 @@ export function mountShell(cmd, saving, report, look, editing, format) {
   // Opened from a menu, the panel returns focus to the settings-bar button when it closes.
   const openSettings = () =>
     panel.open("settings", { ...settings(), trigger: settingsButton });
+  // ---- comments (T13): the panel lists threads; a new comment starts from the selection ----
+  const commentsSpec = () => ({
+    title: "Comments",
+    subtitle: "Comment text is shown as written, never followed",
+    // Drawn on opening: the document may have changed while the panel was closed.
+    body: () => (comments.render(), comments.root),
+  });
+  const commentsButton = panel.toggle(
+    button({
+      label: "Comments",
+      glyph: svg('<path d="M3.5 4.5h13v9h-7l-4 3v-3h-2z"/>'),
+      text: "Comments",
+      title: "Comments: threads, replies and status",
+    }),
+    "comments",
+    commentsSpec,
+  );
+  function openComments(start) {
+    if (panel.current() !== "comments")
+      panel.open("comments", { ...commentsSpec(), trigger: commentsButton });
+    comments.render();
+    if (start) comments.start();
+  }
   const float = h(
     "div",
     {
@@ -508,6 +542,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
       "aria-label": "Document settings",
     },
     settingsButton,
+    commentsButton,
     width,
   );
 
@@ -560,6 +595,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
   let measured = "";
   function sync() {
     for (const [b, id] of binds) b.disabled = !cmd.enabled(id);
+    if (panel.current() === "comments") comments.render();
     // The open panel follows undo and redo.
     if (panel.current()) {
       const c = current();
@@ -745,7 +781,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
     });
     list.focus();
   }
-  return { recover, link, xref };
+  return { recover, link, xref, openComments };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

@@ -46,6 +46,7 @@ import {
 import { mountShell, refusal } from "./shell.mjs";
 import * as C from "../editor/charts.mjs";
 import { chartManager, chartPlugin, chartDialog } from "./charts.mjs";
+import { commentsPanel, commentHighlights } from "./comments.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
@@ -233,6 +234,7 @@ function start() {
       ),
       G.generatedContent(numbers),
       internalClipboard(),
+      commentHighlights(),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -251,6 +253,7 @@ function start() {
         "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
         "Mod-Enter": E.insertPageBreak,
         "Mod-Alt-f": G.insertFootnote,
+        "Mod-Alt-m": () => (commands.run("comment"), true),
         "Alt-Shift-ArrowUp": I.moveBlock(-1),
         "Alt-Shift-ArrowDown": I.moveBlock(1),
         "Mod-k": () => (commands.run("link"), true),
@@ -489,6 +492,16 @@ function start() {
     () => charts.request(),
     () => charts.library === null,
   );
+  // Comments (T13): the panel holds threads; a comment starts from the selected text.
+  const comments = commentsPanel(view, (message) => {
+    saving.say(message);
+  });
+  commands.register(
+    "comment",
+    () => shell.openComments(true),
+    () => !view.state.selection.empty,
+  );
+  commands.register("comments", () => shell.openComments(false));
   edit("move-up", I.moveBlock(-1));
   edit("move-down", I.moveBlock(1));
   // What the toolbar and menus show as current.
@@ -513,6 +526,7 @@ function start() {
     () => view.state.doc.attrs,
     current,
     () => numbers.format,
+    comments,
   );
   refresh();
   mirrorLook(doc);
