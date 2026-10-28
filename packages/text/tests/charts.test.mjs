@@ -21,6 +21,7 @@ import {
   previewKey,
   keyOf,
   previewPrefix,
+  staleKeyless,
   captionText,
   keepFields,
 } from "../editor/charts.mjs";
@@ -201,4 +202,25 @@ test("a change of type keeps only the fields the new type accepts", () => {
   assert.equal(chartProblem("column", column), "");
   assert.equal(column.decimals, 1);
   assert.equal("labels" in column || "scale" in column, false);
+});
+
+test("prefixes start where the session left off; a theme change keys previews written elsewhere stale", () => {
+  const e = editor();
+  assert.equal(previewPrefix(e.state.doc, -1, 5), "tx-c5-");
+  let pos;
+  e.state.doc.forEach((n, p) => {
+    if (n.type.name === "chart") pos = p;
+  });
+  e.dispatch(
+    setPreview(e.state, pos, element("svg", [["class", "render"]], [], "svg")),
+  );
+  const tr = staleKeyless(e.state.tr);
+  assert.ok(tr);
+  e.dispatch(tr);
+  assert.match(e.saved(), /<svg class="render" data-key="stale"><\/svg>/);
+  assert.equal(
+    staleKeyless(e.state.tr),
+    null,
+    "keyed previews stay as they are",
+  );
 });

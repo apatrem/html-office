@@ -31,6 +31,7 @@ import {
 import { domFromTree } from "../editor/schema/schema.mjs";
 import { fromDom, serialize } from "../model/html.mjs";
 import {
+  staleKeyless,
   SAMPLES,
   chartAt,
   chartProblem,
@@ -44,6 +45,15 @@ import {
 } from "../editor/charts.mjs";
 import { FORMAT_VERSION } from "../model/format.mjs";
 
+// Preview ID prefixes: a number is never used twice in a session, so a preview that undo brings
+// back never shares its IDs with one drawn meanwhile.
+let prefixes = 1;
+const nextPrefix = (doc, except = -1) => {
+  const prefix = previewPrefix(doc, except, prefixes);
+  prefixes = Number(prefix.slice(4, -1)) + 1;
+  return prefix;
+};
+
 // The nominal plot size of a saved preview, per width; the SVG scales to the figure.
 const SIZES = { text: [640, 320], full: [860, 360] };
 const parse = (node) => JSON.parse(node.attrs.data);
@@ -53,8 +63,7 @@ export function chartManager(onChange) {
   // null until requested, then "loading", "ready" or "failed".
   let library = window.echarts ? "ready" : null,
     edited = false,
-    look = "",
-    opened = null;
+    look = "";
   const views = new Set();
   const observer = new IntersectionObserver(
     (entries) => {
@@ -88,7 +97,6 @@ export function chartManager(onChange) {
     update(state, edit) {
       if (edit) edited = true;
       const next = `${state.doc.attrs.theme}|${state.doc.attrs.font}`;
-      opened ??= next;
       if (next !== look) {
         if (look) edited = true;
         look = next;
@@ -98,11 +106,7 @@ export function chartManager(onChange) {
     get edited() {
       return edited;
     },
-    // Whether the theme or font differs from the opened document's: a preview written elsewhere
-    // (no key) was drawn with the opened look.
-    get lookChanged() {
-      return opened !== null && look !== opened;
-    },
+
     observer,
   };
   return manager;
@@ -142,14 +146,13 @@ function chartView(manager, edit) {
     });
     const expected = () =>
       previewKey(node.attrs.type, node.attrs.width, parse(node), theme());
-    // "fresh", "missing" or "stale". A preview without a key (written elsewhere) counts as fresh
-    // until the theme or font changes.
+    // "fresh", "missing" or "stale". A preview without a key (written elsewhere) counts as fresh;
+    // a theme or font change keys it "stale" (staleKeyless).
     const status = () => {
       const p = node.attrs.preview;
       if (!p) return "missing";
       const key = keyOf(p);
-      if (key === null) return manager.lookChanged ? "stale" : "fresh";
-      return key === expected() ? "fresh" : "stale";
+      return key === null || key === expected() ? "fresh" : "stale";
     };
     function paint() {
       const data = parse(node);
@@ -231,7 +234,7 @@ function chartView(manager, edit) {
       const pos = getPos();
       if (!drawn || pos === undefined) return paint();
       const clean = sanitizeSVG(new XMLSerializer().serializeToString(drawn), {
-        prefix: previewPrefix(view.state.doc, pos),
+        prefix: nextPrefix(view.state.doc, pos),
       });
       if (!clean) return paint();
       const tree = fromDom(clean);
@@ -381,6 +384,7 @@ function copyChart(event, view, node) {
     return null;
   }
 }
+// Copies are numbered, charts or not: a picture still being drawn never replaces a later copy.
 let copies = 0;
 
 // The chart envelope on a pasted clipboard, from the custom type or the HTML attribute; null
@@ -412,8 +416,7 @@ function chartEnvelope(data) {
 function pasteChart(view, envelope) {
   const { type, data, svg } = readChart(envelope.chart);
   const { width, caption } = envelope.chart;
-  const clean =
-    svg && sanitizeSVG(svg, { prefix: previewPrefix(view.state.doc) });
+  const clean = svg && sanitizeSVG(svg, { prefix: nextPrefix(view.state.doc) });
   const preview = clean ? fromDom(clean) : null;
   // Drawn in another charte: never current here.
   preview?.attrs.push(["data-key", "pasted"]);
@@ -441,6 +444,13 @@ export const chartPlugin = (manager, edit, report) =>
       init: () => false,
       apply: (tr) => tr.docChanged && tr.getMeta("addToHistory") !== false,
     },
+    // A new theme or font: previews written elsewhere are out of date, in the same undo step.
+    appendTransaction(trs, before, after) {
+      const a = before.doc.attrs,
+        b = after.doc.attrs;
+      if (a.theme === b.theme && a.font === b.font) return null;
+      return staleKeyless(after.tr);
+    },
     // The look as opened is read when the editor starts.
     view(view) {
       manager.update(view.state, false);
@@ -456,10 +466,19 @@ export const chartPlugin = (manager, edit, report) =>
     props: {
       nodeViews: { chart: chartView(manager, edit) },
       handleDOMEvents: {
+        cut() {
+          copies++;
+          return false;
+        },
         copy(view, event) {
           const sel = view.state.selection;
-          if (!(sel instanceof NodeSelection) || sel.node.type.name !== "chart")
+          if (
+            !(sel instanceof NodeSelection) ||
+            sel.node.type.name !== "chart"
+          ) {
+            copies++;
             return false;
+          }
           event.preventDefault();
           try {
             const native = copyChart(event, view, sel.node);

@@ -275,6 +275,65 @@ async function run(name) {
         /<figure class="chart" id="fig-revenue-by-quarter" data-type="column" data-width="text">[^]*?<figcaption>Revenue by quarter, 2026<\/figcaption>/,
       );
       pass("a chart copies as an ADR-013 envelope and pastes as a new figure");
+
+      // A picture still being drawn never replaces a later copy, of a chart or of text.
+      if (await page.evaluate(() => typeof ClipboardItem === "function")) {
+        await page.evaluate(() => {
+          const draw = HTMLCanvasElement.prototype.toBlob;
+          window.held = [];
+          HTMLCanvasElement.prototype.toBlob = function (...args) {
+            window.held.push(() => draw.apply(this, args));
+          };
+          window.restoreBlob = () =>
+            (HTMLCanvasElement.prototype.toBlob = draw);
+          window.wrote = null;
+          navigator.clipboard.write = async (items) => {
+            try {
+              await Promise.all(
+                items.flatMap((i) => i.types.map((t) => i.getType(t))),
+              );
+              window.wrote = "picture";
+            } catch {
+              window.wrote = "dropped";
+            }
+          };
+        });
+        await selectChart(page, "fig-revenue-by-quarter");
+        // New data, so its picture is drawn again (and held).
+        await page.evaluate(() => {
+          const { view } = window.htmlText;
+          const { from, node } = view.state.selection;
+          const data = JSON.parse(node.attrs.data);
+          data.unit = "EUR k";
+          const tr = view.state.tr.setNodeMarkup(from, null, {
+            ...node.attrs,
+            data: JSON.stringify(data),
+          });
+          view.dispatch(
+            tr.setSelection(
+              view.state.selection.constructor.create(tr.doc, from),
+            ),
+          );
+        });
+        await page.waitForFunction(() => window.held.length > 0);
+        await clip(page, "copy");
+        await page.evaluate(() => {
+          const { view } = window.htmlText;
+          view.dispatch(
+            view.state.tr.setSelection(
+              view.state.selection.constructor.create(view.state.doc, 2, 6),
+            ),
+          );
+        });
+        await clip(page, "copy");
+        await page.evaluate(() => {
+          window.restoreBlob();
+          for (const release of window.held) release();
+        });
+        await page.waitForFunction(() => window.wrote);
+        assert.equal(await page.evaluate(() => window.wrote), "dropped");
+        pass("a picture still being drawn never replaces a later text copy");
+      }
       assert.deepEqual(errors, []);
       await context.close();
     }

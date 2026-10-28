@@ -191,8 +191,9 @@ export function setPreview(state, pos, preview) {
 // IDs prefix for a chart's drawn preview: "tx-c1-", "tx-c2-"… not used by any other preview of
 // the document (content IDs never start with "tx-"), so fragment references never cross previews;
 // short whatever the figure's ID. except: the position of the chart being drawn, whose own old
-// preview is replaced.
-export function previewPrefix(doc, except = -1) {
+// preview is replaced; from: the first number to try (the editor never reuses a number in a
+// session, so a preview brought back by undo keeps its own).
+export function previewPrefix(doc, except = -1, from = 1) {
   const ids = [];
   const walk = (tree) => {
     if (tree.type !== "element") return;
@@ -203,7 +204,7 @@ export function previewPrefix(doc, except = -1) {
     if (node.type === N.chart && pos !== except && node.attrs.preview)
       walk(node.attrs.preview);
   });
-  let n = 1;
+  let n = from;
   while (ids.some((id) => id.startsWith(`tx-c${n}-`))) n++;
   return `tx-c${n}-`;
 }
@@ -219,6 +220,22 @@ export const captionText = (text) =>
     )
     .replace(/\s+/g, " ")
     .trim();
+
+// A theme or font change makes every preview written elsewhere (no key) out of date, in the same
+// step: it was drawn with the look the file had. Returns the transaction, or null.
+export function staleKeyless(tr) {
+  let changed = false;
+  tr.doc.forEach((node, pos) => {
+    const p = node.type === N.chart && node.attrs.preview;
+    if (!p || keyOf(p) !== null) return;
+    tr.setNodeMarkup(pos, null, {
+      ...node.attrs,
+      preview: { ...p, attrs: [...p.attrs, ["data-key", "stale"]] },
+    });
+    changed = true;
+  });
+  return changed ? tr : null;
+}
 
 // Chart data kept across a change of type: the fields the new type's schema accepts.
 export const keepFields = (type, data) =>
