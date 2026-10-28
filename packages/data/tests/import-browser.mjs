@@ -431,6 +431,18 @@ try {
   await waitStatus(offlinePage, /Undo restored/);
   await restore();
   assert.equal(await tab(offlinePage, "Ventes").count(), 0);
+  // The draft restored at the undone state has no source either.
+  const savedSources = async (page, name) => {
+    const download = page.waitForEvent("download");
+    await command(page, "Save a copy");
+    const path = resolve(out, name);
+    await (await download).saveAs(path);
+    return readHTML(await readFile(path, "utf8")).book;
+  };
+  assert.deepEqual(
+    (await savedSources(offlinePage, "import-undone.html")).sources ?? [],
+    [],
+  );
   // Import again after recovery, then save, reopen, edit and re-import.
   await pick(offlinePage, "ventes.csv", french);
   await offlinePage.getByLabel("New sheet name").fill("Ventes");
@@ -472,6 +484,20 @@ try {
   );
   await again.locator("#import-apply").click();
   await waitStatus(again, /Imported ambiguous\.csv/);
+  // The re-import adds its sheet and source; the earlier edit stays.
+  const reimported = await savedSources(again, "import-reimported.html"),
+    ventesSheet = reimported.sheets.find((s) => s.name === "Ventes"),
+    ambiguous = reimported.sheets.find((s) => s.name === "ambiguous");
+  assert.deepEqual(
+    reimported.sources.map((s) => [s.file.name, s.sheetId]),
+    [
+      ["ventes.csv", ventesSheet.id],
+      ["ambiguous.csv", ambiguous.id],
+    ],
+  );
+  assert.equal(ventesSheet.cells.C3.input.value, 100);
+  assert.deepEqual(ambiguous.cells.A2.input, { type: "date", value: 46125 });
+  assert.deepEqual(ambiguous.cells.B2.input, { type: "number", value: 1.5 });
   assert.deepEqual(offlineRequests, []);
   await quiet.close();
   console.log("CSV import browser checks passed.");
