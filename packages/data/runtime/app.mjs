@@ -18,6 +18,8 @@ import { touchPreview } from "./view.mjs";
 import { createGrid } from "./grid.mjs";
 import { setupPicture } from "./picture.mjs";
 import { setupCSV } from "./csv-dialog.mjs";
+import { setupPrint } from "./print.mjs";
+import { setupPrintDialog } from "./print-dialog.mjs";
 import { setupClipboard } from "./clipboard.mjs";
 import {
   validateStructure,
@@ -1459,6 +1461,34 @@ const csv = setupCSV({
   status,
 });
 register("export-csv", () => csv.open());
+// Print / PDF of the selected sheet (T19): a print-only view built from the
+// model like the picture; Cmd/Ctrl+P prints it with the defaults.
+const staleResults = (formulas) =>
+  pendingEdits.length > 0 ||
+  (formulas &&
+    !(book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint)));
+const print = setupPrint({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  decorate: decorateCell,
+  isStale: staleResults,
+  gridLines: () => gridLines,
+  fontFamily: () => getComputedStyle($("grid")).fontFamily,
+  charts,
+});
+const printDialog = setupPrintDialog({
+  getBook: () => book,
+  getSheet: () => book.sheets.find((s) => s.id === sheetId),
+  print,
+  stale: (sheet) =>
+    staleResults(Object.values(sheet.cells).some((cell) => cell.formula)),
+  status,
+});
+register(
+  "print",
+  () => printDialog.open(),
+  () => true,
+);
 register("conditional-formatting", () => conditionalSettings.open());
 register(
   "pivot-tables",

@@ -27,6 +27,7 @@ const MENUS = {
     "Save a copy",
     "Download selection as PNG",
     "Export sheet as CSV…",
+    "Print / PDF…",
     "Document settings…",
     "Regional settings…",
   ],

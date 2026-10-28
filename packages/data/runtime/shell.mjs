@@ -413,6 +413,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("Save a copy", "save-copy"),
         item("Download selection as PNG", "download-png"),
         item("Export sheet as CSV…", "export-csv"),
+        item("Print / PDF…", "print", { shortcut: key("P") }),
         "-",
         item("Document settings…", "theme", {
           onSelect: () => openPanel("settings"),
@@ -838,6 +839,11 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
     } else if ((k === "b" || k === "i") && !event.shiftKey && !dialogOpen()) {
       event.preventDefault();
       commands.run(k === "b" ? "bold" : "italic");
+    } else if (k === "p" && !event.shiftKey && !dialogOpen()) {
+      // The print dialog (T19) prepares the sheet for print or PDF.
+      event.preventDefault();
+      closePopover({ restore: false });
+      commands.run("print");
     } else if (k === "k" && !event.shiftKey) {
       // A shortcut that opens a dialog closes any open popover first.
       event.preventDefault();
