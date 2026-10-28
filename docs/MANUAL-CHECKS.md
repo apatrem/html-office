@@ -165,6 +165,19 @@ Each task adds its checks here, under its own heading (`### T07 — …`), in ta
 7. **Safari and Firefox**: steps 2 and 3, including typing at the end of a paragraph after Escape, and a Japanese or Chinese input method right after Escape.
 8. Save and reopen: the notes are kept where they were written; the saved file holds no numbers and no Notes list.
 
+### T12 — Images
+
+Use real pictures: a large phone photo (JPEG, 4,000 px wide or more), a PNG screenshot, a PNG logo with a transparent background, an animated GIF and an SVG logo.
+
+1. **Insert** (Insert › Image…) each file in Chrome, Safari and Firefox. The dialog shows a preview; **Insert** stays disabled until the alt text is filled. Choose *Wrap left*, 33%: the picture floats left of the paragraph that held the cursor and of the following ones; the text wraps around a rectangle.
+2. **Size and kind**: save, then check the file size grew by a reasonable amount, well under the photo's own size (the photo is reduced to 1,600 px wide; WebP in Chrome and Firefox, JPEG in Safari). In Safari the transparent logo keeps its transparent background (PNG), never a black one. The GIF still animates. The SVG keeps its sharpness at any zoom.
+3. **Dialog**: double-click a picture. Change the alt text, then the layout to *Full width*, then *Wrap right* 50%. Undo reverts each change. **Replace image…** swaps the picture and keeps the caption.
+4. **Wrapping**: two wrapped images in a row on the same side stack, never overlap; a wrapped image beside a short paragraph lets the next paragraphs wrap too; a heading with *Start on a new page* starts below the image.
+5. **Anchoring**: with the cursor in the paragraph after a wrapped image, Format › Move up (Alt+Shift+↑) moves the paragraph and its image together; Move down back.
+6. **Delete**: click a picture (the figure is outlined) and press Backspace. Save: `node packages/text/tools/check.mjs <file>` reports no `unused-asset`, and the `script#assets` line no longer holds the deleted picture. Undo, save again: it is back.
+7. **Reopen** the saved file in each browser: every picture shows, the state is *No unsaved changes*.
+8. **Print preview** in Chrome, Safari and Firefox: pictures print at their width, wrapped text flows as on screen (page breaks around images are checked in T14).
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

@@ -1,7 +1,7 @@
 // html-text editor bootstrap (T03). The file's own nodes are captured before anything else runs;
 // article#doc is validated with the same rules as tools/check.mjs, then edited with ProseMirror.
 // Saving writes the captured zones unchanged and article#doc from the editor's document.
-import { EditorState, TextSelection } from "prosemirror-state";
+import { EditorState, Selection, TextSelection } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import { history, undo, redo } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
@@ -34,6 +34,15 @@ import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
+import * as I from "../editor/images.mjs";
+import { assetStore } from "../model/assets.mjs";
+import {
+  imagePlugin,
+  imageDialog,
+  imageError,
+  pickImage,
+  shrinkImage,
+} from "./images.mjs";
 import { mountShell, refusal } from "./shell.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
@@ -121,9 +130,12 @@ function start() {
   }
   const article = document.getElementById("doc");
   const commands = createCommands();
-  const save = (doc) => saveFile(file, doc);
+  // Images (T12): saving writes only the assets the document uses.
+  const assets = assetStore(file);
+  const save = (doc) => saveFile(assets.fileFor(file, doc), doc);
   const doc = toDoc(findArticle(file), report.blocks);
-  const opened = save(doc);
+  // The file as opened, unused assets included: Save checks the chosen file against it.
+  const opened = saveFile(file, doc);
   // A source that differs from its canonical form where the browser can see it (line breaks in
   // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
 
@@ -142,7 +154,10 @@ function start() {
     draft: () => articleHTML(view.state.doc),
     // The article is a placeholder that restoring replaces with the draft's.
     zones: () =>
-      serializeFile(withEngine(file, []), '<article id="doc"></article>'),
+      serializeFile(
+        withEngine(assets.fileFor(file, view.state.doc), []),
+        '<article id="doc"></article>',
+      ),
     onDraft: (found) => shell.recover(found, restoreDraft),
   });
   // The file tree with the engine's code replaced (a draft stores the zones without it).
@@ -166,6 +181,7 @@ function start() {
     const tree = withEngine(read(zones), findEngine(file.html));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
+    assets.reset(file);
     numbers.format = fileFormat(file);
     E.reserveIds(fileIds(file.html));
     view.updateState(
@@ -206,6 +222,7 @@ function start() {
     plugins: [
       history(),
       subsetGuard(),
+      imagePlugin(assets, () => commands.run("image")),
       G.generatedContent(numbers),
       internalClipboard(),
       keymap({
@@ -226,6 +243,8 @@ function start() {
         "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
         "Mod-Enter": E.insertPageBreak,
         "Mod-Alt-f": G.insertFootnote,
+        "Alt-Shift-ArrowUp": I.moveBlock(-1),
+        "Alt-Shift-ArrowDown": I.moveBlock(1),
         "Mod-k": () => (commands.run("link"), true),
         Backspace: E.liftListItem,
         "Mod-s": () => (
@@ -339,26 +358,95 @@ function start() {
   edit("footnote", G.insertFootnote);
   for (const depth of [1, 2, 3, 4])
     edit(`contents-${depth}`, G.setContentsDepth(depth));
-  // The cross-reference dialog lists the targets; as with links, the selection is put back
-  // once it has closed, then the chosen target is inserted there.
+  // As with links, a dialog puts the selection back once it has closed (a native dialog
+  // refocuses the article first, which resets the caret in Safari).
+  const keepSelection = () => {
+    const kept = view.state.selection.toJSON();
+    return () => {
+      try {
+        view.dispatch(
+          view.state.tr.setSelection(Selection.fromJSON(view.state.doc, kept)),
+        );
+      } catch {
+        // The document changed under the dialog: the selection stays where it is.
+      }
+      view.focus();
+    };
+  };
+  // The cross-reference dialog lists the targets; the chosen one is inserted at the selection.
   commands.register(
     "xref",
     () => {
-      const { anchor, head } = view.state.selection;
+      const back = keepSelection();
       shell.xref(G.referenceTargets(view.state), (target) => {
-        const size = view.state.doc.content.size;
-        const at = (p) => Math.min(p, size);
-        view.dispatch(
-          view.state.tr.setSelection(
-            TextSelection.create(view.state.doc, at(anchor), at(head)),
-          ),
-        );
+        back();
         if (target) G.insertXref(target)(view.state, view.dispatch);
-        view.focus();
       });
     },
     () => G.insertXref(null)(view.state),
   );
+  // Images (T12): a picked file is shrunk, described in the dialog, then inserted; the
+  // selected image's dialog changes its description, layout and width, or replaces it.
+  const addImage = async () => {
+    const picked = await pickImage();
+    if (!picked) return null;
+    try {
+      return await shrinkImage(picked);
+    } catch {
+      imageError(picked.name);
+      return null;
+    }
+  };
+  const url = (image) => `data:${image.type};base64,${image.data}`;
+  commands.register("image-insert", async () => {
+    const back = keepSelection();
+    const image = await addImage();
+    if (!image) return back();
+    imageDialog({
+      initial: null,
+      preview: url(image),
+      onSave: (attrs) => {
+        back();
+        I.insertImage({ ...attrs, asset: assets.add(image) })(
+          view.state,
+          view.dispatch,
+        );
+      },
+      done: back,
+    });
+  });
+  commands.register(
+    "image",
+    () => {
+      const found = I.imageAt(view.state);
+      if (!found) return;
+      const back = keepSelection();
+      // The figure is named by its ID and its picture: an edit made while the dialog or the file
+      // picker is open (the figure deleted, another inserted with the same ID, a draft restored)
+      // never retargets the change to another image.
+      const { id, asset } = found.node.attrs;
+      const apply = (changes) => {
+        back();
+        if (I.imageById(view.state, id)?.node.attrs.asset === asset)
+          I.setImage(changes, id)(view.state, view.dispatch);
+        view.focus();
+      };
+      imageDialog({
+        initial: found.node.attrs,
+        preview: assets.url(found.node.attrs.asset),
+        onSave: apply,
+        onReplace: async () => {
+          const image = await addImage();
+          if (image) apply({ asset: assets.add(image) });
+          else back();
+        },
+        done: back,
+      });
+    },
+    () => !!I.imageAt(view.state),
+  );
+  edit("move-up", I.moveBlock(-1));
+  edit("move-down", I.moveBlock(1));
   // What the toolbar and menus show as current.
   const current = () => {
     const s = view.state;

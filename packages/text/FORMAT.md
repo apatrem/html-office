@@ -129,7 +129,9 @@ Malformed figures are errors. A `figcaption` is optional; when present it holds 
 ```
 
 - `img` has exactly `data-asset` (a key of `script#assets`) and a non-empty `alt`.
-- Without `data-wrap`, `data-width` is `text` or `full`. With `data-wrap="left|right"` the image floats beside the following paragraphs (rectangular wrapping) and `data-width` is `25`, `33`, `40` or `50` (percent of the text width). The theme sets the gap. T12 may refine these values.
+- Without `data-wrap`, `data-width` is `text` or `full`. With `data-wrap="left|right"` the image floats beside the following paragraphs (rectangular wrapping) and `data-width` is `25`, `33`, `40` or `50` (percent of the text width). The theme sets the gap; consecutive images wrapped on the same side stack. No contour wrapping.
+- **Anchoring**: a wrapped image is anchored to the block that follows it. The editor's Move up / Move down (Alt+Shift+↑/↓) move a block together with the wrapped images just before it.
+- **Assets** follow the Slides contract: base64 PNG, JPEG, WebP, GIF or SVG in `script#assets`. The editor embeds a picked file at most 1,600 px wide, as WebP where the browser encodes it (Chrome, Edge, Firefox); otherwise (Safari) a JPEG stays JPEG and any other picture becomes PNG, so transparency is kept. SVG and GIF (which may be animated) are kept as they are. It shows images from the store at runtime, those of protected blocks included, never saves a `src`, and installs the store's fonts as `@font-face` rules. On save it writes only the assets an image refers to (in a figure or a protected block), plus every font, so replacing or deleting an image leaves no orphan; when that set has not changed, the zone keeps its bytes. `check` reports an image asset nothing uses as `unused-asset`.
 
 ### Table
 
