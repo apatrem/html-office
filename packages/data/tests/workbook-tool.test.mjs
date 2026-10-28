@@ -452,3 +452,102 @@ test("a bad value in a row table is reported at its cell", async () => {
   assert.equal(result.code, 1);
   assert.match(result.out, /Sales!D2: Expected finite number/);
 });
+
+// Re-verification regressions (GPT-6.1 Sol): a later pivot no longer
+// releases cells an earlier one just wrote; a moved pivot anchor is a
+// change; replaced workbook fields can be allowed by name.
+test("refreshing moved pivots keeps an earlier pivot's output", async () => {
+  const model = JSON.parse(
+      await readFile(join(examples, "valid/sales.json"), "utf8"),
+    ),
+    pivot = (id, ref) => ({
+      id,
+      name: id,
+      source: { sheetId: "sales" },
+      output: { sheetId: "summary", ref },
+      rows: ["Region"],
+      columns: [],
+      filters: [],
+      values: [{ field: "Adjusted", aggregate: "sum" }],
+    });
+  model.pivots = [pivot("first", "D20"), pivot("second", "B21")];
+  const source = join(dir, "two-pivots.json"),
+    file = join(dir, "two-pivots.html");
+  await writeFile(source, JSON.stringify(model));
+  assert.equal((await cli("new", file, "--model", source)).code, 0);
+  const move = join(dir, "two-moves.json"),
+    out = join(dir, "two-moved.html");
+  await writeFile(
+    move,
+    JSON.stringify({
+      set: { pivots: [pivot("first", "A20"), pivot("second", "D20")] },
+    }),
+  );
+  const moved = await cli(
+    "apply",
+    file,
+    move,
+    "--out",
+    out,
+    "--refresh-pivots",
+  );
+  assert.equal(moved.code, 0, moved.out);
+  const [first] = await cell(out, "Summary!B21:B21"),
+    [second] = await cell(out, "Summary!E21:E21");
+  assert.ok(first?.cell.input, "the first pivot keeps B21");
+  assert.ok(second?.cell.input, "the second pivot writes E21");
+  assert.deepEqual(first.cell.input, second.cell.input);
+});
+
+test("validate --since flags a moved pivot and allows named fields", async () => {
+  const sales = join(dir, "sales.html"),
+    model = JSON.parse((await cli("extract", sales)).out),
+    pivots = structuredClone(model.pivots);
+  pivots[0].output = { sheetId: "summary", ref: "H20" };
+  const move = join(dir, "move-far.json"),
+    out = join(dir, "moved-far.html");
+  await writeFile(move, JSON.stringify({ set: { pivots } }));
+  const moved = await cli(
+    "apply",
+    sales,
+    move,
+    "--out",
+    out,
+    "--refresh-pivots",
+  );
+  assert.equal(moved.code, 0, moved.out);
+  const check = await cli("validate", out, "--since", sales);
+  assert.equal(check.code, 1);
+  assert.match(check.out, /Workbook field "pivots" changed/);
+  // A requested chart change, allowed by field name.
+  const retitle = join(dir, "retitle.json"),
+    titled = join(dir, "retitled.html"),
+    { charts } = JSON.parse((await cli("extract", budget)).out);
+  charts[0].options.title = "Margin per line";
+  delete charts[0].preview;
+  await writeFile(retitle, JSON.stringify({ set: { charts } }));
+  assert.equal((await cli("apply", budget, retitle, "--out", titled)).code, 0);
+  assert.equal((await cli("validate", titled, "--since", budget)).code, 1);
+  const allowed = await cli(
+    "validate",
+    titled,
+    "--since",
+    budget,
+    "--allow-fields",
+    "charts",
+  );
+  assert.equal(allowed.code, 0, allowed.out);
+  assert.equal(
+    (
+      await cli(
+        "validate",
+        titled,
+        "--since",
+        budget,
+        "--allow-fields",
+        "sheets",
+      )
+    ).code,
+    2,
+  );
+});

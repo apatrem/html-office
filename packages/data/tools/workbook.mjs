@@ -9,7 +9,8 @@
 //               [--no-recalculate] [--refresh-pivots] [--dry-run] [--json]
 //   recalculate <file.html> (--out out.html | --in-place) [--refresh-pivots]
 //   validate    <file.html> [--range Sheet!A1:D20] [--since before.html]
-//               [--allow Sheet!A1:B5,...] [--allow-stale] [--json]
+//               [--allow Sheet!A1:B5,...] [--allow-fields charts,...]
+//               [--allow-stale] [--json]
 // Exit code 1 when the command found errors (nothing is written then),
 // 2 for a usage error.
 import { readFile, writeFile, access, rename, rm } from "node:fs/promises";
@@ -35,6 +36,7 @@ import {
   parseTarget,
   preservation,
   summary,
+  SETTABLE,
 } from "./workbook-ops.mjs";
 import { recalculate, refreshPivots } from "./engine-node.mjs";
 import { renderPreviews, cssTheme } from "./chart-previews.mjs";
@@ -45,7 +47,7 @@ const USAGE = `Usage:
   workbook.mjs inspect <file.html> [--range Sheet!A1:D20] [--json]
   workbook.mjs apply <file.html> <patch.json> (--out out.html | --in-place) [--no-recalculate] [--refresh-pivots] [--dry-run] [--json]
   workbook.mjs recalculate <file.html> (--out out.html | --in-place) [--refresh-pivots]
-  workbook.mjs validate <file.html> [--range Sheet!A1:D20] [--since before.html] [--allow Sheet!A1:B5,...] [--allow-stale] [--json]`;
+  workbook.mjs validate <file.html> [--range Sheet!A1:D20] [--since before.html] [--allow Sheet!A1:B5,...] [--allow-fields charts,...] [--allow-stale] [--json]`;
 
 export function parseArgs(argv) {
   const out = { _: [] };
@@ -60,6 +62,7 @@ export function parseArgs(argv) {
         "--range",
         "--since",
         "--allow",
+        "--allow-fields",
       ].includes(a)
     )
       out[a.slice(2)] = argv[++i];
@@ -317,7 +320,20 @@ export async function run(argv) {
             return { sheetId: sheet.id, rect };
           },
         );
-      errors.push(...preservation(before.read.book, read.book, { allow }));
+      // Workbook fields a patch replaced with "set" (charts, pivots…).
+      const fields = args["allow-fields"]
+        ? String(args["allow-fields"])
+            .split(",")
+            .map((f) => f.trim())
+        : [];
+      for (const field of fields)
+        if (!SETTABLE.includes(field))
+          throw usage(
+            `--allow-fields: "${field}" is not a settable field (${SETTABLE.join(", ")}).`,
+          );
+      errors.push(
+        ...preservation(before.read.book, read.book, { allow, fields }),
+      );
       if (outside(before.html, before.read) !== outside(html, read))
         warnings.push(
           "The file's editor, engine, brand or guide differ from the reference; only the workbook payload is expected to change.",
