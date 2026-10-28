@@ -177,10 +177,10 @@ File › Print / PDF… (or Cmd/Ctrl+P) on a sheet with a header row, more rows 
    - The chart appears after the table, sharp when zoomed in (SVG), with its title and unit.
 2. The dialog proposes Letter in English (United States) and A4 in French (France); portrait for a narrow sheet, landscape for a wide one. Change paper and orientation: the browser's preview follows.
 3. A sheet about 15 columns wide: *Fit to the page width* shrinks it onto the page; a 30-column sheet is split into pages across, each starting with column A. Try *Repeat columns at left* 0 and 2.
-4. Set *Repeat rows at top* to 0 and 3: the repeated rows follow.
+4. Set *Repeat rows at top* to 0 and 3: the repeated rows follow (at most 5).
 5. Turn grid lines off (View › Grid lines), then print: the PDF has no grid lines.
 6. Edit an input with the network off in the standard file (the calculation cannot load), then print: the PDF starts with the orange "Saved results may be out of date" band.
-7. Cancel the browser's print dialog: the editor is unchanged and prints again normally.
+7. Cancel the browser's print dialog: the editor is unchanged and prints again normally. Use the browser's own File › Print on a sheet larger than 50,000 cells: the page shows the refusal, not the editor.
 8. Repeat step 1 with the offline file and the network off.
 
 ## Log

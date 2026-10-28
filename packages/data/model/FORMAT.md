@@ -241,8 +241,9 @@ File › Print / PDF… (or Cmd/Ctrl+P) prints the selected sheet; the browser's
 
 - **Range**: from A1 to the last cell record, style-only cells included. Empty sheets and prints of more than 50,000 cells are refused (export CSV instead).
 - **Look**: the grid's rules, as for the PNG download: displayed values with their number formats, cell styles and direct formatting, borders (each shared edge once, heavier wins), alignment, wrap, overflow into empty cells (clipped at the printed columns), conditional highlights and data bars, column widths and row heights, grid lines as shown on screen. No headers, selection or other editor chrome.
-- **Pages**: A4 or Letter (Letter by default for `en-US` and other Letter regions), portrait or landscape (landscape by default when portrait would need scaling), 12 mm margins. Rows never split across pages. Leading rows whose filled cells all use the `header` cell style repeat at the top of every page by default (0–20 rows, adjustable).
+- **Pages**: A4 or Letter (Letter by default for `en-US` and other Letter regions), portrait or landscape (landscape by default when portrait would need scaling), 12 mm margins. Rows never split across pages. Leading rows whose filled cells all use the `header` cell style repeat at the top of every page by default (0–5 rows, adjustable). Repetition is the browser's: Chrome and Edge repeat them; Safari may print them on the first page only.
 - **Wide sheets**: fitted to the page width when that keeps at least 60% of the size; otherwise split into pages across, each starting with the first column (0–5 repeated columns, adjustable). Either can be chosen.
 - **Charts** on the sheet follow the table, each kept on one page, as the drawing shown on screen: the live drawing, or the saved SVG preview; a note marks a missing or out-of-date preview.
-- **Stale results**: unverified saved results, an uncalculated edit, or an out-of-date pivot table add the PNG's warning band at the top.
+- **Stale results**: unverified saved results, an uncalculated edit, or a pivot table on the sheet not known to be current (out of date, or its check pending or failed) add the PNG's warning band at the top.
+- The browser's own Print command prints the sheet with the defaults; a refused sheet prints the reason instead of the editor.
 

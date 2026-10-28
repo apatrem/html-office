@@ -24,7 +24,9 @@ import { paint, generalAlign, spill, LINE } from "./grid.mjs";
 import { STALE_NOTICE } from "./picture.mjs";
 
 export const MAX_PRINT_CELLS = 50000,
-  MAX_REPEAT_ROWS = 20;
+  // Browsers repeat a table header only while it is short (Chromium: a
+  // quarter of the page), so at most five rows repeat.
+  MAX_REPEAT_ROWS = 5;
 const SIZES = {
   rows: ROWS,
   columns: COLUMNS,
@@ -152,6 +154,9 @@ export function setupPrint({
   getSheet,
   decorate,
   isStale,
+  // True while a pivot table writing to the sheet is not known to be current
+  // (its analysis pending or failed).
+  pivotsUnverified = () => false,
   gridLines,
   fontFamily,
   charts,
@@ -271,13 +276,19 @@ export function setupPrint({
           height,
           false,
         );
-        edge(
-          td,
-          resolveEdge(side(row, col, "right"), side(row, col + 1, "left")),
-          true,
-          columns.size(col),
-          false,
-        );
+        // At a jump between columns (after the repeated ones), the edge
+        // between the printed neighbours is drawn once, as the next one's
+        // left edge.
+        const next = band.columns[i + 1],
+          prev = band.columns[i - 1];
+        if (next === undefined || next === col + 1)
+          edge(
+            td,
+            resolveEdge(side(row, col, "right"), side(row, col + 1, "left")),
+            true,
+            columns.size(col),
+            false,
+          );
         if (row === 1)
           edge(
             td,
@@ -286,15 +297,17 @@ export function setupPrint({
             0,
             true,
           );
-        // The band's first column has the outline's left edge; a band that
-        // skips columns after its repeated ones shows the edge between them.
-        if (i === 0)
+        // The band's first column has the outline's left edge.
+        if (i === 0 || prev !== col - 1)
           edge(
             td,
-            resolveEdge(side(row, col - 1, "right"), side(row, col, "left")),
+            resolveEdge(
+              side(row, i === 0 ? col - 1 : prev, "right"),
+              side(row, col, "left"),
+            ),
             true,
             0,
-            true,
+            i === 0,
           );
         tr.append(td);
       });
@@ -385,7 +398,6 @@ export function setupPrint({
       }
     view = document.createElement("div");
     view.id = "print-view";
-    view.setAttribute("aria-hidden", "true");
     view.classList.toggle("no-grid-lines", !gridLines());
     view.style.fontFamily = fontFamily();
     const title = document.createElement("header");
@@ -400,6 +412,7 @@ export function setupPrint({
     // Stale results, or a pivot table out of date (its cells carry a mark).
     if (
       isStale(formulas) ||
+      pivotsUnverified(sheet.id) ||
       tables.some((t) => t.querySelector(".pivot-stale"))
     ) {
       const band = document.createElement("p");
@@ -418,9 +431,20 @@ export function setupPrint({
     document.documentElement.classList.add("printing");
     return "";
   }
-  // Cmd/Ctrl+P without the dialog prints the sheet with the defaults.
+  // The browser's own Print (its menu) prints the sheet with the defaults;
+  // a refused sheet prints the reason rather than the editor's viewport.
   addEventListener("beforeprint", () => {
-    if (!view) build();
+    if (view) return;
+    const refused = build();
+    if (!refused) return;
+    view = document.createElement("div");
+    view.id = "print-view";
+    const reason = document.createElement("p");
+    reason.className = "print-stale";
+    reason.textContent = refused;
+    view.append(reason);
+    document.body.append(view);
+    document.documentElement.classList.add("printing");
   });
   addEventListener("afterprint", clear);
   return { build, clear };

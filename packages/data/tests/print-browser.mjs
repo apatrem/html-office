@@ -75,7 +75,12 @@ export function reportWorkbook() {
     const col = String.fromCharCode(64 + ((c - 1) % 26) + 1);
     const ref = (c > 26 ? "A" : "") + col;
     wide[`${ref}1`] = text(`Col ${c}`, "header");
-    wide[`${ref}2`] = { input: { type: "number", value: c * 1000 } };
+    // A left border on every value: each band shows it beside its first
+    // column after the repeated column A.
+    wide[`${ref}2`] = {
+      input: { type: "number", value: c * 1000 },
+      style: { border: { left: { style: "double", color: "ink" } } },
+    };
   }
   return {
     version: VERSION,
@@ -86,6 +91,11 @@ export function reportWorkbook() {
     sheets: [
       { id: "report", name: "Report", rows: { 5: { height: 46 } }, cells },
       { id: "wide", name: "Wide", cells: wide },
+      {
+        id: "huge",
+        name: "Huge",
+        cells: { A1: text("Corner"), J10000: text("Far") },
+      },
     ],
     groups: [],
     names: [],
@@ -230,6 +240,7 @@ try {
         chartTitle: v.querySelector(".print-chart .data-chart-title")
           ?.textContent,
         stale: !!v.querySelector(".print-stale"),
+        hidden: v.closest("[aria-hidden]") !== null,
       };
     });
     assert.equal(view.printing, true);
@@ -254,6 +265,8 @@ try {
     ]);
     assert.equal(view.chartTitle, "Margin by item");
     assert.equal(view.stale, false);
+    // Printed PDFs keep the report in the accessibility tree.
+    assert.equal(view.hidden, false);
     // In print, only the view shows.
     await page.emulateMedia({ media: "print" });
     const shown = await page.evaluate(() => ({
@@ -293,6 +306,9 @@ try {
     const bands = await page.evaluate(() =>
       [...document.querySelectorAll("#print-view table")].map((t) => ({
         first: t.querySelector("thead td").textContent,
+        edge: getComputedStyle(
+          t.querySelector("tbody tr td:nth-child(2) .print-edge"),
+        ).borderLeftStyle,
         width: parseFloat(t.style.width),
         zoom: t.style.zoom,
       })),
@@ -303,6 +319,7 @@ try {
     const landscape = ((279.4 - 24) * 96) / 25.4;
     for (const band of bands) {
       assert.equal(band.first, "Wide");
+      assert.equal(band.edge, "double");
       assert.equal(band.zoom, "");
       assert.ok(band.width <= landscape);
     }
@@ -348,6 +365,23 @@ try {
     await page.keyboard.press("Escape");
     await page.evaluate(() => dispatchEvent(new Event("beforeprint")));
     assert.equal(await page.locator("#print-view").count(), 1);
+    await page.evaluate(() => dispatchEvent(new Event("afterprint")));
+    // The browser's own Print on a sheet too large prints the reason, not
+    // the editor's viewport.
+    await page.getByRole("button", { name: "Huge", exact: true }).click();
+    await page.evaluate(() => dispatchEvent(new Event("beforeprint")));
+    assert.match(
+      await page.locator("#print-view").textContent(),
+      /too large to print/,
+    );
+    await page.emulateMedia({ media: "print" });
+    assert.equal(
+      await page.evaluate(
+        () => document.getElementById("grid").getClientRects().length,
+      ),
+      0,
+    );
+    await page.emulateMedia({ media: null });
     await page.evaluate(() => dispatchEvent(new Event("afterprint")));
     await page.close();
   }

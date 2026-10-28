@@ -1472,6 +1472,14 @@ const print = setupPrint({
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
   decorate: decorateCell,
   isStale: staleResults,
+  // Pivot freshness is analysed in the recovery worker: unknown (pending or
+  // failed) counts as out of date.
+  pivotsUnverified: (id) =>
+    (book.pivots ?? []).some(
+      (pivot) =>
+        pivot.output.sheetId === id &&
+        pivotStates?.[pivot.id]?.state !== "current",
+    ),
   gridLines: () => gridLines,
   fontFamily: () => getComputedStyle($("grid")).fontFamily,
   charts,
