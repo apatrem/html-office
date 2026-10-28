@@ -1,7 +1,7 @@
 {
   "ceiling": 600000,
-  "total": 428131,
-  "headroom": 171869,
+  "total": 430028,
+  "headroom": 169972,
   "rows": [
     {
       "component": "prosemirror-model 1.25.12",
@@ -90,8 +90,8 @@
     },
     {
       "component": "Paste mapping (HTML, tables)",
-      "bytes": 36329,
-      "gzip": 13445
+      "bytes": 38224,
+      "gzip": 14147
     },
     {
       "component": "Markdown import",
@@ -105,8 +105,8 @@
     },
     {
       "component": "Editor core (all of the above, shared code once)",
-      "bytes": 423666,
-      "gzip": 134459
+      "bytes": 425563,
+      "gzip": 135234
     },
     {
       "component": "Licence notices of the editor core",

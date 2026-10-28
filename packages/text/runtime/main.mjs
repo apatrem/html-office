@@ -256,10 +256,17 @@ function start() {
     () => commands.run("chart"),
     (message) => saving.say(message),
   );
+  // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
+  const clipboard = setupClipboard((text) => saving.say(text), {
+    internal,
+    chart: chartsPlugin.props.handlePaste,
+    assets,
+  });
   const state = EditorState.create({
     doc,
     plugins: [
       history(),
+      clipboard.plugin,
       // Cell selections, arrow keys and fixing table shapes, then Text's own table shape (T10).
       T.cellKeys(),
       T.tableEditing(),
@@ -303,11 +310,6 @@ function start() {
       }),
       keymap({ ...baseKeymap, Enter: enter }),
     ],
-  });
-  // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
-  const clipboard = setupClipboard((text) => saving.say(text), {
-    internal,
-    chart: chartsPlugin.props.handlePaste,
   });
   view = new EditorView(
     { mount: article },
@@ -621,6 +623,8 @@ function start() {
     saving,
     report,
     serialize: () => save(view.state.doc),
+    // Resolves once pastes waiting for their images are in the document (T12b).
+    pasted: () => clipboard.settled(),
     TextSelection,
     NodeSelection,
     CellSelection: T.CellSelection,

@@ -150,7 +150,7 @@ jobs:
         run: node packages/text/tests/footnotes-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
-      - name: Images, wrapping and assets in Firefox and WebKit (Text T12)
+      - name: Images, wrapping, assets, pasted and dropped images in Firefox and WebKit (Text T12, T12b)
         run: node packages/text/tests/images-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
