@@ -33,6 +33,7 @@ import {
   pivotRemovalEdits,
   validatePivots,
   PIVOT_ERROR,
+  pivotState,
 } from "../model/pivot.mjs";
 import { setupPivots } from "./pivots.mjs";
 import { setupCharts } from "./charts.mjs";
@@ -1405,23 +1406,51 @@ const picture = setupPicture({
   status,
 });
 register("download-png", () => picture.download());
-// Export sheet as CSV (T19): values only; stale or missing saved results on
-// a sheet with formulas need a choice, recalculate or export them as saved.
+// Export sheet as CSV (T19): values only. Formulas without a result, saved
+// results not verified as current, or pivot tables writing to the sheet that
+// are out of date need a choice: update and export, or export them as saved.
+const resultsCurrent = () =>
+  !!book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint);
+async function stalePivotsOn(sheet) {
+  const found = [];
+  for (const pivot of book.pivots ?? [])
+    if (
+      pivot.output.sheetId === sheet.id &&
+      (
+        await pivotState(book, pivot, {
+          formulaResultsCurrent: resultsCurrent(),
+        })
+      ).state !== "current"
+    )
+      found.push(pivot);
+  return found;
+}
 const csv = setupCSV({
   getBook: () => book,
   getSheet: () => book.sheets.find((s) => s.id === sheetId),
-  needsResolution: (sheet) => {
-    const formulas = Object.values(sheet.cells).filter((cell) => cell.formula);
-    if (
-      !formulas.length ||
-      (book.snapshot && verifiedSnapshots.has(book.snapshot.fingerprint))
-    )
-      return "";
-    const missing = formulas.filter((cell) => !cell.result).length;
-    return `Saved results are not verified as current${missing ? `, and ${missing} formula${missing > 1 ? "s have" : " has"} no result` : ""}. Recalculate to export current values, or export the saved values as they are${missing ? " (missing results are left empty)" : ""}.`;
+  needsResolution: async (sheet) => {
+    const formulas = Object.values(sheet.cells).filter((cell) => cell.formula),
+      missing = formulas.filter((cell) => !cell.result).length,
+      unverified = formulas.length > 0 && !resultsCurrent(),
+      pivots = (await stalePivotsOn(sheet)).length;
+    if (!missing && !unverified && !pivots) return "";
+    const problems = [
+      ...(unverified ? ["saved results are not verified as current"] : []),
+      ...(missing
+        ? [`${missing} formula${missing > 1 ? "s have" : " has"} no result`]
+        : []),
+      ...(pivots
+        ? [
+            `${pivots} pivot table${pivots > 1 ? "s" : ""} on this sheet ${pivots > 1 ? "are" : "is"} out of date`,
+          ]
+        : []),
+    ];
+    return `${problems.join(", ").replace(/^./, (c) => c.toUpperCase())}. Recalculate${pivots ? " and refresh pivot tables" : ""} to export current values, or export the saved values as they are${missing ? " (missing results are left empty)" : ""}.`;
   },
   pending: () => pendingEdits.length > 0,
-  recalculate: () => apply({ recalculateOnly: true }),
+  recalculate: async (sheet) =>
+    !!(await apply({ recalculateOnly: true })) &&
+    (!(await stalePivotsOn(sheet)).length || (await refreshAllPivots())),
   status,
 });
 register("export-csv", () => csv.open());

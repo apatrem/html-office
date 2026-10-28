@@ -74,6 +74,27 @@ test("dates are ISO, with the 1900 leap day and times to the second", () => {
   assert.equal(isoDate(45000.999999), "2023-03-16");
   assert.equal(isoDate(0), "1899-12-31");
   assert.equal(isoDate(2958465), "9999-12-31");
+  // A time rounding past 9999-12-31 stays a number in the CSV.
+  const late = { input: { type: "number", value: 2958465.999999 } };
+  assert.equal(
+    parseCSV(
+      sheetCSV({ cells: { A1: { ...late, format: { kind: "date" } } } }).text,
+    )[0][0],
+    "2958465.999999",
+  );
+  assert.equal(
+    parseCSV(
+      sheetCSV({
+        cells: {
+          A1: {
+            input: { type: "number", value: 2958465.99999 },
+            format: { kind: "date" },
+          },
+        },
+      }).text,
+    )[0][0],
+    "9999-12-31 23:59:59",
+  );
 });
 
 test("the exported rectangle runs from A1 to the last filled cell", () => {

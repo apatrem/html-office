@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 import { buildWorkbook } from "../tools/build.mjs";
 import { openMenu, menuItem } from "./shell.mjs";
 import { parseCSV } from "./csv-parse.mjs";
+import { pivotWorkbook } from "../fixtures/pivots.mjs";
 
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
@@ -35,7 +36,12 @@ const files = {
   en: resolve(out, "csv-en.html"),
   fr: resolve(out, "csv-fr.html"),
   stale: resolve(out, "csv-stale-offline.html"),
+  pivots: resolve(out, "csv-pivots-offline.html"),
 };
+await writeFile(
+  files.pivots,
+  await buildWorkbook(pivotWorkbook(), { offline: true }),
+);
 await writeFile(files.en, await buildWorkbook(workbook("en-US")));
 await writeFile(files.fr, await buildWorkbook(workbook("fr-FR")));
 // Not recalculated: B2 keeps an out-of-date saved result and B4 has none.
@@ -192,6 +198,48 @@ try {
       .getByRole("button", { name: "Export CSV" })
       .waitFor();
     await page.keyboard.press("Escape");
+    await page.close();
+  }
+  // A pivot table left out of date by a scenario switch needs the same
+  // choice; recalculating refreshes it.
+  {
+    const page = await context.newPage();
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(pathToFileURL(files.pivots).href);
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    // The fixture's pivot was never refreshed.
+    await openMenu(page, "Data");
+    await menuItem(page, "Data", "Refresh all pivot tables").click();
+    await page.getByText(/refreshed from 8 records/).waitFor();
+    assert.equal(
+      parseCSV((await exportCSV(page, "Export CSV")).text)[8][4],
+      "390.5",
+    );
+    await page
+      .getByLabel("Scenario", { exact: true })
+      .selectOption({ label: "Upside" });
+    await page.getByText(/^Calculated locally/).waitFor();
+    await openMenu(page, "File");
+    await menuItem(page, "File", "Export sheet as CSV…").click();
+    const dialog = page.getByRole("dialog", { name: "Export sheet as CSV" });
+    await dialog
+      .getByRole("alert")
+      .filter({ hasText: "1 pivot table on this sheet is out of date" })
+      .waitFor();
+    assert.equal(
+      await dialog.getByRole("button", { name: "Export CSV" }).count(),
+      0,
+    );
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    const total = (text) => Number(parseCSV(text)[8][4]);
+    const saved = await exportCSV(page, "Export saved values");
+    assert.equal(saved.name, "fictional-sales-pivots-Summary-stale.csv");
+    assert.equal(total(saved.text), 390.5);
+    const fresh = await exportCSV(page, "Recalculate and export");
+    assert.equal(fresh.name, "fictional-sales-pivots-Summary.csv");
+    assert.ok(Math.abs(total(fresh.text) - 429.55) < 1e-9);
     await page.close();
   }
   assert.deepEqual(errors, []);

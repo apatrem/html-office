@@ -52,11 +52,11 @@ export function setupCSV({
     );
   }
 
-  function open() {
+  async function open() {
     const book = getBook(),
       sheet = getSheet(),
       regional = regionalSeparators(book.locale),
-      problem = needsResolution(sheet),
+      problem = await needsResolution(sheet),
       content = h(
         "select",
         {},
@@ -143,8 +143,8 @@ export function setupCSV({
                 download(sheet, options, true),
               ),
               button("Recalculate and export", "primary", async (options) => {
-                if (!(await recalculate())) return;
-                const left = needsResolution(sheet);
+                if (!(await recalculate(sheet))) return;
+                const left = await needsResolution(sheet);
                 if (left) return status(`CSV not exported: ${left}`);
                 download(getSheet(), options, false);
               }),

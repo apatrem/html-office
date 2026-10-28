@@ -63,8 +63,11 @@ export function isoDate(serial) {
 }
 
 // Leading characters a spreadsheet reads as a formula (OWASP CSV injection),
-// including their full-width forms, and a tab or carriage return.
-const FORMULA_LIKE = /^[\s　]*[=+\-@＝＋－＠]|^[\t\r]/;
+// including their full-width forms, after any run of spaces, control or
+// invisible characters (some readers drop NUL and other controls); a field
+// starting with a tab or carriage return too.
+const FORMULA_LIKE =
+  /^[\s\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2060\u3000\ufeff]*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20]|^[\t\r]/;
 export const neutralise = (text) =>
   FORMULA_LIKE.test(text) ? `'${text}` : text;
 
@@ -86,7 +89,9 @@ export function cellText(cell, { values, decimal, locale }, counts) {
   if (v.type === "boolean") return v.value ? "TRUE" : "FALSE";
   if (v.type === "error") return v.value;
   const date = cell.format?.kind === "date" || v.type === "date";
-  if (date && v.value >= 0 && v.value < 2958466) return isoDate(v.value);
+  // A time that rounds past 9999-12-31 23:59:59 stays a number.
+  if (date && v.value >= 0 && Math.round(v.value * 86400) < 2958466 * 86400)
+    return isoDate(v.value);
   const text = String(v.value);
   return decimal === "," ? text.replace(".", ",") : text;
 }
