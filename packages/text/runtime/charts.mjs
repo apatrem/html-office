@@ -4,7 +4,7 @@
 // chart gets its ECharts instance when it first scrolls into view (IntersectionObserver), draws
 // off screen, and its preview is saved from that drawing; the other charts keep their previews.
 // Copy and paste follow ADR-013 §4.
-import { NodeSelection, Plugin } from "prosemirror-state";
+import { NodeSelection, Plugin, PluginKey } from "prosemirror-state";
 import { h } from "../../shared/shell/dom.mjs";
 import { modal, field } from "../../shared/shell/dialogs.mjs";
 import { registry, theme, loadECharts } from "../../shared/charts/index.mjs";
@@ -79,8 +79,9 @@ export function chartManager(onChange) {
       });
     },
     // After every editor update: an edit or a new charte makes visible stale charts draw again.
-    update(state, docChanged) {
-      if (docChanged) edited = true;
+    // edit: whether the person changed the document (generated labels and previews do not count).
+    update(state, edit) {
+      if (edit) edited = true;
       const next = `${state.doc.attrs.theme}|${state.doc.attrs.font}`;
       if (next !== look) {
         if (look) edited = true;
@@ -378,11 +379,19 @@ function pasteChart(view, envelope) {
 
 // The chart plugin: views, copy of a selected chart, paste of a chart envelope. Other copies and
 // pastes are left to the editor.
+const chartKey = new PluginKey("tx-charts");
 export const chartPlugin = (manager, edit, report) =>
   new Plugin({
+    key: chartKey,
+    // Whether the last transaction was the person's edit: generated labels, contents and
+    // previews are written outside the history.
+    state: {
+      init: () => false,
+      apply: (tr) => tr.docChanged && tr.getMeta("addToHistory") !== false,
+    },
     view: () => ({
-      update(view, prev) {
-        manager.update(view.state, !prev.doc.eq(view.state.doc));
+      update(view) {
+        manager.update(view.state, chartKey.getState(view.state));
         const found = chartAt(view.state);
         if (found && view.state.selection instanceof NodeSelection)
           pictureFor(view, found.node);
