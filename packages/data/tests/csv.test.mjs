@@ -342,3 +342,50 @@ test("sheet names come from the file name, valid and unique", () => {
   assert.equal(sheetName(".csv", []), "Imported");
   assert.equal(sheetName("x".repeat(40) + ".csv", []).length, 31);
 });
+
+test("review: only typed body values decide the conventions", () => {
+  // A text code column (leading zeros) must not decide the decimal point.
+  const codes = read("Code;Amount\n0012;1,234\n1.23;2,345\n");
+  assert.equal(codes.conventions.decimal, "ask");
+  assert.equal(input(codes, "B2").type, "text");
+  // Nor a column the person set to Text.
+  const forced = read('Ref,Amount\n1.5,"1,234"\n', { columns: ["text"] });
+  assert.equal(forced.conventions.decimal, "ask");
+  // Nor numeric-looking headers (here the first row is data, no header).
+  const numericHeader = read("1.5;Amount\nx;1,234\n", { header: true });
+  assert.equal(numericHeader.conventions.decimal, "ask");
+  // Space grouping reads the same under both conventions.
+  const spaced = read("Count;Amount\n1 234;1,234\n");
+  assert.equal(spaced.conventions.decimal, "ask");
+  assert.equal(parseNumber("1 234.5", "point").value, 1234.5);
+  assert.equal(parseNumber("1 234", "point").value, 1234);
+});
+
+test("review: identifiers keep every digit whatever their form", () => {
+  assert.deepEqual(parseNumber("001.234", "comma"), { leadingZero: true });
+  assert.deepEqual(parseNumber("001,234", "point"), { leadingZero: true });
+  assert.deepEqual(parseNumber("9007199254740993.0", "point"), {
+    tooLong: true,
+  });
+  assert.deepEqual(parseNumber("9007199254740993e0", "point"), {
+    tooLong: true,
+  });
+  for (const text of ["001.234", "9007199254740993.0", "9007199254740993e0"]) {
+    const r = read(`ID\n${text}\n`);
+    assert.deepEqual(input(r, "A2"), { type: "text", value: text }, text);
+    assert.match(r.diagnostics.join(" "), /Column A \(ID\) is kept as text/);
+  }
+});
+
+test("review: fractional seconds are kept", () => {
+  const whole = parseDate("2026-10-28T06:00:00", "dmy"),
+    ms = parseDate("2026-10-28T06:00:00.999", "dmy");
+  assert.ok(Math.abs((ms - whole) * 86400000 - 999) < 1e-3);
+  assert.equal(parseDate("2026-10-28T06:00:60", "dmy"), null);
+});
+
+test("review: a decimal comma does not make the comma the delimiter", () => {
+  assert.equal(sniffDelimiter("2026;1,5\n2027;2,5\n"), ";");
+  const r = read("2026;1,5\n2027;2,5\n");
+  assert.deepEqual(input(r, "B1"), { type: "number", value: 1.5 });
+});

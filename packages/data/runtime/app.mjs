@@ -1093,7 +1093,15 @@ function importCSV() {
       await openCSVImport({
         file,
         book,
-        deps: { h, modal, field, display },
+        deps: {
+          h,
+          modal,
+          field,
+          display,
+          cancel: () => {
+            if (loading?.operation === "import") $("cancel").click();
+          },
+        },
         onImport: applyImport,
       });
     } catch (error) {

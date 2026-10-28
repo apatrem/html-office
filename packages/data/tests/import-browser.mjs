@@ -51,6 +51,8 @@ async function pick(page, name, buffer) {
   await page.locator("#import-preview table").waitFor();
 }
 const dialog = (page) => page.locator("dialog.imp-dialog");
+const tab = (page, name) =>
+  page.locator("#sheet-tabs").getByRole("button", { name, exact: true });
 try {
   const file = resolve(out, "import.html");
   await writeFile(file, await buildWorkbook(book));
@@ -59,9 +61,12 @@ try {
     requests = [],
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  // The engine download can be held, to cancel an import while it runs.
+  let hold = null;
   await context.route(/^https?:\/\//, async (route) => {
     const request = route.request();
     requests.push({ url: request.url(), method: request.method() });
+    await hold?.promise;
     await route.fulfill({
       body: await readFile(
         new URL(
@@ -74,9 +79,25 @@ try {
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
 
+  // Cancel while the import runs: nothing is inserted.
+  hold = Promise.withResolvers();
+  await pick(page, "held.csv", Buffer.from("a,b\n1,2\n"));
+  assert.deepEqual(requests, [], "the preview needs no request");
+  await page.locator("#import-apply").click();
+  await waitStatus(page, /Importing held\.csv/);
+  assert.equal(await page.getByLabel("Encoding").isDisabled(), true);
+  await page.locator("#import-cancel").click();
+  await dialog(page).waitFor({ state: "detached" });
+  await waitStatus(page, /Import operation cancelled/);
+  hold.resolve();
+  hold = null;
+  await page.waitForTimeout(500);
+  assert.equal(await tab(page, "held").count(), 0);
+  assert.match(await page.locator("#status").textContent(), /cancelled/);
+  requests.length = 0;
+
   // Preview: encoding fallback, conventions detected, typed values shown.
   await pick(page, "ventes.csv", french);
-  assert.deepEqual(requests, [], "the preview needs no request");
   const summary = await page.locator("#import-summary").textContent();
   assert.match(
     summary,
@@ -272,8 +293,86 @@ try {
       .decimal,
     "comma",
   );
+  // More than 30 columns: every column can be reached and typed. Column AE
+  // holds codes that would read as dates; set to Text, no question is asked.
+  const wide =
+    Array.from({ length: 31 }, (_, i) => `C${i + 1}`).join(",") +
+    "\n" +
+    Array.from({ length: 31 }, (_, i) => (i === 30 ? "1-2-03" : "x")).join(
+      ",",
+    ) +
+    "\n";
+  await pick(page, "wide.csv", Buffer.from(wide));
+  assert.match(
+    await page.locator("#import-alerts").textContent(),
+    /"1-2-03" \(AE2\) could be day\/month or month\/day/,
+  );
+  assert.match(
+    await page.locator("#import-columns").textContent(),
+    /Columns A–AD of 31/,
+  );
+  await page.getByRole("button", { name: "Next columns" }).click();
+  await page.getByLabel("Type of column AE (C31)").selectOption("text");
+  assert.equal(await page.locator("#import-alerts li").count(), 0);
+  await page.locator("#import-apply").click();
+  await waitStatus(page, /Imported wide\.csv/);
+  await page.locator("#cell-address").fill("AE2");
+  await page.locator("#cell-address").press("Enter");
+  assert.equal(await page.locator("#cell-type").inputValue(), "text");
+  assert.equal(await page.locator("#cell-value").inputValue(), "1-2-03");
+
+  // Crash recovery: the draft restores the imported sheets and sources.
+  await page
+    .locator("#save-status")
+    .filter({ hasText: "Recovery stored." })
+    .waitFor();
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Restore draft", exact: true })
+    .click();
+  await tab(page, "Ventes").waitFor();
+  await tab(page, "Ventes").click();
+  assert.equal(await text(page, "B2"), "0012");
+  const recoveredDownload = page.waitForEvent("download");
+  await command(page, "Save a copy");
+  const recovered = resolve(out, "import-recovered.html");
+  await (await recoveredDownload).saveAs(recovered);
+  assert.deepEqual(
+    readHTML(await readFile(recovered, "utf8"))
+      .book.sources.map((s) => s.file.name)
+      .sort(),
+    ["ambiguous.csv", "ventes.csv", "wide.csv"],
+  );
   assert.deepEqual(errors, []);
   await context.close();
+
+  // The saved file reopens with its imported sheet, which stays editable.
+  const reader = await browser.newContext(),
+    reopened = await reader.newPage();
+  await reader.route(/^https?:\/\//, async (route) =>
+    route.fulfill({
+      body: await readFile(
+        new URL(
+          `../engine/vendor/${route.request().url().endsWith(".wasm.gz") ? "ironcalc.wasm.gz" : "ironcalc.mjs"}`,
+          import.meta.url,
+        ),
+      ),
+    }),
+  );
+  await reopened.goto(pathToFileURL(saved).href);
+  await reopened
+    .getByText("Saved results are current.", { exact: true })
+    .waitFor();
+  await tab(reopened, "Ventes").click();
+  assert.equal(await text(reopened, "D2"), "10/28/2026");
+  await reopened.locator("#cell-address").fill("C3");
+  await reopened.locator("#cell-address").press("Enter");
+  await reopened.locator("#cell-value").fill("100");
+  await reopened.locator("#cell-value").press("Enter");
+  await waitStatus(reopened, /Calculated locally/);
+  await tab(reopened, "Summary").click();
+  assert.equal(await text(reopened, "B5"), "1331.31");
+  await reader.close();
 
   // Offline build: the import makes no request at all.
   const offline = resolve(out, "import-offline.html");

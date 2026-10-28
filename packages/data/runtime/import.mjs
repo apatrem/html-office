@@ -151,7 +151,6 @@ export async function openCSVImport({ file, book, deps, onImport }) {
   );
   const dialog = modal(`Import ${file.name}`, body, [apply, cancel]);
   dialog.classList.add("imp-dialog");
-  cancel.onclick = () => dialog.close();
 
   function draw() {
     alerts.replaceChildren();
@@ -183,12 +182,16 @@ export async function openCSVImport({ file, book, deps, onImport }) {
   // The first rows as they will be stored: typed values shown with the
   // workbook locale (dates in long form, so the order can be checked), the
   // column type above each column, and values that stay text flagged.
+  // Columns are shown 30 at a time; every column can be reached and typed.
+  let firstColumn = 0;
   function table({ cells, columns, height, header }) {
-    const width = Math.min(columns.length, PREVIEW_COLUMNS),
+    if (firstColumn >= columns.length) firstColumn = 0;
+    const from = firstColumn,
+      to = Math.min(columns.length, from + PREVIEW_COLUMNS),
       rows = Math.min(height, PREVIEW_ROWS + (header ? 1 : 0)),
       t = h("table", { "aria-label": "Import preview" }),
       head = h("tr", {}, h("th", {}, ""));
-    for (let c = 0; c < width; c++) {
+    for (let c = from; c < to; c++) {
       const column = columns[c],
         s = select(
           `import-type-${c}`,
@@ -215,15 +218,11 @@ export async function openCSVImport({ file, book, deps, onImport }) {
     const tbody = h("tbody");
     for (let r = 1; r <= rows; r++) {
       const tr = h("tr", {}, h("th", { scope: "row" }, String(r)));
-      for (let c = 0; c < width; c++) {
+      for (let c = from; c < to; c++) {
         const cell = cells[address(r, c + 1)],
           td = h("td");
         if (cell) {
-          const shown =
-            cell.input.type === "date"
-              ? { ...cell, format: { kind: "date", dateStyle: "long" } }
-              : cell;
-          td.textContent = display(shown, book.locale);
+          td.textContent = shown(cell);
           td.dataset.type = cell.input.type;
           if (cell.cellStyle === "header") td.className = "imp-header";
           else if (
@@ -239,21 +238,58 @@ export async function openCSVImport({ file, book, deps, onImport }) {
       tbody.append(tr);
     }
     t.append(tbody);
-    const more = [];
-    if (height > rows)
-      more.push(`${(height - rows).toLocaleString("en-US")} more rows`);
-    if (columns.length > width)
-      more.push(
-        `${(columns.length - width).toLocaleString("en-US")} more columns`,
+    const page = (start, label) =>
+      h(
+        "button",
+        {
+          type: "button",
+          class: "sh-b sh-t",
+          onclick: () => {
+            firstColumn = start;
+            draw();
+            document.getElementById(`import-type-${start}`)?.focus();
+          },
+        },
+        label,
       );
     return h(
       "div",
       {},
       t,
-      more.length
-        ? h("p", { class: "imp-more" }, `Not shown: ${more.join(", ")}.`)
+      height > rows
+        ? h(
+            "p",
+            { class: "imp-more" },
+            `${(height - rows).toLocaleString("en-US")} more rows not shown.`,
+          )
+        : null,
+      columns.length > PREVIEW_COLUMNS
+        ? h(
+            "p",
+            { class: "imp-more", id: "import-columns" },
+            `Columns ${columns[from].letter}–${columns[to - 1].letter} of ${columns.length.toLocaleString("en-US")}. `,
+            from > 0
+              ? page(Math.max(0, from - PREVIEW_COLUMNS), "Previous columns")
+              : null,
+            to < columns.length ? page(to, "Next columns") : null,
+          )
         : null,
     );
+  }
+  // Dates in long form (so the order can be checked), with the time of day
+  // when there is one, to the millisecond.
+  function shown(cell) {
+    if (cell.input.type !== "date") return display(cell, book.locale);
+    const day = display(
+        { ...cell, format: { kind: "date", dateStyle: "long" } },
+        book.locale,
+      ),
+      fraction = cell.input.value - Math.floor(cell.input.value);
+    if (!fraction) return day;
+    const ms = Math.round(fraction * 86400000),
+      pad = (n, w = 2) => String(n).padStart(w, "0"),
+      time = `${pad(Math.floor(ms / 3600000))}:${pad(Math.floor(ms / 60000) % 60)}:${pad(Math.floor(ms / 1000) % 60)}`;
+    return `${day} ${time}${ms % 1000 ? "." + pad(ms % 1000, 3) : ""}`;
   }
   encoding.onchange = () => {
     options.encoding = encoding.value;
@@ -262,6 +298,7 @@ export async function openCSVImport({ file, book, deps, onImport }) {
   delimiter.onchange = () => {
     options.delimiter = delimiter.value;
     options.columns = [];
+    firstColumn = 0;
     draw();
   };
   header.onchange = () => {
@@ -276,51 +313,79 @@ export async function openCSVImport({ file, book, deps, onImport }) {
     options.dates = dates.value;
     draw();
   };
+  // Import commits exactly the preview the person saw: the options are
+  // locked while it runs, and Cancel stops it (the app cancels the engine).
+  let committing = null;
+  const controls = () => [
+    encoding,
+    delimiter,
+    header,
+    decimal,
+    dates,
+    name,
+    apply,
+    ...preview.querySelectorAll("select"),
+  ];
+  // Cancel, Escape or any other close during the commit stops it.
+  dialog.addEventListener("close", () => {
+    if (!committing) return;
+    committing.cancelled = true;
+    deps.cancel?.();
+  });
+  cancel.onclick = () => dialog.close();
   apply.onclick = async () => {
-    if (!result || result.ambiguity.length) return;
-    const sheetName = name.value.trim();
-    apply.disabled = true;
+    if (!result || result.ambiguity.length || committing) return;
+    const chosen = result,
+      sheetName = name.value.trim(),
+      run = (committing = { cancelled: false });
+    for (const control of controls()) control.disabled = true;
     try {
-      const ref = `A1:${address(result.height, result.width)}`,
-        digests = await columnFingerprints(result.cells, ref),
-        source = {
-          ref,
-          kind: "csv",
-          file: {
-            name: file.name.slice(0, 255),
-            bytes: file.size,
-            ...(file.lastModified
-              ? { modified: new Date(file.lastModified).toISOString() }
-              : {}),
-            sha256: await fileDigest(bytes),
-          },
-          importedAt: new Date().toISOString(),
-          options: {
-            encoding: result.encoding,
-            delimiter: result.delimiter,
-            header: result.header,
-            decimal: result.conventions.decimal,
-            dates: result.conventions.dates,
-          },
-          columns: result.columns.map((column, c) => ({
-            name: column.name.slice(0, 255),
-            type: column.type,
-            fingerprint: digests[c],
-          })),
-        };
+      const ref = `A1:${address(chosen.height, chosen.width)}`,
+        digests = await columnFingerprints(chosen.cells, ref),
+        sha256 = await fileDigest(bytes);
+      if (run.cancelled) return;
+      const source = {
+        ref,
+        kind: "csv",
+        file: {
+          name: file.name.slice(0, 255),
+          bytes: file.size,
+          ...(file.lastModified
+            ? { modified: new Date(file.lastModified).toISOString() }
+            : {}),
+          sha256,
+        },
+        importedAt: new Date().toISOString(),
+        options: {
+          encoding: chosen.encoding,
+          delimiter: chosen.delimiter,
+          header: chosen.header,
+          decimal: chosen.conventions.decimal,
+          dates: chosen.conventions.dates,
+        },
+        columns: chosen.columns.map((column, c) => ({
+          name: column.name.slice(0, 255),
+          type: column.type,
+          fingerprint: digests[c],
+        })),
+      };
       const done = await onImport({
         name: sheetName,
-        cells: result.cells,
-        height: result.height,
-        width: result.width,
+        cells: chosen.cells,
+        height: chosen.height,
+        width: chosen.width,
         source,
-        diagnostics: result.diagnostics,
+        diagnostics: chosen.diagnostics,
       });
       if (done) dialog.close();
-      else apply.disabled = false;
     } catch (error) {
       alerts.replaceChildren(h("li", {}, error.message));
-      apply.disabled = false;
+    } finally {
+      committing = null;
+      if (dialog.open) {
+        for (const control of controls()) control.disabled = false;
+        apply.disabled = !result || result.ambiguity.length > 0;
+      }
     }
   };
   draw();

@@ -103,10 +103,12 @@ function fieldCounts(text, delimiter, records = 50) {
   return counts;
 }
 // The delimiter whose field count is the most consistent over the first
-// records, then the one giving more columns. One column: a comma.
+// records, then the one giving more columns. On a tie, tab, then semicolon,
+// then comma: a decimal comma inside values ("2026;1,5") splits as evenly as
+// the real delimiter. One column: a comma.
 export function sniffDelimiter(text) {
   let best = { delimiter: ",", score: -1, width: 1 };
-  for (const [delimiter] of DELIMITERS) {
+  for (const delimiter of ["\t", ";", ",", "|"]) {
     const counts = fieldCounts(text, delimiter);
     if (!counts.length) continue;
     const frequency = new Map();
@@ -222,10 +224,14 @@ export function parseCSV(
 // ---- values ----
 const CURRENCIES = { $: "USD", "€": "EUR", "£": "GBP", "¥": "JPY" };
 const SPACE = /[\s  ]/g;
+// Thousands may be grouped with spaces under both conventions (so "1 234"
+// says nothing about the decimal separator), with commas under the decimal
+// point and with points under the decimal comma; one kind per value.
 const NUMBER = {
-  point: /^(?:(\d{1,3}(?:,\d{3})+)|(\d*))(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/,
+  point:
+    /^(?:(\d{1,3}(?:([, \u00a0\u202f])\d{3})(?:\2\d{3})*)|(\d*))(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/,
   comma:
-    /^(?:(\d{1,3}(?:([   .])\d{3})(?:\2\d{3})*)|(\d*))(?:,(\d+))?(?:[eE]([+-]?\d+))?$/,
+    /^(?:(\d{1,3}(?:([ \u00a0\u202f.])\d{3})(?:\2\d{3})*)|(\d*))(?:,(\d+))?(?:[eE]([+-]?\d+))?$/,
 };
 // A number under one decimal convention, or null. Thousands separators,
 // one currency symbol, a sign or accounting parentheses and a trailing
@@ -267,13 +273,14 @@ export function parseNumber(raw, decimal) {
   if (currency && percent) return null;
   const m = NUMBER[decimal].exec(s);
   if (!m) return null;
-  const [grouped, plain, fraction, exponent] =
-    decimal === "point" ? [m[1], m[2], m[3], m[4]] : [m[1], m[3], m[4], m[5]];
+  const [grouped, , plain, fraction, exponent] = m.slice(1);
   const integer = grouped ?? plain ?? "";
   if (!integer && !fraction) return null;
   const digits = integer.replace(/\D/g, "");
-  if (!grouped && /^0\d/.test(digits)) return { leadingZero: true };
-  if (!fraction && !exponent && digits.length > 15) return { tooLong: true };
+  // Codes and identifiers: a leading zero (grouped or not), or more integer
+  // digits than a double holds exactly, whatever follows them.
+  if (/^0\d/.test(digits)) return { leadingZero: true };
+  if (digits.length > 15) return { tooLong: true };
   let value = Number(
     `${digits || "0"}${fraction ? "." + fraction : ""}${exponent ? "e" + exponent : ""}`,
   );
@@ -323,11 +330,11 @@ function clock(h, min, sec, meridiem) {
   }
   const minute = Number(min),
     second = Number(sec ?? 0);
-  if (hour > 23 || minute > 59 || second > 59) return null;
+  if (hour > 23 || minute > 59 || !(second < 60)) return null;
   return (hour * 3600 + minute * 60 + second) / 86400;
 }
 const ISO =
-  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/;
+  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2})(?::(\d{2}(?:\.\d{1,9})?))?)?$/;
 const YMD = /^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/;
 const DAY_FIRST_OR_MONTH_FIRST =
   /^(\d{1,2})([/.\-])(\d{1,2})\2(\d{4}|\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s?([AaPp][Mm]))?)?$/;
@@ -461,9 +468,47 @@ export function analyseCSV(
     },
     examples = {},
     ragged = rows.filter((row) => row.length !== width).length;
-  for (let r = 0; r < rows.length; r++)
+  // A first row of distinct non-empty labels over data of another kind is a
+  // header; with only text, a first row of distinct labels still is. A label
+  // is something that reads as text under every convention.
+  const first = rows[0],
+    looksTyped = (text) =>
+      ["point", "comma"].some(
+        (d) =>
+          typeValue(text, "auto", { decimal: d, dates: "dmy" })?.input.type !==
+          "text",
+      ),
+    labels =
+      first.length === width &&
+      first.every((v) => v.trim() && !looksTyped(v)) &&
+      new Set(first.map((v) => v.trim())).size === first.length,
+    hasHeader = header === "auto" ? labels && rows.length > 1 : header === true;
+  const body = hasHeader ? 1 : 0;
+  // Leading zeros or long integers (under either convention) keep a whole
+  // automatic column as text.
+  const guards = Array.from({ length: width }, () => null);
+  for (let r = body; r < rows.length; r++)
+    for (let c = 0; c < rows[r].length; c++) {
+      const text = rows[r][c];
+      if (!text || guards[c] || !NUMERIC_START.test(text)) continue;
+      for (const d of ["point", "comma"]) {
+        const n = parseNumber(text, d);
+        if (n?.leadingZero)
+          guards[c] = { reason: "leadingZero", text: text.trim() };
+        else if (n?.tooLong)
+          guards[c] = { reason: "tooLong", text: text.trim() };
+        if (guards[c]) break;
+      }
+    }
+  // Only values that will be typed say anything about the conventions: not
+  // the header, nor columns kept as text (by a guard or by the person).
+  const typed = Array.from({ length: width }, (_, c) => {
+    const type = COLUMN_TYPES.includes(columns[c]) ? columns[c] : "auto";
+    return type === "auto" ? !guards[c] : type === "number" || type === "date";
+  });
+  for (let r = body; r < rows.length; r++)
     for (let c = 0; c < rows[r].length; c++)
-      if (rows[r][c]) evidence(rows[r][c], counts, examples, r, c);
+      if (rows[r][c] && typed[c]) evidence(rows[r][c], counts, examples, r, c);
   const resolvedDecimal = resolve(
       decimal,
       counts.point,
@@ -482,34 +527,6 @@ export function analyseCSV(
     decimal: resolvedDecimal.value,
     dates: resolvedDates.value,
   };
-  // A first row of distinct non-empty labels over data of another kind is a
-  // header; with only text, a first row of distinct labels still is.
-  const first = rows[0],
-    looksTyped = (text) =>
-      typeValue(text, "auto", {
-        decimal: conventions.decimal === "ask" ? "point" : conventions.decimal,
-        dates: conventions.dates === "ask" ? "dmy" : conventions.dates,
-      })?.input.type !== "text",
-    labels =
-      first.length === width &&
-      first.every((v) => v.trim() && !looksTyped(v)) &&
-      new Set(first.map((v) => v.trim())).size === first.length,
-    hasHeader = header === "auto" ? labels && rows.length > 1 : header === true;
-  const body = hasHeader ? 1 : 0;
-  // Leading zeros or long integers keep a whole automatic column as text.
-  const guards = Array.from({ length: width }, () => null);
-  for (let r = body; r < rows.length; r++)
-    for (let c = 0; c < rows[r].length; c++) {
-      const text = rows[r][c];
-      if (!text || guards[c] || !NUMERIC_START.test(text)) continue;
-      const n = parseNumber(
-        text,
-        conventions.decimal === "comma" ? "comma" : "point",
-      );
-      if (n?.leadingZero)
-        guards[c] = { reason: "leadingZero", text: text.trim() };
-      else if (n?.tooLong) guards[c] = { reason: "tooLong", text: text.trim() };
-    }
   const columnInfo = Array.from({ length: width }, (_, c) => ({
     letter: columnLetter(c),
     name: hasHeader
