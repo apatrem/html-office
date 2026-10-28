@@ -167,6 +167,19 @@ Build a workbook (`node packages/data/tools/build.mjs --input packages/data/fixt
 5. **No upload.** With the browser's network panel open, import a file in the offline build: no request at all. In the standard build, only the calculation engine (`ironcalc`) is fetched, and only if it was not loaded yet.
 6. **Browsers.** Repeat 1 (one French and one US file), 3 and 4 in Safari and Firefox: the file picker opens from the menu, the dialog fits at 1280 px and at 375 px wide, and the preview scrolls.
 
+### T15 — Import XLSX
+
+Use the same P&L build, then an offline build (`--offline`, output `dist/data/pnl-offline.html`). Prepare real workbooks: one saved by Excel for Windows or Mac with several sheets, formulas reading another sheet, a named range, dates, percentages and amounts in euros, a code column such as `0012` stored as text, a merged title, a comment, a hyperlink, a conditional format, a chart and a hidden sheet; one with an Excel table and a structured reference such as `=SUM(Table1[Montant])`; one saved as `.xlsm` with a macro; one exported from Google Sheets (File › Download › Microsoft Excel); one saved by LibreOffice Calc and one by Numbers.
+
+1. **Preview.** Data › Import XLSX…: the visible sheets are ticked and the hidden one is not; the sheet names, sizes and formula counts are right; switching the preview sheet shows its first rows with formulas on hover. The notes name what is not imported (merged title, comment, hyperlink, conditional format, chart, macro) and the formulas kept as values with their reason (table reference, another workbook).
+2. **Values and formulas.** After Import: codes keep their leading zeros, dates show the right day, percentages and euro amounts keep a matching format, formulas reading another sheet give the same results as in Excel, and the named range exists (Formulas reading it work). If a function Data lacks is used, the status names a formula whose result differs.
+3. **Name clash.** Import a workbook with a sheet called `Summary` into the P&L (which has one): it becomes `Summary (2)` and formulas reading it still work.
+4. **Macros never run.** The `.xlsm` file imports its values; the note says macros are not imported, and nothing else happens.
+5. **Refused files.** A password-protected workbook, an old `.xls` file and a CSV renamed `.xlsx` are refused with a clear message; the workbook is unchanged.
+6. **Network.** With the network panel open, in the standard build: nothing is requested at load or for a CSV import; picking an XLSX file requests `https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.mini.min.js` once (plus the engine if not loaded yet), and the file itself is never sent. In the offline build: no request at all. With the network off in the standard build, XLSX import says the reader could not be loaded and nothing changes.
+7. **Undo, save and reopen.** One Ctrl/Cmd+Z removes all imported sheets and the named range; save, reopen offline: the sheets are there, and `sources` has one `xlsx` entry per sheet with the file name and no path.
+8. **Browsers.** Repeat 1, 2, 6 and 7 in Safari and Firefox (file picker, dialog at 1280 px and 375 px, preview scrolling).
+
 ### T16 — Refresh an imported source
 
 Import a CSV exported from Excel or Sheets (section T15), build a formula on another sheet that sums one of its columns, a pivot table and a chart on it, then edit one value of the imported sheet by hand. Export a second version of the table from the same application with: one column renamed, one column removed, one new column, the columns reordered and two more rows. Use Data › Refresh source… on the imported sheet and pick it.
@@ -178,6 +191,7 @@ Import a CSV exported from Excel or Sheets (section T15), build a formula on ano
 5. **Undo.** Ctrl/Cmd+Z restores the previous values, including your hand edit; Ctrl/Cmd+Shift+Z refreshes again.
 6. **Save and reopen** with the network off: no link to the file is needed, and `sources` names the second file without a path.
 7. **Browsers.** Repeat 1–5 in Safari and Firefox.
+8. **XLSX.** Import a sheet from an Excel workbook (section T15 — Import XLSX), then change values and a formula in Excel, add a column and rows, and save under a new name. Refresh the imported sheet from it: the dialog selects the sheet with the same name (another can be chosen), shows the changed values and formulas, and after Refresh the values and recalculated formulas match Excel. Undo restores the previous sheet in one step.
 
 ## Log
 

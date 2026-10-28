@@ -1,5 +1,6 @@
 // CSV import dialog (T15). This module is a separate chunk, embedded as inert
-// text (script#import-source) and loaded only when the person imports a file.
+// text (script#import-source) and loaded only when the person imports a file;
+// it also carries the XLSX import and the refresh dialogs.
 // The file is read in this page; nothing is sent anywhere. Shell components
 // come from the main bundle (deps), so popovers and dialogs share one layer.
 import {
@@ -12,6 +13,7 @@ import {
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
 import { address } from "../model/csv.mjs";
 export { openRefresh } from "./refresh.mjs";
+export { openXLSXImport } from "./import-xlsx.mjs";
 
 const PREVIEW_ROWS = 20,
   PREVIEW_COLUMNS = 30;

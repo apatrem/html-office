@@ -24,11 +24,12 @@ const same = (a, b) =>
   (a?.value === b?.value || Object.is(a?.value, b?.value)) &&
   !(Object.is(a?.value, -0) !== Object.is(b?.value, -0));
 const KEEP = ["cellStyle", "format", "style"];
-// The refreshed cell: the file's typed value, with the presentation the
+// The refreshed cell: the file's typed value (or formula, from an XLSX
+// file), with the presentation the
 // person gave the cell (a number format they chose wins over the one typing
 // inferred). A header cell keeps the header style.
 function merged(old, next) {
-  const cell = { input: next.input };
+  const cell = next.formula ? { formula: next.formula } : { input: next.input };
   for (const key of KEEP) {
     const value = old?.[key] ?? next[key];
     if (value !== undefined) cell[key] = value;
@@ -37,8 +38,9 @@ function merged(old, next) {
 }
 function equalCell(a, b) {
   if (!a || !b) return a === b;
-  if (a.formula || b.formula) return false;
-  if (!same(a.input, b.input)) return false;
+  if (a.formula || b.formula) {
+    if (a.formula !== b.formula) return false;
+  } else if (!same(a.input, b.input)) return false;
   for (const key of KEEP)
     if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) return false;
   return true;
@@ -85,7 +87,8 @@ export function matchColumns(oldNames, newNames, { header, resolutions = {} }) {
   return { columns, added };
 }
 // The plan for one source. `sheet` is the source sheet's cells as they are;
-// `fresh` is analyseCSV/readCSV's result for the replacement file;
+// `fresh` is readCSV's result, or mapSheet's for an XLSX sheet, for the
+// replacement file;
 // `edited` lists the indexes of source columns whose fingerprint no longer
 // matches (hand edits since the import).
 export function planRefresh({
@@ -132,6 +135,18 @@ export function planRefresh({
   const edits = [],
     perColumn = layout.map(() => ({ changed: 0, samples: [] })),
     conflicts = [];
+  // Formulas from an XLSX file read the file's columns: where the refresh
+  // puts them elsewhere, their references move too (fresh.relocate), or the
+  // formula keeps its saved value when a range would split.
+  const columnMap = new Map(
+      layout.filter((c) => c.to !== null).map((c) => [c.to + 1, r.left + c.at]),
+    ),
+    moved = r.top !== 1 || [...columnMap].some(([from, to]) => from !== to),
+    shift = r.left - 1 + layout.length - fresh.width;
+  let keptFormulas = 0;
+  // Formulas that cannot move and have no saved value: left empty, which the
+  // person must confirm.
+  const lostFormulas = [];
   // Rows below or columns right of the old range that the refresh would
   // write must be empty.
   const occupied = (ref) => !!sheet.cells[ref];
@@ -158,7 +173,22 @@ export function planRefresh({
         next = null;
       } else if (column.to === null || row - r.top >= height) next = null;
       else {
-        const incoming = fresh.cells[address(row - r.top + 1, column.to + 1)];
+        let incoming = fresh.cells[address(row - r.top + 1, column.to + 1)];
+        if (incoming?.formula && moved && fresh.relocate) {
+          const formula = fresh.relocate(
+            incoming.formula,
+            columnMap,
+            shift,
+            r.top - 1,
+          );
+          if (formula) incoming = { ...incoming, formula };
+          else {
+            const { formula: _, result, ...rest } = incoming;
+            if (result) keptFormulas++;
+            else lostFormulas.push(ref);
+            incoming = result ? { ...rest, input: result } : null;
+          }
+        }
         next = incoming ? merged(old, incoming) : null;
         if (!incoming && old && (old.cellStyle || old.style || old.format)) {
           // An emptied cell keeps its formatting as a style-only cell.
@@ -195,6 +225,8 @@ export function planRefresh({
     edits,
     ref: newRef,
     rows: { before: oldHeight, after: height },
+    keptFormulas,
+    lostFormulas,
   };
 }
 // Columns edited by hand that the refresh would change: a replaced value,

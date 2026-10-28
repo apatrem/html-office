@@ -1,7 +1,8 @@
 // Refresh dialog (T16), part of the import chunk. The replacement file is read
 // the way the source was (its saved options), compared with the source range
 // as it is now, and nothing changes until the person has settled every
-// missing column, seen what a refresh overwrites and confirmed it.
+// missing column, seen what a refresh overwrites and confirmed it. An XLSX
+// source is refreshed from one worksheet of the replacement workbook.
 import { readCSV, ENCODINGS, DELIMITERS, CSV_LIMITS } from "../model/csv.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
 import {
@@ -9,6 +10,16 @@ import {
   dependents,
   overwrittenEdits,
 } from "../model/refresh.mjs";
+import {
+  mapSheet,
+  mapNames,
+  importable,
+  diagnostics,
+  relocateColumns,
+  sheetPrefix,
+  nameFilter,
+} from "../model/xlsx.mjs";
+import { readXLSX } from "./xlsx-reader.mjs";
 
 const plural = (n, one, many) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
@@ -40,9 +51,57 @@ export function typesFor(source, names, resolutions = {}) {
       types[r.to] = source.columns[index].type;
   return types;
 }
+// Formulas of a refreshed XLSX sheet read other sheets by their names in the
+// file: each maps to the Data sheet imported from it from the same workbook
+// (a source with the same file name or bytes), the refreshed sheet to
+// itself; any other counts as not imported, so its formulas keep their
+// saved values.
+export function sheetNames(book, source, workbook, index) {
+  const names = new Map(
+    workbook.sheets.map((s) => [s.name.toLowerCase(), null]),
+  );
+  for (const other of book.sources ?? []) {
+    if (other.kind !== "xlsx" || other.id === source.id) continue;
+    if (
+      other.file.name !== source.file.name &&
+      other.file.sha256 !== source.file.sha256
+    )
+      continue;
+    const key = other.options.sheet.toLowerCase();
+    if (names.has(key))
+      names.set(key, book.sheets.find((s) => s.id === other.sheetId).name);
+  }
+  names.set(
+    workbook.sheets[index].name.toLowerCase(),
+    book.sheets.find((s) => s.id === source.sheetId).name,
+  );
+  return names;
+}
+// Workbook-wide names the replacement file defines that the workbook does
+// not hold the same way (missing, or another range): formulas using them
+// keep their saved values rather than reading the workbook's definition.
+export function changedNames(book, workbook, sheets) {
+  const { names, skipped } = mapNames(workbook, { sheets, taken: new Set() }),
+    sheetOf = (name) => book.sheets.find((s) => s.name === name)?.id,
+    global = new Set(workbook.names.filter((n) => !n.local).map((n) => n.name));
+  return new Set([
+    ...skipped.filter((n) => global.has(n)).map((n) => n.toLowerCase()),
+    ...names
+      .filter(
+        (n) =>
+          !book.names.some(
+            (b) =>
+              b.name.toLowerCase() === n.name.toLowerCase() &&
+              b.sheetId === sheetOf(n.sheet) &&
+              b.ref === n.ref,
+          ),
+      )
+      .map((n) => n.name.toLowerCase()),
+  ]);
+}
 export async function openRefresh({ file, book, source, deps, onRefresh }) {
   const { h, modal, field, display } = deps;
-  if (file.size > CSV_LIMITS.bytes)
+  if (source.kind === "csv" && file.size > CSV_LIMITS.bytes)
     throw new Error(
       `${file.name} is larger than ${CSV_LIMITS.bytes / 1024 / 1024} MB, the import limit.`,
     );
@@ -68,7 +127,9 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     source.ref !== "#REF!" &&
     (await columnFingerprints(sheet.cells, source.ref)).length !==
       source.columns.length;
-  const encoding = select(h, "refresh-encoding", ENCODINGS, options.encoding),
+  const xlsx = source.kind === "xlsx",
+    worksheet = h("select", { id: "refresh-sheet", disabled: true }),
+    encoding = select(h, "refresh-encoding", ENCODINGS, options.encoding),
     delimiter = select(h, "refresh-delimiter", DELIMITERS, options.delimiter),
     decimal = select(
       h,
@@ -122,10 +183,14 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
       h(
         "div",
         { class: "imp-options" },
-        field("Encoding", encoding),
-        field("Delimiter", delimiter),
-        field("Decimal separator", decimal),
-        field("Date order", dates),
+        ...(xlsx
+          ? [field("Sheet in the new file", worksheet)]
+          : [
+              field("Encoding", encoding),
+              field("Delimiter", delimiter),
+              field("Decimal separator", decimal),
+              field("Date order", dates),
+            ]),
       ),
       alerts,
       columns,
@@ -138,6 +203,7 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
   cancel.onclick = () => dialog.close();
   let plan = null,
     fresh = null,
+    workbook = null,
     // The refresh being committed, while Refresh runs.
     committing = null;
   // Cancel, Escape or any other close during the commit stops it.
@@ -146,7 +212,76 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     committing.cancelled = true;
     deps.cancel?.();
   });
+  if (xlsx) {
+    const reading = new AbortController();
+    dialog.addEventListener("close", () => reading.abort());
+    apply.disabled = true;
+    summary.textContent = `Reading ${file.name}…`;
+    try {
+      workbook = await readXLSX(bytes, {
+        name: file.name,
+        signal: reading.signal,
+      });
+    } catch (error) {
+      if (!reading.signal.aborted)
+        summary.textContent = `${file.name} cannot be used: ${error.message.replace(`${file.name} cannot be read: `, "")}`;
+      return dialog;
+    }
+    if (!dialog.open) return dialog;
+    const usable = workbook.sheets
+      .map((s, i) => [s, i])
+      .filter(([s]) => importable(s));
+    if (!usable.length) {
+      summary.textContent = `${file.name} has no worksheet with data.`;
+      return dialog;
+    }
+    for (const [s, i] of usable)
+      worksheet.append(h("option", { value: String(i) }, s.name));
+    // The worksheet with the source's name, else the first one.
+    worksheet.value = String(
+      (usable.find(([s]) => s.name === source.options.sheet) ??
+        usable.find(
+          ([s]) => s.name.toLowerCase() === source.options.sheet.toLowerCase(),
+        ) ??
+        usable[0])[1],
+    );
+    worksheet.disabled = false;
+    worksheet.onchange = draw;
+  }
   function read() {
+    if (xlsx) {
+      const index = Number(worksheet.value),
+        sheets = sheetNames(book, source, workbook, index),
+        mapped = mapSheet(workbook, index, {
+          sheets,
+          header: source.options.header,
+          names: nameFilter(
+            workbook,
+            index,
+            changedNames(book, workbook, sheets),
+          ),
+        }),
+        name = workbook.sheets[index].name,
+        own = sheetPrefix(sheet.name).toLowerCase();
+      return {
+        ...mapped,
+        relocate: (formula, map, shift, rows) =>
+          relocateColumns(formula, map, {
+            width: mapped.width,
+            shift,
+            own,
+            rows,
+          }),
+        ambiguity: [],
+        diagnostics: diagnostics(
+          workbook,
+          [{ index, original: name, name, ...mapped }],
+          [index],
+          [],
+          false,
+        ),
+      };
+    }
     const first = readCSV(bytes, { ...options, header: options.header });
     return readCSV(bytes, {
       ...options,
@@ -244,18 +379,36 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         ),
       );
     for (const text of fresh.diagnostics) impact.append(h("li", {}, text));
+    if (plan.keptFormulas)
+      impact.append(
+        h(
+          "li",
+          {},
+          `${plural(plan.keptFormulas, "formula keeps its", "formulas keep their")} saved value: the columns ${plan.keptFormulas === 1 ? "it reads move" : "they read move"} apart in this sheet.`,
+        ),
+      );
     // Hand edits the refresh would replace or remove (a kept column loses
     // the rows the new file no longer has) need an explicit confirmation.
-    const overwritten = overwrittenEdits(plan);
-    confirmLabel.hidden = !overwritten.length;
-    if (!overwritten.length) confirm.checked = false;
-    document.getElementById("refresh-confirm-text").textContent =
-      `Replace the edits made by hand in ${overwritten.map((c) => `column ${c.letter} "${c.name}"`).join(", ")}.`;
+    const overwritten = overwrittenEdits(plan),
+      lost = plan.lostFormulas ?? [],
+      confirming = overwritten.length > 0 || lost.length > 0;
+    confirmLabel.hidden = !confirming;
+    if (!confirming) confirm.checked = false;
+    document.getElementById("refresh-confirm-text").textContent = [
+      overwritten.length
+        ? `Replace the edits made by hand in ${overwritten.map((c) => `column ${c.letter} "${c.name}"`).join(", ")}.`
+        : "",
+      lost.length
+        ? `Leave ${plural(lost.length, "formula", "formulas")} empty (${lost.slice(0, 5).join(", ")}${lost.length > 5 ? "…" : ""}): the columns ${lost.length === 1 ? "it reads move" : "they read move"} apart and the file saved no value.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     apply.disabled =
       !!plan.unresolved.length ||
       !!plan.conflicts.length ||
       !!fresh.ambiguity.length ||
-      (overwritten.length > 0 && !confirm.checked);
+      (confirming && !confirm.checked);
   }
   const STATUS = {
     matched: "Same column",
@@ -329,7 +482,11 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         };
       } else from = c.from === null ? "—" : c.from;
       const shown = (cell) =>
-        cell?.input ? display(cell, book.locale) || "(empty)" : "(empty)";
+        cell?.formula
+          ? cell.formula
+          : cell?.input
+            ? display(cell, book.locale) || "(empty)"
+            : "(empty)";
       body.append(
         h(
           "tr",
@@ -378,7 +535,12 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
   ];
   apply.onclick = async () => {
     if (!plan || apply.disabled || committing) return;
-    const run = (committing = { cancelled: false, plan, fresh }),
+    const run = (committing = {
+        cancelled: false,
+        plan,
+        fresh,
+        sheet: xlsx ? workbook.sheets[Number(worksheet.value)].name : null,
+      }),
       { plan: chosen } = run;
     for (const control of controls()) control.disabled = true;
     try {
@@ -403,13 +565,15 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
           sha256,
         },
         importedAt: new Date().toISOString(),
-        options: {
-          encoding: run.fresh.encoding,
-          delimiter: run.fresh.delimiter,
-          header: source.options.header,
-          decimal: run.fresh.conventions.decimal,
-          dates: run.fresh.conventions.dates,
-        },
+        options: xlsx
+          ? { sheet: run.sheet, header: source.options.header }
+          : {
+              encoding: run.fresh.encoding,
+              delimiter: run.fresh.delimiter,
+              header: source.options.header,
+              decimal: run.fresh.conventions.decimal,
+              dates: run.fresh.conventions.dates,
+            },
         columns: chosen.columns.map((c, i) =>
           c.status === "inserted"
             ? { inserted: true }
