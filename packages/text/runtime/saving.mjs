@@ -291,6 +291,8 @@ export function setupSaving({
     get message() {
       return message;
     },
+    // A message from another part of the editor (a paste, a copy), shown until the next edit.
+    say,
     // saved, unsaved, draft (kept in this browser) or copied (downloaded, this file unchanged).
     get state() {
       if (!dirty.dirty) return "saved";

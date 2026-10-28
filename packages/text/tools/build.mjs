@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Builds the html-text editor (one script) and embeds it in a document as script#engine (T03).
-//   node tools/build.mjs <document.html> [<output.html>] [--json]
+//   node tools/build.mjs <document.html> [<output.html>] [--json] [--offline]
+// --offline also embeds the pinned, integrity-checked ECharts as script#echarts (T11), so charts
+// draw with no network; it is reported apart from the application code.
 // Default output: dist/text/<name>.html at the repository root. The document must be valid and
 // canonical (check.mjs, pack.mjs). Reports embedded application code, content, assets and total bytes.
 import { build, transform } from "esbuild";
@@ -8,8 +10,10 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inlineScript } from "../../../tools/inline-script.mjs";
+import { verifyECharts } from "../../../tools/echarts-integrity.mjs";
 import {
   bundledPackages,
+  packageAt,
   packageEntries,
   groupNotices,
   formatNotices,
@@ -79,6 +83,25 @@ export async function buildEngine() {
   return { version, code, notices, metafile: result.metafile };
 }
 
+// ECharts for the offline build: the pinned bytes, checked against the approved SRI digest, with
+// its licence notices, as the text of script#echarts.
+export async function embeddedECharts() {
+  const dir = join(repo, "node_modules/echarts");
+  const file = join(dir, "dist/echarts.min.js");
+  const code = await readFile(file);
+  verifyECharts(
+    code,
+    JSON.parse(await readFile(join(dir, "package.json"), "utf8")).version,
+  );
+  const notices = formatNotices(
+    groupNotices(packageEntries([packageAt(dir, [file])])),
+    { title: "Licence notices for ECharts, embedded for offline use." },
+  );
+  if (/\*\/|\r/.test(notices))
+    throw new Error('Notices cannot contain "*/" or a carriage return');
+  return inlineScript(`/*!\n${notices}*/\n${code.toString("utf8")}`, "echarts");
+}
+
 const bytes = (s) => Buffer.byteLength(s, "utf8");
 
 // Byte counts (UTF-8) of a built file by zone. Application code is everything except content and assets.
@@ -92,18 +115,21 @@ export function measureFile(html) {
     node ? bytes(html.slice(node.loc.offset, node.loc.end)) : 0;
   const total = bytes(html),
     content = size(findArticle(file)),
-    assets = size(zone("assets"));
+    assets = size(zone("assets")),
+    echarts = size(zone("echarts"));
   return {
     total,
-    applicationCode: total - content - assets,
+    applicationCode: total - content - assets - echarts,
     engine: size(zone("engine")),
     content,
     assets,
+    echarts,
     ceiling: STANDARD_CODE_CEILING,
   };
 }
 
-export async function buildDocument(source, engine) {
+// echarts: embeddedECharts() for the offline build.
+export async function buildDocument(source, engine, { echarts = null } = {}) {
   const { file, doc, difference } = canonicalize(source, parseFile);
   if (difference)
     throw new Error(
@@ -123,6 +149,17 @@ export async function buildDocument(source, engine) {
   );
   if (at >= 0) body.children[at] = script;
   else body.children.push(script);
+  // The offline library runs before the editor, which then finds window.echarts.
+  const old = body.children.findIndex(
+    (n) => n.type === "element" && attr(n, "id") === "echarts",
+  );
+  if (old >= 0) body.children.splice(old, 1);
+  if (echarts)
+    body.children.splice(
+      body.children.indexOf(script),
+      0,
+      element("script", [["id", "echarts"]], [text(echarts)]),
+    );
   return serializeFile(file, articleHTML(doc));
 }
 
@@ -134,7 +171,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(2);
   }
   const engine = await buildEngine();
-  const html = await buildDocument(await readFile(input, "utf8"), engine);
+  const html = await buildDocument(await readFile(input, "utf8"), engine, {
+    echarts: args.includes("--offline") ? await embeddedECharts() : null,
+  });
   const target = output ?? join(repo, "dist/text", basename(input));
   await mkdir(dirname(target), { recursive: true });
   await writeFile(target, html);

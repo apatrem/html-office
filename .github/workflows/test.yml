@@ -154,3 +154,7 @@ jobs:
         run: node packages/text/tests/images-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Charts, previews, the pinned library and the offline build in Firefox and WebKit (Text T11)
+        run: node packages/text/tests/charts-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

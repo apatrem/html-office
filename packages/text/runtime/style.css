@@ -33,6 +33,22 @@
 #doc .tx-notes ol{margin:0;padding-left:2em}
 #doc .tx-notes li{cursor:pointer}
 #doc .tx-notes a{pointer-events:none}
+/* Charts (T11): title and unit above the saved preview; a state line when it is missing or out of date; ECharts draws off screen. */
+#doc figure.chart .tx-chart-head p{margin:0}
+#doc .tx-chart-title{font-weight:bold}
+#doc .tx-chart-unit{font-size:9.5pt;color:var(--t2)}
+#doc .tx-chart-state:empty{display:none}
+#doc .tx-chart-state{font:12px system-ui,sans-serif;color:var(--sh-mute);padding:4px 0}
+#doc figure.chart.tx-stale .tx-plot{opacity:.55}
+#doc .tx-plot:empty{min-height:8em;background:var(--tint)}
+.tx-chart-draw{position:fixed;left:-20000px;top:0;pointer-events:none}
+.tx-chart-table{max-height:45vh;overflow:auto;margin:6px 0}
+.tx-chart-grid{border-collapse:collapse}
+.tx-chart-grid input{width:9em;height:26px;border:1px solid var(--sh-line);padding:0 4px;font:13px system-ui,sans-serif}
+.tx-chart-grid th input[readonly]{background:var(--sh-bg2,#f4f6f8);font-weight:600}
+.tx-chart-table textarea{width:100%;font:12px ui-monospace,monospace}
+.tx-chart-rows{display:flex;flex-wrap:wrap;gap:6px}
+@media print{#doc .tx-chart-state{display:none}#doc figure.chart.tx-stale .tx-plot{opacity:1}}
 /* Images (T12): the picture is not editable; a selected figure is outlined. */
 #doc figure.image .tx-image{line-height:0}
 .tx-image-preview{display:block;max-width:100%;max-height:160px;margin:0 auto 10px;object-fit:contain}
