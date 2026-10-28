@@ -24,8 +24,14 @@ export function setupCSV({
     for (let attempt = 0; ; attempt++) {
       const revision = getRevision(),
         problem = await needsResolution(sheetById(id));
-      if (getRevision() === revision || attempt === 4)
-        return { revision, problem };
+      if (getRevision() === revision) return { revision, problem };
+      // Never fail open: a workbook that keeps changing is not exported.
+      if (attempt === 4)
+        return {
+          revision,
+          problem:
+            "The workbook kept changing while its results were checked. Try again once calculations finish.",
+        };
     }
   }
   // The sheet is found by ID: a pivot refresh may select another sheet.
