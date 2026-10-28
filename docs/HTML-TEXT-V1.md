@@ -110,7 +110,7 @@ Editing works in Chrome, Edge, Safari and Firefox. Chrome and Edge are fully tes
 
 ## Distribution
 
-The standard build stays below **500,000 bytes of embedded application code**, the same ceiling as Data: editor, schema, renderer, CSS and bootstrap. Content, assets and SVG previews are reported separately. ECharts is loaded on demand with integrity checks; the offline build embeds it.
+The standard build stays below **600,000 bytes of embedded application code** (500,000 until the user raised it on 28 October 2026, when T07–T13 together came to about 548 KB): editor, schema, renderer, CSS and bootstrap. Content, assets and SVG previews are reported separately. ECharts is loaded on demand with integrity checks; the offline build embeds it.
 
 ## Acceptance document and release gates
 

@@ -11,7 +11,8 @@ import { inlineScript } from "../../../tools/inline-script.mjs";
 import { groupNotices, formatNotices } from "../../shared/notices.mjs";
 import { licenceEntries, escapeComments } from "./build.mjs";
 
-export const STANDARD_CODE_CEILING = 500000;
+// Raised from 500,000 by the user on 28 October 2026 (T07–T13 together come to about 548 KB).
+export const STANDARD_CODE_CEILING = 600000;
 const root = new URL("../", import.meta.url);
 const PACKAGES = [
   "prosemirror-model",
