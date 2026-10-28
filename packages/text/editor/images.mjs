@@ -47,10 +47,10 @@ export function figureId(alt, taken) {
   return id;
 }
 
-// Where a new figure goes: a wrapped one before the top-level block holding the selection (it
-// anchors to it), any other after it; never before the cover nor after the comments.
-function figurePosition(state, wrapped) {
-  const { $from } = state.selection;
+// Where a new figure goes: a wrapped one before the top-level block holding the selection (or
+// `$from`, a drop position) (it anchors to it), any other after it; never before the cover nor
+// after the comments.
+export function figurePosition(state, wrapped, $from = state.selection.$from) {
   const doc = state.doc;
   const index = Math.min($from.index(0), doc.childCount - 1);
   const block = doc.child(index);

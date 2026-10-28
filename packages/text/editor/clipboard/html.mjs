@@ -25,6 +25,7 @@ import {
   CALLOUTS,
 } from "../../model/format.mjs";
 import { tableFigure } from "./table.mjs";
+import { dataImage, PASTE_IMAGES } from "./images.mjs";
 
 const N = schema.nodes,
   M = schema.marks;
@@ -35,6 +36,42 @@ const ELEMENT = 1,
 // "left out" content is not in the document; "adapted" content is, in another form.
 export const LOST = [
   ["image", "image", "images", "left out"],
+  [
+    "image-limit",
+    "image over the paste limits (20 images, 20 MB and 50 megapixels each)",
+    "images over the paste limits (20 images, 20 MB and 50 megapixels each)",
+    "left out",
+  ],
+  [
+    "image-unread",
+    "image that could not be read",
+    "images that could not be read",
+    "left out",
+  ],
+  [
+    "image-alt",
+    "image without alt text",
+    "images without alt text",
+    "left out",
+  ],
+  [
+    "image-inner",
+    "image inside a heading, list, quote or table",
+    "images inside headings, lists, quotes or tables",
+    "left out",
+  ],
+  [
+    "image-place",
+    "image where only text goes",
+    "images where only text goes",
+    "left out",
+  ],
+  [
+    "file",
+    "file that is not a PNG, JPEG, GIF, WebP or SVG image",
+    "files that are not PNG, JPEG, GIF, WebP or SVG images",
+    "left out",
+  ],
   ["chart", "chart", "charts", "left out"],
   ["rule", "horizontal rule", "horizontal rules", "left out"],
   [
@@ -197,15 +234,20 @@ const has = (node, name) => classOf(node).includes(name);
 // Inline content in the making: text with marks, breaks and inline nodes, white space collapsed
 // as a browser lays it out; flushed into a paragraph (or taken by a heading, item or cell).
 class Flow {
-  constructor() {
+  // top: the flow of the pasted blocks themselves, where an image becomes a figure (T12b).
+  constructor(top = false) {
     this.blocks = [];
     this.items = [];
+    this.top = top;
   }
   text(value, marks) {
     this.items.push({ text: value.replace(CONTROLS, ""), marks });
   }
   node(node) {
     this.items.push({ node });
+  }
+  figure(figure) {
+    this.items.push({ figure });
   }
   // The inline nodes so far, and empties the flow. Spaces collapse across elements; spaces at the
   // edges and before a break go; breaks at the edges go too.
@@ -242,11 +284,21 @@ class Flow {
     return out;
   }
   // The pending inline content as a paragraph, unless it is empty or only spaces (Word's
-  // <o:p>&nbsp;</o:p> spacing paragraphs).
+  // <o:p>&nbsp;</o:p> spacing paragraphs). A figure splits it: the text on each side is a
+  // paragraph with the same attributes.
   flush(attrs = null) {
-    const content = this.take();
-    if (content.some((n) => !n.isText || /\S/.test(n.text)))
-      this.blocks.push(N.paragraph.create(attrs, content));
+    const all = this.items;
+    let start = 0;
+    for (let i = 0; i <= all.length; i++) {
+      if (i < all.length && !all[i].figure) continue;
+      this.items = all.slice(start, i);
+      const content = this.take();
+      if (content.some((n) => !n.isText || /\S/.test(n.text)))
+        this.blocks.push(N.paragraph.create(attrs, content));
+      if (i < all.length) this.blocks.push(all[i].figure);
+      start = i + 1;
+    }
+    this.items = [];
   }
 }
 
@@ -311,11 +363,19 @@ export class Mapper {
   // used: every ID the document uses or may not use (usedIds); it gains the new ones.
   // targets: the IDs of the document's headings and figures; a cross-reference to anything else
   // (another document's heading) becomes its label's text.
+  // images: whether a data: image among the pasted blocks becomes a placeholder figure (T12b),
+  // listed in `images` as {node, type, base64, payload, bytes, alt} for the runtime to resolve.
   constructor(
     root,
-    { used = new Set(), targets = new Set(), maxCells = Infinity } = {},
+    {
+      used = new Set(),
+      targets = new Set(),
+      maxCells = Infinity,
+      images = false,
+    } = {},
   ) {
     this.root = root;
+    this.images = images ? [] : null;
     this.used = used;
     this.targets = targets;
     this.maxCells = maxCells;
@@ -335,7 +395,7 @@ export class Mapper {
   }
   // The fragment's blocks.
   blocks() {
-    const flow = new Flow();
+    const flow = new Flow(true);
     this.children(this.root, flow, [], 0);
     flow.flush();
     return flow.blocks;
@@ -393,7 +453,7 @@ export class Mapper {
       return this.count("note");
     // Deep structures keep their text only, without recursion.
     if (depth > 200) return flow.text(textOf(node), marks);
-    if (tag === "img") return this.count("image");
+    if (tag === "img") return this.image(node, flow);
     if (tag === "br") return flow.node(N.hard_break.create(null, null, marks));
     if (BLOCK.has(tag)) return this.block(node, tag, css, flow, marks, depth);
     if (tag === "span" && has(node, "footnote"))
@@ -416,6 +476,26 @@ export class Mapper {
         );
     }
     this.children(node, flow, this.marks(node, tag, css, marks), depth);
+  }
+
+  // An image whose data is in the clipboard (a data: URL) among the pasted blocks becomes a
+  // placeholder figure within the limits; any other is left out. Nothing is ever fetched.
+  image(node, flow) {
+    const found = this.images && dataImage(node.getAttribute("src") ?? "");
+    if (!found) return this.count("image");
+    if (!flow.top) return this.count("image-inner");
+    if (
+      this.images.length >= PASTE_IMAGES.count ||
+      found.bytes > PASTE_IMAGES.bytes
+    )
+      return this.count("image-limit");
+    const alt = (node.getAttribute("alt") ?? "")
+      .replace(CONTROLS, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const figure = placeholder(alt);
+    this.images.push({ node: figure, alt, ...found });
+    flow.figure(figure);
   }
 
   // Marks of an inline element: tags first, then its own styles (Docs writes font-weight:700 on
@@ -861,7 +941,12 @@ export function textBlocks(text) {
     .map((line) => N.paragraph.create(null, schema.text(line)));
 }
 
-// HTML (an inert root) as blocks, with what could not be represented.
+// A figure standing for a pasted image until the runtime has its asset (T12b).
+export const placeholder = (alt = "") =>
+  N.image_figure.create({ id: "", width: "text", wrap: null, asset: "", alt });
+
+// HTML (an inert root) as blocks, with what could not be represented; with `images`, the data:
+// images among the blocks as placeholders ({node, …} in `images`).
 export function fromHTML(root, options) {
   const mapper = new Mapper(root, options);
   const cell = copiedCell(root, mapper.rules);
@@ -870,9 +955,14 @@ export function fromHTML(root, options) {
     return {
       blocks: content.length ? [N.paragraph.create(null, content)] : [],
       lost: mapper.lost,
+      images: [],
     };
   }
-  return { blocks: mapper.blocks(), lost: mapper.lost };
+  return {
+    blocks: mapper.blocks(),
+    lost: mapper.lost,
+    images: mapper.images ?? [],
+  };
 }
 
 // Text copied inside one table cell of a ProseMirror editor (Text's own): ProseMirror wraps the

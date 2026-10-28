@@ -243,6 +243,20 @@ Use `text-example.html`, in Chrome, then Safari and Firefox. After each step, on
 8. **Narrow window**: the Table menu is reachable through ☰.
 9. **Undo steps**: type a character in a cell and at once merge or insert a row: one Undo reverts the table change only, the next the typing.
 
+### T12b — Paste and drop images
+
+Use `text-example.html`, in Chrome, then Safari and Firefox, with the browser's developer tools open on Network. After each step: nothing is requested while pasting, one Undo removes the whole paste, and Save then reopening shows the same pictures with *No unsaved changes*; `node packages/text/tools/check.mjs <file>` reports no `unused-asset`.
+
+1. **Screenshot**: take a screenshot to the clipboard (⇧⌘⌃4 on macOS, Win+Shift+S on Windows) and paste it at the end of a paragraph. The image dialog opens with the picture; **Insert** stays disabled until the alt text is filled. The picture is inserted at text width after that paragraph, reduced to 1,600 px wide (WebP in Chrome and Firefox, PNG in Safari). Paste again and choose **Cancel**: nothing is pasted, and the status line says the image without alt text was left out.
+2. **A picture copied from Word**: in Word (macOS and Windows), select only a picture, copy, paste. The dialog asks for alt text and the picture is inserted. Copy text with a picture in it: the text arrives, and the picture is left out and reported (Word's HTML only links it to a file).
+3. **A picture copied from Google Docs**: right-click a picture › Copy, paste. Docs links its pictures to its servers: the status line reports the image left out, unless the browser put the picture itself on the clipboard (then the dialog asks for alt text).
+4. **A picture copied from a web page**: right-click an image › Copy Image, paste. The picture arrives through the dialog; the page's own copy is never fetched (Network stays empty). Copy part of a page that holds text and images: the text arrives, the images are left out and reported.
+5. **`data:` images**: from a page whose pictures are embedded as `data:` URLs (a page saved as one file, or an HTML email opened in the browser), copy text with a picture in the middle, paste. The pictures keep their alt text (no dialog) and their place among the paragraphs.
+6. **Dropped file**: drag a PNG, a JPEG, an animated GIF and an SVG from the Finder or Explorer onto a paragraph, one at a time: each is described in the dialog and lands after that paragraph. The GIF still animates, the SVG stays sharp. Drag a PDF: nothing is inserted, and the status line says it is not an image.
+7. **Limits**: paste a photo over 50 megapixels (or over 16,384 px a side) and a file over 20 MB: each is left out and reported, and the tab stays responsive (it is refused from the file's header, before the picture is decoded). Copy 21 embedded pictures at once: 20 are pasted, one is reported.
+8. **Where only text goes**: paste a screenshot with the caret in a table cell, a caption or the code block: the picture goes after the table or block. Paste text with an embedded picture into a cell: the text goes in the cell, the picture is left out and reported.
+9. **Inside the document**: click the example's picture, copy, paste it after another paragraph. Save: `script#assets` holds it once, and both figures use the same `data-asset`.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

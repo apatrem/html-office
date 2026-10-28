@@ -308,6 +308,7 @@ function start() {
   const clipboard = setupClipboard((text) => saving.say(text), {
     internal,
     chart: chartsPlugin.props.handlePaste,
+    assets,
   });
   view = new EditorView(
     { mount: article },
@@ -621,6 +622,8 @@ function start() {
     saving,
     report,
     serialize: () => save(view.state.doc),
+    // Resolves once pastes waiting for their images are in the document (T12b).
+    pasted: () => clipboard.settled(),
     TextSelection,
     NodeSelection,
     CellSelection: T.CellSelection,

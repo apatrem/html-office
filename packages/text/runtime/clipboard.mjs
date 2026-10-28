@@ -1,8 +1,10 @@
 // The editor's clipboard (T07, ADR-013). Every paste and drop from outside is read here, never by
 // ProseMirror's DOM parser: html-office envelopes first, then HTML through the subset mapping
-// (editor/clipboard/html.mjs), then plain text. Clipboard HTML is parsed into a detached
-// <template> and read as data. A selected table is copied as the html-office envelope, a
-// semantic table for other applications and TSV; any other selection as subset HTML and text.
+// (editor/clipboard/html.mjs), then image files, then plain text. Clipboard HTML is parsed into a
+// detached <template> and read as data. Images whose data is in the clipboard (files, data: URLs)
+// go through T12's path into the asset store (T12b); nothing is ever fetched. A selected table is
+// copied as the html-office envelope, a semantic table for other applications and TSV; any other
+// selection as subset HTML and text.
 import { Slice, Fragment } from "prosemirror-model";
 import { NodeSelection, TextSelection } from "prosemirror-state";
 import { closeHistory } from "prosemirror-history";
@@ -32,7 +34,17 @@ import {
   textBlocks,
   inlineLines,
   describeLost,
+  placeholder,
 } from "../editor/clipboard/html.mjs";
+import {
+  PASTE_IMAGES,
+  IMAGE_TYPES,
+  imageSize,
+  overLimits,
+  placeImages,
+} from "../editor/clipboard/images.mjs";
+import { figureId, figurePosition } from "../editor/images.mjs";
+import { shrinkImage, imageDialog } from "./images.mjs";
 import { markdownHTML, MAX_MARKDOWN } from "../editor/clipboard/markdown.mjs";
 import {
   LIMIT,
@@ -78,7 +90,41 @@ function referenceIds(doc) {
   return ids;
 }
 
-export function readTransfer(data, doc, { plain = false } = {}) {
+// The image files of a DataTransfer as placeholder figures ({blocks, lost, images}), or null when
+// it holds none, or only files of other kinds beside text to paste instead.
+function imageFiles(data, types) {
+  let files = Array.from(data.files ?? []);
+  if (!files.length)
+    files = Array.from(data.items ?? [])
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+  if (!files.length) return null;
+  const lost = new Map(),
+    blocks = [],
+    images = [];
+  const count = (key) => lost.set(key, (lost.get(key) ?? 0) + 1);
+  for (const file of files)
+    if (!IMAGE_TYPES.includes(file.type)) count("file");
+    else if (images.length >= PASTE_IMAGES.count || overLimits(file.size))
+      count("image-limit");
+    else {
+      const node = placeholder();
+      blocks.push(node);
+      images.push({ node, file, alt: "" });
+    }
+  if (!images.length && types.includes("text/plain")) return null;
+  return { blocks, lost, images };
+}
+
+// images: whether images whose data is in the clipboard become placeholder figures (T12b), listed
+// in `images` for the runtime to resolve; image files are read when the HTML gives no content of
+// its own (a screenshot, a picture whose HTML only links it), before plain text.
+export function readTransfer(
+  data,
+  doc,
+  { plain = false, images = false } = {},
+) {
   const types = Array.from(data.types ?? []),
     get = (type) => (types.includes(type) ? data.getData(type) : ""),
     used = usedIds(doc),
@@ -134,11 +180,14 @@ export function readTransfer(data, doc, { plain = false } = {}) {
         lost: none,
         notices,
       };
+    let mapped = null;
     if (root) {
-      const read = fromHTML(root, { used, targets, maxCells: MAX_CELLS });
-      if (read.blocks.length || !types.includes("text/plain"))
-        return { ...read, notices };
+      mapped = fromHTML(root, { used, targets, maxCells: MAX_CELLS, images });
+      if (mapped.blocks.length) return { ...mapped, notices, used };
     }
+    const files = images ? imageFiles(data, types) : null;
+    if (files) return { ...files, notices, used };
+    if (mapped && !types.includes("text/plain")) return { ...mapped, notices };
   }
   return { blocks: textBlocks(text()), lost: none, notices, plain: true };
 }
@@ -146,6 +195,7 @@ export function readTransfer(data, doc, { plain = false } = {}) {
 // The blocks as a slice for the selection: blocks in the document's body, quotes, callouts and
 // lists; lines in a textblock that holds one paragraph; text in code.
 function sliceFor($from, blocks, plain) {
+  if (!blocks.length) return Slice.empty;
   const parent = $from.parent;
   if (parent.type.spec.code) {
     const text = blocks
@@ -414,13 +464,23 @@ function dispatchPaste(view, tr, from) {
 // internal and chart: handlePaste functions (view, event) => boolean that may take a paste
 // before the mapping: the internal clipboard of T09 (not where the paste becomes lines: a cell,
 // a caption, a cover line, a footnote, code or a cell selection) and the chart envelope of T11.
-// A plain-text paste skips both.
-export function setupClipboard(notify, { internal, chart } = {}) {
+// A plain-text paste skips both. assets: the asset store pasted images are added to (T12b).
+export function setupClipboard(notify, { internal, chart, assets } = {}) {
   let plainNext = false;
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 
-  // Inserts blocks at the selection (or at `at`, a drop position) as one undoable step.
-  function insert(view, read, at = null, what = "Pasted") {
+  // Inserts blocks at the selection (or at `at`, a drop position) as one undoable step. kept: the
+  // selection to paste at, from before the image dialogs (the document is unchanged).
+  function insert(view, read, at = null, what = "Pasted", kept = null) {
+    if (kept) view.dispatch(view.state.tr.setSelection(kept));
+    if (read.resolved) read = withFigures(view, read);
+    if (read.alone && read.blocks.length) {
+      const state = view.state;
+      if (at !== null || state.selection.empty || textOnly(state, null)) {
+        insertFigures(view, read, at, what);
+        return;
+      }
+    }
     if (at === null && read.blocks.length && pasteIntoTable(view, read)) {
       const message = describeLost(read.lost);
       if (message || read.notices.length)
@@ -452,15 +512,174 @@ export function setupClipboard(notify, { internal, chart } = {}) {
     const notes = [...read.notices, message].filter(Boolean);
     if (notes.length) notify(`${what}. ${notes.join(" ")}`);
   }
+
+  // ---- pasted images (T12b) ----
+  // Whether the paste lands where only text goes (a cell, a caption, a cover line, a footnote,
+  // code, a cell selection); `at` is a drop position or null for the selection.
+  function textOnly(state, at) {
+    const parent = (at === null ? state.selection.$from : state.doc.resolve(at))
+      .parent.type;
+    return (
+      ONE_PARAGRAPH.includes(parent) ||
+      !!parent.spec.code ||
+      (at === null && state.selection instanceof CellSelection)
+    );
+  }
+  // The pasted image figures as nodes: an asset each (stored once) and an ID from the alt text.
+  function withFigures(view, read) {
+    const used = new Set([...usedIds(view.state.doc), ...(read.used ?? [])]),
+      done = new Map();
+    for (const [node, found] of read.resolved) {
+      if (!found) {
+        done.set(node, null);
+        continue;
+      }
+      const id = figureId(found.attrs.alt, used);
+      used.add(id);
+      done.set(
+        node,
+        N.image_figure.create({
+          ...found.attrs,
+          id,
+          asset: assets.add(found.image),
+        }),
+      );
+    }
+    return {
+      ...read,
+      resolved: null,
+      blocks: placeImages(read.blocks, done),
+    };
+  }
+  // Images pasted alone go where Insert › Image puts them: after the caret's top-level block, a
+  // wrapped one before it; the last is selected.
+  function insertFigures(view, read, at, what) {
+    const state = view.state,
+      $pos = at === null ? state.selection.$from : state.doc.resolve(at);
+    const after = figurePosition(state, false, $pos),
+      before = figurePosition(state, true, $pos);
+    const block = Fragment.fromArray(read.blocks.filter((f) => !f.attrs.wrap)),
+      wrapped = Fragment.fromArray(read.blocks.filter((f) => f.attrs.wrap));
+    const tr = state.tr.insert(after, block).insert(before, wrapped);
+    const last = block.size
+      ? after + wrapped.size + block.size - block.lastChild.nodeSize
+      : before + wrapped.size - wrapped.lastChild.nodeSize;
+    tr.setSelection(NodeSelection.create(tr.doc, last))
+      .scrollIntoView()
+      .setMeta("paste", true)
+      .setMeta("uiEvent", at === null ? "paste" : "drop");
+    dispatchPaste(view, tr, before);
+    const message = describeLost(read.lost);
+    const notes = [...read.notices, message].filter(Boolean);
+    if (notes.length) notify(`${what}. ${notes.join(" ")}`);
+  }
+  // The bytes of a pasted image, read only once it is within the byte limit.
+  async function bytesOf(entry) {
+    if (entry.file) return new Uint8Array(await entry.file.arrayBuffer());
+    if (entry.base64)
+      return Uint8Array.from(atob(entry.payload), (c) => c.charCodeAt(0));
+    return new TextEncoder().encode(decodeURIComponent(entry.payload));
+  }
+  // A pasted image through T12's path ({type, data}): its header checked against the limits
+  // before the browser decodes it, then shrunk. SVG is kept as it is, as T12 keeps it.
+  async function picture(entry) {
+    const bytes = await bytesOf(entry);
+    const size = imageSize(bytes);
+    if (overLimits(bytes.length, size)) return "image-limit";
+    if (size) return shrinkImage(new Blob([bytes], { type: size.type }));
+    const head = new TextDecoder().decode(bytes.subarray(0, 65536));
+    if (
+      (entry.file?.type ?? entry.type) === "image/svg+xml" &&
+      /<svg[\s>]/.test(head)
+    )
+      return shrinkImage(new Blob([bytes], { type: "image/svg+xml" }));
+    return "image-unread";
+  }
+  // The alt text and layout for a pasted image without alt text, from the image dialog; null
+  // when it is cancelled.
+  const describe = (image) =>
+    new Promise((resolve) =>
+      imageDialog({
+        initial: null,
+        preview: `data:${image.type};base64,${image.data}`,
+        onSave: resolve,
+        done: () => resolve(null),
+      }),
+    );
+  // Reads, checks and shrinks each image in turn, asking for alt text where none came with it:
+  // the read with `resolved` (placeholder → {image, attrs} or null) and the images left out
+  // counted. Where only text goes, images pasted among other content are left out.
+  async function resolveImages(view, read, at) {
+    const lost = new Map(read.lost),
+      resolved = new Map();
+    const count = (key) => lost.set(key, (lost.get(key) ?? 0) + 1);
+    const alone = read.blocks.every((b) => b.type === N.image_figure);
+    const skip = !alone && textOnly(view.state, at);
+    for (const entry of read.images) {
+      let found = null;
+      if (skip) count("image-place");
+      else {
+        let image;
+        try {
+          image = await picture(entry);
+        } catch {
+          image = "image-unread";
+        }
+        if (typeof image === "string") count(image);
+        else {
+          const attrs = entry.alt
+            ? { alt: entry.alt, width: "text", wrap: null }
+            : await describe(image);
+          if (attrs) found = { image, attrs };
+          else count("image-alt");
+        }
+      }
+      resolved.set(entry.node, found);
+    }
+    return { ...read, lost, resolved, alone, images: [] };
+  }
+  // Pastes in order: one with images waits for them, and any paste after it waits its turn.
+  let queue = Promise.resolve(),
+    waiting = 0;
+  function deliver(view, read, at = null, what = "Pasted") {
+    if (!read.images?.length && !waiting) return insert(view, read, at, what);
+    const start = view.state;
+    waiting++;
+    queue = queue.then(async () => {
+      try {
+        const ready = read.images?.length
+          ? await resolveImages(view, read, at)
+          : read;
+        // The document changed meanwhile (an earlier paste): this one goes to the selection.
+        const same = view.state.doc === start.doc;
+        insert(
+          view,
+          ready,
+          same ? at : null,
+          what,
+          same ? start.selection : null,
+        );
+      } catch (error) {
+        refused(error);
+      } finally {
+        waiting--;
+        view.focus();
+      }
+    });
+  }
+
+  const refused = (error) => {
+    if (!(error instanceof ClipboardError)) console.error(error);
+    notify(
+      `Nothing was pasted: ${error instanceof ClipboardError ? error.message : "the clipboard content could not be read"}.`,
+    );
+  };
   // Runs a read; a refused paste leaves the document unchanged and says why.
   function attempt(view, run) {
     try {
       run();
     } catch (error) {
-      if (!(error instanceof ClipboardError)) console.error(error);
-      notify(
-        `Nothing was pasted: ${error instanceof ClipboardError ? error.message : "the clipboard content could not be read"}.`,
-      );
+      refused(error);
     }
     view.focus();
   }
@@ -544,7 +763,10 @@ export function setupClipboard(notify, { internal, chart } = {}) {
         return true;
       if (!plain && chart && handOver(view, chart, event)) return true;
       attempt(view, () =>
-        insert(view, readTransfer(data, view.state.doc, { plain })),
+        deliver(
+          view,
+          readTransfer(data, view.state.doc, { plain, images: !plain }),
+        ),
       );
       return true;
     },
@@ -553,14 +775,21 @@ export function setupClipboard(notify, { internal, chart } = {}) {
       const data = event.dataTransfer;
       if (view.dragging || !data) return false;
       if (
-        !["text/html", "text/plain", MIME].some((t) => data.types.includes(t))
+        !["text/html", "text/plain", MIME, "Files"].some((t) =>
+          data.types.includes(t),
+        )
       )
         return false;
       event.preventDefault();
       const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
       if (!at) return true;
       attempt(view, () =>
-        insert(view, readTransfer(data, view.state.doc), at.pos, "Dropped"),
+        deliver(
+          view,
+          readTransfer(data, view.state.doc, { images: true }),
+          at.pos,
+          "Dropped",
+        ),
       );
       return true;
     },
@@ -642,5 +871,7 @@ export function setupClipboard(notify, { internal, chart } = {}) {
     clipboardTextSerializer,
     pastePlain,
     insertMarkdown,
+    // Resolves once every paste so far is in the document (tests).
+    settled: () => queue,
   };
 }
