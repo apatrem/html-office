@@ -15,6 +15,7 @@
 import { readFile, writeFile, access, rename, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { pivotState, pivotLabel } from "../model/pivot.mjs";
@@ -342,7 +343,7 @@ export async function run(argv) {
 
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+  import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
 ) {
   run(process.argv.slice(2)).catch((error) => {
     if (error instanceof Failure) {

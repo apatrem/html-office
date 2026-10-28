@@ -1,0 +1,9 @@
+{
+  "active-field.json": "cell: unknown field onclick",
+  "bad-address.json": "Invalid address: AAAA1",
+  "formula-and-input.json": "Cell cannot contain input and formula",
+  "literal-colour.json": "Invalid text colour: use one of ink, acc, mid, alert, t2, bg",
+  "number-as-text.json": "Expected finite number",
+  "result-on-input.json": "Result requires formula",
+  "unknown-chart-type.json": "unknown type"
+}

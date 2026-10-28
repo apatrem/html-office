@@ -1,8 +1,9 @@
 // Build-time chart previews (T18): the editor's chart options drawn by
 // ECharts' server-side SVG renderer, so a built workbook shows its charts
 // without loading ECharts. Previews that already match their data are kept.
-import { readFile } from "node:fs/promises";
-import * as echarts from "echarts";
+import { readFile, access } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { CHARTES } from "../../shared/themes/chartes.mjs";
 import {
   chartData,
@@ -14,8 +15,36 @@ import {
 import { display } from "../runtime/view.mjs";
 import { inlineScript } from "../../../tools/inline-script.mjs";
 import { verifyECharts } from "../../../tools/echarts-integrity.mjs";
+import { ECHARTS_VERSION } from "../../shared/charts/echarts.mjs";
 
-const library = new URL("../../../node_modules/echarts/", import.meta.url);
+// The pinned ECharts browser build: the skill's copy (assets/), or the
+// repository's dependency. Its bytes are checked against the approved SRI
+// digest before use, here and for offline builds.
+async function echartsFile() {
+  for (const url of [
+    new URL("../assets/echarts.min.js", import.meta.url),
+    new URL(
+      "../../../node_modules/echarts/dist/echarts.min.js",
+      import.meta.url,
+    ),
+  ])
+    if (
+      await access(url).then(
+        () => true,
+        () => false,
+      )
+    )
+      return url;
+  throw new Error("ECharts is missing: expected assets/echarts.min.js.");
+}
+let library = null;
+async function loadECharts() {
+  if (library) return library;
+  const file = await echartsFile();
+  verifyECharts(await readFile(file), ECHARTS_VERSION);
+  // The browser build is UMD: required as CommonJS for server-side SVG.
+  return (library = createRequire(import.meta.url)(fileURLToPath(file)));
+}
 
 // The theme() of the shared chart module, read from charte CSS text: the
 // document's tokens, then a built-in charte's overlay, with var() references
@@ -70,7 +99,8 @@ export function cssTheme(css, overlay = {}) {
 
 export async function renderPreviews(book, css) {
   if (!book.charts?.length) return book;
-  const theme = cssTheme(css, CHARTES[book.theme]),
+  const echarts = await loadECharts(),
+    theme = cssTheme(css, CHARTES[book.theme]),
     label = (cell) => display(cell, book.locale),
     charts = [];
   for (const chart of book.charts) {
@@ -111,10 +141,7 @@ export async function renderPreviews(book, css) {
 // The pinned ECharts bytes for offline builds, checked against the approved
 // SRI digest and escaped for an inline script.
 export async function embeddedECharts() {
-  const bytes = await readFile(new URL("dist/echarts.min.js", library)),
-    { version } = JSON.parse(
-      await readFile(new URL("package.json", library), "utf8"),
-    );
-  verifyECharts(bytes, version);
+  const bytes = await readFile(await echartsFile());
+  verifyECharts(bytes, ECHARTS_VERSION);
   return inlineScript(bytes.toString("utf8"), "echarts");
 }

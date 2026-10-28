@@ -1,0 +1,334 @@
+{
+  "version": "html-data/0.1",
+  "id": "fictional-event-budget",
+  "title": "Fictional event budget",
+  "dateSystem": "excel1900",
+  "locale": "en-US",
+  "groups": [
+    {
+      "id": "inputs",
+      "name": "Inputs",
+      "kind": "inputs",
+      "sheetIds": [
+        "inputs"
+      ]
+    },
+    {
+      "id": "summary",
+      "name": "Summary",
+      "kind": "summary",
+      "sheetIds": [
+        "budget"
+      ]
+    }
+  ],
+  "names": [],
+  "metadata": {
+    "fictional": true,
+    "note": "Small example: all figures are invented."
+  },
+  "validations": [
+    {
+      "id": "scenario",
+      "sheetId": "inputs",
+      "ref": "B1",
+      "source": {
+        "kind": "list",
+        "values": [
+          {
+            "type": "text",
+            "value": "Base"
+          },
+          {
+            "type": "text",
+            "value": "Busy"
+          }
+        ]
+      }
+    }
+  ],
+  "scenario": {
+    "validationId": "scenario"
+  },
+  "conditionalFormats": [
+    {
+      "id": "margin-bars",
+      "sheetId": "budget",
+      "ref": "D2:D4",
+      "kind": "dataBar",
+      "scale": {
+        "kind": "auto"
+      },
+      "positive": "acc",
+      "negative": "alert"
+    }
+  ],
+  "charts": [
+    {
+      "id": "margin-chart",
+      "sheetId": "budget",
+      "anchor": "F2",
+      "width": 420,
+      "height": 260,
+      "type": "column",
+      "options": {
+        "title": "Margin by line",
+        "unit": "EUR"
+      },
+      "source": {
+        "sheetId": "budget",
+        "ref": "A1:D3"
+      }
+    }
+  ],
+  "sheets": [
+    {
+      "id": "inputs",
+      "name": "Inputs",
+      "columns": {
+        "A": {
+          "width": 160
+        }
+      },
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Scenario"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Base"
+          },
+          "cellStyle": "assumption"
+        },
+        "A2": {
+          "input": {
+            "type": "text",
+            "value": "Guests (Base)"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B2": {
+          "input": {
+            "type": "number",
+            "value": 120
+          },
+          "cellStyle": "assumption",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "A3": {
+          "input": {
+            "type": "text",
+            "value": "Guests (Busy)"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B3": {
+          "input": {
+            "type": "number",
+            "value": 180
+          },
+          "cellStyle": "assumption",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        },
+        "A4": {
+          "input": {
+            "type": "text",
+            "value": "Ticket price"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B4": {
+          "input": {
+            "type": "number",
+            "value": 35
+          },
+          "cellStyle": "assumption",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 2
+          }
+        },
+        "A5": {
+          "input": {
+            "type": "text",
+            "value": "Guests"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B5": {
+          "formula": "=IF(B1=\"Busy\",B3,B2)",
+          "cellStyle": "calculation",
+          "format": {
+            "kind": "number",
+            "digits": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "budget",
+      "name": "Budget",
+      "columns": {
+        "A": {
+          "width": 140
+        }
+      },
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Line"
+          },
+          "cellStyle": "header"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Income"
+          },
+          "cellStyle": "header"
+        },
+        "C1": {
+          "input": {
+            "type": "text",
+            "value": "Cost"
+          },
+          "cellStyle": "header"
+        },
+        "D1": {
+          "input": {
+            "type": "text",
+            "value": "Margin"
+          },
+          "cellStyle": "header"
+        },
+        "A2": {
+          "input": {
+            "type": "text",
+            "value": "Tickets"
+          },
+          "style": {
+            "color": "#ff0000"
+          }
+        },
+        "B2": {
+          "formula": "=Inputs!B5*Inputs!B4",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C2": {
+          "input": {
+            "type": "number",
+            "value": 900
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "D2": {
+          "formula": "=B2-C2",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0,
+            "negative": "redParentheses"
+          }
+        },
+        "A3": {
+          "input": {
+            "type": "text",
+            "value": "Catering"
+          }
+        },
+        "B3": {
+          "input": {
+            "type": "number",
+            "value": 0
+          },
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C3": {
+          "formula": "=Inputs!B5*18",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "D3": {
+          "formula": "=B3-C3",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0,
+            "negative": "redParentheses"
+          }
+        },
+        "A4": {
+          "input": {
+            "type": "text",
+            "value": "Total"
+          },
+          "cellStyle": "total"
+        },
+        "B4": {
+          "formula": "=SUM(B2:B3)",
+          "cellStyle": "total",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C4": {
+          "formula": "=SUM(C2:C3)",
+          "cellStyle": "total",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "D4": {
+          "formula": "=B4-C4",
+          "cellStyle": "total",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0,
+            "negative": "redParentheses"
+          },
+          "style": {
+            "border": {
+              "top": {
+                "style": "double",
+                "color": "ink"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

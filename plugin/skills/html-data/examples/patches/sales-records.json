@@ -1,0 +1,8 @@
+{
+  "rows": [
+    { "sheet": "Sales", "at": "A10", "values": [["West", "Q2", "Store", 7, 70]] }
+  ],
+  "edits": [
+    { "sheet": "Sales", "ref": "F10", "cell": { "formula": "=E10*Inputs!$B$2", "format": { "kind": "currency", "currency": "EUR", "digits": 2 } } }
+  ]
+}
