@@ -13,6 +13,7 @@ export const DEFAULT_HEADING_FORMAT = "1.1.1.1";
 // A heading format value ("1.A.i.a", quoted or not), or the default.
 export function themeFormat(value) {
   const format = String(value ?? "")
+    .replace(/!\s*important\s*$/i, "")
     .trim()
     .replace(/^["']|["']$/g, "");
   return HEADING_FORMAT.test(format) ? format : DEFAULT_HEADING_FORMAT;
@@ -94,13 +95,14 @@ export function labelText(node) {
   return out.replace(/\s+/g, " ").trim();
 }
 
-// The heading and figure IDs inside a protected block: cross-references to them keep their label.
+// The heading and figure IDs inside a protected block (not a cover title, as for the validator):
+// cross-references to them keep their label.
 function treeTargets(tree, ids) {
   if (tree.type !== "element") return;
   const id = attr(tree, "id");
   if (
     id !== null &&
-    (/^h[1-4]$/.test(tree.name) ||
+    ((/^h[1-4]$/.test(tree.name) && !classes(tree).includes("title")) ||
       (tree.name === "figure" &&
         ["chart", "image", "table"].includes(classes(tree)[0])))
   )
