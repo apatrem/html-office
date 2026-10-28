@@ -167,6 +167,18 @@ Build a workbook (`node packages/data/tools/build.mjs --input packages/data/fixt
 5. **No upload.** With the browser's network panel open, import a file in the offline build: no request at all. In the standard build, only the calculation engine (`ironcalc`) is fetched, and only if it was not loaded yet.
 6. **Browsers.** Repeat 1 (one French and one US file), 3 and 4 in Safari and Firefox: the file picker opens from the menu, the dialog fits at 1280 px and at 375 px wide, and the preview scrolls.
 
+### T16 — Refresh an imported source
+
+Import a CSV exported from Excel or Sheets (section T15), build a formula on another sheet that sums one of its columns, a pivot table and a chart on it, then edit one value of the imported sheet by hand. Export a second version of the table from the same application with: one column renamed, one column removed, one new column, the columns reordered and two more rows. Use Data › Refresh source… on the imported sheet and pick it.
+
+1. **Preview.** Before anything changes, the dialog shows rows before → after, the changed values per column with examples, and that the formula, the pivot table and the chart depend on the sheet.
+2. **Missing and renamed columns.** Refresh stays disabled until the removed and renamed columns are each settled (use another column, clear, or keep values).
+3. **Hand edits.** The column you edited is flagged and needs the confirmation checkbox.
+4. **Result.** After Refresh: the values match the new file, renamed columns kept their position, the new column is on the right, the formula is updated, the pivot table is marked out of date until refreshed, and the chart redraws. Your formatting on the imported cells is kept.
+5. **Undo.** Ctrl/Cmd+Z restores the previous values, including your hand edit; Ctrl/Cmd+Shift+Z refreshes again.
+6. **Save and reopen** with the network off: no link to the file is needed, and `sources` names the second file without a path.
+7. **Browsers.** Repeat 1–5 in Safari and Firefox.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |
