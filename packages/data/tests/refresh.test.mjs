@@ -3,7 +3,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readCSV } from "../model/csv.mjs";
-import { planRefresh, matchColumns, dependents } from "../model/refresh.mjs";
+import {
+  planRefresh,
+  matchColumns,
+  dependents,
+  overwrittenEdits,
+} from "../model/refresh.mjs";
+import { shiftWorkbook } from "../model/structure.mjs";
+import { validateSources } from "../model/sources.mjs";
+import { typesFor } from "../runtime/refresh.mjs";
 
 const read = (text, options) =>
   readCSV(new TextEncoder().encode(text), options);
@@ -186,4 +194,151 @@ test("dependents: formulas by sheet, pivots, charts, rules and dropdowns", () =>
   assert.equal(d.charts.length, 1);
   assert.equal(d.conditional, 1);
   assert.equal(d.dropdowns, 1);
+});
+
+// Codex review of #81.
+test("a column inserted in the source range is tracked and left alone", () => {
+  const { cells, source } = imported("K,V\na,1\n");
+  const book = {
+    sheets: [{ id: "raw", name: "Raw", cells }],
+    names: [],
+    sources: [
+      {
+        ...source,
+        id: "source-1",
+        sheetId: "raw",
+        columns: source.columns.map((c) => ({
+          ...c,
+          fingerprint: "0".repeat(64),
+        })),
+      },
+    ],
+  };
+  const insert = {
+    sheetId: "raw",
+    axis: "column",
+    action: "insert",
+    index: 2,
+    count: 1,
+  };
+  const moved = shiftWorkbook(book, insert).sources[0];
+  assert.equal(moved.ref, "A1:C2");
+  assert.deepEqual(
+    moved.columns.map((c) => c.name ?? "inserted"),
+    ["K", "inserted", "V"],
+  );
+  // Columns shift in the sheet: V now lives in C.
+  const shifted = {
+    A1: cells.A1,
+    A2: cells.A2,
+    B2: { formula: "=C2*2" },
+    C1: cells.B1,
+    C2: cells.B2,
+  };
+  const plan = planRefresh({
+    sheet: { cells: shifted },
+    source: moved,
+    fresh: read("K,V\na,10\n"),
+  });
+  assert.deepEqual(plan.unresolved, []);
+  assert.deepEqual(
+    plan.columns.map((c) => [c.letter, c.status]),
+    [
+      ["A", "matched"],
+      ["B", "inserted"],
+      ["C", "matched"],
+    ],
+  );
+  assert.deepEqual(
+    plan.edits.map((e) => [e.ref, e.cell]),
+    [["C2", { input: { type: "number", value: 10 } }]],
+  );
+  // Deleting it drops it from the list again; deleting the range keeps it.
+  const deleted = shiftWorkbook(
+    { ...book, sources: [moved] },
+    { sheetId: "raw", axis: "column", action: "delete", index: 2, count: 1 },
+  ).sources[0];
+  assert.deepEqual(
+    deleted.columns.map((c) => c.name),
+    ["K", "V"],
+  );
+  const gone = shiftWorkbook(book, {
+    sheetId: "raw",
+    axis: "column",
+    action: "delete",
+    index: 1,
+    count: 2,
+  }).sources[0];
+  assert.equal(gone.ref, "#REF!");
+  assert.equal(gone.columns.length, 2);
+  validateSources({
+    ...book,
+    sources: [
+      {
+        ...moved,
+        kind: "csv",
+        file: { name: "a.csv", bytes: 1, sha256: "a".repeat(64) },
+        importedAt: "2026-10-28T10:00:00.000Z",
+        options: {
+          encoding: "utf-8",
+          delimiter: ",",
+          header: true,
+          decimal: "point",
+          dates: "dmy",
+        },
+      },
+    ],
+  });
+});
+
+test("hand edits in a kept column losing rows need a confirmation", () => {
+  const { cells, source } = imported("K,Memo\na,m1\nb,m2\n");
+  const plan = planRefresh({
+    sheet: { cells },
+    source,
+    fresh: read("K\na\n"),
+    resolutions: { 1: { kind: "keep" } },
+    edited: [1],
+  });
+  assert.equal(edit(plan, "B3").cell, null);
+  assert.deepEqual(
+    overwrittenEdits(plan).map((c) => c.name),
+    ["Memo"],
+  );
+});
+
+test("repeated header names keep their own column types", () => {
+  const source = {
+    columns: [
+      { name: "Code", type: "text" },
+      { inserted: true },
+      { name: "Code", type: "number" },
+    ],
+  };
+  assert.deepEqual(typesFor(source, ["Code", "Code", "Other"]), [
+    "text",
+    "number",
+    "auto",
+  ]);
+});
+
+test("formulas reading the sheet through a named range are dependents", () => {
+  const book = {
+    sheets: [
+      { id: "raw", name: "Raw", cells: {} },
+      {
+        id: "sum",
+        name: "Summary",
+        cells: {
+          A1: { formula: "=SUM(Sales)" },
+          A2: { formula: '="Sales"' },
+          A3: { formula: "=SalesTax(1)" },
+        },
+      },
+    ],
+    names: [{ name: "Sales", sheetId: "raw", ref: "B2:B3" }],
+  };
+  assert.deepEqual(dependents(book, "raw").formulas, [
+    { sheetName: "Summary", count: 1 },
+  ]);
 });
