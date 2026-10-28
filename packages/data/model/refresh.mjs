@@ -257,7 +257,12 @@ export function dependents(book, sheetId) {
       if (
         s.id === sheetId ||
         text.includes(quoted) ||
-        named.some((pattern) => pattern.test(text.replace(/"[^"]*"/g, '""'))) ||
+        named.some((pattern) =>
+          // Strings and quoted sheet names are not names.
+          pattern.test(
+            text.replace(/"[^"]*"/g, '""').replace(/'(?:[^']|'')*'!/g, "'x'!"),
+          ),
+        ) ||
         (simple &&
           new RegExp(
             `(^|[^\\w.'])${plain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,

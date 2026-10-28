@@ -32,10 +32,12 @@ function select(h, id, choices, value) {
   return s;
 }
 // Column types chosen at import follow their column by name; with repeated
-// names, the n-th column of a name takes the n-th such column's type.
-export function typesFor(source, names) {
+// names, the n-th column of a name takes the n-th such column's type. A
+// column the person maps to another one (a rename) is read with the type of
+// the column it replaces, so the values match the type the source records.
+export function typesFor(source, names, resolutions = {}) {
   const seen = new Map();
-  return names.map((name) => {
+  const types = names.map((name) => {
     const n = seen.get(name) ?? 0;
     seen.set(name, n + 1);
     return (
@@ -43,6 +45,10 @@ export function typesFor(source, names) {
       "auto"
     );
   });
+  for (const [index, r] of Object.entries(resolutions))
+    if (r.kind === "map" && r.to < types.length && source.columns[index]?.type)
+      types[r.to] = source.columns[index].type;
+  return types;
 }
 // Formulas of a refreshed XLSX sheet read other sheets by their names in the
 // file: each maps to the Data sheet imported from it from the same workbook
@@ -276,6 +282,7 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
       columns: typesFor(
         source,
         first.columns.map((c) => c.name),
+        resolutions,
       ),
     });
   }

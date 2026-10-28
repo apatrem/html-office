@@ -342,3 +342,31 @@ test("formulas reading the sheet through a named range are dependents", () => {
     { sheetName: "Summary", count: 1 },
   ]);
 });
+
+// Codex re-verification of #81.
+test("a renamed column is read with the type of the column it replaces", () => {
+  const source = { columns: [{ name: "Old", type: "text" }] };
+  assert.deepEqual(typesFor(source, ["New"]), ["auto"]);
+  assert.deepEqual(typesFor(source, ["New"], { 0: { kind: "map", to: 0 } }), [
+    "text",
+  ]);
+  const fresh = read("New\n123\n", {
+    columns: typesFor(source, ["New"], { 0: { kind: "map", to: 0 } }),
+  });
+  assert.deepEqual(fresh.cells.A2.input, { type: "text", value: "123" });
+});
+
+test("a quoted sheet name holding a range name is not a dependent", () => {
+  const book = {
+    sheets: [
+      { id: "raw", name: "Raw", cells: {} },
+      {
+        id: "sum",
+        name: "Summary",
+        cells: { A1: { formula: "='Budget Sales 2026'!A1" } },
+      },
+    ],
+    names: [{ name: "Sales", sheetId: "raw", ref: "B2:B3" }],
+  };
+  assert.deepEqual(dependents(book, "raw").formulas, []);
+});
