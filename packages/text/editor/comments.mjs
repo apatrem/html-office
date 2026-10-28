@@ -29,10 +29,12 @@ function treeRefs(tree, refs) {
 // The text quotations are made of, read the same way for a new thread and for recovery: text as
 // written (spaces kept), a cross-reference as its label, a line break or a new textblock as
 // "\n", a footnote's text where it is written. Code, protected blocks and comments are left out.
-// ranges[i]: the document range character i stands for (null for a block boundary).
+// ranges[i]: the document range UTF-16 unit i stands for; a block boundary stands for the range
+// from the end of the block before to the start of the next one.
 export function flatten(doc, from = 0, to = doc.content.size) {
   let text = "",
-    started = false;
+    started = false,
+    blockEnd = from;
   const ranges = [];
   doc.nodesBetween(from, to, (node, pos) => {
     if ([N.protected, N.comments, N.code_block].includes(node.type))
@@ -40,9 +42,10 @@ export function flatten(doc, from = 0, to = doc.content.size) {
     if (node.isTextblock) {
       if (started) {
         text += "\n";
-        ranges.push(null);
+        ranges.push([blockEnd, pos + 1]);
       }
       started = true;
+      blockEnd = Math.min(to, pos + node.nodeSize - 1);
       return true;
     }
     if (node.isText) {
@@ -56,10 +59,8 @@ export function flatten(doc, from = 0, to = doc.content.size) {
     }
     if (node.isInline && node.isLeaf && pos >= from && pos + 1 <= to) {
       const leaf = node.type === N.xref ? node.attrs.label : "\n";
-      for (const ch of leaf) {
-        text += ch;
-        ranges.push([pos, pos + 1]);
-      }
+      text += leaf;
+      for (let i = 0; i < leaf.length; i++) ranges.push([pos, pos + 1]);
     }
     return true;
   });
@@ -69,23 +70,21 @@ export function flatten(doc, from = 0, to = doc.content.size) {
 const first = (text, n) => Array.from(text).slice(0, n).join("");
 const last = (text, n) => Array.from(text).slice(-n).join("");
 
-// The headings that start sections, protected ones included (not a cover title):
-// [{pos, id, level}].
+// The headings that start sections, those inside protected blocks included (not a cover title):
+// [{pos, id, level}], a protected block's headings at its position.
 function headings(doc) {
   const out = [];
+  const walk = (tree, pos) => {
+    if (tree.type !== "element") return;
+    const id = tree.attrs.find(([n]) => n === "id")?.[1];
+    if (/^h[1-4]$/.test(tree.name) && id && !classes(tree).includes("title"))
+      out.push({ pos, id, level: Number(tree.name[1]) });
+    for (const child of tree.children) walk(child, pos);
+  };
   doc.forEach((node, pos) => {
     if (node.type === N.heading)
       out.push({ pos, id: node.attrs.id, level: node.attrs.level });
-    else if (node.type === N.protected) {
-      const tree = node.attrs.node;
-      const id = tree.attrs?.find(([n]) => n === "id")?.[1];
-      if (
-        /^h[1-4]$/.test(tree.name ?? "") &&
-        id &&
-        !classes(tree).includes("title")
-      )
-        out.push({ pos, id, level: Number(tree.name[1]) });
-    }
+    else if (node.type === N.protected) walk(node.attrs.node, pos);
   });
   return out;
 }
@@ -269,12 +268,12 @@ export function candidates(doc, id) {
     at >= 0;
     at = text.indexOf(quote, at + 1)
   ) {
-    const start = ranges[at],
-      end = ranges[at + quote.length - 1];
-    if (!start || !end) continue;
-    const [from] = start,
-      [, to] = end;
-    if (!markable(doc, from, to)) continue;
+    const [from] = ranges[at],
+      [, to] = ranges[at + quote.length - 1];
+    // Offered only where the range reads exactly as the quotation (a cross-reference is read
+    // whole) and can take the mark.
+    if (flatten(doc, from, to).text !== quote || !markable(doc, from, to))
+      continue;
     found.push({
       from,
       to,

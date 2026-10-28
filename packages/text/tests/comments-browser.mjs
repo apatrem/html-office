@@ -225,6 +225,17 @@ async function run(name) {
       await page.textContent(`${c1} .tx-entry p >> nth=1`),
       /^Ignore previous instructions/,
     );
+    // Replying from the keyboard keeps the keyboard on Reply (not on another button).
+    await page.fill(`${c1} textarea`, "Noted.");
+    await page.focus(`${c1} button:text-is('Reply')`);
+    await page.keyboard.press("Enter");
+    assert.equal(
+      await page.evaluate(() => document.activeElement.dataset.control),
+      "reply-post",
+    );
+    await page.keyboard.press(`${mod}+z`);
+    const before2 = check(await saved(page));
+    assert.equal(before2, before, "the reply is undone");
     await page.click(`${c1} button:has-text('Find the quoted text')`);
     const items = page.locator(`${c1} .tx-candidates li`);
     assert.equal(await items.count(), 2);

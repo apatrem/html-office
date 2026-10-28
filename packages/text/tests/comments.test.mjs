@@ -404,3 +404,58 @@ test("each comment command is its own undo step", () => {
   assert.equal(t.node.attrs.status, "open");
   assert.equal(t.node.attrs.entries.length, 2, "the reply stays");
 });
+
+test("recovery after a cross-reference label with an emoji, and around block boundaries", () => {
+  const body = [
+    '<h1 id="s1">S</h1>',
+    '<h2 id="s-e">😀</h2>',
+    '<p>See <a class="xref" href="#s-e">😀</a> target here, end of one</p>',
+    "<p>start of two.</p>",
+  ].join("\n");
+  const emoji = editor(orphanOf(body, "target"));
+  const [c] = K.candidates(emoji.state.doc, "t1");
+  assert.ok(emoji.run(K.confirmCandidate("t1", c)));
+  assert.match(
+    emoji.saved(),
+    /<\/a> <mark class="comment" data-ref="t1">target<\/mark> here/,
+  );
+  // A quotation ending with a block boundary, as a selection into the next paragraph gives.
+  const boundary = editor(orphanOf(body, "one\n"));
+  const list = K.candidates(boundary.state.doc, "t1");
+  assert.equal(list.length, 1);
+  assert.ok(boundary.run(K.confirmCandidate("t1", list[0])));
+  assert.match(
+    boundary.saved(),
+    /end of <mark class="comment" data-ref="t1">one<\/mark><\/p>/,
+  );
+});
+
+test("a cross-reference is read whole: a quotation inside its label is no candidate", () => {
+  const body = [
+    '<h1 id="s1">S</h1>',
+    '<h2 id="s-n">the north</h2>',
+    '<p>See <a class="xref" href="#s-n">the north</a> site.</p>',
+  ].join("\n");
+  const e = editor(orphanOf(body, "north site"));
+  assert.deepEqual(K.candidates(e.state.doc, "t1"), []);
+});
+
+test("a heading nested in a protected block bounds sections", () => {
+  const body = [
+    '<h1 id="s1">One</h1>',
+    "<p>the quote here</p>",
+    '<div class="kept"><h1 id="s2">Two</h1></div>',
+    "<p>the quote again</p>",
+  ].join("\n");
+  const e = editor(orphanOf(body, "the quote", "s1"));
+  assert.deepEqual(
+    K.candidates(e.state.doc, "t1").map((c) => c.inSection),
+    [true, false],
+  );
+  e.select("quote", 1);
+  e.run(K.addComment(ALEX));
+  assert.equal(
+    K.threads(e.state.doc).find((t) => t.id === "c1").node.attrs.section,
+    "s2",
+  );
+});

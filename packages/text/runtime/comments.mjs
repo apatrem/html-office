@@ -170,6 +170,7 @@ export function commentsPanel(view, report) {
         {
           type: "button",
           class: "sh-b sh-t sh-ghost",
+          "data-control": "reply-post",
           onclick: () => {
             const who = author();
             if (!who) return;
@@ -240,6 +241,7 @@ export function commentsPanel(view, report) {
           {
             type: "button",
             class: "sh-b sh-t sh-ghost",
+            "data-control": "find",
             onclick: () => {
               recovery = {
                 id: t.id,
@@ -291,6 +293,7 @@ export function commentsPanel(view, report) {
               {
                 type: "button",
                 class: "sh-b sh-t sh-ghost",
+                "data-control": `attach-${i}`,
                 "aria-label": `Attach to place ${i + 1}`,
                 onclick: () => {
                   if (!run(K.confirmCandidate(t.id, c))) {
@@ -316,7 +319,12 @@ export function commentsPanel(view, report) {
       ),
       h(
         "button",
-        { type: "button", class: "sh-b sh-t sh-ghost", onclick: close },
+        {
+          type: "button",
+          "data-control": "cancel-recovery",
+          class: "sh-b sh-t sh-ghost",
+          onclick: close,
+        },
         "Cancel",
       ),
     ];
@@ -353,6 +361,7 @@ export function commentsPanel(view, report) {
                 {
                   type: "button",
                   class: "sh-b sh-t sh-primary",
+                  "data-control": "post",
                   onclick: (e) =>
                     post(e.target.closest(".tx-new").querySelector("textarea")),
                 },
@@ -363,6 +372,7 @@ export function commentsPanel(view, report) {
                 {
                   type: "button",
                   class: "sh-b sh-t sh-ghost",
+                  "data-control": "cancel-new",
                   onclick: () => {
                     draft = null;
                     render(true);
@@ -377,6 +387,7 @@ export function commentsPanel(view, report) {
             {
               type: "button",
               class: "sh-b sh-t sh-ghost",
+              "data-control": "start",
               onclick: start,
             },
             "Comment on the selection",
