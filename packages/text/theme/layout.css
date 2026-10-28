@@ -1,7 +1,7 @@
 /* html-text layout theme 1 (style#theme). Colours and fonts come from style#charte; page format A4, margins 25 mm. */
 html{background:var(--tint)}
 body{margin:0;color:var(--ink);font:11pt/1.45 var(--body-font,var(--font))}
-#doc{--page-w:210mm;--margin:25mm;page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+#doc{--page-w:210mm;--margin:25mm;--heading-format:"1.1.1.1";page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
 #doc[data-page=letter]{--page-w:215.9mm;page:letter}
 #doc[data-margins=narrow]{--margin:15mm;page:a4-narrow}
 #doc[data-margins=wide]{--margin:35mm;page:a4-wide}

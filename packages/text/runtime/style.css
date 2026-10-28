@@ -13,6 +13,12 @@
 #doc .tx-protected::after{content:"Protected: kept as written";position:absolute;top:-1.4em;right:0;font:11px system-ui,sans-serif;color:var(--sh-mute)}
 #doc .tx-plot svg{display:block;width:100%;height:auto}
 #doc .ProseMirror-selectednode{outline:2px solid var(--sh-focus)}
+/* Generated (T08): heading numbers and caption labels, never saved; cross-references that point nowhere. */
+#doc [data-tx-number]::before{content:attr(data-tx-number) "\2002"}
+#doc figcaption[data-tx-label]::before{content:attr(data-tx-label) ". ";font-weight:bold}
+#doc .xref.tx-missing{text-decoration:underline wavy #b42318;text-decoration-skip-ink:none}
+#doc .xref.tx-unnumbered{text-decoration:underline dotted}
+#doc .toc a{pointer-events:none}
 /* The editing view has one row list (no thead): header rows take the charte's header role, as thead th does in the theme. */
 #doc tr.tx-head>th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
 @media screen{body.tx-editing{padding-bottom:64px}}

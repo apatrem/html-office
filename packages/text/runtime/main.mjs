@@ -28,6 +28,8 @@ import {
 } from "../editor/schema/document.mjs";
 import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
+import * as G from "../editor/generated.mjs";
+import { regenerate } from "../editor/numbering.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
@@ -167,6 +169,7 @@ function start() {
     view.updateState(
       EditorState.create({ doc: next, plugins: view.state.plugins }),
     );
+    refresh();
     saving.edited();
     mirrorLook(next);
     commands.changed();
@@ -186,11 +189,23 @@ function start() {
       ? node
       : node.children?.map(findEngine).find(Boolean);
   const run = (command) => () => command(view.state, view.dispatch, view);
+  // The brand theme's heading format (style#theme --heading-format, T08).
+  const format = G.themeFormat(
+    getComputedStyle(article).getPropertyValue("--heading-format"),
+  );
+  // Generated labels and contents are rewritten on open, outside the undo history: a stale
+  // label written by hand or by an LLM shows as an unsaved change and is corrected on save.
+  const refresh = () => {
+    const tr = view.state.tr;
+    if (regenerate(tr, { format }))
+      view.dispatch(tr.setMeta("addToHistory", false));
+  };
   const state = EditorState.create({
     doc,
     plugins: [
       history(),
       subsetGuard(),
+      G.generatedContent({ format }),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -310,6 +325,36 @@ function start() {
     commands.register(key, (value) =>
       setLook(key, value)(view.state, view.dispatch),
     );
+  // Numbering, contents and cross-references (T08).
+  commands.register("heading-numbers", (on) =>
+    G.setHeadingNumbers(on)(view.state, view.dispatch),
+  );
+  commands.register("heading-format", (value) =>
+    G.setHeadingFormat(value, format)(view.state, view.dispatch),
+  );
+  edit("contents", G.insertContents);
+  for (const depth of [1, 2, 3, 4])
+    edit(`contents-${depth}`, G.setContentsDepth(depth));
+  // The cross-reference dialog lists the targets; as with links, the selection is put back
+  // once it has closed, then the chosen target is inserted there.
+  commands.register(
+    "xref",
+    () => {
+      const { anchor, head } = view.state.selection;
+      shell.xref(G.referenceTargets(view.state), (target) => {
+        const size = view.state.doc.content.size;
+        const at = (p) => Math.min(p, size);
+        view.dispatch(
+          view.state.tr.setSelection(
+            TextSelection.create(view.state.doc, at(anchor), at(head)),
+          ),
+        );
+        if (target) G.insertXref(target)(view.state, view.dispatch);
+        view.focus();
+      });
+    },
+    () => G.insertXref(null)(view.state),
+  );
   // What the toolbar and menus show as current.
   const current = () => {
     const s = view.state;
@@ -322,6 +367,7 @@ function start() {
       list: E.listKind(s)?.name ?? null,
       newPage: E.newPageAt(s),
       link: E.linkAt(s),
+      contents: G.selectedContents(s)?.node.attrs.depth ?? null,
     };
   };
   shell = mountShell(
@@ -330,7 +376,9 @@ function start() {
     report,
     () => view.state.doc.attrs,
     current,
+    format,
   );
+  refresh();
   mirrorLook(doc);
   document.body.classList.add("tx-editing");
   // Tests and tools read the editor through this handle; it is not part of the file.
