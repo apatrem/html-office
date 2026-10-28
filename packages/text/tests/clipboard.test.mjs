@@ -561,3 +561,43 @@ test("review 2: very wide elements and copied rows; text beside a copied cell is
   );
   assert.match(saved(blocks), /keep me/);
 });
+
+test("re-verification: deep Word lists stay within the format; a copied cell must be the only content", () => {
+  const word = (n, inner = "x") =>
+    Array.from(
+      { length: n },
+      (_, i) => `<p style="mso-list:l0 level${i + 1} lfo1">${inner}</p>`,
+    ).join("");
+  saved(map(word(150)).blocks);
+  saved(map(word(5000)).blocks);
+  saved(
+    map(
+      `<p style="mso-list:l0 level1 lfo1">${"<span>".repeat(5000)}<span style="mso-list:Ignore">1.</span>${"</span>".repeat(5000)}x</p>`,
+    ).blocks,
+  );
+  const wrapped = map(
+    '<div data-pm-slice="1 1 -3 []"><p>keep me</p><table><tr><td>b</td></tr></table></div>',
+  );
+  assert.match(saved(wrapped.blocks), /keep me/);
+  assert.equal(
+    map(
+      '<table style="display:none" data-pm-slice="1 1 -3 []"><tr><td>hidden</td></tr></table>',
+    ).blocks.length,
+    0,
+  );
+});
+
+test("re-verification: paragraph lines after a setext underline are still table rows", () => {
+  const html = body(
+    saved(
+      map(markdownHTML("| a | b |\n| --- | --- |\n| c | d |\n===\n| e | f |"))
+        .blocks,
+    ),
+  );
+  assert.match(html, /<tr><td>e<\/td><td>f<\/td><\/tr>/);
+  assert.doesNotMatch(html, /<p>\| e/);
+  const after = body(
+    saved(map(markdownHTML("| a |\n| --- |\n| b |\n===\n\nafter")).blocks),
+  );
+  assert.match(after, /<p>after<\/p>/);
+});
