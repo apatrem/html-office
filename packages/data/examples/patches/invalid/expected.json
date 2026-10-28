@@ -1,0 +1,7 @@
+{
+  "date-in-rows.json": "rows hold JSON numbers, strings, booleans or null",
+  "result-field.json": "do not write \"result\"; recalculation computes it",
+  "scenario-formula.json": "Scenario selector must be an input cell",
+  "unknown-field.json": "Unknown patch field",
+  "unknown-sheet.json": "unknown sheet"
+}

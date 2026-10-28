@@ -298,3 +298,38 @@ File › Print / PDF… (or Cmd/Ctrl+P) prints the selected sheet; the browser's
 - **Stale results**: unverified saved results, an uncalculated edit, or a pivot table on the sheet not known to be current (out of date, or its check pending or failed) add the PNG's warning band at the top.
 - The browser's own Print command prints the sheet with the defaults; a refused sheet prints the reason instead of the editor.
 
+## Tools and patches
+
+`tools/workbook.mjs` (Node 18+) works on this canonical JSON inside an HTML Data file and rewrites only `script#workbook`; everything else in the file stays byte-identical. The [examples](../examples/README.md) double as its test fixtures.
+
+| Command | What it does |
+| --- | --- |
+| `new OUT --model model.json [--offline] [--charte f.css] [--force]` | Validates a canonical workbook, calculates every result, draws chart previews and writes a standard or offline file |
+| `extract FILE [--out model.json]` | Prints the canonical JSON |
+| `inspect FILE [--range Sheet!A1:D20] [--json]` | Summarises sheets, results, pivots, charts and imported sources, or lists up to 5,000 cells with their displayed text |
+| `apply FILE PATCH (--out OUT \| --in-place) [--no-recalculate] [--refresh-pivots] [--dry-run]` | Validates the patch, writes it, recalculates, redraws out-of-date previews, and refuses any change outside the patch |
+| `recalculate FILE (--out OUT \| --in-place) [--refresh-pivots]` | Recalculates every result, optionally refreshes pivot tables, and redraws previews |
+| `validate FILE [--range R] [--since BEFORE --allow R1,R2 --allow-fields F1,F2] [--allow-stale]` | Reports missing or stale results, stale pivots and previews, error results in a range, and changes not allowed since BEFORE: cells outside the `--allow` ranges, and workbook fields not named in `--allow-fields` (those a patch replaced with `set`). Results, chart previews and pivot stamps and extents are caches; a pivot's anchor cell is not |
+
+A command that finds errors lists them all, each with its location (`Sheet!A1`, `edits[2]`, `rows[0].values[1][3]`, `set.x`, `workbook`), writes nothing and exits with code 1; usage errors exit with 2. Outputs are written to a temporary file and then renamed, so an interrupted write never leaves a partial file. Caches may change in any edit (results, chart previews, pivot stamps and pivot output cells); everything else outside the patch, including chart and pivot definitions, must stay identical.
+
+A patch is a JSON object:
+
+```json
+{
+  "edits": [
+    { "sheet": "Inputs", "ref": "B4", "cell": { "input": { "type": "number", "value": 40 } } },
+    { "sheet": "Budget", "ref": "A6", "cell": { "cellStyle": "note" } },
+    { "sheet": "Budget", "ref": "C9", "cell": null }
+  ],
+  "rows": [{ "sheet": "Sales", "at": "A10", "values": [["West", "Q2", 7, true, null]] }],
+  "set": { "theme": "green" }
+}
+```
+
+- `edits`: `sheet` is a stable ID or an exact name. A cell replaces the input or formula. Presentation fields it leaves out (`cellStyle`, `format`, `style`) are kept, `null` removes one, and a cell with only presentation fields keeps its value. `null` deletes the cell. `result` is never written: recalculation computes it.
+- `rows`: rectangular blocks of JSON numbers, strings and booleans written as typed inputs from `at`; `null` leaves a cell unchanged. Use `edits` for dates, errors and formulas.
+- `set`: replaces whole workbook fields: `validations`, `scenario`, `conditionalFormats`, `pivots`, `charts`, `names`, `groups`, `locale`, `theme`, `font`, `metadata` (`null` removes one). Sheets are added, renamed or reordered in the browser.
+- Pivot output cells and formulas in the scenario selector are refused. Every patch is validated as a whole: a refused patch changes nothing.
+- `sources` is not settable: imported files are read, and refreshed, only in the browser (Data › Import CSV…, Import XLSX…, Refresh source…), and `validate --since` reports any change to it. Patching cells of an imported sheet is a hand edit: the source's column fingerprints no longer match, so a later refresh asks before replacing those values.
+
