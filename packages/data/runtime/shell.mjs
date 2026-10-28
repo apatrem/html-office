@@ -501,6 +501,8 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
     {
       name: "Data",
       items: () => [
+        item("Import CSV…", "import-csv"),
+        "-",
         item("Recalculate", "recalculate"),
         item("Pivot tables…", "pivot-tables"),
         item("Refresh all pivot tables", "refresh-pivots"),

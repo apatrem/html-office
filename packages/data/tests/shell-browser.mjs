@@ -72,6 +72,7 @@ const MENUS = {
     "Clear formatting",
   ],
   Data: [
+    "Import CSV…",
     "Recalculate",
     "Pivot tables…",
     "Refresh all pivot tables",
