@@ -81,6 +81,7 @@ test("the plugin keeps its identity and the Slides skill", async () => {
     "assets/runtime.json",
     "assets/THIRD-PARTY-NOTICES.txt",
     "engine/vendor/ironcalc.wasm.gz",
+    "vendor/xlsx/xlsx.mini.min.js",
     "references/FORMAT.md",
     "examples/valid/budget.json",
     "examples/invalid/expected.json",
@@ -118,6 +119,10 @@ test("the extracted skill generates, edits and validates with Node alone", async
   }
   const budget = join(dir, "budget.html");
   assert.equal((await cli("validate", budget)).code, 0);
+  // Offline files carry the import chunk and the pinned XLSX reader (T15).
+  const offline = await readFile(join(dir, "budget-offline.html"), "utf8");
+  assert.match(offline, /<script id="import-source" type="text\/plain">/);
+  assert.match(offline, /<script id="xlsx-source" type="text\/plain">/);
   // The same workbook, editor and engine as a repository build.
   const own = await buildWorkbook(
       readModel(

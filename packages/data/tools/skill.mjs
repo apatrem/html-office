@@ -37,6 +37,9 @@ export const GENERATED = [
   "engine/manifest.json",
   "engine/vendor/ironcalc.mjs",
   "engine/vendor/ironcalc.wasm.gz",
+  "vendor/xlsx/xlsx.mini.min.js",
+  "vendor/xlsx/package.json",
+  "vendor/xlsx/LICENSE",
   "references/FORMAT.md",
   "examples",
 ];
@@ -93,6 +96,11 @@ export async function packageSkill(out) {
     "vendor/ironcalc.wasm.gz",
   ])
     await cp(join(data, "engine", file), join(out, "engine", file));
+  // The pinned SheetJS reader (T15), which offline workbooks embed for XLSX
+  // import; checked against its digest before each build.
+  await mkdir(join(out, "vendor/xlsx"), { recursive: true });
+  for (const file of ["xlsx.mini.min.js", "package.json", "LICENSE"])
+    await cp(join(data, "vendor/xlsx", file), join(out, "vendor/xlsx", file));
   await mkdir(join(out, "references"), { recursive: true });
   await writeFile(
     join(out, "references/FORMAT.md"),

@@ -68,6 +68,30 @@ export function shiftRange(ref, command) {
     end = address(row ? last : r.bottom, row ? r.right : last);
   return start === end ? start : `${start}:${end}`;
 }
+// A column inserted inside a source range is recorded as {inserted: true}
+// (the person's own column, which a refresh leaves alone); a deleted one
+// leaves the list. A deleted range keeps its list.
+function shiftSource(source, command) {
+  const ref = shiftRange(source.ref, command);
+  if (command.axis !== "column" || ref === "#REF!" || source.ref === "#REF!")
+    return { ...source, ref };
+  const { left, right } = parseRange(source.ref),
+    columns = [...source.columns];
+  if (command.action === "insert") {
+    if (command.index > left && command.index <= right)
+      columns.splice(
+        command.index - left,
+        0,
+        ...Array.from({ length: command.count }, () => ({ inserted: true })),
+      );
+  } else {
+    const from = Math.max(left, command.index),
+      to = Math.min(right, command.index + command.count - 1);
+    if (from <= to) columns.splice(from - left, to - from + 1);
+  }
+  const width = parseRange(ref).right - parseRange(ref).left + 1;
+  return { ...source, ref, columns: columns.slice(0, width) };
+}
 // Row/column formatting and dimensions follow their row or column; entries in
 // deleted rows/columns disappear with them.
 function shiftAxis(entries, command) {
@@ -218,6 +242,17 @@ export function shiftWorkbook(book, command) {
                   }
                 : chart.source,
           })),
+        }),
+    // An imported source's range shifts and shrinks like a dropdown source;
+    // its column list follows inserted and deleted columns.
+    ...(book.sources === undefined
+      ? {}
+      : {
+          sources: book.sources.map((source) =>
+            source.sheetId === command.sheetId
+              ? shiftSource(source, command)
+              : source,
+          ),
         }),
     names: book.names.map((name) =>
       name.sheetId === command.sheetId

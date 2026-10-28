@@ -127,6 +127,16 @@ export async function summary(book) {
       source: c.source,
       preview: !!c.preview,
     })),
+    // Imported files (T15): written by Data › Import and Refresh source in
+    // the browser, never by a patch.
+    sources: (book.sources ?? []).map((s) => ({
+      id: s.id,
+      kind: s.kind,
+      file: s.file.name,
+      sheetId: s.sheetId,
+      ref: s.ref,
+      importedAt: s.importedAt,
+    })),
   };
 }
 
