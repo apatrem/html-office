@@ -39,13 +39,30 @@ async function pictures(browser) {
     '<body style="margin:0;background:linear-gradient(90deg,#14517a,#c2521c)"><h1 style="font:80px sans-serif;color:#fff;margin:150px">Northwind</h1></body>',
   );
   const png = join(out, "picture.png"),
-    jpeg = join(out, "picture.jpg");
+    jpeg = join(out, "picture.jpg"),
+    gif = join(out, "picture.gif"),
+    clear = join(out, "picture-clear.png");
   await page.setViewportSize({ width: 2400, height: 1000 });
   await page.screenshot({ path: png });
   await page.setViewportSize({ width: 800, height: 600 });
   await page.screenshot({ path: jpeg, type: "jpeg" });
+  await page.setContent(
+    '<body style="margin:0;background:transparent"><div style="width:200px;height:100px;border-radius:50px;background:#c2521c"></div></body>',
+  );
+  await page.screenshot({
+    path: clear,
+    omitBackground: true,
+    clip: { x: 0, y: 0, width: 200, height: 100 },
+  });
   await page.close();
-  return { png, jpeg };
+  await writeFile(
+    gif,
+    Buffer.from(
+      "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+      "base64",
+    ),
+  );
+  return { png, jpeg, gif, clear };
 }
 
 const assetsOf = (text) =>
@@ -60,8 +77,12 @@ function check(text) {
   const file = parseFile(text);
   assert.equal(saveFile(file, openFile(file).doc), text, "canonical");
   const used = [...text.matchAll(/data-asset="([^"]+)"/g)].map((m) => m[1]);
+  // Every image asset is used (fonts are kept whatever uses them).
   assert.deepEqual(
-    Object.keys(assetsOf(text)).sort(),
+    Object.entries(assetsOf(text))
+      .filter(([, a]) => a.kind !== "font")
+      .map(([k]) => k)
+      .sort(),
     [...new Set(used)].sort(),
     "the saved assets are exactly the used ones",
   );
@@ -147,7 +168,8 @@ async function run(name) {
       /<figure class="image" id="fig-gradient-banner-with-the-name" data-width="25" data-wrap="left">\n<img data-asset="a2" alt="Gradient banner with the name">\n<\/figure>\n<blockquote>/,
     );
     const asset = assetsOf(text).a2;
-    assert.match(asset.type, /^image\/(webp|jpeg)$/);
+    // WebP where the browser encodes it; otherwise a PNG stays PNG (its transparency kept).
+    assert.match(asset.type, /^image\/(webp|png)$/);
     const size = await page.evaluate(
       (s) => document.querySelector(s).naturalWidth,
       `${added} img`,
@@ -168,6 +190,21 @@ async function run(name) {
     await page.selectOption("dialog.sh-dialog select >> nth=0", "full");
     await page.click("dialog.sh-dialog button:text-is('Apply')");
     await dialogClosed();
+    assert.match(
+      await page.getAttribute(added, "class"),
+      /ProseMirror-selectednode/,
+      "the changed figure stays visibly selected",
+    );
+    // Cancel changes nothing and puts the selection back.
+    await page.dblclick(`${added} img`);
+    await page.click("dialog.sh-dialog button:text-is('Cancel')");
+    await dialogClosed();
+    assert.equal(
+      await page.evaluate(
+        () => window.htmlText.view.state.selection.node?.attrs.id,
+      ),
+      "fig-gradient-banner-with-the-name",
+    );
     assert.match(
       check(await saved()),
       /id="fig-gradient-banner-with-the-name" data-width="full">\n/,
@@ -235,6 +272,75 @@ async function run(name) {
     );
     await reopened.close();
     pass("the saved file reopens with its images shown and nothing unsaved");
+
+    // ---- protected images and embedded fonts show; GIF and transparent PNG keep their kind ----
+    const variant = built
+      .replace(
+        '<section class="comments">',
+        () =>
+          '<div class="kept"><img data-asset="a1" alt="Kept"></div>\n<section class="comments">',
+      )
+      .replace(
+        /<script id="assets" type="application\/json">\{/,
+        (m) =>
+          `${m}"f1":{"kind":"font","family":"Brand Serif","type":"font/woff2","data":"AAAA"},`,
+      );
+    const variantPath = join(out, `images-variant-${name}.html`);
+    await writeFile(variantPath, variant);
+    const other = await context.newPage();
+    other.on("pageerror", (e) => errors.push(e.message));
+    await other.goto(pathToFileURL(variantPath).href);
+    await other.waitForFunction(() => window.htmlText);
+    await other.waitForFunction(() => {
+      const img = document.querySelector("#doc .tx-protected img");
+      return img?.complete && img.naturalWidth > 0;
+    });
+    assert.ok(
+      await other.evaluate(() =>
+        [...document.querySelectorAll("style")].some((s) =>
+          s.textContent.includes('@font-face{font-family:"Brand Serif"'),
+        ),
+      ),
+      "the embedded font is installed",
+    );
+    for (const [file, type] of [
+      [files.gif, "image/gif"],
+      [
+        files.clear,
+        name === "chromium" || name === "firefox" ? "image/webp" : "image/png",
+      ],
+    ]) {
+      await other.evaluate(() => {
+        const { view } = window.htmlText;
+        view.dispatch(
+          view.state.tr.setSelection(
+            view.state.selection.constructor.atStart(view.state.doc),
+          ),
+        );
+        view.focus();
+      });
+      const pick = other.waitForEvent("filechooser");
+      await other.click(".tx-shell [role=menubar] button:text-is('Insert')");
+      await other.click("[role=menu] [role^=menuitem]:has-text('Image…')");
+      await (await pick).setFiles(file);
+      await other.waitForSelector("dialog.sh-dialog textarea");
+      await other.fill("dialog.sh-dialog textarea", `Picture ${type}`);
+      await other.click("dialog.sh-dialog button:text-is('Insert')");
+      await other.waitForSelector("dialog.sh-dialog", { state: "detached" });
+    }
+    const kinds = Object.values(
+      assetsOf(check(await other.evaluate(() => window.htmlText.serialize()))),
+    ).map((a) => a.kind ?? a.type);
+    assert.ok(kinds.includes("image/gif"), kinds.join());
+    assert.ok(kinds.includes("font"), "the font is kept");
+    assert.ok(
+      kinds.includes(name === "webkit" ? "image/png" : "image/webp"),
+      kinds.join(),
+    );
+    await other.close();
+    pass(
+      "protected images and embedded fonts show; a GIF is kept, a transparent PNG never becomes JPEG",
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

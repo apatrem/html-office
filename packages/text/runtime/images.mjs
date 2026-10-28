@@ -8,7 +8,8 @@ import { imageProblem } from "../editor/images.mjs";
 import { WRAP_WIDTHS } from "../model/format.mjs";
 
 // A picked image file reduced to at most 1,600 px wide, WebP when the browser encodes it, else
-// JPEG; SVG is kept as it is. Returns {type, data (base64), width, height}.
+// JPEG for a JPEG and PNG for the rest (PNG keeps transparency). SVG and GIF (which may be
+// animated) are kept as they are. Returns {type, data (base64)}.
 export async function shrinkImage(file) {
   const base64 = (blob) =>
     new Promise((resolve, reject) => {
@@ -17,7 +18,7 @@ export async function shrinkImage(file) {
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
     });
-  if (file.type === "image/svg+xml")
+  if (file.type === "image/svg+xml" || file.type === "image/gif")
     return { type: file.type, data: await base64(file) };
   const bitmap = await createImageBitmap(file);
   const k = Math.min(1, 1600 / bitmap.width);
@@ -30,7 +31,10 @@ export async function shrinkImage(file) {
   let blob = await encode("image/webp", 0.82);
   // Safari encodes no WebP: it returns a PNG instead.
   if (!blob || blob.type !== "image/webp")
-    blob = await encode("image/jpeg", 0.85);
+    blob =
+      file.type === "image/jpeg"
+        ? await encode("image/jpeg", 0.85)
+        : await encode("image/png");
   return { type: blob.type, data: await base64(blob) };
 }
 
@@ -63,8 +67,8 @@ function imageView(store, edit) {
       if (select()) edit();
     });
     const contentDOM = dom.appendChild(document.createElement("div"));
+    dom.className = "image";
     const render = (n) => {
-      dom.className = "image";
       dom.id = n.attrs.id;
       dom.dataset.width = n.attrs.width;
       if (n.attrs.wrap) dom.dataset.wrap = n.attrs.wrap;
@@ -90,9 +94,42 @@ function imageView(store, edit) {
   };
 }
 
-// Draws image figures from the store; a double click on a picture opens its settings.
+// Every picture of the document from the store: figures and images inside protected blocks,
+// which are drawn from their saved tree (the src is never part of the document).
+function resolveImages(root, store) {
+  for (const img of root.querySelectorAll("img[data-asset]")) {
+    const url = store.url(img.dataset.asset);
+    if (url && img.getAttribute("src") !== url) img.src = url;
+  }
+}
+// The fonts of the asset store as @font-face rules (their fields passed the asset contract).
+const fontCSS = (store) =>
+  store
+    .fonts()
+    .map(
+      (a) =>
+        `@font-face{font-family:"${a.family}";src:url(data:${a.type};base64,${a.data});font-weight:${a.weight || 400};font-style:${a.style || "normal"}}`,
+    )
+    .join("");
+
+// Draws image figures from the store and installs its fonts; a double click on a picture opens
+// its settings. A restored draft brings other assets: every picture and font follows.
 export const imagePlugin = (store, edit) =>
   new Plugin({
+    view(view) {
+      const style = document.createElement("style");
+      document.head.append(style);
+      let version = -1;
+      const sync = () => {
+        if (version !== store.version) {
+          version = store.version;
+          style.textContent = fontCSS(store);
+        }
+        resolveImages(view.dom, store);
+      };
+      sync();
+      return { update: sync, destroy: () => style.remove() };
+    },
     props: { nodeViews: { image_figure: imageView(store, edit) } },
   });
 
@@ -105,7 +142,8 @@ const LAYOUTS = [
 
 // The image dialog: alt text (required), layout and width; for an image already in the
 // document, Replace picks another file. initial: {alt, width, wrap} or null for a new image.
-// onSave({alt, width, wrap}) applies; onReplace() picks a file; done() returns focus.
+// onSave({alt, width, wrap}) applies; onReplace() picks a file; done() runs when it closes
+// without either (it puts the selection back).
 export function imageDialog({ initial, preview, onSave, onReplace, done }) {
   const alt = h("textarea", {
     rows: "2",
@@ -197,7 +235,7 @@ export function imageDialog({ initial, preview, onSave, onReplace, done }) {
       onClose: () => {
         if (result === "save") onSave(attrs());
         else if (result === "replace") onReplace();
-        done();
+        else done();
       },
       opener: { isConnected: false },
     },

@@ -213,3 +213,29 @@ test("moving a block carries its wrapped images; the cover and comments stay", (
   assert.equal(c.run(moveBlock(-1)), false);
   assert.equal(c.run(moveBlock(1)), false);
 });
+
+test("a dialog's change targets its figure by ID; a restored store replaces the old assets", () => {
+  const e = editor(
+    source(
+      `${BODY}\n<figure class="image" id="fig-b" data-width="text">\n<img data-asset="a1" alt="Second">\n</figure>`,
+    ),
+  );
+  e.cursor("Last.");
+  assert.ok(e.run(setImage({ alt: "Renamed" }, "fig-b")));
+  assert.match(
+    articleHTML(e.state.doc),
+    /id="fig-b" data-width="text">\n<img data-asset="a1" alt="Renamed">/,
+  );
+  assert.equal(e.run(setImage({ alt: "x" }, "fig-gone")), false);
+  // A draft's zones replace the store: the opened file's font and images are gone.
+  const restored = parseFile(
+    source(BODY, `{"a1":{"type":"image/png","data":"${PNG}"}}`),
+  );
+  e.store.reset(restored);
+  assert.deepEqual(e.store.fonts(), []);
+  assert.equal(
+    e.store.fileFor(restored, e.state.doc),
+    restored,
+    "its zone as it is",
+  );
+});

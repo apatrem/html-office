@@ -80,23 +80,37 @@ export const insertImage = (attrs) => (state, dispatch) => {
   return true;
 };
 
-// Changes the image figure at the selection: any of {asset, alt, width, wrap}.
-export const setImage = (changes) => (state, dispatch) => {
-  const found = imageAt(state);
-  if (!found) return false;
-  const next = { ...found.node.attrs, ...changes };
-  next.alt = String(next.alt ?? "").trim();
-  if (!next.asset || imageProblem(next)) return false;
-  const same = Object.keys(next).every((k) => next[k] === found.node.attrs[k]);
-  if (same) return false;
-  if (dispatch) {
-    const tr = state.tr.setNodeMarkup(found.pos, null, next);
-    if (state.selection instanceof NodeSelection)
+// The image figure with an ID: {pos, node}, or null once it is gone.
+export function imageById(state, id) {
+  let found = null;
+  state.doc.forEach((node, pos) => {
+    if (node.type === N.image_figure && node.attrs.id === id)
+      found = { pos, node };
+  });
+  return found;
+}
+
+// Changes an image figure: the one with ID `id`, or the one at the selection; any of {asset, alt,
+// width, wrap}. A dialog names its figure by ID, so an edit made meanwhile never retargets it.
+export const setImage =
+  (changes, id = null) =>
+  (state, dispatch) => {
+    const found = id === null ? imageAt(state) : imageById(state, id);
+    if (!found) return false;
+    const next = { ...found.node.attrs, ...changes };
+    next.alt = String(next.alt ?? "").trim();
+    if (!next.asset || imageProblem(next)) return false;
+    const same = Object.keys(next).every(
+      (k) => next[k] === found.node.attrs[k],
+    );
+    if (same) return false;
+    if (dispatch) {
+      const tr = state.tr.setNodeMarkup(found.pos, null, next);
       tr.setSelection(NodeSelection.create(tr.doc, found.pos));
-    dispatch(tr);
-  }
-  return true;
-};
+      dispatch(tr);
+    }
+    return true;
+  };
 
 // ---------- moving blocks with their anchored images ----------
 const fixed = (node) => node.type === N.cover || node.type === N.comments;

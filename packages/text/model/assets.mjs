@@ -25,13 +25,17 @@ export function assetStore(file) {
     } catch {
       original = {};
     }
-    all = { ...all, ...original };
+    // Restoring a draft replaces the document and its history: the previous assets go.
+    all = { ...original };
     urls.clear();
+    store.version++;
   };
-  load(file);
-  return {
+  const store = {
+    version: 0,
     // A draft restored with other zones brings its own assets.
     reset: load,
+    // The fonts of the store: [{family, type, data, weight, style}].
+    fonts: () => Object.values(all).filter((a) => a.kind === "font"),
     url(key) {
       const a = all[key];
       if (!a?.data) return null;
@@ -92,4 +96,6 @@ export function assetStore(file) {
       };
     },
   };
+  load(file);
+  return store;
 }

@@ -412,7 +412,7 @@ function start() {
           view.dispatch,
         );
       },
-      done: () => view.focus(),
+      done: back,
     });
   });
   commands.register(
@@ -421,20 +421,24 @@ function start() {
       const found = I.imageAt(view.state);
       if (!found) return;
       const back = keepSelection();
+      // The figure is named by its ID: an edit made while the dialog or the file picker is open
+      // never retargets the change to another image.
+      const { id } = found.node.attrs;
+      const apply = (changes) => {
+        back();
+        I.setImage(changes, id)(view.state, view.dispatch);
+        view.focus();
+      };
       imageDialog({
         initial: found.node.attrs,
         preview: assets.url(found.node.attrs.asset),
-        onSave: (attrs) => {
-          back();
-          I.setImage(attrs)(view.state, view.dispatch);
-        },
+        onSave: apply,
         onReplace: async () => {
           const image = await addImage();
-          back();
-          if (image)
-            I.setImage({ asset: assets.add(image) })(view.state, view.dispatch);
+          if (image) apply({ asset: assets.add(image) });
+          else back();
         },
-        done: () => view.focus(),
+        done: back,
       });
     },
     () => !!I.imageAt(view.state),
