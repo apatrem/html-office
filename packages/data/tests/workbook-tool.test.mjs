@@ -551,3 +551,74 @@ test("validate --since flags a moved pivot and allows named fields", async () =>
     2,
   );
 });
+
+// Imported sources (T15, T16) are kept by the tools: listed by inspect, not
+// settable, unchanged by a cell patch on the imported sheet.
+test("imported sources are listed and kept", async () => {
+  const model = JSON.parse(
+      await readFile(join(examples, "valid/sales.json"), "utf8"),
+    ),
+    hex = "a".repeat(64);
+  model.sources = [
+    {
+      id: "source-1",
+      sheetId: "sales",
+      ref: "A1:F2",
+      kind: "xlsx",
+      file: { name: "sales.xlsx", bytes: 2048, sha256: hex },
+      importedAt: "2026-10-28T10:00:00.000Z",
+      options: { sheet: "Sales", header: true },
+      columns: ["A", "B", "C", "D", "E", "F"].map((name) => ({
+        name,
+        type: "auto",
+        fingerprint: hex,
+      })),
+    },
+  ];
+  const source = join(dir, "imported.json"),
+    file = join(dir, "imported.html");
+  await writeFile(source, JSON.stringify(model));
+  assert.equal((await cli("new", file, "--model", source)).code, 0);
+  const listed = JSON.parse((await cli("inspect", file, "--json")).out);
+  assert.deepEqual(listed.sources, [
+    {
+      id: "source-1",
+      kind: "xlsx",
+      file: "sales.xlsx",
+      sheetId: "sales",
+      ref: "A1:F2",
+      importedAt: "2026-10-28T10:00:00.000Z",
+    },
+  ]);
+  const refused = join(dir, "set-sources.json");
+  await writeFile(refused, JSON.stringify({ set: { sources: null } }));
+  const result = await cli("apply", file, refused, "--dry-run");
+  assert.equal(result.code, 1);
+  assert.match(result.out, /set\.sources: not settable/);
+  const edit = join(dir, "edit-imported.json"),
+    out = join(dir, "imported-2.html");
+  await writeFile(
+    edit,
+    JSON.stringify({
+      rows: [{ sheet: "Sales", at: "A3", values: [["West"]] }],
+    }),
+  );
+  const applied = await cli(
+    "apply",
+    file,
+    edit,
+    "--out",
+    out,
+    "--refresh-pivots",
+  );
+  assert.equal(applied.code, 0, applied.out);
+  assert.equal(
+    readDocument(await readFile(out, "utf8")).book.sources[0].columns[0]
+      .fingerprint,
+    hex,
+  );
+  assert.equal(
+    (await cli("validate", out, "--since", file, "--allow", "Sales!A3")).code,
+    0,
+  );
+});

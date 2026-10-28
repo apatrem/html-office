@@ -306,7 +306,7 @@ File › Print / PDF… (or Cmd/Ctrl+P) prints the selected sheet; the browser's
 | --- | --- |
 | `new OUT --model model.json [--offline] [--charte f.css] [--force]` | Validates a canonical workbook, calculates every result, draws chart previews and writes a standard or offline file |
 | `extract FILE [--out model.json]` | Prints the canonical JSON |
-| `inspect FILE [--range Sheet!A1:D20] [--json]` | Summarises sheets, results, pivots and charts, or lists up to 5,000 cells with their displayed text |
+| `inspect FILE [--range Sheet!A1:D20] [--json]` | Summarises sheets, results, pivots, charts and imported sources, or lists up to 5,000 cells with their displayed text |
 | `apply FILE PATCH (--out OUT \| --in-place) [--no-recalculate] [--refresh-pivots] [--dry-run]` | Validates the patch, writes it, recalculates, redraws out-of-date previews, and refuses any change outside the patch |
 | `recalculate FILE (--out OUT \| --in-place) [--refresh-pivots]` | Recalculates every result, optionally refreshes pivot tables, and redraws previews |
 | `validate FILE [--range R] [--since BEFORE --allow R1,R2 --allow-fields F1,F2] [--allow-stale]` | Reports missing or stale results, stale pivots and previews, error results in a range, and changes not allowed since BEFORE: cells outside the `--allow` ranges, and workbook fields not named in `--allow-fields` (those a patch replaced with `set`). Results, chart previews and pivot stamps and extents are caches; a pivot's anchor cell is not |
@@ -331,4 +331,5 @@ A patch is a JSON object:
 - `rows`: rectangular blocks of JSON numbers, strings and booleans written as typed inputs from `at`; `null` leaves a cell unchanged. Use `edits` for dates, errors and formulas.
 - `set`: replaces whole workbook fields: `validations`, `scenario`, `conditionalFormats`, `pivots`, `charts`, `names`, `groups`, `locale`, `theme`, `font`, `metadata` (`null` removes one). Sheets are added, renamed or reordered in the browser.
 - Pivot output cells and formulas in the scenario selector are refused. Every patch is validated as a whole: a refused patch changes nothing.
+- `sources` is not settable: imported files are read, and refreshed, only in the browser (Data › Import CSV…, Import XLSX…, Refresh source…), and `validate --since` reports any change to it. Patching cells of an imported sheet is a hand edit: the source's column fingerprints no longer match, so a later refresh asks before replacing those values.
 
