@@ -129,10 +129,12 @@ try {
         /<script id="engine-config"[^>]*>([\s\S]*?)<\/script>/.exec(html),
       standardConfig = JSON.parse(configMatch[1]);
     delete standardConfig.embedded;
-    // A standard build embeds neither the engine nor ECharts (T18).
+    // A standard build embeds neither the engine, ECharts (T18) nor the
+    // XLSX reader (T15).
     const standardHTML = html
       .replace(configMatch[1], JSON.stringify(standardConfig))
-      .replace(/<script id="echarts-source"[^>]*>[\s\S]*?<\/script>\n?/, "");
+      .replace(/<script id="echarts-source"[^>]*>[\s\S]*?<\/script>\n?/, "")
+      .replace(/<script id="xlsx-source"[^>]*>[\s\S]*?<\/script>\n?/, "");
     const standardSize = measureHTML(standardHTML);
     assert.ok(standardSize.applicationCodeBytes < STANDARD_CODE_CEILING);
     await writeFile(resolve(out, `${item.id}-standard.html`), standardHTML);
