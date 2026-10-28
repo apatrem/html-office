@@ -10,7 +10,12 @@ import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { schema } from "../editor/schema/schema.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
-import { numbering, formatNumber, regenerate } from "../editor/numbering.mjs";
+import {
+  numbering,
+  formatNumber,
+  regenerate,
+  fileFormat,
+} from "../editor/numbering.mjs";
 import {
   generatedContent,
   generatedKey,
@@ -195,7 +200,7 @@ test("contents list headings up to their depth, nested, with numbers", () => {
     {
       target: "a",
       label: "1 Alpha beta",
-      children: [{ target: "a1", label: "1.1 A x one", children: [] }],
+      children: [{ target: "a1", label: "1.1 A Annex one", children: [] }],
     },
     { target: "b", label: "Annex", children: [] },
   ]);
@@ -205,13 +210,73 @@ test("contents list headings up to their depth, nested, with numbers", () => {
   );
 });
 
-test("targets inside protected blocks keep their label and are not missing", () => {
+test("targets inside protected blocks keep their label and are not missing; other IDs are", () => {
   const doc = docOf(
-    '<div id="kept"><h2 id="old">Old</h2></div>\n<p><a class="xref" href="#old">As written</a></p>',
+    '<div id="kept"><h2 id="old">Old</h2></div>\n<p><a class="xref" href="#old">As written</a> <a class="xref" href="#kept">Kept</a></p>',
   );
-  const [x] = numbering(doc).xrefs;
+  const [x, other] = numbering(doc).xrefs;
   assert.equal(x.label, null);
   assert.equal(x.missing, false);
+  assert.equal(other.label, null);
+  assert.equal(
+    other.missing,
+    true,
+    "a protected block's own ID is not a target",
+  );
+});
+
+test("references between headings settle in one pass: chains, cycles and self-references", () => {
+  const xref = (id) => `<a class="xref" href="#${id}">x</a>`;
+  const body = [
+    `<h1 class="unnumbered" id="self">Self ${xref("self")}</h1>`,
+    `<h1 class="unnumbered" id="a">A ${xref("b")}</h1>`,
+    `<h1 class="unnumbered" id="b">B ${xref("a")}</h1>`,
+    ...Array.from(
+      { length: 9 },
+      (_, i) =>
+        `<h2 class="unnumbered" id="c${i}">C${i} ${xref(`c${i + 1}`)}</h2>`,
+    ),
+    '<h2 class="unnumbered" id="c9">End</h2>',
+    `<h1 id="n">Numbered ${xref("a")}</h1>`,
+    '<nav class="toc" data-depth="1"></nav>',
+  ].join("\n");
+  const state = EditorState.create({ doc: docOf(body) });
+  const tr = state.tr;
+  assert.ok(regenerate(tr));
+  const once = articleHTML(tr.doc);
+  assert.equal(regenerate(tr), false, "a second pass changes nothing");
+  assert.match(
+    once,
+    /id="self">Self <a class="xref" href="#self">Self Self<\/a>/,
+  );
+  assert.match(once, /id="a">A <a class="xref" href="#b">B A<\/a>/);
+  assert.match(once, /id="b">B <a class="xref" href="#a">A B<\/a>/);
+  assert.match(once, /id="c0">C0 <a class="xref" href="#c1">C1 C2<\/a>/);
+  assert.match(once, /id="c8">C8 <a class="xref" href="#c9">End<\/a>/);
+  assert.match(once, /<li><a href="#a">A B<\/a><\/li>/);
+  assert.match(once, /<li><a href="#n">1 Numbered A<\/a><\/li>/);
+});
+
+test("fileFormat reads the last --heading-format of style#theme, comments left out", () => {
+  const withTheme = (css) =>
+    parseFile(
+      `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>T</title>\n<style id="theme">${css}</style>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en">\n<p>x</p>\n</article>\n</body>\n</html>\n`,
+    );
+  assert.equal(
+    fileFormat(
+      withTheme('#doc{--heading-format:"1.1.1.1";--heading-format:"I.A.1.a"}'),
+    ),
+    "I.A.1.a",
+  );
+  assert.equal(
+    fileFormat(
+      withTheme(
+        '#doc{--heading-format:"A.1.a.i"}/* --heading-format:"I.A.1.a" */',
+      ),
+    ),
+    "A.1.a.i",
+  );
+  assert.equal(fileFormat(withTheme("#doc{}")), "1.1.1.1");
 });
 
 test("themeFormat reads --heading-format and falls back to decimals", () => {
@@ -332,6 +397,19 @@ test("moving, deleting and renumbering sections relabels everything in the same 
   assert.match(e.saved(), /href="#two">Section 2</);
 });
 
+test("typing in a self-referencing heading, then undo, restores the label", () => {
+  const e = editor(
+    '<h1 class="unnumbered" id="a">A <a class="xref" href="#a">x</a></h1>\n<p>End.</p>',
+  );
+  const opened = e.saved();
+  assert.match(opened, /href="#a">A A<\/a>/);
+  e.dispatch(e.state.tr.insertText("Z", e.find("A ") + 1));
+  assert.match(e.saved(), /id="a">AZ <a class="xref" href="#a">AZ AZ<\/a>/);
+  undo(e.state, e.dispatch);
+  assert.equal(e.saved(), opened);
+  assert.equal(undo(e.state), false, "nothing older to undo");
+});
+
 test("typing in a paragraph maps the decorations; typing in a heading updates the contents", () => {
   const e = editor(SECTIONS);
   const start = generatedKey.getState(e.state).decorations.find().length;
@@ -402,5 +480,35 @@ test("cross-references cannot go into code or a link", () => {
   assert.match(
     e.saved(),
     /<a href="https:\/\/a.b">li<\/a><a class="xref" href="#h">Section 1<\/a><a href="https:\/\/a.b">nk<\/a>/,
+  );
+});
+
+test("check reports stale labels and contents with their location, as the editor sees them", async () => {
+  const { checkSource } = await import("../tools/check.mjs");
+  const source = envelope(
+    [
+      '<article id="doc" data-format="1" lang="en" data-heading-numbers="on">',
+      '<nav class="toc" data-depth="1"></nav>',
+      '<h1 id="a">A</h1>',
+      '<p>See <a class="xref" href="#a">Section 9</a> and <a class="xref" href="#gone">Figure 2</a>.</p>',
+      "</article>",
+    ].join("\n"),
+  ).replace(
+    "</head>",
+    '<style id="theme">#doc{--heading-format:"1.1.1.1";--heading-format:"I.A.1.a"}</style>\n</head>',
+  );
+  const findings = checkSource(source).warnings.map((w) => [
+    w.code,
+    w.line,
+    w.col,
+  ]);
+  assert.deepEqual(findings, [
+    ["missing-target", 12, 68],
+    ["stale-label", 12, 8],
+    ["stale-contents", 10, 1],
+  ]);
+  assert.match(
+    checkSource(source).warnings.find((w) => w.code === "stale-label").message,
+    /not "Section I"/,
   );
 });
