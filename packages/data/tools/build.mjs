@@ -27,6 +27,7 @@ import { EngineSession } from "../engine/adapter.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
 import { renderPreviews, embeddedECharts } from "./chart-previews.mjs";
+import { xlsxLibrary, xlsxPackage } from "./xlsx-library.mjs";
 // Standard-mode embedded application code ceiling for HTML Data (ADR-010).
 export const STANDARD_CODE_CEILING = 750000;
 const root = new URL("../", import.meta.url);
@@ -49,6 +50,7 @@ Conditional formatting: optional conditionalFormats stores up to 100 ordered exp
 Formatting: cell styles, number formats, bold/italic, charte colours, borders, alignment, wrap and Clear formatting apply to the selected rectangle without changing typed values or formula precision. More than 50,000 cells is refused; whole rows or columns (header click, Shift+Space, Ctrl+Space) write row or column styles. Wrap and column-width commands store the automatic row heights. Copy style tiles the source formatting. Links are edited with Insert > Link (Ctrl/Cmd+K) and stored per sheet. The workbook locale controls number/date display only; formula names and decimal syntax remain English. Dates use the Excel 1900 calendar, including fictitious 29 February 1900 (serial 60); date formatting hides time fractions, and negative/out-of-range serials display #### without altering the value. Shared branding lives in style#charte (Slides-compatible CSS variables): --ink/--acc/--lig/--alert/--tint/--bg/--font and optional --header-bg/--header-ink/--row-label-bg/--row-label-ink/--assumption-bg/--assumption-ink/--calculation-bg. Build with --charte FILE to embed the same brand stylesheet as a deck.
 Pivot tables: optional workbook.pivots holds up to 50 {id,name?,source:{sheetId,ref?},output:{sheetId,ref},rows,columns,filters,values,refreshed?}. source.ref is an A1 range whose first row names the fields (header text, or the canonical string of a number/Boolean); without ref the source is the sheet's used range from A1 and the output must be on another sheet. rows (0–4), columns (0–2) and filters (0–4) list distinct field names; values lists 1–8 {field,aggregate:"sum"|"count"|"average"}; a filter is {field,values:[typedValue,...]} keeping records whose typed value is listed ({"type":"blank"} for blanks). output.ref is the rectangle the pivot owns, top-left cell = anchor; outputs never overlap each other or their own source. Output cells are ordinary typed inputs (header rows, Sum of X / Count of X / Average of X labels, one row per row item, Total row and columns), readable without the engine. Grouping is typed (no case folding or text/number coercion), missing/blank = "(blank)" item, items sorted numbers, dates, text, Booleans, errors, blank. SUM adds numbers/dates in source order, COUNT counts non-blank values, AVERAGE = sum/count of numbers (#DIV/0! without one); errors propagate into SUM/AVERAGE; empty combinations stay empty; totals aggregate records. refreshed.fingerprint is the SHA-256 source revision. Refresh is explicit (Data > Pivot tables, Refresh all pivot tables): it recalculates, aggregates in the calculation worker and writes the cells and definition as one undoable step. Do not edit owned output cells: change the definition and refresh, or the editor marks the pivot stale. Edits into owned cells and row/column operations that would split an output are refused. Calculated fields, slicers and subtotals are not supported.
 Charts: optional workbook.charts holds up to 50 {id,sheetId,anchor,width,height,type,options,source,preview?}. type is column|hbar|stacked|line|waterfall|bubble|gantt (the Slides chart types). options holds only the chart-level fields of the shared Slides chart contract (title, unit, decimals, prefix, suffix, highlight, and per type percent/horizontal/totals, labels/scale, increase, xLabel/yLabel/xUnit/yUnit/xRef/yRef); never data arrays. source {sheetId,ref} is one rectangular A1 block, header row first, whose columns follow the type's table: column/hbar/line/stacked = category then one column per series (series names in the header row); waterfall = label, value, total (TRUE or y); bubble = name, x, y, size; gantt = task, start, end, group, highlight. The chart's data is derived from the block's typed values on every change: labels use displayed text, numbers keep full precision (formats do not round them), Gantt dates become ISO text, and blanks/text in category charts become missing points. anchor is the top-left cell on sheetId; width 160–2000 and height 120–1600 px. preview {svg,revision} is a saved SVG drawing shown as an image without ECharts; revision is the SHA-256 of what it shows, so a preview whose data changed is out of date and redrawn when edited. Do not write previews by hand: omit preview, or keep the existing one; the repository build draws missing ones. Structural edits move anchors and data ranges (a deleted range becomes "#REF!"). ECharts loads (pinned version, SRI-checked) only to draw or edit charts; offline builds embed it.
+Imported sources: Data > Import CSV reads a local file in the page (never uploaded), previews typed values and adds one table sheet in Raw Data as one undoable step. Data > Import XLSX reads chosen worksheets with the pinned SheetJS reader (embedded offline, or fetched from cdn.sheetjs.com with SRI only for an XLSX import, run in a worker without network access) and adds one table sheet per worksheet; formulas Data cannot run (external links, table references, 3D ranges, sheets not imported, array formulas) keep their saved values, and macros, connections, charts, pictures, comments, merges and styles are reported, never imported. Optional workbook.sources holds up to 100 {id,sheetId,ref,kind:"csv"|"xlsx",file:{name,bytes,modified?,sha256},importedAt,options,columns:[{name,type:"auto"|"text"|"number"|"date"|"boolean",fingerprint}]}; csv options are {encoding,delimiter,header,decimal:"point"|"comma",dates:"dmy"|"mdy"}, xlsx options are {sheet,header}. file.name is a name, never a path; the imported values are ordinary cells and stay freely editable. Column fingerprints are SHA-256 digests of each column's typed inputs at import, so a refresh can tell hand edits; do not invent them. ref shifts with row/column operations. Ambiguous decimal separators or date orders are never guessed: the person chooses. Leading zeros and long identifiers stay text; imported text that looks like a formula stays literal text. Data > Refresh source replaces the current sheet's source from a replacement local file the person picks (no live link): columns match by header; a missing column must be mapped to another column, cleared or kept; added columns go to the right; hand-edited columns (fingerprint mismatch) need confirmation; changed values and dependent formulas, pivots, charts, rules and dropdowns are shown first; one undoable step.
 Print / PDF (File menu, Cmd/Ctrl+P) prints the selected sheet from A1 to its last cell record with the grid's look (displayed values and formats, styles, borders, conditional formatting, data bars), without the engine or the network: leading header-styled rows (up to 5) repeat on every page in Chrome and Edge, rows never split, wide sheets fit the page width down to 60% or split into pages across with the first column repeated, and the sheet's charts follow the table as their live drawing or saved SVG preview. Stale results add a warning band. The browser's print dialog saves the PDF; the workbook is not changed.
 Structural editing: Insert/Delete rows or columns uses the current rectangular selection's row/column span. Formulas are rewritten by IronCalc and the resulting strings are saved in the model. Named ranges are {name,sheetId,ref}; ref is an A1 rectangle or "#REF!" if entirely removed. Broken names return typed reference errors, including after reopening. Stable sheet IDs and unrelated typed values/styles are preserved. The operation commits only after successful recalculation, is undoable, and moves recovery references atomically. Insertion that would push populated cells outside Excel's bounds fails unchanged.
 This implementation is not yet the complete V1. Its grid renders a bounded viewport across Excel-sized row/column bounds; all populated cells remain embedded. Arrow keys navigate, Shift selects a rectangle, F2 edits, Enter applies from the formula bar and Escape restores the form.
@@ -174,6 +176,23 @@ export async function buildWorkbook(
     metafile: true,
     legalComments: "none",
   });
+  // CSV and XLSX import (T15) and refresh (T16) are a separate chunk, run
+  // only when a file is imported.
+  const importer = await build({
+    entryPoints: [new URL("runtime/import.mjs", root).pathname],
+    bundle: true,
+    minify: true,
+    format: "esm",
+    platform: "browser",
+    target: "es2022",
+    write: false,
+    metafile: true,
+    legalComments: "none",
+  });
+  const importText = importer.outputFiles[0].text.replace(
+    /<\/script/gi,
+    "<\\/script",
+  );
   const recoveryText = recovery.outputFiles[0].text.replace(
     /<\/script/gi,
     "<\\/script",
@@ -189,14 +208,21 @@ export async function buildWorkbook(
       (await readFile(new URL("../shared/shell/panels.css", root), "utf8")) +
       (await readFile(new URL("runtime/style.css", root), "utf8")) +
       charteCSS();
-  // Retained IronCalc/Rust texts, any npm package esbuild bundled, and
-  // ECharts, which offline builds embed and the editor may load (T18).
+  // Retained IronCalc/Rust texts, any npm package esbuild bundled, ECharts,
+  // which offline builds embed and the editor may load (T18), and SheetJS,
+  // which offline builds embed and XLSX import may load (T15).
   const notices = dataNotices(
     await readFile(new URL("engine/THIRD-PARTY-NOTICES.txt", root), "utf8"),
     JSON.parse(await readFile(new URL("engine/dependency-audit.json", root))),
     packageEntries([
-      ...bundledPackages([result.metafile, worker.metafile, recovery.metafile]),
+      ...bundledPackages([
+        result.metafile,
+        worker.metafile,
+        recovery.metafile,
+        importer.metafile,
+      ]),
       echartsPackage(),
+      xlsxPackage(),
     ]),
   );
   const initial = preview(book.sheets[0], book.locale);
@@ -238,7 +264,8 @@ ${helpDialogHTML(formatGuide, notices)}
 <div id="shell-layer" data-shell-mount></div>
 <script id="worker-source" type="text/plain">${workerText}</script>
 <script id="recovery-worker-source" type="text/plain">${recoveryText}</script>
-${offline ? `<script id="echarts-source" type="text/plain">${await embeddedECharts()}</script>\n` : ""}<script type="module">${js}</script></body></html>`;
+<script id="import-source" type="text/plain">${importText}</script>
+${offline ? `<script id="echarts-source" type="text/plain">${await embeddedECharts()}</script>\n<script id="xlsx-source" type="text/plain">${await xlsxLibrary()}</script>\n` : ""}<script type="module">${js}</script></body></html>`;
   const size = measureHTML(html);
   if (!offline && size.applicationCodeBytes >= STANDARD_CODE_CEILING)
     throw new Error(
