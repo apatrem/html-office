@@ -160,7 +160,7 @@ Use `text-example.html`. After each paste: the result uses the document's own st
 5. **Plain text**: ⌘⇧V / Ctrl+Shift+V (Chrome, Edge, Firefox), or Edit › Paste as plain text (Safari asks for permission with a Paste button), pastes the same copied web page as plain paragraphs.
 6. **Where the paste lands**: paste a heading and a list at the end of a paragraph (they stay a heading and a list after it); paste two paragraphs into a table cell (one cell, the lines joined by line breaks); paste into the code block (plain text).
 7. **html-office tables**: copy a range in `data-pnl.html` and a table in `slides-catalogue.html` and paste each into Text: a table with its header and total rows, merges and alignment. Repeat across Chrome and Safari (the HTML carrier).
-8. **Copying a Text table**: ⌘-click (Ctrl-click) inside the regions table until the whole table is outlined, copy, and paste it into Word, Google Docs, Excel, Google Sheets, `data-pnl.html` and `slides-catalogue.html`.
+8. **Copying a Text table**: select its cells by dragging from the first to the last (or ⌘-click / Ctrl-click inside it until the whole table is outlined), copy, and paste it into Word, Google Docs, Excel, Google Sheets, `data-pnl.html` and `slides-catalogue.html`.
    - Each gets the table with its header rows, the merged "Revenue" cell (Data: centred across the cells) and the numbers right-aligned; Word and Docs show the header colours of the theme.
    - Pasted back into Text, it becomes a new table (new ID, no caption: the caption stays with the original).
 9. **Copying text into other applications**: select from "2027 plan" to the quote and paste into Word and Google Docs: headings, the justified paragraph's text, the list and the quote arrive as headings, a list and a quote.
@@ -228,6 +228,20 @@ Use the standard build (`text-example.html`) online, then the offline build (`no
 7. **External rewrite**: in a copy, remove a `mark.comment` with a text editor and reopen: the thread is orphaned, never reattached on its own; `check` reports `orphaned-thread`.
 8. **Print preview**: no threads, no underline.
 9. **Safari and Firefox**: steps 2–6.
+
+### T10 — Edit report tables with merged cells
+
+Use `text-example.html`, in Chrome, then Safari and Firefox. After each step, one Undo reverts it, and Save then reopening shows the same table.
+
+1. **Insert**: Insert › Table below a paragraph. Type in the header, press Tab through the cells (Shift+Tab goes back); Tab in the last cell adds a row. Enter in a cell does nothing.
+2. **Select**: drag across cells, and Shift+arrow keys from a cell: the selected cells are highlighted. Bold, italic and Align right apply to every selected cell; Justify is unavailable.
+3. **Rows and columns** (Table menu): insert rows above and below (inside the regions table's two header rows the new row joins the header), columns left and right (the merged "Revenue" header widens), delete rows and columns. Deleting every row or column is unavailable; Delete table removes the figure with its caption.
+4. **Merge and split**: merge a 2 × 2 block of body cells (their texts stay, one per line), split it again. Merging across the header's last row is unavailable. Select a block that includes merged cells and press Backspace: the cells are emptied, the merges kept.
+5. **Styles**: Header rows (on a body row: it and the rows above become the header, repeated on each printed page), Total rows, Row headers, Emphasis column, Compact, Column width… (55 %), Distribute columns evenly, Caption (removes it; again adds an empty caption above the table).
+6. **Clipboard**: copy a block of cells and paste it into Excel, Google Sheets, Word, Docs, `data-pnl.html` and another place of the table (it fills from the caret's cell and grows the table). Paste a range from Excel into a cell: the cells fill and the table grows. Paste a word on a selection of cells: each cell gets it, and a merged cell stays merged with its alignment.
+7. **Print**: print preview of a long table: the header rows repeat on each page, total rows are bold with their rule, emphasis columns are tinted, compact tables are denser, and nothing of the editing highlight shows.
+8. **Narrow window**: the Table menu is reachable through ☰.
+9. **Undo steps**: type a character in a cell and at once merge or insert a row: one Undo reverts the table change only, the next the typing.
 
 ## 7. Data, from T15
 

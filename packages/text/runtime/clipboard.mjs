@@ -42,6 +42,13 @@ import {
   freshId,
 } from "../editor/clipboard/table.mjs";
 import { usedIds } from "../editor/commands.mjs";
+import {
+  CellSelection,
+  isInTable,
+  selectedRect,
+  TableMap,
+} from "prosemirror-tables";
+import { own, pasteTable, fillCells } from "../editor/tables.mjs";
 import { withoutNewComments } from "../editor/internal-clipboard.mjs";
 
 const N = schema.nodes;
@@ -228,13 +235,68 @@ export function selectedTable(state) {
       return { table, pos: sel.to - 1 - table.nodeSize };
     }
   }
+  if (sel instanceof CellSelection) {
+    const r = selectedRect(state);
+    return {
+      table: r.table,
+      pos: r.tableStart - 1,
+      rect: {
+        top: r.top,
+        height: r.bottom - r.top,
+        left: r.left,
+        width: r.right - r.left,
+      },
+    };
+  }
   return null;
 }
 
-// The copied table as a figure, for the internal clipboard: the selected table's figure.
-function copiedFigure(state, { pos }) {
-  const parent = state.doc.resolve(pos).parent;
-  return parent.type === N.table_figure ? parent : null;
+// A table pasted into a table fills its cells from the selected one, adding rows and columns as
+// needed (prosemirror-tables); anything else pasted on a cell selection replaces each selected
+// cell's text. Returns false when the paste is not one of these.
+function pasteIntoTable(view, read) {
+  const state = view.state;
+  if (!isInTable(state)) return false;
+  const [first] = read.blocks;
+  const table =
+    read.blocks.length === 1 && first.type === N.table_figure
+      ? first.lastChild
+      : null;
+  if (!table && !(state.selection instanceof CellSelection)) return false;
+  if (table) {
+    const r = selectedRect(state),
+      width = TableMap.get(table).width;
+    if (r.top + table.childCount > LIMIT.rows || r.left + width > LIMIT.columns)
+      throw new ClipboardError(
+        `a Text table holds at most ${LIMIT.rows.toLocaleString("en-US")} rows and ${LIMIT.columns} columns`,
+      );
+  }
+  // One undo step of its own, as any paste.
+  return own(
+    table
+      ? pasteTable(table)
+      : fillCells(Fragment.fromArray(inlineLines(read.blocks))),
+  )(state, view.dispatch, view);
+}
+
+// The copied table as a figure, for the internal clipboard: the selected table's figure, or for
+// a cell selection the selected cells as a table (prosemirror-tables cuts the spans to it).
+function copiedFigure(state, { table, pos, rect }) {
+  const figure = state.doc.resolve(pos).parent;
+  if (figure.type !== N.table_figure) return null;
+  if (!rect) return figure;
+  const { content } = state.selection.content();
+  const cells =
+    content.firstChild.type === N.table
+      ? content.firstChild
+      : N.table.create(
+          {
+            compact: table.attrs.compact,
+            cols: table.attrs.cols?.slice(rect.left, rect.left + rect.width),
+          },
+          content,
+        );
+  return figure.type.create(figure.attrs, [cells]);
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.
@@ -359,6 +421,14 @@ export function setupClipboard(notify, { internal, chart } = {}) {
 
   // Inserts blocks at the selection (or at `at`, a drop position) as one undoable step.
   function insert(view, read, at = null, what = "Pasted") {
+    if (at === null && read.blocks.length && pasteIntoTable(view, read)) {
+      const message = describeLost(read.lost);
+      if (message || read.notices.length)
+        notify(
+          [what + ".", ...read.notices, message].filter(Boolean).join(" "),
+        );
+      return;
+    }
     const tr = view.state.tr;
     if (at !== null) tr.setSelection(TextSelection.near(tr.doc.resolve(at)));
     const slice = sliceFor(tr.selection.$from, read.blocks, read.plain);

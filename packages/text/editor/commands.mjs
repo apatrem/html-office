@@ -798,18 +798,16 @@ export const setStyle = (style) => (state, dispatch) => {
 export const setAlign = (value) => (state, dispatch) => {
   const tr = state.tr;
   let any = false;
-  state.doc.nodesBetween(
-    state.selection.from,
-    state.selection.to,
-    (node, pos, parent) => {
+  // By range: a cell selection (T10) covers its cells, not the rows between them.
+  for (const { $from, $to } of state.selection.ranges)
+    state.doc.nodesBetween($from.pos, $to.pos, (node, pos, parent) => {
       if (!node.isTextblock) return true;
       if (!("align" in node.attrs) || parent.type === N.cover) return false;
       if (value === "ta-j" && node.type !== N.paragraph) return false;
       any = true;
       if (node.attrs.align !== value) tr.setNodeAttribute(pos, "align", value);
       return false;
-    },
-  );
+    });
   if (!any) return false;
   if (dispatch && tr.docChanged) dispatch(tr);
   return true;
