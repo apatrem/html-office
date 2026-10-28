@@ -215,6 +215,14 @@ test("targets inside protected blocks keep their label and are not missing; othe
     '<div id="kept"><h2 id="old">Old</h2></div>\n<p><a class="xref" href="#old">As written</a> <a class="xref" href="#kept">Kept</a></p>',
   );
   const [x, other] = numbering(doc).xrefs;
+  const cover = docOf(
+    '<header class="cover">\n<h1 class="title" id="t">T</h1>\n<div>kept</div>\n</header>\n<p><a class="xref" href="#t">T</a></p>',
+  );
+  assert.equal(
+    numbering(cover).xrefs[0].missing,
+    true,
+    "a cover title is no target",
+  );
   assert.equal(x.label, null);
   assert.equal(x.missing, false);
   assert.equal(other.label, null);
@@ -277,6 +285,10 @@ test("fileFormat reads the last --heading-format of style#theme, comments left o
     "A.1.a.i",
   );
   assert.equal(fileFormat(withTheme("#doc{}")), "1.1.1.1");
+  assert.equal(
+    fileFormat(withTheme('#doc{--heading-format:"I.A.1.a" !important}')),
+    "I.A.1.a",
+  );
 });
 
 test("themeFormat reads --heading-format and falls back to decimals", () => {
