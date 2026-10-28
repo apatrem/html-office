@@ -389,3 +389,41 @@ test("review: a decimal comma does not make the comma the delimiter", () => {
   const r = read("2026;1,5\n2027;2,5\n");
   assert.deepEqual(input(r, "B1"), { type: "number", value: 1.5 });
 });
+
+test("review round 2: guards, headers, forced types and scientific identifiers", () => {
+  // A valid decimal under the chosen convention is never a code.
+  for (const [text, decimal] of [
+    ["Amount\n0.125\n1.5\n", "point"],
+    ["Amount;X\n0,125;1\n1,5;2\n", "comma"],
+    ["Amount\n0.125\n1.5\n", "auto"],
+  ])
+    assert.deepEqual(
+      input(read(text, { decimal }), "A2"),
+      { type: "number", value: 0.125 },
+      `${decimal}: ${text}`,
+    );
+  // Month-first dates are data, not a header.
+  const dates = read("10/28/2026\n10/29/2026\n");
+  assert.equal(dates.header, false);
+  assert.equal(input(dates, "A1").type, "date");
+  // A column forced to Date says nothing about the decimal separator.
+  assert.equal(
+    read("Ref;Amount\n1.23;1,234\n", { columns: ["date"] }).conventions.decimal,
+    "ask",
+  );
+  // Nor a column forced to Number about the date order.
+  assert.equal(
+    read("N,When\n03/04/2026,03/04/2026\n", { columns: ["number"] }).ambiguity
+      .length,
+    1,
+  );
+  // Scientific forms of long identifiers.
+  assert.deepEqual(parseNumber("9.007199254740993e15", "point"), {
+    tooLong: true,
+  });
+  assert.equal(parseNumber("1.5E+20", "point").value, 1.5e20);
+  assert.equal(
+    parseNumber("0.30000000000000004", "point").value,
+    0.30000000000000004,
+  );
+});

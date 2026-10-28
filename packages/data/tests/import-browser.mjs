@@ -81,11 +81,26 @@ try {
 
   // Cancel while the import runs: nothing is inserted.
   hold = Promise.withResolvers();
-  await pick(page, "held.csv", Buffer.from("a,b\n1,2\n"));
+  const heldColumns = 31,
+    held =
+      Array.from({ length: heldColumns }, (_, i) => `H${i + 1}`).join(",") +
+      "\n" +
+      Array.from({ length: heldColumns }, () => "1.5").join(",") +
+      "\n";
+  await pick(page, "held.csv", Buffer.from(held));
   assert.deepEqual(requests, [], "the preview needs no request");
   await page.locator("#import-apply").click();
   await waitStatus(page, /Importing held\.csv/);
+  // Nothing in the dialog changes the preview being committed.
   assert.equal(await page.getByLabel("Encoding").isDisabled(), true);
+  assert.equal(
+    await page.getByRole("button", { name: "Next columns" }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page.getByLabel("Type of column A (H1)").isDisabled(),
+    true,
+  );
   await page.locator("#import-cancel").click();
   await dialog(page).waitFor({ state: "detached" });
   await waitStatus(page, /Import operation cancelled/);
@@ -392,6 +407,71 @@ try {
   await offlinePage.getByLabel("New sheet name").fill("Ventes");
   await offlinePage.locator("#import-apply").click();
   await waitStatus(offlinePage, /Imported ventes\.csv/);
+  // Recovery after undo: the draft has no imported sheet; after redo, it has.
+  const restore = async () => {
+    await offlinePage
+      .locator("#save-status")
+      .filter({ hasText: "Recovery stored." })
+      .waitFor();
+    await offlinePage.reload();
+    await offlinePage
+      .getByRole("button", { name: "Restore draft", exact: true })
+      .click();
+    await offlinePage
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+  };
+  await offlinePage.locator("#grid").focus();
+  await offlinePage.keyboard.press("ControlOrMeta+z");
+  await waitStatus(offlinePage, /Undo restored/);
+  await offlinePage.keyboard.press("ControlOrMeta+Shift+z");
+  await waitStatus(offlinePage, /Redo restored/);
+  await offlinePage.locator("#grid").focus();
+  await offlinePage.keyboard.press("ControlOrMeta+z");
+  await waitStatus(offlinePage, /Undo restored/);
+  await restore();
+  assert.equal(await tab(offlinePage, "Ventes").count(), 0);
+  // Import again after recovery, then save, reopen, edit and re-import.
+  await pick(offlinePage, "ventes.csv", french);
+  await offlinePage.getByLabel("New sheet name").fill("Ventes");
+  await offlinePage.locator("#import-apply").click();
+  await waitStatus(offlinePage, /Imported ventes\.csv/);
+  await offlinePage.locator("#grid").focus();
+  await offlinePage.keyboard.press("ControlOrMeta+z");
+  await waitStatus(offlinePage, /Undo restored/);
+  await offlinePage.keyboard.press("ControlOrMeta+Shift+z");
+  await waitStatus(offlinePage, /Redo restored/);
+  await restore();
+  await tab(offlinePage, "Ventes").click();
+  assert.equal(await text(offlinePage, "B2"), "0012");
+  const offlineDownload = offlinePage.waitForEvent("download");
+  await command(offlinePage, "Save a copy");
+  const offlineSaved = resolve(out, "import-offline-saved.html");
+  await (await offlineDownload).saveAs(offlineSaved);
+  assert.deepEqual(
+    readHTML(await readFile(offlineSaved, "utf8")).book.sources.map(
+      (s) => s.file.name,
+    ),
+    ["ventes.csv"],
+  );
+  const again = await quiet.newPage();
+  await again.goto(pathToFileURL(offlineSaved).href);
+  await again
+    .getByText("Saved results are current.", { exact: true })
+    .waitFor();
+  await tab(again, "Ventes").click();
+  await again.locator("#cell-address").fill("C3");
+  await again.locator("#cell-address").press("Enter");
+  await again.locator("#cell-value").fill("100");
+  await again.locator("#cell-value").press("Enter");
+  await waitStatus(again, /Calculated locally/);
+  await pick(
+    again,
+    "ambiguous.csv",
+    Buffer.from('Date,Amount\n13/04/2026,"1,5"\n'),
+  );
+  await again.locator("#import-apply").click();
+  await waitStatus(again, /Imported ambiguous\.csv/);
   assert.deepEqual(offlineRequests, []);
   await quiet.close();
   console.log("CSV import browser checks passed.");

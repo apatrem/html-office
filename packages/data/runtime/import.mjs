@@ -70,7 +70,9 @@ export async function openCSVImport({ file, book, deps, onImport }) {
     dates: "auto",
     columns: [],
   };
-  let result = null;
+  let result = null,
+    // The import being committed, while Import runs.
+    committing = null;
   const encoding = select(
       "import-encoding",
       [["auto", "Automatic"], ...ENCODINGS],
@@ -153,6 +155,8 @@ export async function openCSVImport({ file, book, deps, onImport }) {
   dialog.classList.add("imp-dialog");
 
   function draw() {
+    // Nothing redraws while Import commits the preview the person saw.
+    if (committing) return;
     alerts.replaceChildren();
     notes.replaceChildren();
     for (const s of [decimal, dates]) s.removeAttribute("aria-invalid");
@@ -315,7 +319,6 @@ export async function openCSVImport({ file, book, deps, onImport }) {
   };
   // Import commits exactly the preview the person saw: the options are
   // locked while it runs, and Cancel stops it (the app cancels the engine).
-  let committing = null;
   const controls = () => [
     encoding,
     delimiter,
@@ -324,7 +327,7 @@ export async function openCSVImport({ file, book, deps, onImport }) {
     dates,
     name,
     apply,
-    ...preview.querySelectorAll("select"),
+    ...preview.querySelectorAll("select, button"),
   ];
   // Cancel, Escape or any other close during the commit stops it.
   dialog.addEventListener("close", () => {

@@ -281,10 +281,16 @@ export function parseNumber(raw, decimal) {
   // digits than a double holds exactly, whatever follows them.
   if (/^0\d/.test(digits)) return { leadingZero: true };
   if (digits.length > 15) return { tooLong: true };
+  // Scientific forms of such integers (9.007199254740993e15) too: more than
+  // 15 significant digits for a value of 1e15 or more.
+  const significant = (digits + (fraction ?? ""))
+    .replace(/^0+/, "")
+    .replace(/0+$/, "").length;
   let value = Number(
     `${digits || "0"}${fraction ? "." + fraction : ""}${exponent ? "e" + exponent : ""}`,
   );
   if (!Number.isFinite(value)) return null;
+  if (significant > 15 && Math.abs(value) >= 1e15) return { tooLong: true };
   if (negative) value = -value;
   const result = {};
   if (percent) {
@@ -381,10 +387,15 @@ const NUMERIC_START = /^[\s\u00a0]*[\d+\-\u2212($€£¥.,]/,
 const sameNumber = (a, b) =>
   a && b && a.value === b.value && a.value !== undefined;
 // What one value says about the file's conventions.
-function evidence(text, counts, examples, r, c) {
+// kinds: what the column will type, "number", "date" or both.
+function evidence(text, counts, examples, r, c, kinds) {
   if (!NUMERIC_START.test(text)) return;
   const s = text.trim();
   if (PLAIN_INTEGER.test(s)) return;
+  if (kinds.number) decimalEvidence(s, counts, examples, r, c);
+  if (kinds.date) dateEvidence(s, counts, examples, r, c);
+}
+function decimalEvidence(s, counts, examples, r, c) {
   const point = parseNumber(s, "point"),
     comma = parseNumber(s, "comma");
   const pv = point?.value !== undefined,
@@ -395,6 +406,8 @@ function evidence(text, counts, examples, r, c) {
     counts.decimalAmbiguous++;
     examples.decimal ??= { text: s, ref: address(r + 1, c + 1) };
   }
+}
+function dateEvidence(s, counts, examples, r, c) {
   // ISO and year-first dates read the same in both orders.
   if (!/^\d{1,2}[/.\-]/.test(s)) return;
   const dmy = parseDate(s, "dmy"),
@@ -473,10 +486,12 @@ export function analyseCSV(
   // is something that reads as text under every convention.
   const first = rows[0],
     looksTyped = (text) =>
-      ["point", "comma"].some(
-        (d) =>
-          typeValue(text, "auto", { decimal: d, dates: "dmy" })?.input.type !==
-          "text",
+      ["point", "comma"].some((d) =>
+        ["dmy", "mdy"].some(
+          (order) =>
+            typeValue(text, "auto", { decimal: d, dates: order })?.input
+              .type !== "text",
+        ),
       ),
     labels =
       first.length === width &&
@@ -484,31 +499,38 @@ export function analyseCSV(
       new Set(first.map((v) => v.trim())).size === first.length,
     hasHeader = header === "auto" ? labels && rows.length > 1 : header === true;
   const body = hasHeader ? 1 : 0;
-  // Leading zeros or long integers (under either convention) keep a whole
-  // automatic column as text.
-  const guards = Array.from({ length: width }, () => null);
+  // Leading zeros or long integers keep a whole automatic column as text: a
+  // value that is a code under every convention still possible (the chosen
+  // one, or both), never one that also reads as an ordinary number.
+  const possible = decimal === "auto" ? ["point", "comma"] : [decimal],
+    guards = Array.from({ length: width }, () => null);
   for (let r = body; r < rows.length; r++)
     for (let c = 0; c < rows[r].length; c++) {
       const text = rows[r][c];
       if (!text || guards[c] || !NUMERIC_START.test(text)) continue;
-      for (const d of ["point", "comma"]) {
-        const n = parseNumber(text, d);
-        if (n?.leadingZero)
-          guards[c] = { reason: "leadingZero", text: text.trim() };
-        else if (n?.tooLong)
-          guards[c] = { reason: "tooLong", text: text.trim() };
-        if (guards[c]) break;
-      }
+      const reads = possible.map((d) => parseNumber(text, d));
+      if (reads.some((n) => n?.value !== undefined)) continue;
+      const code = reads.find((n) => n?.leadingZero || n?.tooLong);
+      if (code)
+        guards[c] = {
+          reason: code.leadingZero ? "leadingZero" : "tooLong",
+          text: text.trim(),
+        };
     }
   // Only values that will be typed say anything about the conventions: not
   // the header, nor columns kept as text (by a guard or by the person).
+  // A column forced to Number says nothing about dates, and the reverse.
   const typed = Array.from({ length: width }, (_, c) => {
     const type = COLUMN_TYPES.includes(columns[c]) ? columns[c] : "auto";
-    return type === "auto" ? !guards[c] : type === "number" || type === "date";
+    return {
+      number: type === "number" || (type === "auto" && !guards[c]),
+      date: type === "date" || (type === "auto" && !guards[c]),
+    };
   });
   for (let r = body; r < rows.length; r++)
     for (let c = 0; c < rows[r].length; c++)
-      if (rows[r][c] && typed[c]) evidence(rows[r][c], counts, examples, r, c);
+      if (rows[r][c] && (typed[c].number || typed[c].date))
+        evidence(rows[r][c], counts, examples, r, c, typed[c]);
   const resolvedDecimal = resolve(
       decimal,
       counts.point,
