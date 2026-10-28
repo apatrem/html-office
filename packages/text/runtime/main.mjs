@@ -421,12 +421,14 @@ function start() {
       const found = I.imageAt(view.state);
       if (!found) return;
       const back = keepSelection();
-      // The figure is named by its ID: an edit made while the dialog or the file picker is open
+      // The figure is named by its ID and its picture: an edit made while the dialog or the file
+      // picker is open (the figure deleted, another inserted with the same ID, a draft restored)
       // never retargets the change to another image.
-      const { id } = found.node.attrs;
+      const { id, asset } = found.node.attrs;
       const apply = (changes) => {
         back();
-        I.setImage(changes, id)(view.state, view.dispatch);
+        if (I.imageById(view.state, id)?.node.attrs.asset === asset)
+          I.setImage(changes, id)(view.state, view.dispatch);
         view.focus();
       };
       imageDialog({

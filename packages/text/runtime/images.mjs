@@ -5,6 +5,7 @@ import { Plugin, NodeSelection } from "prosemirror-state";
 import { h } from "../../shared/shell/dom.mjs";
 import { modal, field } from "../../shared/shell/dialogs.mjs";
 import { imageProblem } from "../editor/images.mjs";
+import { fontCSS } from "../model/assets.mjs";
 import { WRAP_WIDTHS } from "../model/format.mjs";
 
 // A picked image file reduced to at most 1,600 px wide, WebP when the browser encodes it, else
@@ -96,21 +97,18 @@ function imageView(store, edit) {
 
 // Every picture of the document from the store: figures and images inside protected blocks,
 // which are drawn from their saved tree (the src is never part of the document).
+// Each element is resolved once per asset and store version, so a selection change costs no
+// picture data.
+const resolved = new WeakMap();
 function resolveImages(root, store) {
   for (const img of root.querySelectorAll("img[data-asset]")) {
+    const key = `${store.version}:${img.dataset.asset}`;
+    if (resolved.get(img) === key) continue;
+    resolved.set(img, key);
     const url = store.url(img.dataset.asset);
     if (url && img.getAttribute("src") !== url) img.src = url;
   }
 }
-// The fonts of the asset store as @font-face rules (their fields passed the asset contract).
-const fontCSS = (store) =>
-  store
-    .fonts()
-    .map(
-      (a) =>
-        `@font-face{font-family:"${a.family}";src:url(data:${a.type};base64,${a.data});font-weight:${a.weight || 400};font-style:${a.style || "normal"}}`,
-    )
-    .join("");
 
 // Draws image figures from the store and installs its fonts; a double click on a picture opens
 // its settings. A restored draft brings other assets: every picture and font follows.
