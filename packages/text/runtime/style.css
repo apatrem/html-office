@@ -19,7 +19,21 @@
 #doc .xref.tx-missing{text-decoration:underline wavy #b42318;text-decoration-skip-ink:none}
 #doc .xref.tx-unnumbered{text-decoration:underline dotted}
 #doc .toc a{pointer-events:none}
+/* Footnotes (T09): a numbered reference with a hover preview; open (its text shown) while the cursor is in it; notes listed at the end. */
+#doc .footnote[data-tx-note]{position:relative;font-size:0}
+#doc .footnote[data-tx-note]:not(.tx-open){display:inline-block;line-height:1;vertical-align:super}
+#doc .footnote[data-tx-note]:not(.tx-open)::before{vertical-align:baseline}
+#doc .footnote[data-tx-note]::before{content:attr(data-tx-note);font-size:7.5pt;vertical-align:super;line-height:1;color:var(--acc);cursor:pointer;padding:0 .1em}
+#doc .footnote[data-tx-note]::after{content:none}
+#doc .footnote[data-tx-note]:not(.tx-open):hover::after{content:attr(data-tx-preview);position:absolute;z-index:5;left:0;bottom:1.6em;width:max-content;max-width:60ch;padding:4px 8px;font:9pt/1.35 var(--body-font,var(--font));color:var(--ink);background:var(--bg);border:1px solid var(--bd);box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:normal}
+#doc .footnote.tx-open{font-size:.85em;background:var(--tint);outline:1px solid var(--bd);border-radius:2px}
+#doc .footnote.tx-empty{display:inline-block;min-width:3em}
+#doc .tx-notes{margin:2em 0 0;padding-top:.6em;border-top:1px solid var(--bd);font-size:9.5pt;clear:both}
+#doc .tx-notes-title{margin:0 0 .3em;font-weight:bold}
+#doc .tx-notes ol{margin:0;padding-left:2em}
+#doc .tx-notes li{cursor:pointer}
+#doc .tx-notes a{pointer-events:none}
 /* The editing view has one row list (no thead): header rows take the charte's header role, as thead th does in the theme. */
 #doc tr.tx-head>th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
 @media screen{body.tx-editing{padding-bottom:64px}}
-@media print{.tx-shell,.tx-refusal{display:none!important}#doc .tx-protected{outline:none}#doc .tx-protected::after{content:none}}
+@media print{.tx-shell,.tx-refusal{display:none!important}#doc .footnote.tx-open{font-size:0;background:none;outline:none}#doc .tx-protected{outline:none}#doc .tx-protected::after{content:none}}

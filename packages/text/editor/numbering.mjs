@@ -1,5 +1,5 @@
 // Generated numbers and labels (T08), from one pass over the document: heading numbers, figure
-// and table numbers, cross-reference labels and contents entries. Pure (no DOM): the editor's
+// and table numbers, cross-reference labels, contents entries and footnote numbers (T09). Pure (no DOM): the editor's
 // decorations and regeneration, check.mjs, and the print and Markdown views all read it.
 import { schema } from "./schema/schema.mjs";
 import { HEADING_FORMAT } from "../model/format.mjs";
@@ -107,6 +107,7 @@ function contents(headings, depth) {
 // - xrefs: [{pos, target, label, missing}]: label is what the cross-reference must say, or null
 //   to keep it (a target inside a protected block); missing when the target does not exist;
 // - tocs: [{pos, entries}], the generated entries of each contents block;
+// - footnotes: [{pos, number, text}] in document order (protected blocks keep theirs as written);
 // - labels: Map of target ID to label.
 export function numbering(doc, { format = DEFAULT_HEADING_FORMAT } = {}) {
   const tokens = (doc.attrs.headingFormat ?? format).split(".");
@@ -156,8 +157,15 @@ export function numbering(doc, { format = DEFAULT_HEADING_FORMAT } = {}) {
     } else if (node.type === N.toc) tocs.push({ pos, depth: node.attrs.depth });
     else if (node.type === N.protected) treeIds(node.attrs.node, kept);
   });
-  const xrefs = [];
+  const xrefs = [],
+    footnotes = [];
   doc.descendants((node, pos) => {
+    if (node.type === N.footnote)
+      footnotes.push({
+        pos,
+        number: footnotes.length + 1,
+        text: labelText(node),
+      });
     if (node.type !== N.xref) return true;
     const { target } = node.attrs;
     const label = labels.get(target);
@@ -177,6 +185,7 @@ export function numbering(doc, { format = DEFAULT_HEADING_FORMAT } = {}) {
       pos,
       entries: contents(headings, depth),
     })),
+    footnotes,
     labels,
   };
 }
@@ -193,14 +202,19 @@ const sameEntries = (a, b) =>
 // Sets every cross-reference label and contents list that differs from the numbering on `tr`
 // (positions do not move: labels and entries are attributes). A heading holding a cross-reference
 // names it by its label, so a second pass settles the contents. Returns whether anything changed.
-export function regenerate(tr, options) {
+// known: the numbering of tr.doc, when the caller has it.
+export function regenerate(tr, options, known = null) {
   let changed = false;
-  for (let pass = 0; pass < 3 && regenerateOnce(tr, options); pass++)
+  for (let pass = 0; pass < 3; pass++) {
+    if (
+      !regenerateOnce(tr, (pass === 0 && known) || numbering(tr.doc, options))
+    )
+      break;
     changed = true;
+  }
   return changed;
 }
-function regenerateOnce(tr, options) {
-  const result = numbering(tr.doc, options);
+function regenerateOnce(tr, result) {
   let changed = false;
   for (const { pos, label } of result.xrefs)
     if (label !== null && tr.doc.nodeAt(pos).attrs.label !== label) {

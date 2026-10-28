@@ -223,6 +223,7 @@ function start() {
         Tab: (s, d) => E.inList(s) && (E.indent(s, d), true),
         "Shift-Tab": (s, d) => E.inList(s) && (E.outdent(s, d), true),
         "Mod-Enter": E.insertPageBreak,
+        "Mod-Alt-f": G.insertFootnote,
         "Mod-k": () => (commands.run("link"), true),
         Backspace: E.liftListItem,
         "Mod-s": () => (
@@ -333,6 +334,7 @@ function start() {
     G.setHeadingFormat(value, format)(view.state, view.dispatch),
   );
   edit("contents", G.insertContents);
+  edit("footnote", G.insertFootnote);
   for (const depth of [1, 2, 3, 4])
     edit(`contents-${depth}`, G.setContentsDepth(depth));
   // The cross-reference dialog lists the targets; as with links, the selection is put back

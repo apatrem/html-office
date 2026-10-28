@@ -1,6 +1,6 @@
 # HTML Text V1 implementation plan
 
-Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. Text started on 25 October 2026 with T01–T03; T04–T06 followed on 27 October, T08 on 28 October.
+Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. Text started on 25 October 2026 with T01–T03; T04–T06 followed on 27 October, T08 and T09 on 28 October.
 
 ## Shared decisions since this plan
 
@@ -113,6 +113,7 @@ Dependencies: T08. Scope: S. Paths: footnote node, notes rendering and tests.
 
 - Acceptance: footnotes are inline `span.footnote` nodes at the point of reference; the screen shows numbered references, a hover preview and a generated notes list; numbering follows document order. Moving or deleting a sentence carries its note.
 - Verification: insert, move, cut/paste and undo footnotes; confirm the notes list is generated, not stored, and that print output (T14) numbers endnotes identically.
+- Status: implemented 28 October 2026 on `feature/text-t09-footnotes`, in review. Footnote numbers come from the same function as every other number ([`editor/numbering.mjs`](../packages/text/editor/numbering.mjs)), in document order. The editor ([`editor/generated.mjs`](../packages/text/editor/generated.mjs)) draws each note as its superscript number with the note's text on hover, opens it for editing while the cursor is in it (Escape leaves it; a click on the number opens it), and lists the notes at the end of the content, before the comments, as a read-only widget (a click opens that note). Nothing of it is saved; print keeps the references closed and prints the list as endnotes with the same numbers. Insert › Footnote (⌘⌥F / Ctrl+Alt+F) adds a note at the cursor, never in code or another note, and splits a link. Browsers type into the note's last text right after it, or outside an empty one: typed text after a note is inserted by the editor, and an empty open note holds the caret. Tests: `tests/footnotes.test.mjs` (order across headings, lists and protected blocks, decorations not saved, insert/undo/redo, refusals, moving and deleting the sentence carries its note, typing updates the list) and `tests/footnotes-browser.mjs` (Chromium locally, Firefox and WebKit in CI). Cut and paste between places goes through the editor's clipboard parser, which T07 adds; the model-level move is tested here.
 
 ### T10 — Edit report tables with merged cells
 

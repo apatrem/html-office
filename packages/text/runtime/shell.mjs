@@ -32,6 +32,7 @@ const SHORTCUTS = [
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
   ["Page break", key("Enter")],
+  ["Footnote (Escape leaves it)", alt("F")],
 ];
 // Toolbar glyphs for commands without a shared icon (20 × 20, as shared/shell/icons.mjs).
 const svg = (paths) =>
@@ -176,6 +177,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
         "-",
         item("Page break", "page-break", { shortcut: key("Enter") }),
         "-",
+        item("Footnote", "footnote", { shortcut: alt("F") }),
         item("Contents", "contents"),
         item("Cross-reference…", "xref"),
       ],

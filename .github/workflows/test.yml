@@ -146,3 +146,7 @@ jobs:
         run: node packages/text/tests/numbering-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Footnotes and the notes list in Firefox and WebKit (Text T09)
+        run: node packages/text/tests/footnotes-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
