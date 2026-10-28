@@ -228,9 +228,22 @@ async function run(name) {
       );
       view.focus();
     });
-    await page.keyboard.press(`${mod}+x`);
+    // Clipboard events with one DataTransfer, as the editor receives them from the keyboard
+    // (WebKit on Linux delivers no paste for a synthetic shortcut).
+    const clip = (type) =>
+      page.evaluate((t) => {
+        window.clip ??= new DataTransfer();
+        window.htmlText.view.dom.dispatchEvent(
+          new ClipboardEvent(t, {
+            clipboardData: window.clip,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      }, type);
+    await clip("cut");
     await cursorAtEnd("#doc ul > li:last-child");
-    await page.keyboard.press(`${mod}+v`);
+    await clip("paste");
     lines = check(await saved());
     assert.ok(
       lines.some((l) =>
