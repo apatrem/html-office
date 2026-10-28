@@ -175,6 +175,10 @@ const MAX_LIST_LEVELS = 64;
 const CONTROLS = /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/g;
 
 const kids = (node) => Array.from(node.childNodes ?? []);
+// Children onto a stack, first on top (no spread: an element may have 100,000 children).
+function pushReversed(stack, list) {
+  for (let i = list.length - 1; i >= 0; i--) stack.push(list[i]);
+}
 // The text of a subtree, without recursion (clipboard HTML may be nested arbitrarily deep).
 function textOf(node) {
   let text = "";
@@ -183,7 +187,7 @@ function textOf(node) {
     const n = stack.pop();
     if (n.nodeType === TEXT) text += n.data;
     else if (!(n.nodeType === ELEMENT && SKIP.has(n.localName)))
-      stack.push(...kids(n).reverse());
+      pushReversed(stack, kids(n));
   }
   return text;
 }
@@ -570,7 +574,7 @@ export class Mapper {
       if (k.nodeType === TEXT) text += k.data;
       else if (k.nodeType === ELEMENT && !SKIP.has(k.localName)) {
         if (k.localName === "br") text += "\n";
-        else if (k.localName !== "img") stack.push(...kids(k).reverse());
+        else if (k.localName !== "img") pushReversed(stack, kids(k));
       }
     }
     // The HTML parser already turned CR LF into LF: a CR left is a written &#13; and stays.
@@ -858,8 +862,16 @@ export function fromHTML(root, options) {
 // cell in a table for transport and says so in data-pm-slice ("1 1 -3 […]", three wrappers). It
 // is text, not a table: the cell's content is returned, or null for anything else.
 function copiedCell(root) {
-  const first = kids(root).find((k) => k.nodeType === ELEMENT);
-  if (!/^\d+ \d+ -\d+ /.test(first?.getAttribute("data-pm-slice") ?? ""))
+  // The wrapper alone (no other element or text beside it), and open at both ends.
+  const parts = kids(root).filter(
+    (k) => k.nodeType === ELEMENT || (k.nodeType === TEXT && /\S/.test(k.data)),
+  );
+  const first = parts[0];
+  if (
+    parts.length !== 1 ||
+    first.nodeType !== ELEMENT ||
+    !/^[1-9]\d* [1-9]\d* -\d+ /.test(first.getAttribute("data-pm-slice") ?? "")
+  )
     return null;
   const cells = [],
     stack = [root];

@@ -540,3 +540,24 @@ test("review: Markdown tables over the limits are refused before rendering; a se
     /<tr><td>c<\/td><td>d<\/td><\/tr>\n<tr><td>===<\/td><td><\/td><\/tr>/,
   );
 });
+
+test("review 2: very wide elements and copied rows; text beside a copied cell is kept", () => {
+  saved(
+    map("<pre><span>" + "<i>x</i>".repeat(150000) + "</span></pre>").blocks,
+  );
+  saved(
+    map(
+      "<span>".repeat(202) + "<i>x</i>".repeat(150000) + "</span>".repeat(202),
+    ).blocks,
+  );
+  assert.equal(
+    map(
+      '<table data-pm-slice="0 0 -2 []"><tbody><tr><td>b</td></tr></tbody></table>',
+    ).blocks[0].type.name,
+    "table_figure",
+  );
+  const { blocks } = map(
+    '<table data-pm-slice="1 1 -3 []"><tr><td>b</td></tr></table><p>keep me</p>',
+  );
+  assert.match(saved(blocks), /keep me/);
+});
