@@ -8,21 +8,11 @@ import { readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { canonicalize } from "../editor/schema/document.mjs";
-import { attr, classes, elements } from "../model/html.mjs";
-import { numbering, themeFormat } from "../editor/numbering.mjs";
+import { classes } from "../model/html.mjs";
+import { numbering, fileFormat } from "../editor/numbering.mjs";
 
 const excerpt = (text, offset) =>
   JSON.stringify(text.slice(offset, offset + 40));
-
-// The heading format style#theme declares (--heading-format), or the default.
-function fileFormat(file) {
-  const head = elements(file.html).find((n) => n.name === "head");
-  const theme = elements(head).find(
-    (n) => n.name === "style" && attr(n, "id") === "theme",
-  );
-  const css = theme?.children.map((c) => c.value).join("") ?? "";
-  return themeFormat(css.match(/--heading-format\s*:\s*([^;}]*)/)?.[1]);
-}
 
 // Generated content the editor would rewrite (T08): cross-reference labels and contents lists
 // that differ from the numbering, located in the source. Protected blocks are left as written.

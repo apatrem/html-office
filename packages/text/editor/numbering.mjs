@@ -3,18 +3,37 @@
 // decorations and regeneration, check.mjs, and the print and Markdown views all read it.
 import { schema } from "./schema/schema.mjs";
 import { HEADING_FORMAT } from "../model/format.mjs";
+import { attr, classes, elements } from "../model/html.mjs";
 
 const N = schema.nodes;
 
 // The brand theme's heading format when style#theme sets none (--heading-format).
 export const DEFAULT_HEADING_FORMAT = "1.1.1.1";
 
-// The heading format style#theme declares (--heading-format: "1.A.i.a"), or the default.
+// A heading format value ("1.A.i.a", quoted or not), or the default.
 export function themeFormat(value) {
   const format = String(value ?? "")
     .trim()
     .replace(/^["']|["']$/g, "");
   return HEADING_FORMAT.test(format) ? format : DEFAULT_HEADING_FORMAT;
+}
+
+// The heading format of a file (a parse.mjs or html.mjs tree): the last --heading-format
+// declaration in style#theme, comments left out, or the default. The editor and check both use
+// it, so they always agree (FORMAT.md › Numbering).
+export function fileFormat(file) {
+  const head = elements(file.html).find((n) => n.name === "head");
+  const theme = head
+    ? elements(head).find(
+        (n) => n.name === "style" && attr(n, "id") === "theme",
+      )
+    : null;
+  const css = (theme?.children.map((c) => c.value).join("") ?? "").replace(
+    /\/\*[\s\S]*?\*\//g,
+    "",
+  );
+  const found = [...css.matchAll(/--heading-format\s*:\s*([^;}]*)/g)];
+  return themeFormat(found.at(-1)?.[1]);
 }
 
 const ROMAN = [
@@ -75,11 +94,29 @@ export function labelText(node) {
   return out.replace(/\s+/g, " ").trim();
 }
 
-function treeIds(tree, ids) {
+// The heading and figure IDs inside a protected block: cross-references to them keep their label.
+function treeTargets(tree, ids) {
   if (tree.type !== "element") return;
-  for (const [name, value] of tree.attrs) if (name === "id") ids.add(value);
-  for (const child of tree.children) treeIds(child, ids);
+  const id = attr(tree, "id");
+  if (
+    id !== null &&
+    (/^h[1-4]$/.test(tree.name) ||
+      (tree.name === "figure" &&
+        ["chart", "image", "table"].includes(classes(tree)[0])))
+  )
+    ids.add(id);
+  for (const child of tree.children) treeTargets(child, ids);
 }
+
+// A heading's own text: its text, without cross-references or footnotes.
+const ownText = (node) => {
+  let out = "";
+  node.forEach((child) => {
+    if (child.isText) out += child.text;
+    else if (child.type === N.hard_break) out += " ";
+  });
+  return out.replace(/\s+/g, " ").trim();
+};
 
 // Contents entries for a depth: headings up to that level, each nested under the closest
 // preceding heading of a higher level.
@@ -140,9 +177,8 @@ export function numbering(doc, { format = DEFAULT_HEADING_FORMAT } = {}) {
           if (numbered[k]) parts.push(formatNumber(counters[k], tokens[k - 1]));
         number = parts.join(".");
       }
-      const text = labelText(node);
-      headings.push({ pos, id, level, number, text });
-      labels.set(id, number ? `${word.section} ${number}` : text);
+      headings.push({ pos, id, level, number, node });
+      if (number) labels.set(id, `${word.section} ${number}`);
     } else if ([N.chart, N.image_figure, N.table_figure].includes(node.type)) {
       const kind = node.type === N.table_figure ? "table" : "figure";
       const captioned = node.firstChild?.type === N.caption;
@@ -155,8 +191,29 @@ export function numbering(doc, { format = DEFAULT_HEADING_FORMAT } = {}) {
       figures.push({ pos, id: node.attrs.id, kind, number, label });
       labels.set(node.attrs.id, label);
     } else if (node.type === N.toc) tocs.push({ pos, depth: node.attrs.depth });
-    else if (node.type === N.protected) treeIds(node.attrs.node, kept);
+    else if (node.type === N.protected) treeTargets(node.attrs.node, kept);
   });
+  // A heading's text names it in contents and, when it has no number, in cross-references. A
+  // cross-reference inside it reads as its target's number label, or as an unnumbered target
+  // heading's own text (never that heading's references): one level, so references between
+  // headings, a heading's reference to itself included, always settle at once.
+  const own = new Map(
+    headings.filter((h) => !h.number).map((h) => [h.id, ownText(h.node)]),
+  );
+  for (const h of headings) {
+    let text = "";
+    h.node.forEach((child) => {
+      if (child.isText) text += child.text;
+      else if (child.type === N.hard_break) text += " ";
+      else if (child.type === N.xref) {
+        const { target, label } = child.attrs;
+        text += labels.get(target) ?? own.get(target) ?? label;
+      }
+    });
+    h.text = text.replace(/\s+/g, " ").trim();
+    delete h.node;
+  }
+  for (const h of headings) if (!h.number) labels.set(h.id, h.text);
   const xrefs = [],
     footnotes = [];
   doc.descendants((node, pos) => {
@@ -200,21 +257,11 @@ const sameEntries = (a, b) =>
   );
 
 // Sets every cross-reference label and contents list that differs from the numbering on `tr`
-// (positions do not move: labels and entries are attributes). A heading holding a cross-reference
-// names it by its label, so a second pass settles the contents. Returns whether anything changed.
+// (positions do not move: labels and entries are attributes). The numbering does not depend on
+// the labels it rewrites, so one pass settles them. Returns whether anything changed.
 // known: the numbering of tr.doc, when the caller has it.
 export function regenerate(tr, options, known = null) {
-  let changed = false;
-  for (let pass = 0; pass < 3; pass++) {
-    if (
-      !regenerateOnce(tr, (pass === 0 && known) || numbering(tr.doc, options))
-    )
-      break;
-    changed = true;
-  }
-  return changed;
-}
-function regenerateOnce(tr, result) {
+  const result = known ?? numbering(tr.doc, options);
   let changed = false;
   for (const { pos, label } of result.xrefs)
     if (label !== null && tr.doc.nodeAt(pos).attrs.label !== label) {

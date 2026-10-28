@@ -29,7 +29,7 @@ import {
 import { serializeFile } from "../model/file.mjs";
 import { subsetGuard } from "../editor/schema/guard.mjs";
 import * as G from "../editor/generated.mjs";
-import { regenerate } from "../editor/numbering.mjs";
+import { regenerate, fileFormat } from "../editor/numbering.mjs";
 import * as E from "../editor/commands.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
@@ -165,6 +165,7 @@ function start() {
     const tree = withEngine(read(zones), findEngine(file.html));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
+    numbers.format = fileFormat(file);
     E.reserveIds(fileIds(file.html));
     view.updateState(
       EditorState.create({ doc: next, plugins: view.state.plugins }),
@@ -189,15 +190,14 @@ function start() {
       ? node
       : node.children?.map(findEngine).find(Boolean);
   const run = (command) => () => command(view.state, view.dispatch, view);
-  // The brand theme's heading format (style#theme --heading-format, T08).
-  const format = G.themeFormat(
-    getComputedStyle(article).getPropertyValue("--heading-format"),
-  );
+  // The layout theme's heading format (style#theme --heading-format, T08), read from the file
+  // as check.mjs reads it. A restored draft brings its own theme, so the options change then.
+  const numbers = { format: fileFormat(file) };
   // Generated labels and contents are rewritten on open, outside the undo history: a stale
   // label written by hand or by an LLM shows as an unsaved change and is corrected on save.
   const refresh = () => {
     const tr = view.state.tr;
-    if (regenerate(tr, { format }))
+    if (regenerate(tr, numbers))
       view.dispatch(tr.setMeta("addToHistory", false));
   };
   const state = EditorState.create({
@@ -205,7 +205,7 @@ function start() {
     plugins: [
       history(),
       subsetGuard(),
-      G.generatedContent({ format }),
+      G.generatedContent(numbers),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -331,7 +331,7 @@ function start() {
     G.setHeadingNumbers(on)(view.state, view.dispatch),
   );
   commands.register("heading-format", (value) =>
-    G.setHeadingFormat(value, format)(view.state, view.dispatch),
+    G.setHeadingFormat(value, numbers.format)(view.state, view.dispatch),
   );
   edit("contents", G.insertContents);
   edit("footnote", G.insertFootnote);
@@ -378,7 +378,7 @@ function start() {
     report,
     () => view.state.doc.attrs,
     current,
-    format,
+    () => numbers.format,
   );
   refresh();
   mirrorLook(doc);

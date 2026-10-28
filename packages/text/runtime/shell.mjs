@@ -132,7 +132,7 @@ function shortcuts(opener) {
 
 // look(): the document's attributes (theme, font, page, margins, heading numbers and format).
 // editing(): the selection's style, marks, alignment, list, new-page, link (T06) and the depth
-// of a selected contents block (T08). format: the theme's heading format.
+// of a selected contents block (T08). format(): the theme's heading format.
 export function mountShell(cmd, saving, report, look, editing, format) {
   const binds = [];
   const item = (label, id, extra = {}) => ({
@@ -464,7 +464,7 @@ export function mountShell(cmd, saving, report, look, editing, format) {
           choices(
             "Number format",
             "sh-fonts tx-formats",
-            formatChoices(format),
+            formatChoices(format()),
             current().format,
             (v) => cmd.run("heading-format", v),
           ),

@@ -159,9 +159,9 @@ function openNote(state) {
   return null;
 }
 
-// format(): the brand theme's heading format, read when the plugin starts.
-export function generatedContent({ format = DEFAULT_HEADING_FORMAT } = {}) {
-  const options = { format };
+// options: {format}, the theme's heading format; the editor changes it when a restored draft
+// brings another theme, before it creates the new state.
+export function generatedContent(options = { format: DEFAULT_HEADING_FORMAT }) {
   return new Plugin({
     key: generatedKey,
     options,

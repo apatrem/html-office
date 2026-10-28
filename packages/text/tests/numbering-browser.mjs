@@ -60,9 +60,10 @@ async function run(name) {
   const pass = (what) => console.log(`PASS text numbering [${name}]: ${what}`);
   const browser = await playwright[name].launch();
   try {
-    const page = await browser.newPage({
+    const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
     });
+    const page = await context.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
@@ -237,7 +238,69 @@ async function run(name) {
       "Insert › Contents, its levels, and renumbering after a deleted section",
     );
 
-    // ---- save a copy reopens with the rewritten content ----
+    // ---- a saved copy reopens as saved: nothing left to rewrite ----
+    const copy = await saved();
+    const copyPath = join(out, `numbering-copy-${name}.html`);
+    await writeFile(copyPath, copy);
+    const reopened = await context.newPage();
+    await reopened.goto(pathToFileURL(copyPath).href);
+    await reopened.waitForFunction(() => window.htmlText);
+    assert.equal(
+      await reopened.getAttribute(".tx-shell [role=status]", "data-state"),
+      "saved",
+    );
+    assert.equal(
+      await reopened.evaluate(() => window.htmlText.serialize()),
+      copy,
+    );
+    await reopened.close();
+    pass("a saved copy reopens with nothing to rewrite");
+
+    // ---- a draft restored with another theme numbers with that theme ----
+    // The draft is made under a Roman heading format; the file then changes to decimals.
+    const roman = built.replace(
+      '--heading-format:"1.1.1.1"',
+      '--heading-format:"I.A.1.a"',
+    );
+    assert.notEqual(roman, built);
+    const draftPath = join(out, `numbering-draft-${name}.html`);
+    await writeFile(draftPath, roman);
+    let other = await context.newPage();
+    await other.goto(pathToFileURL(draftPath).href);
+    await other.waitForFunction(
+      () => window.htmlText?.saving.recovery !== "opening",
+    );
+    if (
+      (await other.evaluate(() => window.htmlText.saving.recovery)) === "ready"
+    ) {
+      assert.match(
+        await other.evaluate(() => window.htmlText.serialize()),
+        /<li><a href="#sec-regions">II\.A Regions<\/a><\/li>/,
+      );
+      await other.evaluate(() => {
+        const { view } = window.htmlText;
+        view.dispatch(view.state.tr.insertText("Draft ", 1));
+      });
+      await other.waitForFunction(
+        () =>
+          document.querySelector(".tx-shell [role=status]").dataset.state ===
+          "draft",
+      );
+      await other.close();
+      await writeFile(draftPath, built);
+      other = await context.newPage();
+      await other.goto(pathToFileURL(draftPath).href);
+      await other.waitForSelector("dialog.sh-dialog[open]");
+      await other.click("dialog.sh-dialog button:text('Restore as a copy')");
+      const restored = await other.evaluate(() => window.htmlText.serialize());
+      assert.match(restored, /--heading-format:"I\.A\.1\.a"/);
+      assert.match(
+        restored,
+        /<li><a href="#sec-regions">II\.A Regions<\/a><\/li>/,
+      );
+      await other.close();
+      pass("a draft restored with another theme numbers with that theme");
+    } else console.log(`INFO text numbering [${name}]: no draft recovery`);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
