@@ -11,6 +11,7 @@ import {
 } from "../model/csv.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
 import { address } from "../model/csv.mjs";
+export { openRefresh } from "./refresh.mjs";
 
 const PREVIEW_ROWS = 20,
   PREVIEW_COLUMNS = 30;

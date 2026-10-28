@@ -313,16 +313,19 @@ function assertUnowned(edits) {
       );
   }
 }
-// `pivots` publishes new pivot definitions with the edits, in one history
-// entry; `owner` names the pivot writing its own range; `transient` edits are
+// `pivots` (and `sources`, T16) publish new definitions with the edits, in
+// one history entry; `owner` names the pivot writing its own range; `transient` edits are
 // not retained as an attempted draft when calculation fails.
 async function apply({
   recalculateOnly = false,
   edits,
   selectionAfter,
   pivots,
+  sources,
   owner,
   transient = false,
+  // What a failed transient step reports.
+  failure = "Pivot table not updated",
 } = {}) {
   if (loading) return;
   const epoch = revisions.begin(),
@@ -344,7 +347,8 @@ async function apply({
       if (!owner) assertUnowned(edits);
       // A pivot refresh with unchanged cells still publishes its stamp and the
       // recalculated results.
-      if (!edits.length && pivots === undefined) return;
+      if (!edits.length && pivots === undefined && sources === undefined)
+        return;
     } else edits = [];
     loading = controller;
     if (!recalculateOnly && !transient) {
@@ -377,7 +381,11 @@ async function apply({
         ...edits,
         ...result.results.map(({ sheetId, ref }) => ({ sheetId, ref })),
       ]),
-      headChange = linkEdits || wrapped.size > 0 || pivots !== undefined,
+      headChange =
+        linkEdits ||
+        wrapped.size > 0 ||
+        pivots !== undefined ||
+        sources !== undefined,
       headBefore = headChange ? captureHead(book) : undefined,
       snapshotBefore = book.snapshot,
       selectionBefore = { sheetId, ...grid.selection };
@@ -399,6 +407,7 @@ async function apply({
     for (const r of result.results)
       book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
         r.result;
+    if (sources !== undefined) book.sources = sources;
     if (pivots !== undefined) {
       if (pivots.length) book.pivots = pivots;
       else delete book.pivots;
@@ -453,7 +462,7 @@ async function apply({
       }
       status(
         transient
-          ? `Pivot table not updated: ${error.message} Your previous work is retained.`
+          ? `${failure}: ${error.message} Your previous work is retained.`
           : `${error.message} ${pendingEdits.some((edit) => edit.range) ? "The attempted range is retained; use Retry pending range or Save a copy." : "Your attempted edit remains in the form; retry Apply edit."}`,
       );
     }
@@ -1218,6 +1227,67 @@ async function applyImport({
     }
   }
 }
+// ---- refresh (T16) ----
+// Refreshes the imported source of the current sheet from a replacement file
+// the person picks; the dialog shows the plan before anything changes.
+function refreshSource() {
+  if (loading) return;
+  if (pendingEdits.length)
+    return void status(
+      "Apply or discard the attempted edit before refreshing a source.",
+    );
+  const source = book.sources?.find((s) => s.sheetId === sheetId);
+  if (!source)
+    return void status(
+      "This sheet has no imported source. Select a sheet made by Data › Import CSV…",
+    );
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain";
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const { openRefresh } = await loadImporter();
+      await openRefresh({
+        file,
+        book,
+        source,
+        deps: {
+          h,
+          modal,
+          field,
+          display,
+          cancel: () => {
+            if (loading) $("cancel").click();
+          },
+        },
+        onRefresh: applyRefresh,
+      });
+    } catch (error) {
+      status(`Refresh failed: ${error.message} Workbook unchanged.`);
+    }
+  };
+  input.click();
+}
+// One calculation step: the changed cells and the source description, so
+// formulas recalculate and pivots, charts and rules see new values.
+async function applyRefresh({ source, edits, summary }) {
+  if (loading) return false;
+  const sources = (book.sources ?? []).map((s) =>
+    s.id === source.id ? source : s,
+  );
+  validateSources({ ...book, sources });
+  const done = await apply({
+    edits,
+    sources,
+    transient: true,
+    failure: "Source not refreshed",
+    selectionAfter: { sheetId: source.sheetId, anchor: "A1", focus: "A1" },
+  });
+  if (done) status(`${summary} Unsaved changes.`);
+  return !!done;
+}
 // ---- charts (T18) ----
 // Definitions are header data: one history entry, no engine.
 function publishCharts(next, message) {
@@ -1490,6 +1560,11 @@ register(
 );
 register("paste-table", () => clipboard.open());
 register("import-csv", importCSV);
+register(
+  "refresh-source",
+  refreshSource,
+  () => idle() && !!book.sources?.length,
+);
 register("fill-down", () => clipboard.fill("down"));
 register("fill-right", () => clipboard.fill("right"));
 for (const axis of ["row", "column"])

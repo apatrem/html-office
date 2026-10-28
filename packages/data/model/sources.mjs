@@ -84,6 +84,12 @@ export function validateSources(book) {
     )
       fail("expected 1–16,384 columns");
     for (const column of source.columns) {
+      // A column the person inserted inside the range after the import.
+      if (object(column) && column.inserted !== undefined) {
+        fields(column, ["inserted"], "column");
+        if (column.inserted !== true) fail("inserted must be true");
+        continue;
+      }
       fields(column, ["name", "type", "fingerprint"], "column");
       if (typeof column.name !== "string" || column.name.length > 255)
         fail("column name must be text of at most 255 characters");
