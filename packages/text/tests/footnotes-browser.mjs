@@ -230,8 +230,8 @@ async function run(name) {
     });
     // Clipboard events with one DataTransfer, as the editor receives them from the keyboard
     // (WebKit on Linux delivers no paste for a synthetic shortcut).
-    // What the editor wrote is read where the event ends (Firefox copies the event's
-    // DataTransfer), then given to a paste event in a new one.
+    // What the editor wrote is read where the event ends, then given to a paste event in a new
+    // DataTransfer.
     const clip = (type) =>
       page.evaluate((t) => {
         if (!window.clipListener) {
@@ -249,13 +249,15 @@ async function run(name) {
         if (t === "paste")
           for (const [k, v] of Object.entries(window.clipped ?? {}))
             data.setData(k, v);
-        window.htmlText.view.dom.dispatchEvent(
-          new ClipboardEvent(t, {
-            clipboardData: data,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+        const event = new ClipboardEvent(t, {
+          clipboardData: data,
+          bubbles: true,
+          cancelable: true,
+        });
+        // Firefox's constructor ignores clipboardData: it is attached as an own property.
+        if (event.clipboardData !== data)
+          Object.defineProperty(event, "clipboardData", { value: data });
+        window.htmlText.view.dom.dispatchEvent(event);
       }, type);
     await clip("cut");
     await cursorAtEnd("#doc ul > li:last-child");
