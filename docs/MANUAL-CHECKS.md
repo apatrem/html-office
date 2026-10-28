@@ -193,6 +193,23 @@ Import a CSV exported from Excel or Sheets (section T15), build a formula on ano
 7. **Browsers.** Repeat 1–5 in Safari and Firefox.
 8. **XLSX.** Import a sheet from an Excel workbook (section T15 — Import XLSX), then change values and a formula in Excel, add a column and rows, and save under a new name. Refresh the imported sheet from it: the dialog selects the sheet with the same name (another can be chosen), shows the changed values and formulas, and after Refresh the values and recalculated formulas match Excel. Undo restores the previous sheet in one step.
 
+### T19 — CSV export
+
+File › Export sheet as CSV… on the selected sheet. Use a sheet with text, negative amounts, percentages, dates, a formula error, a text cell starting with `=` (for example `=1+1`) and one holding a comma, a semicolon and a quote.
+
+1. **English locale** (Regional settings… › English (United States)), *Calculated values*, default separators:
+   - Double-click the file to open it in **Excel** on a computer set to English: one value per column, numbers are numbers (right-aligned, they add up), dates are dates, `=1+1` shows as text with its apostrophe and is not calculated.
+   - **Google Sheets** › File › Import › Upload, separator *Detect automatically*: same result.
+2. **French locale** (Regional settings… › Français (France)): the dialog proposes *Semicolons, decimal comma (fr-FR)*.
+   - Open by double-click in **Excel** on a computer set to French: columns split on semicolons, `-1234,5` is a number, dates are dates.
+   - Choose *Commas, decimal point* instead and open in Excel set to English, then in Sheets with an English spreadsheet locale: numbers are numbers.
+   - Import the semicolon file into **Sheets** with the spreadsheet locale set to France (File › Settings): numbers are numbers.
+3. *Displayed text*: the CSV shows each value as the grid does (currency signs, grouping, `k`/`M` scales, parentheses).
+4. Accents and symbols (`é`, `€`, `—`) display correctly in Excel and Sheets (the file is UTF-8 with a BOM).
+5. Open `packages/data/dist/data-test/csv-stale-offline.html` (written by `node tests/csv-browser.mjs` run in `packages/data`), whose saved results are out of date, and select Summary. The dialog warns, offers *Recalculate and export* and *Export saved values*, and no plain *Export CSV*. *Export saved values* names the file `…-stale.csv`; *Recalculate and export* exports current values. Insert a pivot table (Insert › Pivot table…), refresh it, then change one of its source values: the CSV dialog on the pivot's sheet says it is out of date until refreshed.
+6. With the standard file and the network off, edit an input: the calculation cannot load. The CSV dialog says the uncalculated edit is not exported.
+7. Repeat step 1 with the offline file and the network off.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |

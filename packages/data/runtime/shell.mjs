@@ -412,6 +412,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("Save", "save", { shortcut: key("S") }),
         item("Save a copy", "save-copy"),
         item("Download selection as PNG", "download-png"),
+        item("Export sheet as CSV…", "export-csv"),
         "-",
         item("Document settings…", "theme", {
           onSelect: () => openPanel("settings"),
