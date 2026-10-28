@@ -18,6 +18,7 @@ import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
 
 const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const PASTE_BYTES = 20 * 2 ** 20;
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
 );
@@ -381,7 +382,8 @@ async function pasting(browser, name, files, pass) {
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("request", (r) => {
-    if (!/^(file|data):/.test(r.url())) requests.push(r.url());
+    // The page itself is the only file: request; pictures show from data: URLs.
+    if (r.url() !== url && !r.url().startsWith("data:")) requests.push(r.url());
   });
   await page.goto(url);
   await page.waitForFunction(() => window.htmlText);
@@ -459,8 +461,10 @@ async function pasting(browser, name, files, pass) {
       },
       [event, files, types, on],
     );
+  // Fills the open image dialog and waits for that dialog to close (a waiting paste may open
+  // the next one at once).
   const describe = async (alt) => {
-    await page.waitForSelector(`${dialog} textarea`);
+    const open = await page.waitForSelector(`${dialog} textarea`);
     assert.match(
       await page.getAttribute(`${dialog} img.tx-image-preview`, "src"),
       /^data:image\/(webp|png|jpeg|gif|svg\+xml);base64,/,
@@ -468,7 +472,7 @@ async function pasting(browser, name, files, pass) {
     );
     await page.fill(`${dialog} textarea`, alt);
     await page.click(`${dialog} button:text-is('Insert')`);
-    await page.waitForSelector(dialog, { state: "detached" });
+    await page.waitForFunction((el) => !el.isConnected, open);
   };
   const loaded = (selector) =>
     page.waitForFunction((s) => {
@@ -766,6 +770,174 @@ async function pasting(browser, name, files, pass) {
   await undo();
   assert.equal(await saved(), start);
   pass("an image copied and pasted inside the document keeps its asset");
+
+  // ---- edits while the dialog is open: the paste still goes where it was made ----
+  await caret("The north region led growth");
+  await send("paste", {
+    files: [{ name: "a.png", type: "image/png", data: picture.png }],
+  });
+  await page.waitForSelector(`${dialog} textarea`);
+  // An edit before the paragraph, and a selection elsewhere (as a restored caret could be).
+  await page.evaluate(() => {
+    const { view, TextSelection } = window.htmlText;
+    view.dispatch(view.state.tr.insertText("Edited. ", 1));
+    let at = null;
+    view.state.doc.descendants((node, pos) => {
+      if (at === null && node.isText && node.text.startsWith("Grow where"))
+        at = pos;
+    });
+    view.dispatch(
+      view.state.tr.setSelection(
+        TextSelection.create(view.state.doc, at, at + 4),
+      ),
+    );
+  });
+  await describe("Mapped picture");
+  await settled();
+  text = check(await saved());
+  assert.match(
+    article(text),
+    /the west region stayed flat\.<\/p>\n<figure class="image" id="fig-mapped-picture" data-width="text">/,
+  );
+  assert.match(article(text), /<p>Grow where the soil is already rich\.<\/p>/);
+  await undo();
+  await undo();
+  assert.equal(await saved(), start);
+  pass(
+    "an edit and a selection made while the dialog is open never move the paste or lose text",
+  );
+
+  // ---- two pastes in a row: both land, in order, as two undo steps ----
+  await caret("Grow where the soil is already rich");
+  await send("paste", {
+    files: [{ name: "a.png", type: "image/png", data: picture.png }],
+  });
+  await send("paste", {
+    files: [{ name: "b.gif", type: "image/gif", data: picture.gif }],
+  });
+  await describe("First pasted");
+  await describe("Second pasted");
+  await settled();
+  text = check(await saved());
+  assert.match(
+    article(text),
+    /<\/blockquote>\n<figure class="image" id="fig-first-pasted" data-width="text">\n[^\n]*\n<\/figure>\n<figure class="image" id="fig-second-pasted" data-width="text">/,
+  );
+  await undo();
+  assert.doesNotMatch(await saved(), /fig-second-pasted/);
+  assert.match(await saved(), /fig-first-pasted/);
+  await undo();
+  assert.equal(await saved(), start);
+  pass(
+    "two pastes made while the first waits both land, in order, one undo step each",
+  );
+
+  // ---- SVG is cleaned: nothing embedded, nothing that runs ----
+  const embedded = `data:image/png;base64,${huge}`;
+  const hostile =
+    '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="40" height="20" onload="alert(1)">' +
+    "<style>rect{fill:url(https://example.org/p.svg#g)}</style><script>alert(1)</script>" +
+    `<image href="${embedded}" width="10" height="10"/><image xlink:href="https://example.org/x.png"/>` +
+    '<foreignObject><p xmlns="http://www.w3.org/1999/xhtml">x</p></foreignObject>' +
+    '<defs><linearGradient id="g"><stop offset="0" stop-color="#14517a"/></linearGradient></defs>' +
+    '<rect width="40" height="20" fill="url(#g)" onclick="alert(1)"/><use href="#g"/><a href="https://example.org"><circle r="2"/></a></svg>';
+  await caret("Grow where the soil is already rich");
+  await send("paste", {
+    types: {
+      "text/html":
+        `<img src="data:image/svg+xml;base64,${Buffer.from(hostile).toString("base64")}" alt="Cleaned">` +
+        `<img src="data:image/svg+xml,${encodeURIComponent('<!DOCTYPE svg [<!ENTITY a "aaaa">]><svg xmlns="http://www.w3.org/2000/svg">&a;</svg>')}" alt="Entities">`,
+    },
+  });
+  await settled();
+  text = check(await saved());
+  const key = article(text).match(/data-asset="(a\d+)" alt="Cleaned"/)[1];
+  const cleaned = Buffer.from(assetsOf(text)[key].data, "base64").toString();
+  assert.match(cleaned, /<rect width="40" height="20" fill="url\(#g\)"\/>/);
+  assert.match(cleaned, /<use href="#g"\/>/);
+  assert.match(cleaned, /<linearGradient id="g">/);
+  assert.doesNotMatch(
+    cleaned,
+    /<image|<script|<style|foreignObject|onload|onclick|https:|data:/,
+  );
+  assert.doesNotMatch(article(text), /alt="Entities"/);
+  assert.match(await status(), /Left out: 1 image that could not be read\./);
+  await undo();
+  assert.equal(await saved(), start);
+  pass(
+    "a pasted SVG keeps its drawing and loses scripts, handlers, embedded and outside resources; entities are refused",
+  );
+
+  // ---- a percent-encoded PNG, files left out beside text, a transfer with items only ----
+  const percent = [...Buffer.from(picture.gif, "base64")]
+    .map((b) => "%" + b.toString(16).padStart(2, "0"))
+    .join("");
+  await caret("Grow where the soil is already rich");
+  await send("paste", {
+    types: {
+      "text/html": `<p>Encoded</p><img src="data:image/gif,${percent}" alt="Percent">`,
+    },
+  });
+  await settled();
+  assert.match(
+    article(check(await saved())),
+    /<figure class="image" id="fig-percent"/,
+  );
+  await undo();
+  await caret("Grow where the soil is already rich");
+  await send("paste", {
+    files: [
+      {
+        name: "huge.png",
+        type: "image/png",
+        data: Buffer.alloc(PASTE_BYTES + 1).toString("base64"),
+      },
+    ],
+    types: { "text/plain": "beside" },
+  });
+  await settled();
+  assert.match(article(check(await saved())), /rich\.beside<\/p>/);
+  assert.match(
+    await status(),
+    /^Pasted\. Left out: 1 image over the paste limits/,
+  );
+  await undo();
+  await send("paste", {
+    files: [{ name: "notes.pdf", type: "application/pdf", data: "JVBERg==" }],
+    types: { "text/plain": "" },
+  });
+  await settled();
+  assert.match(
+    await status(),
+    /Nothing to paste\. Left out: 1 file that is not a PNG, JPEG, GIF, WebP or SVG image\./,
+  );
+  // Some browsers give a pasted file through clipboardData.items only.
+  await caret("Grow where the soil is already rich");
+  await page.evaluate((data) => {
+    const file = new File(
+      [Uint8Array.from(atob(data), (c) => c.charCodeAt(0))],
+      "dot.gif",
+      { type: "image/gif" },
+    );
+    const clipboardData = {
+      types: ["Files"],
+      files: [],
+      items: [{ kind: "file", type: "image/gif", getAsFile: () => file }],
+      getData: () => "",
+    };
+    const e = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(e, "clipboardData", { value: clipboardData });
+    window.htmlText.view.dom.dispatchEvent(e);
+  }, picture.gif);
+  await describe("From items");
+  await settled();
+  assert.match(article(check(await saved())), /id="fig-from-items"/);
+  await undo();
+  assert.equal(await saved(), start);
+  assert.deepEqual(requests, [], "nothing was requested");
+  pass(
+    "a percent-encoded picture pastes; files left out beside text are reported; files from items only paste",
+  );
 
   // ---- saved and reopened: the pasted images show, nothing unsaved, nothing orphaned ----
   const path = join(out, `images-pasted-${name}.html`);

@@ -6,7 +6,7 @@
 // copied as the html-office envelope, a semantic table for other applications and TSV; any other
 // selection as subset HTML and text.
 import { Slice, Fragment } from "prosemirror-model";
-import { NodeSelection, TextSelection } from "prosemirror-state";
+import { NodeSelection, TextSelection, Plugin } from "prosemirror-state";
 import { closeHistory } from "prosemirror-history";
 import {
   SCHEMA,
@@ -42,6 +42,7 @@ import {
   imageSize,
   overLimits,
   placeImages,
+  dataBytes,
 } from "../editor/clipboard/images.mjs";
 import { figureId, figurePosition } from "../editor/images.mjs";
 import { shrinkImage, imageDialog } from "./images.mjs";
@@ -90,9 +91,9 @@ function referenceIds(doc) {
   return ids;
 }
 
-// The image files of a DataTransfer as placeholder figures ({blocks, lost, images}), or null when
-// it holds none, or only files of other kinds beside text to paste instead.
-function imageFiles(data, types) {
+// The image files of a DataTransfer as placeholder figures ({blocks, lost, images}, the files
+// left out counted in `lost`), or null when it holds no file.
+function imageFiles(data) {
   let files = Array.from(data.files ?? []);
   if (!files.length)
     files = Array.from(data.items ?? [])
@@ -113,7 +114,6 @@ function imageFiles(data, types) {
       blocks.push(node);
       images.push({ node, file, alt: "" });
     }
-  if (!images.length && types.includes("text/plain")) return null;
   return { blocks, lost, images };
 }
 
@@ -137,6 +137,7 @@ export function readTransfer(
       throw new ClipboardError("the clipboard text is too large");
     return value;
   };
+  let files = null;
   if (!plain) {
     let envelope = null;
     const custom = get(MIME);
@@ -185,11 +186,18 @@ export function readTransfer(
       mapped = fromHTML(root, { used, targets, maxCells: MAX_CELLS, images });
       if (mapped.blocks.length) return { ...mapped, notices, used };
     }
-    const files = images ? imageFiles(data, types) : null;
-    if (files) return { ...files, notices, used };
+    // Files of other kinds only, beside text: the text is pasted, and the files reported.
+    files = images ? imageFiles(data) : null;
+    if (files && (files.images.length || !types.includes("text/plain")))
+      return { ...files, notices, used };
     if (mapped && !types.includes("text/plain")) return { ...mapped, notices };
   }
-  return { blocks: textBlocks(text()), lost: none, notices, plain: true };
+  return {
+    blocks: textBlocks(text()),
+    lost: files?.lost ?? none,
+    notices,
+    plain: true,
+  };
 }
 
 // The blocks as a slice for the selection: blocks in the document's body, quotes, callouts and
@@ -470,17 +478,33 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 
   // Inserts blocks at the selection (or at `at`, a drop position) as one undoable step. kept: the
-  // selection to paste at, from before the image dialogs (the document is unchanged).
-  function insert(view, read, at = null, what = "Pasted", kept = null) {
+  // selection a waiting paste was made at, mapped through the changes since; follows: it is the
+  // selection an earlier waiting paste left, which this one continues after.
+  function insert(
+    view,
+    read,
+    at = null,
+    what = "Pasted",
+    kept = null,
+    follows = false,
+  ) {
     if (kept) view.dispatch(view.state.tr.setSelection(kept));
     if (read.resolved) read = withFigures(view, read);
+    const sel = view.state.selection,
+      after = follows && sel instanceof NodeSelection;
     if (read.alone && read.blocks.length) {
-      const state = view.state;
-      if (at !== null || state.selection.empty || textOnly(state, null)) {
-        insertFigures(view, read, at, what);
+      if (at !== null || sel.empty || after || textOnly(view.state, null)) {
+        insertFigures(view, read, after ? sel.from : at, what);
         return;
       }
     }
+    // After the figure an earlier paste inserted, never over it.
+    if (after)
+      view.dispatch(
+        view.state.tr.setSelection(
+          TextSelection.near(view.state.doc.resolve(sel.to)),
+        ),
+      );
     if (at === null && read.blocks.length && pasteIntoTable(view, read)) {
       const message = describeLost(read.lost);
       if (message || read.notices.length)
@@ -516,13 +540,13 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
   // ---- pasted images (T12b) ----
   // Whether the paste lands where only text goes (a cell, a caption, a cover line, a footnote,
   // code, a cell selection); `at` is a drop position or null for the selection.
-  function textOnly(state, at) {
-    const parent = (at === null ? state.selection.$from : state.doc.resolve(at))
-      .parent.type;
+  function textOnly(state, at, sel = state.selection) {
+    const parent = (at === null ? sel.$from : state.doc.resolve(at)).parent
+      .type;
     return (
       ONE_PARAGRAPH.includes(parent) ||
       !!parent.spec.code ||
-      (at === null && state.selection instanceof CellSelection)
+      (at === null && sel instanceof CellSelection)
     );
   }
   // The pasted image figures as nodes: an asset each (stored once) and an ID from the alt text.
@@ -567,19 +591,17 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
     tr.setSelection(NodeSelection.create(tr.doc, last))
       .scrollIntoView()
       .setMeta("paste", true)
-      .setMeta("uiEvent", at === null ? "paste" : "drop");
+      .setMeta("uiEvent", what === "Dropped" ? "drop" : "paste");
     dispatchPaste(view, tr, before);
     const message = describeLost(read.lost);
     const notes = [...read.notices, message].filter(Boolean);
     if (notes.length) notify(`${what}. ${notes.join(" ")}`);
   }
   // The bytes of a pasted image, read only once it is within the byte limit.
-  async function bytesOf(entry) {
-    if (entry.file) return new Uint8Array(await entry.file.arrayBuffer());
-    if (entry.base64)
-      return Uint8Array.from(atob(entry.payload), (c) => c.charCodeAt(0));
-    return new TextEncoder().encode(decodeURIComponent(entry.payload));
-  }
+  const bytesOf = async (entry) =>
+    entry.file
+      ? new Uint8Array(await entry.file.arrayBuffer())
+      : dataBytes(entry);
   // A pasted image through T12's path ({type, data}): its header checked against the limits
   // before the browser decodes it, then shrunk. SVG is kept as it is, as T12 keeps it.
   async function picture(entry) {
@@ -609,12 +631,16 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
   // Reads, checks and shrinks each image in turn, asking for alt text where none came with it:
   // the read with `resolved` (placeholder → {image, attrs} or null) and the images left out
   // counted. Where only text goes, images pasted among other content are left out.
-  async function resolveImages(view, read, at) {
+  async function resolveImages(view, read, dest) {
     const lost = new Map(read.lost),
       resolved = new Map();
     const count = (key) => lost.set(key, (lost.get(key) ?? 0) + 1);
     const alone = read.blocks.every((b) => b.type === N.image_figure);
-    const skip = !alone && textOnly(view.state, at);
+    const skip =
+      !alone &&
+      (dest.doc === view.state.doc
+        ? textOnly(view.state, dest.at, dest.sel)
+        : textOnly(view.state, null));
     for (const entry of read.images) {
       let found = null;
       if (skip) count("image-place");
@@ -639,27 +665,66 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
     return { ...read, lost, resolved, alone, images: [] };
   }
   // Pastes in order: one with images waits for them, and any paste after it waits its turn.
+  // Where each waiting paste goes ({doc, sel, at, follows}): its selection or drop position when
+  // it was made, mapped through every change since by the plugin below. A restored draft
+  // replaces the document without a mapping: the paste then goes to the selection.
+  const pending = new Set();
+  const plugin = new Plugin({
+    state: {
+      init: () => null,
+      apply(tr) {
+        if (tr.docChanged)
+          for (const dest of pending)
+            if (dest.doc === tr.before) {
+              dest.sel = dest.sel.map(tr.doc, tr.mapping);
+              if (dest.at !== null) dest.at = tr.mapping.map(dest.at);
+              dest.doc = tr.doc;
+            }
+        return null;
+      },
+    },
+  });
   let queue = Promise.resolve(),
     waiting = 0;
   function deliver(view, read, at = null, what = "Pasted") {
     if (!read.images?.length && !waiting) return insert(view, read, at, what);
-    const start = view.state;
+    const dest = { doc: view.state.doc, sel: view.state.selection, at };
+    pending.add(dest);
     waiting++;
     queue = queue.then(async () => {
       try {
         const ready = read.images?.length
-          ? await resolveImages(view, read, at)
+          ? await resolveImages(view, read, dest)
           : read;
-        // The document changed meanwhile (an earlier paste): this one goes to the selection.
-        const same = view.state.doc === start.doc;
+        pending.delete(dest);
+        const known = dest.doc === view.state.doc;
+        // Pastes waiting for the same place go after this one, in order.
+        const next = [...pending].filter(
+          (p) =>
+            known &&
+            p.doc === dest.doc &&
+            p.at === dest.at &&
+            p.sel.eq(dest.sel),
+        );
+        const before = view.state.doc;
         insert(
           view,
           ready,
-          same ? at : null,
+          known ? dest.at : null,
           what,
-          same ? start.selection : null,
+          known ? dest.sel : null,
+          dest.follows,
         );
+        if (view.state.doc !== before)
+          for (const p of next)
+            Object.assign(p, {
+              doc: view.state.doc,
+              sel: view.state.selection,
+              at: null,
+              follows: true,
+            });
       } catch (error) {
+        pending.delete(dest);
         refused(error);
       } finally {
         waiting--;
@@ -866,6 +931,8 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
   }
 
   return {
+    // Maps where waiting pastes go: one of the editor's plugins.
+    plugin,
     handleDOMEvents,
     clipboardSerializer,
     clipboardTextSerializer,

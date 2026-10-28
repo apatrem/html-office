@@ -43,6 +43,28 @@ export function dataImage(src) {
   return { type: m[1].toLowerCase(), base64, payload, bytes: payload.length };
 }
 
+// The bytes of a data: image from dataImage: base64 decoded, or percent-encoding decoded byte
+// by byte (a raster's %89 is a byte, not UTF-8), other characters as UTF-8.
+export function dataBytes({ base64, payload }) {
+  if (base64) return Uint8Array.from(atob(payload), (c) => c.charCodeAt(0));
+  const out = [],
+    utf8 = new TextEncoder();
+  for (let i = 0; i < payload.length; i++) {
+    if (
+      payload[i] === "%" &&
+      /^[0-9a-f]{2}$/i.test(payload.slice(i + 1, i + 3))
+    ) {
+      out.push(parseInt(payload.slice(i + 1, i + 3), 16));
+      i += 2;
+      continue;
+    }
+    const c = String.fromCodePoint(payload.codePointAt(i));
+    for (const b of utf8.encode(c)) out.push(b);
+    i += c.length - 1;
+  }
+  return Uint8Array.from(out);
+}
+
 // The format and pixel size of a raster image from its first bytes (a Uint8Array): {type, width,
 // height}, or null when the bytes are not a PNG, JPEG, GIF or WebP whose size can be read.
 export function imageSize(b) {

@@ -8,9 +8,52 @@ import { imageProblem } from "../editor/images.mjs";
 import { fontCSS } from "../model/assets.mjs";
 import { WRAP_WIDTHS } from "../model/format.mjs";
 
+// An SVG as an image may only draw itself: parsed inert (DOMParser runs nothing), it keeps SVG
+// elements, references inside itself (#id) and its own styles; scripts, foreign content, event
+// handlers, entity declarations and anything it would load or embed (an image, a font, a
+// stylesheet, even a data: one, whose size no limit has checked) are removed. Returns the SVG
+// text, or null when it is not one.
+const SVG = "http://www.w3.org/2000/svg";
+const OUTSIDE = /url\(\s*['"]?\s*(?!#)|@import/i;
+export function cleanSVG(text) {
+  if (/<!ENTITY/i.test(text)) return null;
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const root = doc.documentElement;
+  if (
+    root?.namespaceURI !== SVG ||
+    root.localName !== "svg" ||
+    doc.getElementsByTagName("parsererror").length
+  )
+    return null;
+  for (const el of [root, ...root.querySelectorAll("*")]) {
+    if (!el.isConnected) continue;
+    if (
+      el.namespaceURI !== SVG ||
+      ["script", "foreignObject"].includes(el.localName) ||
+      (el.localName === "style" && OUTSIDE.test(el.textContent))
+    ) {
+      el.remove();
+      continue;
+    }
+    for (const { name, value } of [...el.attributes]) {
+      const link = name === "href" || name.endsWith(":href");
+      if (link && !value.trim().startsWith("#")) {
+        // An image, filter image or use of something outside goes whole; a link loses its address.
+        if (["image", "feImage", "use"].includes(el.localName)) {
+          el.remove();
+          break;
+        }
+        el.removeAttribute(name);
+      } else if (/^on/i.test(name) || OUTSIDE.test(value))
+        el.removeAttribute(name);
+    }
+  }
+  return new XMLSerializer().serializeToString(root);
+}
+
 // A picked image file reduced to at most 1,600 px wide, WebP when the browser encodes it, else
-// JPEG for a JPEG and PNG for the rest (PNG keeps transparency). SVG and GIF (which may be
-// animated) are kept as they are. Returns {type, data (base64)}.
+// JPEG for a JPEG and PNG for the rest (PNG keeps transparency). GIF (which may be animated) is
+// kept as it is, SVG as cleanSVG leaves it. Returns {type, data (base64)}.
 export async function shrinkImage(file) {
   const base64 = (blob) =>
     new Promise((resolve, reject) => {
@@ -19,8 +62,13 @@ export async function shrinkImage(file) {
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
     });
-  if (file.type === "image/svg+xml" || file.type === "image/gif")
+  if (file.type === "image/gif")
     return { type: file.type, data: await base64(file) };
+  if (file.type === "image/svg+xml") {
+    const svg = cleanSVG(await file.text());
+    if (svg === null) throw new Error("not an SVG image");
+    return { type: file.type, data: await base64(new Blob([svg])) };
+  }
   const bitmap = await createImageBitmap(file);
   const k = Math.min(1, 1600 / bitmap.width);
   const canvas = document.createElement("canvas");

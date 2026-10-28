@@ -16,6 +16,7 @@ import { fromHTML, describeLost } from "../editor/clipboard/html.mjs";
 import {
   PASTE_IMAGES,
   dataImage,
+  dataBytes,
   imageSize,
   overLimits,
   placeImages,
@@ -63,6 +64,32 @@ test("data: URLs of the five image types are recognised; anything else is not", 
     "",
   ])
     assert.equal(dataImage(src), null, src);
+});
+
+test("data: payloads decode to their exact bytes, percent-encoded rasters included", () => {
+  const png = Buffer.from(PNG, "base64");
+  const percent = [...png]
+    .map((b) => "%" + b.toString(16).padStart(2, "0"))
+    .join("");
+  for (const src of [
+    `data:image/png;base64,${PNG}`,
+    `data:image/png,${percent}`,
+  ]) {
+    const bytes = dataBytes(dataImage(src));
+    assert.deepEqual(Buffer.from(bytes), png, src.slice(0, 24));
+    assert.deepEqual(imageSize(bytes), {
+      type: "image/png",
+      width: 1,
+      height: 1,
+    });
+  }
+  // Characters other than escapes are UTF-8, as SVG text is.
+  assert.equal(
+    new TextDecoder().decode(
+      dataBytes(dataImage("data:image/svg+xml,<svg>é%20%E2%82%AC</svg>")),
+    ),
+    "<svg>é €</svg>",
+  );
 });
 
 test("image headers give the format and pixel size; anything else is unreadable", () => {
