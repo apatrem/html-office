@@ -305,10 +305,10 @@ function start() {
     ],
   });
   // Paste, drop and copy (T07): clipboard content is read as data through the subset mapping.
-  const clipboard = setupClipboard(
-    (text) => saving.say(text),
-    [internal.props.handlePaste, chartsPlugin.props.handlePaste],
-  );
+  const clipboard = setupClipboard((text) => saving.say(text), {
+    internal: internal.props.handlePaste,
+    chart: chartsPlugin.props.handlePaste,
+  });
   view = new EditorView(
     { mount: article },
     {

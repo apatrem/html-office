@@ -430,6 +430,9 @@ async function run(engine) {
       doc,
       /^(<li><a href="#sec-2027-plan">[^\n]*\n)?<h1 class="new-page" id="sec-2027-plan">2027 plan<\/h1>\n<p class="ta-j">The plan keeps[^\n]*\n<ul>\n<li>Open two sites in the <u>south<\/u> region<\/li>/,
     );
+    // This copy pasted in a table cell, with its token: lines of the cell, not the copied blocks.
+    doc = await pasted(mixed, "West");
+    assert.match(doc, /<tr><td>West2027 plan<br>The plan keeps/);
     pass("a mixed selection copies as subset HTML and pastes back as itself");
 
     // ---- T08–T13 content: from another document, and copied out ----
