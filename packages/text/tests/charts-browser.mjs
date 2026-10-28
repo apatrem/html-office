@@ -135,24 +135,34 @@ async function run(name) {
       id,
     );
   };
+  // A clipboard event in a new DataTransfer: a paste holds `data`, or what the last copy wrote,
+  // read where the copy event ended (Firefox copies the event's DataTransfer). Returns the
+  // flavours written.
   const clip = (page, type, data) =>
     page.evaluate(
       ([t, d]) => {
-        if (d) {
-          window.clip = new DataTransfer();
-          for (const [k, v] of Object.entries(d)) window.clip.setData(k, v);
+        if (!window.clipListener) {
+          window.clipListener = (e) =>
+            (window.clipped = Object.fromEntries(
+              [...e.clipboardData.types].map((k) => [
+                k,
+                e.clipboardData.getData(k),
+              ]),
+            ));
+          window.addEventListener("copy", window.clipListener);
         }
-        window.clip ??= new DataTransfer();
+        const transfer = new DataTransfer();
+        if (t === "paste")
+          for (const [k, v] of Object.entries(d ?? window.clipped ?? {}))
+            transfer.setData(k, v);
         window.htmlText.view.dom.dispatchEvent(
           new ClipboardEvent(t, {
-            clipboardData: window.clip,
+            clipboardData: transfer,
             bubbles: true,
             cancelable: true,
           }),
         );
-        return Object.fromEntries(
-          window.clip.types.map((k) => [k, window.clip.getData(k)]),
-        );
+        return window.clipped ?? {};
       },
       [type, data],
     );
