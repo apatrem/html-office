@@ -41,7 +41,9 @@
 .tx-name{display:flex;flex-direction:column;gap:4px;font-size:12px}
 .tx-comments input,.tx-comments textarea{font:13px system-ui,sans-serif;border:1px solid var(--sh-line);border-radius:4px;padding:4px 6px}
 .tx-thread,.tx-new{border:1px solid var(--sh-line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px}
-.tx-thread-head{display:flex;gap:6px;align-items:baseline;cursor:pointer}
+.tx-thread-head{display:flex;gap:6px;align-items:baseline}
+.tx-thread-go{all:unset;cursor:pointer;text-align:left}
+.tx-thread-go:focus-visible{outline:2px solid var(--sh-focus);outline-offset:2px}
 .tx-thread-head q,.tx-new q{font-style:italic;overflow-wrap:anywhere}
 .tx-status{font-size:11px;padding:1px 6px;border-radius:9px;background:var(--sh-bg2,#eef1f4)}
 .tx-status.tx-orphan{background:#fde8d8}

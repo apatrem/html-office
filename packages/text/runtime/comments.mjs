@@ -124,7 +124,24 @@ export function commentsPanel(view, report) {
         { class: `tx-status tx-${t.orphan ? "orphan" : a.status}` },
         t.orphan ? "Orphaned" : a.status === "open" ? "Open" : "Resolved",
       ),
-      h("q", {}, text(a.quote)),
+      // The quotation takes you to the commented text (a button: keyboard too).
+      t.anchors.length
+        ? h(
+            "button",
+            {
+              type: "button",
+              class: "tx-thread-go",
+              "data-control": "go",
+              title: "Show the commented text",
+              onclick: () => {
+                focusRange(t.anchors[0]);
+                highlight(t.anchors.map((r) => ({ ...r, cls: "tx-active" })));
+                view.focus();
+              },
+            },
+            h("q", {}, text(a.quote)),
+          )
+        : h("q", {}, text(a.quote)),
     );
     const entries = a.entries.map((e) =>
       h(
@@ -140,7 +157,11 @@ export function commentsPanel(view, report) {
         h("p", {}, text(e.text)),
       ),
     );
-    const area = h("textarea", { rows: "2", "aria-label": "Reply" });
+    const area = h("textarea", {
+      rows: "2",
+      "aria-label": "Reply",
+      "data-control": "reply",
+    });
     const actions = h(
       "div",
       { class: "tx-thread-actions" },
@@ -151,8 +172,12 @@ export function commentsPanel(view, report) {
           class: "sh-b sh-t sh-ghost",
           onclick: () => {
             const who = author();
-            if (who && run(K.reply(t.id, { author: who, text: area.value })))
-              render(true);
+            if (!who) return;
+            // Emptied before the reply redraws the panel, so it is never posted twice.
+            const typed = area.value;
+            area.value = "";
+            if (!run(K.reply(t.id, { author: who, text: typed })))
+              area.value = typed;
           },
         },
         "Reply",
@@ -162,20 +187,25 @@ export function commentsPanel(view, report) {
         {
           type: "button",
           class: "sh-b sh-t sh-ghost",
+          "data-control": "status",
           onclick: () =>
             run(K.setStatus(t.id, a.status === "open" ? "resolved" : "open")),
         },
         a.status === "open" ? "Resolve" : "Reopen",
       ),
-      h(
-        "button",
-        {
-          type: "button",
-          class: "sh-b sh-t sh-ghost",
-          onclick: () => run(K.deleteThread(t.id)),
-        },
-        "Delete",
-      ),
+      // A thread a protected block refers to stays: that block keeps its mark.
+      t.kept
+        ? null
+        : h(
+            "button",
+            {
+              type: "button",
+              class: "sh-b sh-t sh-ghost",
+              "data-control": "delete",
+              onclick: () => run(K.deleteThread(t.id)),
+            },
+            "Delete",
+          ),
     );
     const box = h(
       "article",
@@ -184,16 +214,14 @@ export function commentsPanel(view, report) {
         "data-thread": t.id,
       },
       head,
+      t.kept
+        ? h("p", { class: "sh-hint" }, "Attached inside a protected block.")
+        : null,
       entries,
       t.orphan ? orphan(t) : null,
       area,
       actions,
     );
-    if (!t.orphan)
-      head.addEventListener("click", () => {
-        focusRange(t.anchors[0]);
-        highlight(t.anchors.map((r) => ({ ...r, cls: "tx-active" })));
-      });
     return box;
   }
 
@@ -312,7 +340,11 @@ export function commentsPanel(view, report) {
             "div",
             { class: "tx-new" },
             h("q", {}, text(draft.quote)),
-            h("textarea", { rows: "3", "aria-label": "New comment" }),
+            h("textarea", {
+              rows: "3",
+              "aria-label": "New comment",
+              "data-control": "new",
+            }),
             h(
               "div",
               { class: "tx-thread-actions" },
@@ -353,18 +385,36 @@ export function commentsPanel(view, report) {
         ? all.map(card)
         : h("p", { class: "sh-hint" }, "No comments yet."),
     );
-    // Typing in the panel survives a redraw: a reply being written is kept.
+    // A redraw keeps what is being typed, and the control that had the keyboard with its caret.
+    const where = (el) =>
+      `${el.closest("[data-thread]")?.dataset.thread ?? "new"}:${el.dataset.control ?? el.localName}`;
     const typing = [...root.querySelectorAll("textarea")].map((t) => [
-      t.closest("[data-thread]")?.dataset.thread ?? "new",
+      where(t),
       t.value,
     ]);
+    const active = root.contains(document.activeElement)
+      ? document.activeElement
+      : null;
+    const focus = active && {
+      key: where(active),
+      range: active.localName === "textarea" && [
+        active.selectionStart,
+        active.selectionEnd,
+      ],
+    };
     root.replaceChildren(...fresh.childNodes);
-    for (const [id, value] of typing) {
-      const area =
-        id === "new"
-          ? root.querySelector(".tx-new textarea")
-          : root.querySelector(`[data-thread="${id}"] textarea`);
+    const find = (key) =>
+      [...root.querySelectorAll("textarea, button, input")].find(
+        (el) => where(el) === key,
+      );
+    for (const [key, value] of typing) {
+      const area = find(key);
       if (area) area.value = value;
+    }
+    const target = focus && find(focus.key);
+    if (target) {
+      target.focus({ preventScroll: true });
+      if (focus.range) target.setSelectionRange(...focus.range);
     }
   }
   render(true);

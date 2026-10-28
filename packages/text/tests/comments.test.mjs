@@ -186,7 +186,7 @@ test("an external rewrite leaves orphans; recovery proposes every exact occurren
     list.map((c) => [c.inSection, c.before.slice(-10), c.after.slice(0, 6)]),
     [
       [true, "where the ", " shran"],
-      [false, "The ", " grew."],
+      [false, "One\nThe ", " grew."],
       [false, "grew. The ", " is la"],
     ],
   );
@@ -271,4 +271,136 @@ test("the comments fixture keeps its LLM-directed comment as data and its orphan
     source,
     "byte for byte",
   );
+});
+
+const article = (body) =>
+  envelope(`<article id="doc" data-format="1" lang="en">\n${body}\n</article>`);
+const orphanOf = (body, quote, section = "s1") =>
+  article(
+    `${body}\n<section class="comments">\n<aside class="comment-thread" id="t1" data-status="open" data-quote="${quote}" data-section="${section}">\n<p class="comment" data-author="Kim" data-date="2026-10-17T11:20Z">x</p>\n</aside>\n</section>`,
+  );
+
+test("context is cut by whole characters, and the saved bytes reopen identically", () => {
+  const e = editor(
+    article(`<h1 id="s1">S</h1>\n<p>Pick ${"a".repeat(30)}😀 then more.</p>`),
+  );
+  e.select("Pick");
+  e.run(K.addComment(ALEX));
+  const [t] = K.threads(e.state.doc);
+  assert.equal(t.node.attrs.suffix, ` ${"a".repeat(30)}😀`);
+  assert.equal(Array.from(t.node.attrs.suffix).length, 32);
+  const bytes = Buffer.from(
+    saveFile(parseFile(article("<p>x</p>")), e.state.doc),
+    "utf8",
+  ).toString("utf8");
+  assert.ok(
+    openFile(parseFile(bytes)).doc.eq(e.state.doc),
+    "reopens from UTF-8 bytes",
+  );
+});
+
+test("the quotation is the text as selected: spaces, no-break spaces and cross-reference labels", () => {
+  const e = editor(
+    article(
+      '<h1 id="s1">One</h1>\n<p>Body&nbsp;and  two <a class="xref" href="#s1">One</a> ending.</p>',
+    ),
+  );
+  const from = e.find("Body");
+  const to = e.find(" ending");
+  e.dispatch(
+    e.state.tr.setSelection(TextSelection.create(e.state.doc, from, to)),
+  );
+  e.run(K.addComment(ALEX));
+  assert.equal(
+    K.threads(e.state.doc)[0].node.attrs.quote,
+    "Body\u00a0and  two One",
+  );
+  e.saved();
+});
+
+test("recovery finds quotations across blocks and inside footnotes, never in code", () => {
+  const body = [
+    '<h1 id="s1">S</h1>',
+    "<p>End of one</p>",
+    "<p>start of two.</p>",
+    '<p>Text<span class="footnote">inside a note</span> after.</p>',
+    "<pre><code>inside a note</code></pre>",
+  ].join("\n");
+  const across = editor(orphanOf(body, "one\nstart"));
+  const [c] = K.candidates(across.state.doc, "t1");
+  assert.ok(across.run(K.confirmCandidate("t1", c)));
+  assert.match(
+    across.saved(),
+    /<p>End of <mark class="comment" data-ref="t1">one<\/mark><\/p>\n<p><mark class="comment" data-ref="t1">start<\/mark> of two\.<\/p>/,
+  );
+  const note = editor(orphanOf(body, "inside a note"));
+  const list = K.candidates(note.state.doc, "t1");
+  assert.equal(list.length, 1, "the code block is no candidate");
+  assert.ok(note.run(K.confirmCandidate("t1", list[0])));
+  assert.match(
+    note.saved(),
+    /<span class="footnote"><mark class="comment" data-ref="t1">inside a note<\/mark><\/span>/,
+  );
+  // A range the mark cannot take is refused, whatever the candidate says.
+  let code;
+  note.state.doc.descendants((n, p) => {
+    if (n.type.name === "code_block") code = p + 1;
+  });
+  const fresh = editor(orphanOf(body, "inside a note"));
+  assert.equal(
+    fresh.run(
+      K.confirmCandidate("t1", {
+        from: code,
+        to: code + 13,
+        doc: fresh.state.doc,
+      }),
+    ),
+    false,
+  );
+});
+
+test("protected headings bound sections; a thread anchored in a protected block cannot be deleted", () => {
+  const body = [
+    '<h1 id="s1">One</h1>',
+    "<p>the quote here</p>",
+    '<h1 id="s2" data-other="kept">Two</h1>',
+    "<p>the quote again</p>",
+    '<div class="kept"><mark class="comment" data-ref="t2">kept</mark></div>',
+  ].join("\n");
+  const source = article(
+    `${body}\n<section class="comments">\n<aside class="comment-thread" id="t1" data-status="open" data-quote="the quote" data-section="s2">\n<p class="comment" data-author="Kim" data-date="2026-10-17T11:20Z">x</p>\n</aside>\n<aside class="comment-thread" id="t2" data-status="open" data-quote="kept">\n<p class="comment" data-author="Kim" data-date="2026-10-17T11:20Z">y</p>\n</aside>\n</section>`,
+  );
+  const e = editor(source);
+  assert.deepEqual(
+    K.candidates(e.state.doc, "t1").map((c) => [
+      c.inSection,
+      c.after.slice(0, 6),
+    ]),
+    [
+      [true, " again"],
+      [false, " here\n"],
+    ],
+  );
+  e.select("quote", 1);
+  e.run(K.addComment(ALEX));
+  assert.equal(
+    K.threads(e.state.doc).find((t) => t.id !== "t1" && t.id !== "t2").node
+      .attrs.section,
+    "s2",
+  );
+  const kept = K.threads(e.state.doc).find((t) => t.id === "t2");
+  assert.equal(kept.kept, true);
+  assert.equal(e.run(K.deleteThread("t2")), false);
+});
+
+test("each comment command is its own undo step", () => {
+  const e = editor();
+  e.select("north site");
+  e.run(K.addComment(ALEX));
+  e.run(K.reply("c1", { author: "Sam", text: "Reply." }));
+  e.run(K.setStatus("c1", "resolved"));
+  undo(e.state, e.dispatch);
+  const [t] = K.threads(e.state.doc);
+  assert.equal(t.node.attrs.status, "open");
+  assert.equal(t.node.attrs.entries.length, 2, "the reply stays");
 });

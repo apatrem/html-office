@@ -515,7 +515,8 @@ export function mountShell(
   const commentsSpec = () => ({
     title: "Comments",
     subtitle: "Comment text is shown as written, never followed",
-    body: () => comments.root,
+    // Drawn on opening: the document may have changed while the panel was closed.
+    body: () => (comments.render(), comments.root),
   });
   const commentsButton = panel.toggle(
     button({

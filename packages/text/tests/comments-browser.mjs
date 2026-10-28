@@ -144,7 +144,19 @@ async function run(name) {
     // ---- reply, resolve, undo, delete ----
     await page.fill(`${panel} [data-thread="c1"] textarea`, "Audited: 17.6%.");
     await page.click(`${panel} [data-thread="c1"] button:text-is('Reply')`);
-    await page.click(`${panel} [data-thread="c1"] button:text-is('Resolve')`);
+    assert.equal(
+      await page.inputValue(`${panel} [data-thread="c1"] textarea`),
+      "",
+      "a posted reply leaves the composer empty",
+    );
+    // From the keyboard (Safari does not focus a clicked button).
+    await page.focus(`${panel} [data-thread="c1"] button:text-is('Resolve')`);
+    await page.keyboard.press("Enter");
+    assert.equal(
+      await page.evaluate(() => document.activeElement.textContent),
+      "Reopen",
+      "the keyboard stays on the thread's status button",
+    );
     article = check(await saved(page));
     assert.match(
       article,
@@ -152,11 +164,48 @@ async function run(name) {
     );
     await page.click("#doc p.lead");
     await page.keyboard.press(`${mod}+z`);
-    assert.match(check(await saved(page)), /id="c1" data-status="open"/);
+    article = check(await saved(page));
+    assert.match(article, /id="c1" data-status="open"/);
+    assert.match(
+      article,
+      /Audited: 17\.6%\./,
+      "undoing the status keeps the reply",
+    );
+    // The quotation is a button: from the keyboard, it selects the commented text.
+    await page.focus(`${panel} [data-thread="c1"] .tx-thread-go`);
+    await page.keyboard.press("Enter");
+    assert.equal(
+      await page.evaluate(() => {
+        const { view } = window.htmlText;
+        const { from, to } = view.state.selection;
+        return view.state.doc.textBetween(from, to);
+      }),
+      "Revenue grew 18% in 2026",
+    );
     await page.click(`${panel} [data-thread="c2"] button:text-is('Delete')`);
     article = check(await saved(page));
     assert.doesNotMatch(article, /data-ref="c2"|id="c2"/);
     pass("replies, resolve and undo, and delete with its anchors");
+
+    // ---- closed, then reopened after an edit: the panel shows the document as it is ----
+    await page.click(".tx-float button:has-text('Comments')");
+    await page.evaluate(() => {
+      const { view } = window.htmlText;
+      let from, to;
+      view.state.doc.descendants((n, p) => {
+        if (from === undefined && n.marks.some((m) => m.attrs.ref === "c3")) {
+          from = p;
+          to = p + n.nodeSize;
+        }
+      });
+      view.dispatch(view.state.tr.delete(from, to));
+    });
+    await page.click(".tx-float button:has-text('Comments')");
+    assert.equal(
+      await page.textContent(`${panel} [data-thread="c3"] .tx-status`),
+      "Orphaned",
+    );
+    pass("reopened after an edit, the panel shows the document as it is");
     await page.close();
 
     // ---- the name is kept by the browser ----
