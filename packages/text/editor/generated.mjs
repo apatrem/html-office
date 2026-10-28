@@ -147,6 +147,8 @@ function notesList(view, notes) {
   notes.forEach((content, i) => {
     const item = list.appendChild(document.createElement("li"));
     item.appendChild(serializer.serializeFragment(content));
+    // A hidden copy holds no tab stop: its links and cross-references are reached in the text.
+    for (const link of item.querySelectorAll("a")) link.tabIndex = -1;
     item.addEventListener("mousedown", (event) => {
       event.preventDefault();
       goToNote(view, i);
