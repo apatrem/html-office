@@ -44,8 +44,8 @@ figcaption{font-size:9.5pt;color:var(--t2);margin:.4em 0 0}
 figure.table figcaption{margin:0 0 .4em}
 figure img,figure svg.render{display:block;width:100%;height:auto}
 figure.image img{background:var(--tint);min-height:4em}
-figure.image[data-wrap=left]{float:left;margin:.2em 1.2em .6em 0}
-figure.image[data-wrap=right]{float:right;margin:.2em 0 .6em 1.2em}
+figure.image[data-wrap=left]{float:left;clear:left;margin:.2em 1.2em .6em 0}
+figure.image[data-wrap=right]{float:right;clear:right;margin:.2em 0 .6em 1.2em}
 figure.image[data-width="25"]{width:25%}figure.image[data-width="33"]{width:33%}figure.image[data-width="40"]{width:40%}figure.image[data-width="50"]{width:50%}
 table{width:100%;border-collapse:collapse;font-size:10pt}
 th,td{padding:.3em .5em;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}

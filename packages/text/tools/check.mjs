@@ -8,7 +8,8 @@ import { readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { canonicalize } from "../editor/schema/document.mjs";
-import { classes } from "../model/html.mjs";
+import { attr, classes } from "../model/html.mjs";
+import { usedAssets } from "../editor/images.mjs";
 import { numbering, fileFormat } from "../editor/numbering.mjs";
 
 const excerpt = (text, offset) =>
@@ -60,6 +61,24 @@ function staleFindings(file, doc, blocks) {
   return out;
 }
 
+// Image assets no image refers to (T12): the editor leaves them out when it saves.
+function unusedAssets(file, doc) {
+  const body = file.html.children.find((n) => n.name === "body");
+  const zone = body.children.find(
+    (n) => n.type === "element" && attr(n, "id") === "assets",
+  );
+  if (!zone) return [];
+  const used = usedAssets(doc);
+  return Object.entries(JSON.parse(zone.children.map((c) => c.value).join("")))
+    .filter(([key, a]) => a.kind !== "font" && !used.has(key))
+    .map(([key]) => ({
+      code: "unused-asset",
+      message: `Asset "${key}" is used by no image: the editor leaves it out when it saves`,
+      path: "script#assets",
+      ...(zone.loc ? { line: zone.loc.line, col: zone.loc.col } : {}),
+    }));
+}
+
 export function checkSource(source) {
   const report = validateFile(parseFile(source));
   if (!report.ok) return report;
@@ -83,7 +102,10 @@ export function checkSource(source) {
       col: difference.col,
     });
   if (!unstable)
-    report.warnings.push(...staleFindings(file, doc, report.blocks));
+    report.warnings.push(
+      ...staleFindings(file, doc, report.blocks),
+      ...unusedAssets(file, doc),
+    );
   return report;
 }
 
