@@ -8,6 +8,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { EngineSession } from "../engine/adapter.mjs";
 import { pivotEdits, pivotLabel } from "../model/pivot.mjs";
+import { parseAddress, parseRange } from "../model/workbook.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -74,9 +75,22 @@ export async function recalculate(book) {
 // Data › Refresh all pivot tables does: each writes its output cells and
 // its source stamp; a failing pivot stops with its reason. `committed` holds
 // the definitions before a patch changed them: their output is what a
-// refresh may release, and any other cell it would cover must be empty.
+// refresh may release, and any other cell it would cover must be empty. A
+// cell an earlier pivot of the same run wrote is no longer released.
 export async function refreshPivots(book, committed = book.pivots ?? []) {
-  const session = new EngineSession(await loadEngine());
+  const session = new EngineSession(await loadEngine()),
+    written = [],
+    within = (outputs, sheetId, ref) => {
+      const { row, column } = parseAddress(ref);
+      return outputs.some(
+        (w) =>
+          w.sheetId === sheetId &&
+          row >= w.rect.top &&
+          row <= w.rect.bottom &&
+          column >= w.rect.left &&
+          column <= w.rect.right,
+      );
+    };
   try {
     session.load(book);
     for (const { id } of book.pivots ?? []) {
@@ -95,7 +109,18 @@ export async function refreshPivots(book, committed = book.pivots ?? []) {
           `Pivot table "${pivotLabel(definition)}" not refreshed: ${error.message}`,
         );
       }
-      session.editMany(result.edits);
+      const output = {
+        sheetId: result.pivot.output.sheetId,
+        rect: parseRange(result.pivot.output.ref),
+      };
+      // Edits outside its own output release the committed footprint.
+      session.editMany(
+        result.edits.filter(
+          ({ sheetId, ref }) =>
+            within([output], sheetId, ref) || !within(written, sheetId, ref),
+        ),
+      );
+      written.push(output);
       session.book.pivots = session.book.pivots.map((p) =>
         p.id === id ? result.pivot : p,
       );

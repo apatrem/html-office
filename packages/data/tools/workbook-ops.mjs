@@ -347,14 +347,17 @@ const withoutResult = (cell) => {
 };
 
 // Derived caches inside definitions: chart previews, and the stamp and
-// output extent a pivot refresh writes.
+// output extent a pivot refresh writes (its anchor cell is not a cache).
 function withoutCaches(key, value) {
   if (!Array.isArray(value)) return value;
   if (key === "charts") return value.map(({ preview: _, ...chart }) => chart);
   if (key === "pivots")
     return value.map(({ refreshed: _, output, ...pivot }) => ({
       ...pivot,
-      output: output && { sheetId: output.sheetId },
+      output: output && {
+        sheetId: output.sheetId,
+        anchor: String(output.ref).split(":")[0],
+      },
     }));
   return value;
 }
