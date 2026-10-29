@@ -32,6 +32,10 @@ export const FONTS = [
 ];
 export const PAGES = ["a4", "letter"];
 export const MARGINS = ["narrow", "normal", "wide"];
+// The running header (T14): printed text of one line, without leading or trailing spaces.
+export const HEADER_LENGTH = 120;
+export const HEADER =
+  /^[^\s\0-\x1f\x7f-\x9f](?:[^\0-\x1f\x7f-\x9f\u2028\u2029]*[^\s\0-\x1f\x7f-\x9f])?$/u;
 
 // Attributes of article#doc, in canonical order.
 export const ARTICLE_ATTRIBUTES = [
@@ -44,6 +48,7 @@ export const ARTICLE_ATTRIBUTES = [
   "data-font",
   "data-page",
   "data-margins",
+  "data-header",
 ];
 
 export const ALIGN = ["ta-l", "ta-c", "ta-r", "ta-j"];

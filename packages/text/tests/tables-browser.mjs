@@ -78,7 +78,9 @@ async function run(engine) {
     // The cell (td or th) whose text is `text`, in the table with this ID.
     const cell = (id, text) =>
       page
-        .locator(`#doc figure#${id} :is(td, th)`, { hasText: text })
+        .locator(`#doc figure#${id} :is(td, th):not(.tx-print-head *)`, {
+          hasText: text,
+        })
         .filter({ hasText: new RegExp(`^${text}$`) })
         .first();
     // The caret at the end of the cell whose text is `text`, in the table with this ID.

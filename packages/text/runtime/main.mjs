@@ -54,7 +54,14 @@ import { mountShell, refusal } from "./shell.mjs";
 import * as C from "../editor/charts.mjs";
 import { chartManager, chartPlugin, chartDialog } from "./charts.mjs";
 import { commentsPanel, commentHighlights } from "./comments.mjs";
-import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
+import {
+  LOOK_CSS,
+  lookAttributes,
+  mirrorLook,
+  setLook,
+  setHeader,
+} from "./look.mjs";
+import { printPlugin, printPreview } from "./print.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
 import panelsCSS from "../../shared/shell/panels.css";
@@ -172,7 +179,7 @@ function start() {
   // DOMParser runs no script: the reader for every text this editor writes or restores.
   const read = (text) =>
     fromDocument(new DOMParser().parseFromString(text, "text/html"));
-  let view, shell;
+  let view, shell, preview;
   const saving = setupSaving({
     opened,
     canonical: looksCanonical(file, articleHTML(doc)),
@@ -277,6 +284,7 @@ function start() {
       G.generatedContent(numbers),
       internal,
       commentHighlights(),
+      printPlugin(),
       keymap({
         "Mod-z": undo,
         "Mod-y": redo,
@@ -330,6 +338,7 @@ function start() {
         view.updateState(view.state.apply(tr));
         if (tr.docChanged) saving.edited();
         mirrorLook(view.state.doc);
+        preview?.update();
         commands.changed();
       },
     },
@@ -343,6 +352,9 @@ function start() {
     );
   commands.register("save-copy", () => saving.saveCopy());
   commands.register("print", () => window.print());
+  // Print (T14): the read-only preview shows the pages the browser prints.
+  preview = printPreview(view, () => window.print());
+  commands.register("preview", () => preview.show());
   // Editing commands (T06): enabled where they apply; run from the chrome, they return the
   // keyboard to the document.
   const edit = (id, command) =>
@@ -438,6 +450,9 @@ function start() {
   // Numbering, contents and cross-references (T08).
   commands.register("heading-numbers", (on) =>
     G.setHeadingNumbers(on)(view.state, view.dispatch),
+  );
+  commands.register("header", (value) =>
+    setHeader(value)(view.state, view.dispatch),
   );
   commands.register("heading-format", (value) =>
     G.setHeadingFormat(value, numbers.format)(view.state, view.dispatch),
@@ -625,6 +640,7 @@ function start() {
     serialize: () => save(view.state.doc),
     // Resolves once pastes waiting for their images are in the document (T12b).
     pasted: () => clipboard.settled(),
+    preview,
     TextSelection,
     NodeSelection,
     CellSelection: T.CellSelection,

@@ -170,3 +170,7 @@ jobs:
         run: node packages/text/tests/tables-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Print preview and the running header in Firefox and WebKit (Text T14)
+        run: node packages/text/tests/print-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

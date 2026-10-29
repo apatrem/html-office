@@ -1,6 +1,7 @@
-// Brand theme, font, page format and margins of the document (T04): attributes of article#doc,
-// changed as undoable steps. The theme and font are mirrored on <html>, where the shared overlays
-// apply, as Slides does with main#deck; the mirror is runtime state and never saved.
+// Brand theme, font, page format and margins of the document (T04) and its running header (T14):
+// attributes of article#doc, changed as undoable steps. The theme and font are mirrored on <html>,
+// where the shared overlays apply, as Slides does with main#deck; the mirror is runtime state and
+// never saved.
 import { charteCSS } from "../../shared/themes/chartes.mjs";
 import { FONTS as FONT_STACKS } from "../../shared/themes/fonts.mjs";
 import { THEMES, FONTS, PAGES, MARGINS } from "../model/format.mjs";
@@ -40,5 +41,22 @@ export const setLook = (key, value) => (state, dispatch) => {
   if (next !== null && !LOOK[key][1].includes(next)) return false;
   if (state.doc.attrs[key] === next) return false;
   dispatch?.(state.tr.setDocAttribute(key, next));
+  return true;
+};
+
+// A CSS string: quotes and backslashes escaped, control characters as code points.
+export const cssString = (text) =>
+  `"${text
+    .replace(/[\\"]/g, "\\$&")
+    .replace(/[\0-\x1f\x7f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `)}"`;
+
+export const headerCSS = (header) =>
+  header ? `@page{@top-center{content:${cssString(header)}}}` : "";
+
+// Sets or removes the running header (data-header): one line of at most 120 characters.
+export const setHeader = (value) => (state, dispatch) => {
+  const next = (value ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || null;
+  if (state.doc.attrs.header === next) return false;
+  dispatch?.(state.tr.setDocAttribute("header", next));
   return true;
 };
