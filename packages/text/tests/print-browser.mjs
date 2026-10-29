@@ -126,8 +126,8 @@ async function run(name) {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
     });
-    const open = async (doc) => {
-      const page = await context.newPage();
+    const open = async (doc, where = context) => {
+      const page = await where.newPage();
       const errors = [];
       page.on("pageerror", (e) => errors.push(e.message));
       page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
@@ -476,14 +476,18 @@ async function run(name) {
     }
 
     // ---- a draft restored while the preview is open is what the preview shows ----
+    // A context of its own: the pages above may leave a draft their undo was still dropping.
     if (name === "chromium") {
-      let { page } = await open("print");
+      const drafts = await browser.newContext({
+        viewport: { width: 1280, height: 900 },
+      });
+      let { page } = await open("print", drafts);
       await page.evaluate(() =>
         window.htmlText.commands.run("header", "Draft header"),
       );
       await page.waitForSelector(".tx-shell [role=status][data-state=draft]");
       await page.close();
-      ({ page } = await open("print"));
+      ({ page } = await open("print", drafts));
       await page.waitForSelector("dialog.sh-dialog[open]");
       await page.evaluate(() => window.htmlText.commands.run("preview"));
       assert.deepEqual(
