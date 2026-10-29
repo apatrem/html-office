@@ -83,41 +83,76 @@ function printRules() {
   return `@media screen{:root.tx-preview{${css}}}`;
 }
 
-// Columns do not repeat table headers as pages do. Where a table continues on a later page, its
-// first row there is pushed down by the header's height (a rule of the preview only) and the
-// header drawn over the space; page by page, since each push moves what follows.
-function repeatHeads(doc, left, stride, style) {
+// What columns do not do as pages do, done by rules of the preview only, page by page in document
+// order, since each push moves what follows. A table continued on a later page: its first row
+// there is pushed down by the header's height, and the header drawn over the space. A block that
+// starts a page (after hr.page-break, or .new-page) but is not at the top of one (Firefox has no
+// column breaks): a top margin pushes it to the next page.
+function fitPages(doc, box, margin, stride, style) {
   const page = (el) =>
-    Math.floor((el.getClientRects()[0].left - left + 1) / stride);
-  const pushed = [];
-  let css = "";
+    Math.floor((el.getClientRects()[0].left - box.left + 1) / stride);
+  const css = (el) => getComputedStyle(el);
+  const top = box.top + margin,
+    height = box.height - 2 * margin;
+  const starts = [...doc.children].filter(
+    (el) =>
+      el.classList.contains("new-page") ||
+      el.previousElementSibling?.matches("hr.page-break"),
+  );
+  const pushed = [],
+    moved = new Set();
+  let rules = "";
   style.textContent = "";
   for (;;) {
     let found = null;
+    for (const el of starts) {
+      const r = el.getClientRects()[0];
+      if (!r || moved.has(el)) continue;
+      // The space above the block: its margin collapsed with the one before it.
+      const gap = Math.max(
+        parseFloat(css(el).marginTop),
+        parseFloat(css(el.previousElementSibling ?? el).marginBottom),
+      );
+      if (r.top - top - parseFloat(css(el).marginTop) > 1) {
+        found = { el, margin: height - (r.top - top - gap) + 1 };
+        break;
+      }
+    }
     for (const thead of doc.querySelectorAll("thead.tx-print-head")) {
-      const height = thead.getBoundingClientRect().height;
-      if (!height) continue;
+      const rows = thead.getBoundingClientRect().height;
+      if (!rows) continue;
       const tbody = thead.nextElementSibling;
       let at = page(thead);
       for (const tr of tbody.children) {
         if (!tr.getClientRects().length) continue;
         const now = page(tr);
         if (now > at && !pushed.some((p) => p.tr === tr)) {
-          found = { thead, tbody, tr, height, at: now };
+          if (
+            !found?.el ||
+            found.el.compareDocumentPosition(tr) &
+              Node.DOCUMENT_POSITION_PRECEDING
+          )
+            found = { thead, tbody, tr, height: rows, at: now };
           break;
         }
         at = now;
       }
-      if (found) break;
+      if (found?.tr) break;
     }
     if (!found) return pushed;
-    pushed.push(found);
-    const cell = found.tr.firstElementChild;
-    if (!cell) continue;
-    const id = found.tbody.closest("figure").id;
-    const k = [...found.tbody.children].indexOf(found.tr) + 1;
-    css += `#${id} tbody>tr:nth-child(${k})>*{padding-top:${parseFloat(getComputedStyle(cell).paddingTop) + found.height}px}`;
-    style.textContent = `@media screen{${css}}`;
+    if (found.el) {
+      moved.add(found.el);
+      const k = [...doc.children].indexOf(found.el) + 1;
+      rules += `#doc>:nth-child(${k}){margin-top:${found.margin}px!important}`;
+    } else {
+      pushed.push(found);
+      const cell = found.tr.firstElementChild;
+      if (!cell) continue;
+      const id = found.tbody.closest("figure").id;
+      const k = [...found.tbody.children].indexOf(found.tr) + 1;
+      rules += `#${id} tbody>tr:nth-child(${k})>*{padding-top:${parseFloat(css(cell).paddingTop) + found.height}px}`;
+    }
+    style.textContent = `@media screen{${rules}}`;
   }
 }
 
@@ -160,7 +195,7 @@ export function printPreview(view, print) {
     const margin = parseFloat(getComputedStyle(doc).paddingTop);
     const gap = parseFloat(getComputedStyle(doc).columnGap) - 2 * margin;
     const stride = box.width + gap;
-    const pushed = repeatHeads(doc, box.left, stride, open.repeat);
+    const pushed = fitPages(doc, box, margin, stride, open.repeat);
     // Each copy at the top of its page's text, where print repeats the header.
     open.heads.replaceChildren(
       ...pushed.map((p) => {

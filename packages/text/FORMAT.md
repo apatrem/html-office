@@ -205,7 +205,7 @@ The browser prints the document and makes the PDF (File › Print / PDF); nothin
 - **Generated content** prints as on screen: heading numbers, caption labels, cross-reference labels, and footnote numbers, with the notes listed as endnotes after the content. The contents list links to its headings (the PDF keeps the links); it shows no page numbers.
 - **Not printed**: comment threads and their anchors' underline, the editor's chrome, selections and marks of missing references.
 - **Print preview** (File › Print preview) shows the same pages read-only before printing: the document is laid out in columns one page high, which the browser breaks as it breaks printed pages, with each page drawn behind its column, the running header and the page numbers in its margins and the table header rows repeated. In Chromium and Edge it has the PDF's page count and breaks; other engines break pages a little differently. Escape or Close preview returns to editing.
-- **Engines.** The running header and page numbers use `@page` margin boxes, which Chromium and Edge print; Safari (WebKit) ignores them and prints the pages without header or numbers.
+- **Engines.** The running header and page numbers use `@page` margin boxes, which Chromium and Edge print; Safari (WebKit) and Firefox ignore them and print the pages without header or numbers. Firefox also ends a document printed from the editor with a blank page (an issue older than print support). Firefox has no column breaks and never splits a table across columns: its preview starts the pages after a page break or a `new-page` heading itself, but shows a table longer than the rest of its page whole, running past the page's bottom, where print splits it and repeats its header.
 
 ## Paste and Markdown import
 

@@ -201,14 +201,19 @@ async function run(name) {
     {
       const { page, errors } = await open("print");
       const shown = await preview(page);
-      assert.ok(shown.count >= 8, `${shown.count} pages`);
+      const table = shown.ids["tab-branches"];
+      if (name !== "chromium")
+        console.log(
+          `INFO text print [${name}]: ${shown.count} preview pages; table on page ${table + 1}, its header repeated on ${shown.repeats.map((r) => r.page + 1).join(", ") || "none"}; Plan on ${shown.ids["sec-plan"] + 1}, Annex on ${shown.ids["sec-annex"] + 1}`,
+        );
+      // Firefox breaks columns its own way (it has no column breaks; the preview makes them).
+      const exact = name !== "firefox";
+      if (exact) assert.ok(shown.count >= 8, `${shown.count} pages`);
       // The table with merged cells continues on two more pages, its header drawn on each.
-      const table = Object.entries(shown.ids).find(
-        ([id]) => id === "tab-branches",
-      )[1];
-      assert.equal(shown.repeats.length, 2);
+      if (exact) assert.equal(shown.repeats.length, 2);
       shown.repeats.forEach((r, i) => {
-        assert.equal(r.page, table + 1 + i);
+        if (exact) assert.equal(r.page, table + 1 + i);
+        else assert.ok(r.page > table);
         assert.ok(Math.abs(r.top - r.margin) < 1, `at the top: ${r.top}`);
         assert.equal(r.cells, 5);
         // A footnote in a header cell shows as its number, as it prints.
@@ -319,6 +324,36 @@ async function run(name) {
         );
       }
 
+      // An engine without column breaks: the preview still starts those sections on a page.
+      const noBreaks = await page.addStyleTag({
+        content:
+          ":root.tx-preview #doc.ProseMirror .new-page{break-before:auto!important}:root.tx-preview #doc.ProseMirror hr.page-break{break-after:auto!important}",
+      });
+      const pushed = await preview(page);
+      // Both sections are pushed by the preview's own margins.
+      assert.equal(
+        await page.evaluate(
+          () =>
+            [...document.querySelectorAll("style")]
+              .map((s) => s.textContent)
+              .join()
+              .match(/#doc>:nth-child\(\d+\)\{margin-top/g)?.length,
+        ),
+        2,
+      );
+      assert.equal(pushed.count, shown.count);
+      assert.deepEqual(
+        ["sec-plan", "sec-annex"].map((id) => pushed.ids[id]),
+        ["sec-plan", "sec-annex"].map((id) => shown.ids[id]),
+      );
+      assert.equal(pushed.text[pushed.ids["sec-plan"]][0], "Plan for 2027");
+      assert.equal(pushed.text[pushed.ids["sec-annex"]][0], "Annex");
+      await closePreview(page);
+      await noBreaks.evaluate((el) => el.remove());
+      pass(
+        "without column breaks, the preview still starts a page where print does",
+      );
+
       // A table added while the preview is open (a paste completing): its header is copied
       // before the pages are drawn again.
       await preview(page);
@@ -341,7 +376,10 @@ async function run(name) {
       const grown = await previewed(page);
       assert.ok(grown.count > shown.count, `${grown.count} pages`);
       assert.equal(grown.feet.length, grown.count);
-      assert.ok(grown.repeats.length >= 4, `${grown.repeats.length} copies`);
+      assert.ok(
+        grown.repeats.length >= (exact ? 4 : shown.repeats.length),
+        `${grown.repeats.length} copies`,
+      );
       for (const r of grown.repeats) assert.equal(r.cells, 5);
       await closePreview(page);
       await page.keyboard.press(
