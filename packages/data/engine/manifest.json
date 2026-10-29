@@ -1,21 +1,21 @@
 {
   "version": "ironcalc/0.9.0+html-office.4",
   "sourceCommit": "297553dc3a37ec6b0f4821055220e3d26c4ac6a1",
-  "artifactCommit": "8b97eb78a8e58d375f3c1f5fdec5ae516be80677",
-  "compatibilityPatchSha256": "6af68eb5450e43994d1bfa24b07f1131187d69abd8b62d1def8910a5d2181ec6",
+  "artifactCommit": "2e376e9ec6f87bc5a9988a19ce220534de23c5c8",
+  "compatibilityPatchSha256": "9b817812b96377e3f03bc305158400a1aa60187ffbfa373a1bc306bb8688eac6",
   "js": {
-    "url": "https://raw.githubusercontent.com/apatrem/html-office/8b97eb78a8e58d375f3c1f5fdec5ae516be80677/packages/data/engine/vendor/ironcalc.mjs",
+    "url": "https://raw.githubusercontent.com/apatrem/html-office/2e376e9ec6f87bc5a9988a19ce220534de23c5c8/packages/data/engine/vendor/ironcalc.mjs",
     "sha256": "c324ce6d0741b1f4a4f85a00634efa076f9728da4e562ac7441af4aa33d4026d",
     "bytes": 7381
   },
   "wasm": {
-    "url": "https://raw.githubusercontent.com/apatrem/html-office/8b97eb78a8e58d375f3c1f5fdec5ae516be80677/packages/data/engine/vendor/ironcalc.wasm.gz",
-    "sha256": "c22bf26cab716a957a342d983a129164ced20593406762d3249ba872063cad59",
-    "bytes": 2175555,
+    "url": "https://raw.githubusercontent.com/apatrem/html-office/2e376e9ec6f87bc5a9988a19ce220534de23c5c8/packages/data/engine/vendor/ironcalc.wasm.gz",
+    "sha256": "56925ff9aadbdda150cf42629d7abb1eda412b7e3bfa596ed2cb8b8464103d19",
+    "bytes": 2175074,
     "transport": {
       "encoding": "gzip",
-      "sha256": "92b58f64e52ab4064a4b6b1a7bf625c62dc3fb6d55b8b1dada283aa1cac9fefc",
-      "bytes": 709895
+      "sha256": "768e7e4f0663472836ede25d7bb5ae4700e2f491627db48b4a9f23d7baa851b6",
+      "bytes": 709700
     }
   }
 }
