@@ -51,7 +51,7 @@ function inline(trees, out, where) {
   let s = "";
   // "!" before a link would make it an image.
   const add = (chunk) => {
-    if (chunk.startsWith("[") && /(^|[^\\])!$/.test(s))
+    if (chunk.startsWith("[") && /(^|[^\\])(\\\\)*!$/.test(s))
       s = s.slice(0, -1) + "\\!";
     s += chunk;
   };
@@ -84,7 +84,9 @@ function inline(trees, out, where) {
         add(
           child.type === "text"
             ? codeSpan(child.value, where)
-            : inline([child], out, where),
+            : classes(child).includes("xref")
+              ? codeSpan(child.children.map((n) => n.value).join(""), where)
+              : inline([child], out, where),
         );
     else {
       const inner = inline(t.children, out, where);
@@ -217,7 +219,7 @@ function caption(node, figure, out) {
 // The visible text of a plain tree (a protected block): inline elements join their text, block
 // elements and line breaks separate it; hidden elements and templates are left out.
 const BLOCK =
-  /^(address|article|aside|blockquote|br|caption|d[dlt]|div|fig(caption|ure)|footer|h\d|header|hr|li|main|nav|ol|p|pre|section|t[dhr]|table|ul)$/;
+  /^(address|article|aside|blockquote|br|caption|center|d[dlt]|details|div|fieldset|fig(caption|ure)|footer|h\d|header|hgroup|hr|legend|li|main|menu|nav|ol|p|pre|search|section|summary|t[dhr]|table|ul)$/;
 const treeText = (tree) =>
   tree.type === "text"
     ? tree.value
@@ -355,11 +357,12 @@ export function toMarkdown(doc, { format } = {}) {
     if (b.length) info.previous = node;
     blocks.push(...b);
   });
-  // A note of one word (with, perhaps, a quoted part) would read in CommonMark as a link
+  // A note of one word (with, perhaps, a quoted part; only ASCII spaces separate words there)
+  // would read in CommonMark as a link
   // definition and vanish: an empty HTML comment, hidden when rendered, keeps it a paragraph.
   const notes = out.notes.map(
     (s, i) =>
-      `[^${i + 1}]: ${/^\S+(\s+["'(][^]*)?$/.test(s.trim()) ? "<!---->" : ""}${s.trim()}`,
+      `[^${i + 1}]: ${/^[^ \t\n]+([ \t\n]+["'(][^]*)?$/.test(s.trim()) ? "<!---->" : ""}${s.trim()}`,
   );
   const counted = LOSSES.filter(([key]) => out.lost[key]).map(
     ([key, name, how]) =>

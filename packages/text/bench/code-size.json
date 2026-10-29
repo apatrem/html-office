@@ -1,7 +1,7 @@
 {
   "ceiling": 600000,
-  "total": 439915,
-  "headroom": 160085,
+  "total": 440055,
+  "headroom": 159945,
   "rows": [
     {
       "component": "prosemirror-model 1.25.12",
@@ -105,13 +105,13 @@
     },
     {
       "component": "Markdown projection",
-      "bytes": 18341,
-      "gzip": 7206
+      "bytes": 18481,
+      "gzip": 7275
     },
     {
       "component": "Editor core (all of the above, shared code once)",
-      "bytes": 435444,
-      "gzip": 139220
+      "bytes": 435584,
+      "gzip": 139260
     },
     {
       "component": "Licence notices of the editor core",

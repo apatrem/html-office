@@ -121,22 +121,39 @@ function words(doc) {
   });
   return (main + notes).match(/[\p{L}\p{N}]+/gu) ?? [];
 }
-// Content that survives the import changed: code text in order, link targets as a set.
+// Content that survives the import changed: code blocks and inline code in order, link targets
+// as a set.
 function retained(doc, back) {
   const of = (d) => {
     const code = [],
+      inline = [],
       links = [];
     d.descendants((n) => {
       if (n.type === N.code_block) code.push(n.textContent);
+      if (n.isTextblock) {
+        // Runs of inline code: consecutive code text in one block.
+        let run = null;
+        n.forEach((c) => {
+          const coded = c.isText && c.marks.some((m) => m.type === M.code);
+          if (coded)
+            run === null
+              ? inline.push((run = c.text))
+              : (inline[inline.length - 1] = run += c.text);
+          else run = null;
+        });
+      }
       for (const m of n.marks) if (m.type === M.link) links.push(m.attrs.href);
     });
-    return { code, links: [...new Set(links)].sort() };
+    return { code, inline, links: [...new Set(links)].sort() };
   };
   const a = of(doc),
     b = of(back);
   return {
     code: a.code
       .map((text, i) => [text, b.code[i]])
+      .filter(([x, y]) => x !== y),
+    inline: a.inline
+      .map((text, i) => [text, b.inline[i]])
       .filter(([x, y]) => x !== y),
     links: a.links.join("\n") === b.links.join("\n") ? [] : [a.links, b.links],
   };
@@ -192,6 +209,9 @@ for (const name of names)
     // Markdown has no carriage return: in code it reads back as a line feed (FORMAT.md).
     for (const [was, now] of record.changed.code)
       assert.equal(now, was.replace(/\r\n?/g, "\n"), "code text kept");
+    // Inline code reads back as HTML text: runs of spaces become one (FORMAT.md).
+    for (const [was, now] of record.changed.inline)
+      assert.equal(now, was.replace(/\s+/g, " "), "inline code kept");
     assert.deepEqual(record.changed.links, [], "link targets kept");
     assert.ok(
       isSubsequence(words(doc), words(back.doc)),
@@ -485,4 +505,52 @@ test("Markdown review: the command line runs through a symbolic link", async () 
   } finally {
     await rm(tmp, { recursive: true });
   }
+});
+
+test("Markdown re-verification: escaped backslash before a link, notes with no-break spaces, references in code, details", () => {
+  const link = [M.link.create({ href: "https://example.org/" })];
+  let r = back(N.doc.create(null, p(t("\\!"), t("linked", link))));
+  assert.equal(r.first.toString(), 'paragraph("\\\\!", link("linked"))');
+  r = back(
+    N.doc.create(null, p(t("Body"), N.footnote.create(null, t("a\u00a0b")))),
+  );
+  assert.match(r.markdown, /^\[\^1\]: <!---->a\u00a0b$/m);
+  assert.ok(words(r.doc).includes("a"));
+  const code = [M.code.create()];
+  const { markdown } = toMarkdown(
+    N.doc.create(null, [
+      N.heading.create({ level: 1, id: "h1" }, t("Title")),
+      p(
+        t("a", code),
+        N.xref.create({ target: "h1", label: "Title" }, null, code),
+        t("b", code),
+      ),
+    ]),
+  );
+  assert.match(markdown, /^`a``Title``b`$/m);
+  const tree = element(
+    "details",
+    [["open", ""]],
+    [element("summary", [], [text("Title")]), text("Body")],
+  );
+  assert.match(
+    toMarkdown(N.doc.create(null, N.protected.create({ node: tree }))).markdown,
+    /^Title Body$/m,
+  );
+  const inlineCode = reimport(
+    toMarkdown(N.doc.create(null, p(t("a  b", code)))).markdown,
+  ).doc;
+  assert.deepEqual(
+    retained(N.doc.create(null, p(t("a  b", code))), inlineCode).inline,
+    [["a  b", "a b"]],
+  );
+});
+
+test("Markdown re-verification: importing the tool from standard input does not throw", () => {
+  const r = spawnSync(process.execPath, ["--input-type=module", "-"], {
+    input: `import ${JSON.stringify(new URL("../tools/markdown.mjs", import.meta.url).href)}; console.log("imported");`,
+    encoding: "utf8",
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, "imported\n");
 });
