@@ -206,6 +206,16 @@ async function run(name) {
         console.log(
           `INFO text print [${name}]: ${shown.count} preview pages; table on page ${table + 1}, its header repeated on ${shown.repeats.map((r) => r.page + 1).join(", ") || "none"}; Plan on ${shown.ids["sec-plan"] + 1}, Annex on ${shown.ids["sec-annex"] + 1}`,
         );
+      // No text is left directly in <body>: Firefox printed a blank last page from the whitespace
+      // around the article once the editor added its nodes (print-firefox.mjs prints it).
+      assert.deepEqual(
+        await page.evaluate(() =>
+          [...document.body.childNodes]
+            .filter((n) => n.nodeType === Node.TEXT_NODE)
+            .map((n) => n.data),
+        ),
+        [],
+      );
       // Firefox breaks columns its own way (it has no column breaks; the preview makes them).
       const exact = name !== "firefox";
       if (exact) assert.ok(shown.count >= 8, `${shown.count} pages`);

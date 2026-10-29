@@ -35,4 +35,4 @@ node packages/text/tools/build.mjs packages/text/fixtures/valid/example.html
 
 The built file (`dist/text/example.html`) opens from `file://`: type, undo and redo, choose the theme, font, page format and margins (Theme & page), Save (Chrome and Edge, File System Access API) or Save a copy (every browser; the only save in Safari and Firefox). Save writes only an empty file or the file as opened, in canonical form; nothing is normalised silently. Unsaved changes are kept as a draft in the browser and offered when the file is reopened.
 
-`TEXT_ENGINES=chromium,firefox,webkit node packages/text/tests/saving-browser.mjs` runs the saving tests in other engines (CI runs Firefox and WebKit); so do `editing-browser.mjs` and `clipboard-browser.mjs`.
+`TEXT_ENGINES=chromium,firefox,webkit node packages/text/tests/saving-browser.mjs` runs the saving tests in other engines (CI runs Firefox and WebKit); so do `editing-browser.mjs` and `clipboard-browser.mjs`. `node packages/text/tests/print-firefox.mjs` prints to PDF in an installed Firefox over WebDriver BiDi (`FIREFOX=` its path when it is not `/Applications/Firefox.app` or on `PATH`), which Playwright's Firefox cannot do.
