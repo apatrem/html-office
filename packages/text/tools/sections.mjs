@@ -7,6 +7,8 @@
 // replace swaps that slice for the given HTML: everything outside it stays byte for byte as it
 // was, and the result must pass check.mjs. Anything else is refused and nothing is written.
 // Exit code 1 on a refusal or an unknown ID, 2 on a usage error.
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { readFile, writeFile, rename } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { sectionsOf } from "../model/sections.mjs";
@@ -199,7 +201,11 @@ function printOutline({ sections }) {
   return lines.join("\n");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run as a command, also through a symbolic link or a path with escaped characters.
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   const args = process.argv.slice(2);
   const json = args.includes("--json");
   const at = args.indexOf("--output");

@@ -16,6 +16,8 @@ import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { checkSource, sectionReport, formatReport } from "../tools/check.mjs";
 import { outline, show, replace, SectionError } from "../tools/sections.mjs";
 import { diffLines } from "../tools/pack.mjs";
+import { markdownSource } from "../tools/markdown.mjs";
+import { symlink } from "node:fs/promises";
 
 const FIXTURE = new URL("../bench/fixtures/report-100.html", import.meta.url);
 const TOOL = fileURLToPath(new URL("../tools/sections.mjs", import.meta.url));
@@ -366,4 +368,30 @@ test("check: findings name their section; --section keeps one section's", () => 
     r.errors[0].line,
     lineOf(source, source.indexOf('<h2 id="sec-9-2">')),
   );
+});
+
+test("the long fixture through the other tools: Markdown export, and sections.mjs through a symbolic link", async () => {
+  const started = performance.now();
+  const { markdown, lost } = markdownSource(source);
+  assert.ok(performance.now() - started < 5000);
+  assert.equal(lost.charts + lost.images, 35);
+  assert.equal(
+    (markdown.match(/^#{1,4} /gm) ?? []).length,
+    91,
+    "cover title and 90 headings",
+  );
+  const dir = await mkdtemp(join(tmpdir(), "text-sections-link-"));
+  try {
+    const link = join(dir, "sections.mjs");
+    await symlink(TOOL, link);
+    const r = spawnSync(
+      process.execPath,
+      [link, "outline", fileURLToPath(FIXTURE)],
+      { encoding: "utf8" },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /\n90 section\(s\), \d+ words in sections\n$/);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
 });

@@ -6,6 +6,8 @@
 //   node bench/long-document.mjs [--pages 100] [<output.html>]
 // Default output: bench/fixtures/report-<pages>.html. tests/sections.test.mjs regenerates the
 // committed 100-page file and compares it byte for byte.
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { writeFile, mkdir } from "node:fs/promises";
 import { Transform } from "prosemirror-transform";
 import { schema } from "../editor/schema/schema.mjs";
@@ -379,7 +381,11 @@ export function longDocument({ pages = 100 } = {}) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run as a command, also through a symbolic link or a path with escaped characters.
+if (
+  process.argv[1] &&
+  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   const args = process.argv.slice(2);
   const at = args.indexOf("--pages");
   const pages = at >= 0 ? Number(args.splice(at, 2)[1]) : 100;
