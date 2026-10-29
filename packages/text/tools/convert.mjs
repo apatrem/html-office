@@ -263,11 +263,12 @@ function prepare(markdown, problems) {
       continue;
     }
     // A placeholder anywhere else in a line (an escaped one is text).
-    if (
-      outsideCode(line, (part) =>
-        /(?<!\\)\[\[block\b/i.test(part) ? "!" : "",
-      ).includes("!")
-    )
+    let elsewhere = false;
+    outsideCode(line, (part) => {
+      if (/(?<!\\)\[\[block\b/i.test(part)) elsewhere = true;
+      return part;
+    });
+    if (elsewhere)
       problems.push(
         `${at(i)}: a placeholder is one line on its own, at the start of the line (outside lists and quotes): [[block: chart|image|table | intent: "…" | id: …]]`,
       );
@@ -553,6 +554,16 @@ function tableNode(id, p, old, ctx, problems) {
         }))
       : null
     : (table?.attrs.cols ?? null);
+  if (p.columns && rows[0] && !cols) {
+    const width = rows[0].content.content.reduce(
+      (n, c) => n + c.attrs.colspan,
+      0,
+    );
+    if (p.columns.length !== width)
+      problems.push(
+        `${where}: columns lists ${p.columns.length} column(s), the table has ${width}`,
+      );
+  }
   if (cols && rows[0]) {
     const width = rows[0].content.content.reduce(
       (n, c) => n + c.attrs.colspan,

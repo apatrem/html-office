@@ -51,18 +51,12 @@ const CLOSE = {
 // Inline content the conversion would read differently, as HTML spaces and breaks are read: a
 // run of spaces, or a line break or space at either end.
 function unwritable(fragment) {
-  const first = fragment.firstChild,
-    last = fragment.lastChild;
-  let spaces = false;
+  // The line as HTML reads it: text, breaks as line feeds, notes and references as one mark.
+  let flow = "";
   fragment.forEach((n) => {
-    if (n.isText && / {2}/.test(n.text)) spaces = true;
+    flow += n.isText ? n.text : n.type === N.hard_break ? "\n" : "x";
   });
-  return (
-    spaces ||
-    [first, last].some((n) => n?.type === N.hard_break) ||
-    (first?.isText && first.text.startsWith(" ")) ||
-    (last?.isText && last.text.endsWith(" "))
-  );
+  return / {2}|\n | \n|^[\n ]|[\n ]$/.test(flow);
 }
 
 // Inline content as Markdown. notes: the footnotes met so far ([^n] definitions).
@@ -123,7 +117,11 @@ function inline(fragment, notes) {
       else if ((name === "strong" || name === "em") && plainSpan(i, mark)) {
         start = name === "strong" ? "**" : "*";
         delimiter.set(mark, start);
-      } else start = OPEN[name];
+      } else {
+        start = OPEN[name];
+        // The same mark may have been written with ** before: it closes as it opens.
+        delimiter.delete(mark);
+      }
       out += start;
       open.push(mark);
     }

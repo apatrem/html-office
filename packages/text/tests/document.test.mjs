@@ -614,6 +614,8 @@ test("convert: one anchor of a thread removed is refused", async () => {
 test("convert: round trips of emphasis, literal syntax and adjacent lists", async () => {
   for (const article of [
     '<h1 id="s">S</h1>\n<p><strong>A<em>B</em></strong><em>C</em> and <em>x</em><strong>y</strong></p>',
+    '<h1 id="s">S</h1>\n<p><strong>A</strong> <strong>B</strong><em>C</em></p>',
+    '<h1 id="s">S</h1>\n<p>Use <code>x != y</code> here.</p>',
     '<h1 id="s">S</h1>\n<p>Literal [^n] and [[xref: s]] and [[block: chart | id: x]] text.</p>',
     '<h1 id="s">S</h1>\n<ul>\n<li>a</li>\n</ul>\n<ul>\n<li>b</li>\n</ul>\n<ul>\n<li>c</li>\n</ul>\n<ol>\n<li>d</li>\n</ol>\n<ol>\n<li>e</li>\n</ol>\n<ol>\n<li>f</li>\n</ol>',
   ]) {
@@ -628,6 +630,8 @@ test("convert: what Markdown cannot keep is refused, not changed", async () => {
     '<h1 id="s">S</h1>\n<p><code>a  b</code></p>',
     '<h1 id="s">S</h1>\n<p><br>a<br></p>',
     '<h1 id="s">S</h1>\n<p>a  b</p>',
+    '<h1 id="s">S</h1>\n<p>a <strong> b</strong></p>',
+    '<h1 id="s">S</h1>\n<p>a<br> b</p>',
   ])
     assert.throws(
       () => sectionMarkdown(doc(article), "s"),
@@ -681,4 +685,23 @@ test("add-image refuses a file that is not UTF-8; new works with no options", as
   const r = run("new", blank);
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(checkSource(await readFile(blank, "utf8")).errors, []);
+});
+
+test("convert: a table's columns are counted even without widths", async () => {
+  const source = doc('<h1 id="s">S</h1>\n<p>Text.</p>');
+  const payloads = new Map([
+    [
+      "tab-new",
+      { kind: "table", body: [["A", "B"]], columns: [{ align: "right" }] },
+    ],
+  ]);
+  await refusal(
+    convertSection(
+      source,
+      "s",
+      '# S {#s}\n\nText.\n\n[[block: table | intent: "" | id: tab-new]]\n',
+      { payloads },
+    ),
+    "columns lists 1 column(s), the table has 2",
+  );
 });
