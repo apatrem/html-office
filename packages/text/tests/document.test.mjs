@@ -485,6 +485,200 @@ test("convert: Markdown conventions refuse what they cannot hold", async () => {
   assert.match((await problems("---\n")).join(), /Left out: 1 horizontal rule/);
   assert.match(
     (await problems("Inline [[block: chart | id: fig-x]] text.\n")).join(),
-    /not on a line of its own/,
+    /a placeholder is one line on its own/,
   );
+});
+
+// ---------- review cases (Codex, PR #100) ----------
+const doc = (article) =>
+  `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Case</title>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en-GB">\n${article}\n</article>\n</body>\n</html>\n`;
+const refusal = async (promise, text) =>
+  assert.rejects(promise, (e) =>
+    [e.message, ...(e.problems ?? [])].some((p) => p.includes(text)),
+  );
+
+test("convert: a partial table payload keeps the parts it leaves out", async () => {
+  const source = await readFile(at("../fixtures/valid/tables.html"), "utf8");
+  const md = sectionMarkdown(source, "sec-t");
+  const body = { "tab-compact": { kind: "table", body: [["South", "9.9"]] } };
+  const { html } = await convertSection(source, "sec-t", md, {
+    payloads: new Map(Object.entries(body)),
+  });
+  const t = html.match(
+    /<figure class="table" id="tab-compact">[^]*?<\/figure>/,
+  )[0];
+  assert.match(t, /<table class="compact">/);
+  assert.match(
+    t,
+    /<thead>\n<tr><th><\/th><th class="ta-c">2026<\/th><\/tr>\n<\/thead>/,
+  );
+  assert.match(
+    t,
+    /<tr><th>South<\/th><td class="ta-r">9\.9<\/td><\/tr>\n<tr class="total"><th>Total<\/th>/,
+  );
+  const head = { "tab-compact": { kind: "table", head: [["Region", "2027"]] } };
+  const h2 = (
+    await convertSection(source, "sec-t", md, {
+      payloads: new Map(Object.entries(head)),
+    })
+  ).html;
+  assert.match(
+    h2,
+    /<tr><th>Region<\/th><th class="ta-c">2027<\/th><\/tr>/,
+    "a head-only update applies",
+  );
+  assert.match(
+    h2,
+    /<tr><th>North<\/th><td class="ta-r"><strong>1\.2<\/strong><\/td><\/tr>/,
+  );
+});
+
+test("convert: partial chart payloads, and references in payload text", async () => {
+  const source = await readFile(at("../fixtures/valid/figures.html"), "utf8");
+  const md = sectionMarkdown(source, "sec-f");
+  const chart = md
+    .match(/id: (fig-[\w-]+)\]\]/g)
+    .map((m) => m.slice(4, -2))
+    .find((id) => source.includes(`class="chart" id="${id}"`));
+  const data = {
+    unit: "u",
+    categories: ["A", "B"],
+    series: [{ name: "S", values: [1, 2] }],
+  };
+  const one = (p) =>
+    convertSection(source, "sec-f", md, { payloads: new Map([[chart, p]]) });
+  assert.match(
+    (await one({ kind: "chart", data })).html,
+    /"categories":\["A","B"\]/,
+  );
+  // A type alone is checked with the chart's own data (a line chart's labels are not a column's).
+  await refusal(
+    one({ kind: "chart", type: "column" }),
+    `chart "${chart}": labels: unknown field`,
+  );
+  await refusal(
+    one({ kind: "chart", data: { categories: ["A"], series: [] } }),
+    `chart "${chart}"`,
+  );
+  await refusal(
+    one({ kind: "chart", caption: "See [[xref: absent]]" }),
+    'the cross-reference to "absent" has no target',
+  );
+  await refusal(
+    convertSection(
+      source,
+      "sec-f",
+      md.replace(
+        /\n\n/,
+        '\n\nSee <a href="#absent" class="xref">this</a>.\n\n',
+      ),
+    ),
+    'the cross-reference to "absent" has no target',
+  );
+  await refusal(
+    convertSection(
+      source,
+      "sec-f",
+      md.replace(
+        /\n\n/,
+        "\n\n<mark data-ref='nobody' class='comment'>x</mark>\n\n",
+      ),
+    ),
+    'names "nobody", which is not a thread',
+  );
+  assert.throws(
+    () =>
+      readPayloads({
+        "fig-u": { kind: "image", width: "garbage", wrap: "garbage" },
+      }),
+    (e) =>
+      e.problems.some((p) => p.includes("width is one of")) &&
+      e.problems.some((p) => p.includes("wrap is")),
+  );
+});
+
+test("convert: one anchor of a thread removed is refused", async () => {
+  const source = await readFile(at("../fixtures/valid/inline.html"), "utf8");
+  const md = sectionMarkdown(source, "sec-inline");
+  assert.equal(md.split('data-ref="c1"').length - 1, 2);
+  const one = md.replace(
+    /<mark class="comment" data-ref="c1">(.*?)<\/mark>/,
+    "$1",
+  );
+  await refusal(
+    convertSection(source, "sec-inline", one),
+    'comment thread "c1" is anchored in the section',
+  );
+});
+
+test("convert: round trips of emphasis, literal syntax and adjacent lists", async () => {
+  for (const article of [
+    '<h1 id="s">S</h1>\n<p><strong>A<em>B</em></strong><em>C</em> and <em>x</em><strong>y</strong></p>',
+    '<h1 id="s">S</h1>\n<p>Literal [^n] and [[xref: s]] and [[block: chart | id: x]] text.</p>',
+    '<h1 id="s">S</h1>\n<ul>\n<li>a</li>\n</ul>\n<ul>\n<li>b</li>\n</ul>\n<ul>\n<li>c</li>\n</ul>\n<ol>\n<li>d</li>\n</ol>\n<ol>\n<li>e</li>\n</ol>\n<ol>\n<li>f</li>\n</ol>',
+  ]) {
+    const source = doc(article);
+    const s = outline(source, { numbers: false }).sections[0];
+    await roundTrip(source, s);
+  }
+});
+
+test("convert: what Markdown cannot keep is refused, not changed", async () => {
+  for (const article of [
+    '<h1 id="s">S</h1>\n<p><code>a  b</code></p>',
+    '<h1 id="s">S</h1>\n<p><br>a<br></p>',
+    '<h1 id="s">S</h1>\n<p>a  b</p>',
+  ])
+    assert.throws(
+      () => sectionMarkdown(doc(article), "s"),
+      /which Markdown cannot keep/,
+    );
+  // A protected block is not dropped by a rewrite.
+  const source = await readFile(at("../fixtures/valid/protected.html"), "utf8");
+  await refusal(
+    convertSection(
+      source,
+      "sec-p",
+      "# Protected content {#sec-p}\n\nOrdinary paragraph.\n",
+    ),
+    "protected block, which Markdown cannot carry",
+  );
+});
+
+test("convert: a placeholder cannot take the ID of a heading it removes", async () => {
+  const source = doc(
+    '<h1 id="sec-a">A</h1>\n<h2 id="sec-b">B</h2>\n<p>Text.</p>',
+  );
+  const payloads = new Map([["sec-b", { kind: "table", body: [["x"]] }]]);
+  await refusal(
+    convertSection(
+      source,
+      "sec-a",
+      '# A {#sec-a}\n\n[[block: table | intent: "" | id: sec-b]]\n',
+      { payloads },
+    ),
+    '"sec-b" is already the ID of something else',
+  );
+});
+
+test("add-image refuses a file that is not UTF-8; new works with no options", async () => {
+  const file = join(dir, "latin1.html");
+  const bytes = Buffer.concat([
+    Buffer.from(report.replace("<title>Northwind", "<title>X")),
+    Buffer.from([]),
+  ]);
+  const broken = Buffer.from(
+    bytes.toString("utf8").replace("<title>X", "<title>\u0000X"),
+  );
+  broken[broken.indexOf(0)] = 0xe9;
+  await writeFile(file, broken);
+  assert.equal(
+    run("add-image", file, join(EXAMPLES, "valid/site.png")).status,
+    1,
+  );
+  assert.deepEqual(await readFile(file), broken);
+  const blank = join(dir, "blank.html");
+  const r = run("new", blank);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(checkSource(await readFile(blank, "utf8")).errors, []);
 });

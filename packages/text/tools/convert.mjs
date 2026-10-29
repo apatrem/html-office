@@ -12,6 +12,7 @@ import { schema } from "../editor/schema/schema.mjs";
 import { fromHTML, describeLost } from "../editor/clipboard/html.mjs";
 import { markdownHTML, MAX_MARKDOWN } from "../editor/clipboard/markdown.mjs";
 import { chartJSON, chartProblem } from "../editor/charts.mjs";
+import { registry } from "../../shared/charts/index.mjs";
 import { imageProblem } from "../editor/images.mjs";
 import { usedIds, reserveIds } from "../editor/commands.mjs";
 import { regenerate, fileFormat } from "../editor/numbering.mjs";
@@ -47,6 +48,7 @@ const FIELDS = {
   ],
 };
 const ALIGN = { left: "ta-l", center: "ta-c", right: "ta-r" };
+const IMAGE_WIDTHS = ["text", "full", "25", "33", "40", "50"];
 const plain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // Every problem of one payload, as messages naming it.
@@ -63,10 +65,14 @@ function payloadProblems(id, p) {
   if (p.caption !== undefined && typeof p.caption !== "string")
     say("caption is Markdown text");
   if (p.kind === "chart") {
-    if (p.type !== undefined || p.data !== undefined) {
+    // A partial payload (type or data alone) changes an existing chart: the merged chart is
+    // validated when it is placed.
+    if (p.type !== undefined && p.data !== undefined) {
       const problem = chartProblem(p.type, p.data);
       if (problem) say(problem);
-    }
+    } else if (p.type !== undefined && !Object.hasOwn(registry, p.type))
+      say(`unknown chart type "${p.type}"`);
+    else if (p.data !== undefined && !plain(p.data)) say("data is an object");
     if (p.width !== undefined && !["text", "full"].includes(p.width))
       say('width is "text" or "full"');
   } else if (p.kind === "image") {
@@ -75,6 +81,18 @@ function payloadProblems(id, p) {
     for (const k of ["asset", "file", "alt", "width", "wrap"])
       if (p[k] !== undefined && p[k] !== null && typeof p[k] !== "string")
         say(`${k} is a string`);
+    if (p.width !== undefined && !IMAGE_WIDTHS.includes(p.width))
+      say(`width is one of ${IMAGE_WIDTHS.join(", ")}`);
+    if (
+      p.wrap !== undefined &&
+      p.wrap !== null &&
+      !["left", "right"].includes(p.wrap)
+    )
+      say('wrap is "left", "right" or null');
+    if (p.alt !== undefined && !String(p.alt).trim())
+      say("alt describes the image");
+    if (p.asset !== undefined && !/^[a-zA-Z][\w-]*$/.test(p.asset))
+      say("asset is a key of script#assets, such as a2");
   } else {
     if (p.compact !== undefined && typeof p.compact !== "boolean")
       say("compact is true or false");
@@ -244,6 +262,15 @@ function prepare(markdown, problems) {
       }
       continue;
     }
+    // A placeholder anywhere else in a line (an escaped one is text).
+    if (
+      outsideCode(line, (part) =>
+        /(?<!\\)\[\[block\b/i.test(part) ? "!" : "",
+      ).includes("!")
+    )
+      problems.push(
+        `${at(i)}: a placeholder is one line on its own, at the start of the line (outside lists and quotes): [[block: chart|image|table | intent: "…" | id: …]]`,
+      );
     const def = /^\[\^([^\]\s]+)\]:[ \t]*(.*)$/.exec(line);
     if (def) {
       if (notes.has(def[1]))
@@ -252,40 +279,44 @@ function prepare(markdown, problems) {
       lines[i] = "";
     }
   }
-  const targets = new Set(),
-    anchors = new Set();
   for (const i of [...prose(lines)]) {
-    lines[i] = lines[i]
-      .replace(/\[\^([^\]\s]+)\]/g, (whole, label) => {
-        const note = notes.get(label);
-        if (!note) {
-          problems.push(`${at(i)}: footnote [^${label}] has no definition`);
-          return whole;
-        }
-        note.used++;
-        return `<span class="footnote">${note.text}</span>`;
-      })
-      .replace(/\[\[xref:\s*([^\]\s]*)\s*\]\]/g, (whole, id) => {
-        if (!ID.test(id)) {
-          problems.push(`${at(i)}: [[xref: ${id}]] does not name an ID`);
-          return whole;
-        }
-        targets.add(id);
-        return `<a class="xref" href="#${id}">${id}</a>`;
-      });
-    for (const m of lines[i].matchAll(/<a\s+class="xref"\s+href="#([^"]*)"/g))
-      targets.add(m[1]);
-    for (const m of lines[i].matchAll(
-      /<mark\s+class="comment"\s+data-ref="([^"]*)"/g,
-    ))
-      anchors.add(m[1]);
+    lines[i] = outsideCode(lines[i], (part) =>
+      part
+        .replace(/(?<!\\)\[\^([^\]\s\\]+)\]/g, (whole, label) => {
+          const note = notes.get(label);
+          if (!note) {
+            problems.push(`${at(i)}: footnote [^${label}] has no definition`);
+            return whole;
+          }
+          note.used++;
+          return `<span class="footnote">${note.text}</span>`;
+        })
+        .replace(/\[\[xref:\s*([^\]\s]*)\s*\]\]/g, (whole, id) => {
+          if (!ID.test(id)) {
+            problems.push(`${at(i)}: [[xref: ${id}]] does not name an ID`);
+            return whole;
+          }
+          return `<a class="xref" href="#${id}">${id}</a>`;
+        }),
+    );
   }
   for (const [label, note] of notes)
     if (!note.used)
       problems.push(
         `line ${note.line}: footnote [^${label}] is defined but not referenced`,
       );
-  return { markdown: lines.join("\n"), blocks, targets, anchors };
+  return { markdown: lines.join("\n"), blocks };
+}
+
+// fn applied to a line's text outside inline code spans (backtick runs), escapes kept.
+function outsideCode(line, fn) {
+  let out = "",
+    i = 0;
+  for (const m of line.matchAll(/(?<!\\)(`+)[^]*?(?<!`)\1(?!`)/g)) {
+    out += fn(line.slice(i, m.index)) + m[0];
+    i = m.index + m[0].length;
+  }
+  return out + fn(line.slice(i));
 }
 
 const HEADING_CLASSES = ["unnumbered", "new-page", "ta-l", "ta-c", "ta-r"];
@@ -345,10 +376,34 @@ function decorate(node, problems) {
   }
 }
 
+// Cross-references and comment anchors as parsed, whatever their spelling: each must reach a
+// target or a thread, since the mapping would turn it into plain text.
+function references(node, { targets, threads }, problems) {
+  for (const child of node.childNodes) {
+    if (child.nodeType !== 1) continue;
+    const cls = (child.getAttribute("class") ?? "").split(/\s+/);
+    if (child.localName === "a" && cls.includes("xref")) {
+      const id = (child.getAttribute("href") ?? "").replace(/^#/, "");
+      if (!targets.has(id))
+        problems.push(
+          `the cross-reference to "${id}" has no target: a heading or figure ID of the document or of this section`,
+        );
+    } else if (child.localName === "mark" && cls.includes("comment")) {
+      const ref = child.getAttribute("data-ref") ?? "";
+      if (!threads.has(ref))
+        problems.push(
+          `the comment anchor names "${ref}", which is not a thread`,
+        );
+    }
+    references(child, { targets, threads }, problems);
+  }
+}
+
 // Markdown (prepared) as blocks, through the T07 mapping. Refuses what it would leave out.
 function markdownBlocks(markdown, options, problems) {
   const root = parseInert(markdownHTML(markdown));
   decorate(root, problems);
+  references(root, options, problems);
   const { blocks, lost } = fromHTML(root, options);
   const said = describeLost(lost);
   if (said)
@@ -395,75 +450,125 @@ export function imageType(bytes) {
   return IMAGE_TYPES.find(([, test]) => test(bytes))?.[0] ?? null;
 }
 
+// The grid fields of a table payload: giving any of them rebuilds the table, keeping the parts
+// (header rows, body rows, total rows), widths, density, alignment and row headers it leaves out.
+const GRID = ["head", "body", "total", "columns", "rowHeaders"];
+
 function tableNode(id, p, old, ctx, problems) {
   const where = `table "${id}"`;
-  const head = p.head ?? [],
-    body = p.body,
-    total = p.total ?? [];
-  if (!body) {
-    problems.push(`${where}: body is required`);
-    return null;
-  }
-  // Column of each cell once spans are expanded, for the columns' alignment.
-  const taken = [];
-  const rows = [...head, ...body, ...total].map((row, r) => {
-    const group = r < head.length ? 0 : 1;
-    let col = 0;
-    return row.map((c) => {
-      const cell = typeof c === "object" ? c : { text: c };
-      while (taken[r]?.[col]) col++;
-      const span = { colspan: cell.colspan ?? 1, rowspan: cell.rowspan ?? 1 };
-      for (let dr = 0; dr < span.rowspan; dr++)
-        for (let dc = 0; dc < span.colspan; dc++)
-          (taken[r + dr] ??= [])[col + dc] = group + 1;
-      const out = { ...cell, ...span, col };
-      col += span.colspan;
-      return out;
-    });
-  });
-  const width = Math.max(...taken.map((r) => r?.length ?? 0));
-  if (p.columns && p.columns.length !== width)
-    problems.push(
-      `${where}: columns lists ${p.columns.length} column(s), the table has ${width}`,
-    );
-  const cols = p.columns?.some((c) => c.width !== undefined || c.emphasis)
-    ? p.columns.map((c) => ({
-        width: c.width === undefined ? null : String(c.width),
-        emphasis: !!c.emphasis,
-      }))
-    : null;
-  const nodes = rows.map((row, r) => {
-    const isHead = r < head.length,
-      isTotal = r >= head.length + body.length;
-    return N.table_row.create(
-      { head: isHead, total: isTotal },
-      row.map((cell, i) => {
-        const align = ALIGN[cell.align ?? p.columns?.[cell.col]?.align] ?? null;
-        const type =
-          isHead || (p.rowHeaders && i === 0 && cell.col === 0)
-            ? N.table_header
-            : N.table_cell;
-        return type.create(
-          { colspan: cell.colspan, rowspan: cell.rowspan, align },
-          inlineContent(cell.text, ctx.options, problems, `${where} cell`),
-        );
-      }),
-    );
-  });
+  const table = old?.lastChild ?? null;
   const caption =
     p.caption !== undefined
       ? p.caption
-        ? N.caption.create(
-            null,
-            inlineContent(p.caption, ctx.options, problems, `${where} caption`),
-          )
-        : null
+        ? [
+            N.caption.create(
+              null,
+              inlineContent(
+                p.caption,
+                ctx.options,
+                problems,
+                `${where} caption`,
+              ),
+            ),
+          ]
+        : []
       : old?.firstChild?.type === N.caption
-        ? old.firstChild
-        : null;
+        ? [old.firstChild]
+        : [];
+  const compact = p.compact ?? table?.attrs.compact ?? false;
+  if (table && !GRID.some((k) => p[k] !== undefined))
+    return N.table_figure.create({ id }, [
+      ...caption,
+      table.type.create({ ...table.attrs, compact }, table.content),
+    ]);
+  const kept = { head: [], body: [], total: [] };
+  table?.forEach((row) =>
+    kept[row.attrs.head ? "head" : row.attrs.total ? "total" : "body"].push(
+      row,
+    ),
+  );
+  if (!p.body && !kept.body.length) {
+    problems.push(`${where}: body is required`);
+    return null;
+  }
+  // The old alignment by column of each part (its first row; the body's for a part the table did
+  // not have), and the old row headers, for new rows that do not say.
+  const alignOf = (row) => {
+    const out = [];
+    let col = 0;
+    row?.forEach((cell) => {
+      for (let k = 0; k < cell.attrs.colspan; k++)
+        out[col++] = cell.attrs.align;
+    });
+    return out;
+  };
+  const oldAlign = Object.fromEntries(
+    ["head", "body", "total"].map((part) => [
+      part,
+      alignOf(kept[part][0] ?? kept.body[0]),
+    ]),
+  );
+  const rowHeaders =
+    p.rowHeaders ?? kept.body[0]?.firstChild?.type === N.table_header;
+  // Rows of one part (spans stay inside it), with each cell's column once spans are expanded.
+  const build = (spec, part) => {
+    const taken = [];
+    return spec.map((row, r) => {
+      let c = 0;
+      const cells = row.map((v) => {
+        const cell = typeof v === "object" ? v : { text: v };
+        while (taken[r]?.[c]) c++;
+        const span = { colspan: cell.colspan ?? 1, rowspan: cell.rowspan ?? 1 };
+        for (let dr = 0; dr < span.rowspan; dr++)
+          for (let dc = 0; dc < span.colspan; dc++)
+            (taken[r + dr] ??= [])[c + dc] = true;
+        const at = c;
+        c += span.colspan;
+        const align =
+          ALIGN[cell.align ?? p.columns?.[at]?.align] ??
+          (p.columns ? null : (oldAlign[part][at] ?? null));
+        const type =
+          part === "head" || (rowHeaders && at === 0)
+            ? N.table_header
+            : N.table_cell;
+        return type.create(
+          { colspan: span.colspan, rowspan: span.rowspan, align },
+          inlineContent(cell.text, ctx.options, problems, `${where} cell`),
+        );
+      });
+      return N.table_row.create(
+        { head: part === "head", total: part === "total" },
+        cells,
+      );
+    });
+  };
+  const rows = ["head", "body", "total"].flatMap((part) =>
+    p[part] !== undefined ? build(p[part], part) : kept[part],
+  );
+  const cols = p.columns
+    ? p.columns.some((c) => c.width !== undefined || c.emphasis)
+      ? p.columns.map((c) => ({
+          width: c.width === undefined ? null : String(c.width),
+          emphasis: !!c.emphasis,
+        }))
+      : null
+    : (table?.attrs.cols ?? null);
+  if (cols && rows[0]) {
+    const width = rows[0].content.content.reduce(
+      (n, c) => n + c.attrs.colspan,
+      0,
+    );
+    // The first row may be shortened by rowspans from above only in later rows: it is complete.
+    if (cols.length !== width)
+      problems.push(
+        `${where}: ${cols.length} column(s) given or kept, the table has ${width}`,
+      );
+  }
   try {
-    const table = N.table.create({ compact: !!p.compact, cols }, nodes);
-    return N.table_figure.create({ id }, caption ? [caption, table] : [table]);
+    return N.table_figure.create({ id }, [
+      ...caption,
+      N.table.create({ compact, cols }, rows),
+    ]);
   } catch (error) {
     problems.push(`${where}: ${error.message}`);
     return null;
@@ -566,28 +671,27 @@ async function figureNode(block, payload, old, ctx, problems) {
     }
     return N.image_figure.create(attrs, caption());
   }
-  if (payload.body === undefined && old) {
-    // Only the caption or density changes.
-    const table = old.lastChild;
-    const t =
-      payload.compact === undefined
-        ? table
-        : table.type.create(
-            { ...table.attrs, compact: payload.compact },
-            table.content,
-          );
-    return N.table_figure.create({ id }, [...caption(), t]);
-  }
   return tableNode(id, payload, old, ctx, problems);
 }
 
 // ---------- the rewrite ----------
-const commentRefs = (fragment) => {
-  const refs = new Set();
+// The anchored ranges of each thread: Map ref → number of separate ranges.
+const commentRanges = (fragment) => {
+  const ranges = new Map();
   fragment.descendants((n) => {
-    for (const m of n.marks) if (m.type === M.comment) refs.add(m.attrs.ref);
+    if (!n.inlineContent) return true;
+    let open = new Set();
+    n.forEach((child) => {
+      const now = new Set(
+        child.marks.filter((m) => m.type === M.comment).map((m) => m.attrs.ref),
+      );
+      for (const ref of now)
+        if (!open.has(ref)) ranges.set(ref, (ranges.get(ref) ?? 0) + 1);
+      open = now;
+    });
+    return false;
   });
-  return refs;
+  return ranges;
 };
 const isFigure = (n) => Object.values(KINDS).includes(n.type);
 // Figures among top-level nodes, by ID.
@@ -628,10 +732,16 @@ export async function rewrite(
   doc.forEach((node, _, i) =>
     (i < from ? before : i < to ? old : after).push(node),
   );
+  for (const node of old)
+    if (node.type === N.protected || node.type === N.toc)
+      problems.push(
+        `the section holds a ${node.type === N.toc ? "contents list" : "protected block"}, which Markdown cannot carry: edit it in HTML (show, replace)`,
+      );
   const prepared = prepare(markdown, problems);
   // IDs: everything in the file except the old section's headings, which the Markdown may keep.
   reserveIds(zoneIds(file));
-  const used = usedIds(doc);
+  const used = usedIds(doc),
+    taken = new Set(used);
   const oldHeadings = new Set();
   for (const node of old)
     if (node.type === N.heading) oldHeadings.add(node.attrs.id);
@@ -647,7 +757,7 @@ export async function rewrite(
       problems.push(
         `line ${b.line}: "${b.id}" is a figure of another section: a figure is placed once`,
       );
-    else if (used.has(b.id) && !inside.has(b.id))
+    else if (taken.has(b.id) && !inside.has(b.id))
       problems.push(
         `line ${b.line}: "${b.id}" is already the ID of something else in the document`,
       );
@@ -661,18 +771,10 @@ export async function rewrite(
   for (const b of prepared.blocks) targets.add(b.id);
   for (const m of prepared.markdown.matchAll(/\{\s*#([A-Za-z][\w-]*)/g))
     targets.add(m[1]);
-  for (const id of prepared.targets)
-    if (!targets.has(id))
-      problems.push(
-        `the cross-reference to "${id}" has no target: a heading or figure ID of the document or of this section`,
-      );
   const threads = new Set();
   doc.descendants((n) => {
     if (n.type === N.comment_thread) threads.add(n.attrs.id);
   });
-  for (const ref of prepared.anchors)
-    if (!threads.has(ref))
-      problems.push(`the comment anchor names "${ref}", which is not a thread`);
   const options = { used, targets, threads };
   const blocks = markdownBlocks(prepared.markdown, options, problems);
   const ctx = { options, assets, addAsset };
@@ -713,7 +815,7 @@ export async function rewrite(
   }
   const leftover = Fragment.from(content);
   leftover.descendants((n) => {
-    if (n.isText && /HTMLTEXTBLOCK\d+X|\[\[(block|xref)\b/.test(n.text))
+    if (n.isText && /HTMLTEXTBLOCK\d+X/.test(n.text))
       problems.push(
         `a placeholder is not on a line of its own at the top level: "${n.text.slice(0, 60)}"`,
       );
@@ -723,9 +825,9 @@ export async function rewrite(
       problems.push(
         `${node.type === N.chart ? "chart" : node.type === N.table_figure ? "table" : "image"} "${id}" is in the section but not placed: add [[block: … | id: ${id}]] or drop it explicitly`,
       );
-  const kept = commentRefs(leftover);
-  for (const ref of commentRefs(Fragment.from(old)))
-    if (!kept.has(ref) && !drop.includes(ref))
+  const kept = commentRanges(leftover);
+  for (const [ref, n] of commentRanges(Fragment.from(old)))
+    if ((kept.get(ref) ?? 0) < n && !drop.includes(ref))
       problems.push(
         `comment thread "${ref}" is anchored in the section: keep <mark class="comment" data-ref="${ref}">…</mark> around the text it comments, or drop it explicitly (the thread is then orphaned)`,
       );
@@ -754,7 +856,12 @@ export async function rewrite(
     throw new ConvertError("The Markdown was not converted", problems);
   let next;
   try {
-    next = doc.type.create(doc.attrs, [...before, ...content, ...after]);
+    const all = [...before, ...content, ...after];
+    // A document holds at least one block: an empty paragraph, as the editor keeps it.
+    next = doc.type.create(
+      doc.attrs,
+      all.length ? all : [N.paragraph.create()],
+    );
     next.check();
   } catch (error) {
     throw new ConvertError("The Markdown was not converted", [error.message]);

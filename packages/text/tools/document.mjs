@@ -118,6 +118,18 @@ const oneOf = (name, value, values) => {
     throw usage(`--${name} is one of ${values.join(", ")}`);
 };
 
+// A document's text. Bytes that are not UTF-8 would be rewritten as U+FFFD anywhere in the
+// file when it is written back: such a file is refused, as the section tools refuse it.
+const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+async function readDocument(path) {
+  try {
+    return UTF8.decode(await readFile(path));
+  } catch (error) {
+    if (error.code) throw error;
+    throw new Failure(`${path} is not valid UTF-8; nothing was written`);
+  }
+}
+
 // ---------- zones ----------
 const zone = (parent, id) =>
   parent.children.find((n) => n.type === "element" && attr(n, "id") === id);
@@ -329,7 +341,7 @@ export async function packDocument(args, log = console.log) {
   if (args.offline && args.standard)
     throw usage("Choose --offline or --standard, not both");
   const out = args.out ?? input;
-  const source = await readFile(input, "utf8");
+  const source = await readDocument(input);
   let packed;
   try {
     packed = canonicalPack(source);
@@ -391,7 +403,7 @@ export async function addImage(args, log = console.log) {
   const [input, image] = args._;
   if (!input || !image)
     throw usage("add-image needs the document and the image");
-  const source = await readFile(input, "utf8");
+  const source = await readDocument(input);
   const report = checkSource(source);
   if (!report.ok)
     throw new Failure(
@@ -481,7 +493,7 @@ async function convertCommand(args, log) {
   if (!input || !id || !markdownFile)
     throw usage("convert needs the document, the section ID and the Markdown");
   const { html, notes, warnings } = await convertSection(
-    await readFile(input, "utf8"),
+    await readDocument(input),
     id,
     await readFile(markdownFile, "utf8"),
     {

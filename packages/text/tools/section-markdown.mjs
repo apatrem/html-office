@@ -48,22 +48,47 @@ const CLOSE = {
   sup: "</sup>",
 };
 
+// Inline content the conversion would read differently, as HTML spaces and breaks are read: a
+// run of spaces, or a line break or space at either end.
+function unwritable(fragment) {
+  const first = fragment.firstChild,
+    last = fragment.lastChild;
+  let spaces = false;
+  fragment.forEach((n) => {
+    if (n.isText && / {2}/.test(n.text)) spaces = true;
+  });
+  return (
+    spaces ||
+    [first, last].some((n) => n?.type === N.hard_break) ||
+    (first?.isText && first.text.startsWith(" ")) ||
+    (last?.isText && last.text.endsWith(" "))
+  );
+}
+
 // Inline content as Markdown. notes: the footnotes met so far ([^n] definitions).
 function inline(fragment, notes) {
+  if (unwritable(fragment))
+    throw new ConvertError(
+      `The section holds text with a run of spaces, or a space or line break at the start or end of a line ("${fragment.textBetween(0, Math.min(fragment.size, 40), " ")}…"), which Markdown cannot keep: edit it in HTML (show, replace)`,
+    );
   const nodes = [];
   fragment.forEach((n) => nodes.push(n));
   let out = "";
   const open = [];
-  // Whether a mark spans only text whose ends are letters or digits, where ** and * are safe.
+  // Whether ** or * are safe for a mark: it spans only text whose ends are letters or digits,
+  // with no other bold or italic inside it or touching it, whose delimiters would run together.
+  const emphasis = (n) =>
+    n.marks.filter((m) => m.type === M.strong || m.type === M.em);
   const plainSpan = (i, mark) => {
     let j = i,
       text = "";
     while (j < nodes.length && mark.isInSet(nodes[j].marks)) {
-      if (!nodes[j].isText || nodes[j].text.includes("*")) return false;
+      if (!nodes[j].isText || emphasis(nodes[j]).length > 1) return false;
       text += nodes[j].text;
       j++;
     }
-    return ALNUM.test(text);
+    const touches = (n) => n && emphasis(n).length > 0;
+    return ALNUM.test(text) && !touches(nodes[i - 1]) && !touches(nodes[j]);
   };
   const delimiter = new Map();
   const close = (mark) => {
@@ -142,7 +167,8 @@ function list(node, notes, alternate) {
 // The blocks of a section as Markdown chunks.
 function blocks(nodes, notes) {
   const out = [];
-  let previous = null;
+  let previous = null,
+    alternate = false;
   for (const node of nodes) {
     const t = node.type;
     if (t === N.heading) {
@@ -164,10 +190,14 @@ function blocks(nodes, notes) {
       out.push(paragraph(node, notes));
     } else if (t === N.blockquote || t === N.callout) {
       const parts = [];
-      let last = null;
+      let last = null,
+        flip = false;
       node.forEach((child) => {
         if (child.type === N.paragraph) parts.push([paragraph(child, notes)]);
-        else parts.push(list(child, notes, last?.type === child.type));
+        else {
+          flip = last?.type === child.type ? !flip : false;
+          parts.push(list(child, notes, flip));
+        }
         last = child;
       });
       const lines = [
@@ -186,9 +216,10 @@ function blocks(nodes, notes) {
         Math.max(3, ...[...text.matchAll(/`+/g)].map((m) => m[0].length + 1)),
       );
       out.push(`${ticks}\n${text}\n${ticks}`);
-    } else if (t === N.bullet_list || t === N.ordered_list)
-      out.push(list(node, notes, previous?.type === t).join("\n"));
-    else if (t === N.page_break) out.push('<hr class="page-break">');
+    } else if (t === N.bullet_list || t === N.ordered_list) {
+      alternate = previous?.type === t ? !alternate : false;
+      out.push(list(node, notes, alternate).join("\n"));
+    } else if (t === N.page_break) out.push('<hr class="page-break">');
     else if (t === N.chart || t === N.image_figure || t === N.table_figure) {
       const kind =
         t === N.chart ? "chart" : t === N.image_figure ? "image" : "table";
