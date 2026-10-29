@@ -164,6 +164,58 @@ export function inspectRange(book, target, sheetKey) {
   };
 }
 
+// The compact view of inspectRange(): one line per cell with its formula or
+// input, its saved result and its displayed text. Text values are quoted so
+// "12" reads apart from 12; --json keeps every field (styles, formats…).
+const scalarText = (v) =>
+  !v
+    ? "(none)"
+    : v.type === "text"
+      ? JSON.stringify(v.value)
+      : v.type === "boolean"
+        ? v.value
+          ? "TRUE"
+          : "FALSE"
+        : v.type === "blank"
+          ? "(blank)"
+          : v.type === "date"
+            ? `${v.value} (date)`
+            : String(v.value);
+// Control characters, escaped as in JSON so each cell keeps one line.
+const oneLine = (text) =>
+  text.replace(/[\u0000-\u001f]/g, (c) => JSON.stringify(c).slice(1, -1));
+const COLUMN_WIDTH = 40;
+export function compactRange({ sheet, range, cells }, results) {
+  const head = `${sheet}!${range}: ${cells.length} cell${cells.length === 1 ? "" : "s"}; results ${results}.`;
+  if (!cells.length) return head;
+  const rows = [
+    ["Cell", "Formula or input", "Result", "Shown"],
+    ...cells.map(({ ref, cell, shown }) => [
+      ref,
+      cell.formula
+        ? oneLine(cell.formula)
+        : cell.input
+          ? scalarText(cell.input)
+          : "(empty)",
+      cell.formula ? scalarText(cell.result) : "",
+      oneLine(shown),
+    ]),
+  ];
+  // Columns align up to a width; a longer value pushes only its own line.
+  const widths = [0, 1, 2].map((i) =>
+    Math.min(COLUMN_WIDTH, Math.max(...rows.map((row) => row[i].length))),
+  );
+  return [
+    head,
+    ...rows.map((row) =>
+      row
+        .map((text, i) => (i < 3 ? text.padEnd(widths[i]) : text))
+        .join("  ")
+        .trimEnd(),
+    ),
+  ].join("\n");
+}
+
 // Typed input from a JSON scalar in a "rows" block.
 function scalar(value, where) {
   if (value === null) return null;

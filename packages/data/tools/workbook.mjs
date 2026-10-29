@@ -32,6 +32,7 @@ import {
 } from "./document-html.mjs";
 import {
   applyPatch,
+  compactRange,
   inspectRange,
   locateErrors,
   parseTarget,
@@ -209,6 +210,7 @@ export async function run(argv) {
       html = await buildWorkbook(book, {
         offline: !!args.offline,
         charte: args.charte,
+        note: (message) => console.error(message),
       });
     await writeAtomic(file, html);
     const { book: built } = readDocument(html);
@@ -235,10 +237,19 @@ export async function run(argv) {
     return;
   }
   if (command === "inspect") {
-    const value = args.range
-      ? inspectRange(read.book, args.range)
-      : await summary(read.book);
-    print(args, value, JSON.stringify(value, null, 2));
+    if (!args.range) {
+      const value = await summary(read.book);
+      print(args, value, JSON.stringify(value, null, 2));
+    } else {
+      // One line per cell; --json gives every cell field.
+      const value = inspectRange(read.book, args.range);
+      print(
+        args,
+        value,
+        !args.json &&
+          compactRange(value, (await snapshotState(read.book)).state),
+      );
+    }
     return;
   }
   if (command === "apply") {
