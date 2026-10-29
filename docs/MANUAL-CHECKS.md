@@ -303,7 +303,7 @@ Build both benchmark documents: `node packages/text/tools/build.mjs packages/tex
 3. **Editing at 50 pages**: press Enter and Backspace a few times, make a word bold, turn a paragraph into a heading (⌘⌥2 / Ctrl+Alt+2: the contents and the numbers after it update) and undo it, insert a footnote (⌘⌥F / Ctrl+Alt+F: the notes after it renumber) and undo it. None of these makes the caret or the page hesitate.
 4. **Pause after typing**: stop typing for a second (the draft is written then) and start again: no hitch when you resume.
 5. **Save**: Save (Chrome, Edge) or Save a copy: the status changes at once; the saved file reopens with your edits.
-6. **Print preview and PDF**: File › Print preview shows the pages within about a second (*68 pages* in Chrome for the 50-page document, *122 pages* for the 100-page one); Print / PDF opens the print dialog without a long freeze, and the PDF has the preview's page count.
+6. **Print preview and PDF**: File › Print preview shows the pages within about a second (*68 pages* in Chrome for the 50-page document, *136 pages* for the 100-page one; Safari and Firefox may differ by a few pages); Print / PDF opens the print dialog without a long freeze, and the PDF has the preview's page count.
 7. **100 pages**: repeat 2 and 6 on `report-100.html`. Typing may be slightly less immediate but must still keep up with normal typing; note anything you can feel.
 8. **Memory**: with the 100-page document open for a few minutes of editing, the browser's task manager (Chrome: ⋮ › More tools › Task manager; Safari: Activity Monitor) shows the tab well under 1 GB.
 

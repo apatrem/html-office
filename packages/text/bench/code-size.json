@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 576985,
-  "headroom": 23015,
-  "engineGzip": 188309,
+  "applicationCode": 577048,
+  "headroom": 22952,
+  "engineGzip": 188348,
   "file": {
-    "total": 582263,
-    "engine": 568420,
+    "total": 582326,
+    "engine": 568483,
     "content": 5092,
     "assets": 186
   },
@@ -68,7 +68,7 @@
     },
     {
       "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
-      "bytes": 52604,
+      "bytes": 52667,
       "share": 8.8
     },
     {
