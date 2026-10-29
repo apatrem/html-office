@@ -332,6 +332,19 @@ export function differences(book, e, { months = 24, tolerance = 1e-9 } = {}) {
   if (sheet("Stations").cells[`A${last + 1}`])
     out.push(`Stations!A${last + 1}: a row after the Total row`);
   // Chart data: the monthly line, the 24-month bridge, the scenarios.
+  // Header rows name the series and columns each chart draws.
+  for (const [ref, label] of Object.entries({
+    A1: "Month",
+    B1: "Revenue",
+    C1: "Net income",
+    E1: "Item",
+    F1: "EUR",
+    G1: "Total",
+    I1: "Scenario",
+    J1: "2026 revenue",
+    K1: "2026 contribution",
+  }))
+    check("Chart data", ref, label);
   const MONTH = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
   for (let m = 0; m < 24; m++) {
     check("Chart data", `A${m + 2}`, MONTH[m % 12]);
