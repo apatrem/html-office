@@ -26,7 +26,7 @@ Deliver one `.html` file: the document as a restricted subset of semantic HTML (
 6. **Check.** `node <skill>/tools/document.mjs check report.html` must report 0 errors; read the warnings. `outline report.html` lists sections, numbers and word counts: compare them with the plan.
 7. Deliver the HTML. Explain: open it in a browser; File › Save (Chrome, Edge) or Save a copy; File › Print / PDF; File › Export Markdown; Help › Format guide.
 
-For a long document, create it from the outline first (`new` with the headings only) and fill each section with the rewrite steps below, one section per pass.
+For a long document (more than a few pages), make the outline a file first: `outline.md` with every heading (and its ID) and every figure placeholder under its section, no prose. `new report.html --markdown outline.md --payloads payloads.json …` creates every section and figure, so cross-references between sections resolve in any order. Then fill each section with the rewrite steps below, one section per pass: the placeholders resolve to the figures already in the document.
 
 ## Rewrite or extend a section
 
