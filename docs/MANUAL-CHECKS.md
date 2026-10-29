@@ -294,6 +294,19 @@ Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long 
 4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
 5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
 
+### T17 — Size and responsiveness of long documents
+
+Build both benchmark documents: `node packages/text/tools/build.mjs packages/text/bench/fixtures/report-50.html` and the same for `report-100.html` (written to `dist/text/`; about 25,000 and 50,000 words, 25 and 50 figures). The automated figures are in `packages/text/bench/RESULTS.md`; these checks are about how it feels on a real desktop, in Chrome, Safari and Firefox, on the machine you normally use (note its model in the log). Close other heavy applications first.
+
+1. **Opening**: open `report-50.html` from Finder or Explorer. The first page shows within about a second and the page count appears in the settings bar; scrolling to the end and back is smooth, the charts and pictures draw as they come into view.
+2. **Typing feel at 50 pages**: in a paragraph in the middle of the document, type two or three sentences at your normal speed, then hold a letter key down for two seconds. Characters appear as you type, with no stutter, no dropped or reordered characters and no pause after a word. Repeat at the very start and at the very end of the document, and in a table cell. Safari and Firefox matter most here: CI measures Chromium's long tasks, and Safari only through WebKit.
+3. **Editing at 50 pages**: press Enter and Backspace a few times, make a word bold, turn a paragraph into a heading (⌘⌥2 / Ctrl+Alt+2: the contents and the numbers after it update) and undo it, insert a footnote (⌘⌥F / Ctrl+Alt+F: the notes after it renumber) and undo it. None of these makes the caret or the page hesitate.
+4. **Pause after typing**: stop typing for a second (the draft is written then) and start again: no hitch when you resume.
+5. **Save**: Save (Chrome, Edge) or Save a copy: the status changes at once; the saved file reopens with your edits.
+6. **Print preview and PDF**: File › Print preview shows the pages within about a second (*68 pages* in Chrome for the 50-page document, *122 pages* for the 100-page one); Print / PDF opens the print dialog without a long freeze, and the PDF has the preview's page count.
+7. **100 pages**: repeat 2 and 6 on `report-100.html`. Typing may be slightly less immediate but must still keep up with normal typing; note anything you can feel.
+8. **Memory**: with the 100-page document open for a few minutes of editing, the browser's task manager (Chrome: ⋮ › More tools › Task manager; Safari: Activity Monitor) shows the tab well under 1 GB.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

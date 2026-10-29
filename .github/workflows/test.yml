@@ -192,9 +192,6 @@ jobs:
         run: node packages/text/tests/print-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
-      # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
-      - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
-        run: node packages/text/tests/print-firefox.mjs
       - name: Measure the 50- and 100-page documents in Firefox and WebKit; gate typing (Text T17)
         run: node packages/text/bench/browser.mjs --check --output dist/text-bench/ci-results.json
         env:
@@ -206,3 +203,6 @@ jobs:
           name: text-benchmark-engines
           retention-days: 7
           path: dist/text-bench/*.json
+      # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
+      - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
+        run: node packages/text/tests/print-firefox.mjs
