@@ -465,32 +465,46 @@ try {
   {
     // Tokens on other elements, in @media or after "/*" in a string do not
     // count; the default fills the rest at the root.
-    const charte = resolve(out, "partial-charte.css");
-    await writeFile(
-      charte,
-      '@media print{:root{--ink:#000}}.badge{--mid:red}:root{--font:"/*",Arial;--acc:#a01050}/* end */',
-    );
-    const notes = [],
-      { context, page, requests } = await open(
-        await buildWorkbook(pnl(), {
-          charte,
-          note: (n) => notes.push(n),
-        }),
-        { name: "charts-partial-charte.html" },
+    const own =
+        '@media print{:root{--ink:#000}}.badge{--mid:red}:root{--font:"/*",Arial;--acc:#a01050}/* end */',
+      tokens = (page) =>
+        page.evaluate(() => {
+          const cs = getComputedStyle(document.documentElement);
+          return ["acc", "mid", "ink", "font", "lig"].map((n) =>
+            cs.getPropertyValue(`--${n}`).trim(),
+          );
+        });
+    const build = async (css, name) => {
+      const charte = resolve(out, `${name}.css`),
+        notes = [];
+      await writeFile(charte, css);
+      const opened = await open(
+        await buildWorkbook(pnl(), { charte, note: (n) => notes.push(n) }),
+        { name: `${name}.html` },
       );
-    assert.match(notes.join(), /leaves out --ink, --mid, --lig/);
-    await waitStates(page, ["current", "current", "current"]);
-    assert.deepEqual(
-      await page.evaluate(() => {
-        const cs = getComputedStyle(document.documentElement);
-        return ["acc", "mid", "ink", "font"].map((n) =>
-          cs.getPropertyValue(`--${n}`).trim(),
-        );
-      }),
-      ["#a01050", "#4F7FA3", "#0B1C2C", '"/*",Arial'],
+      assert.match(notes.join(), /leaves out --ink, --mid, --lig/);
+      return opened;
+    };
+    const partial = await build(own, "charts-partial-charte");
+    await waitStates(partial.page, ["current", "current", "current"]);
+    assert.deepEqual(await tokens(partial.page), [
+      "#a01050",
+      "#4F7FA3",
+      "#0B1C2C",
+      '"/*",Arial',
+      "#AFC5D4",
+    ]);
+    assert.deepEqual(partial.requests, []);
+    await partial.context.close();
+    // An imported * rule still wins over the defaults; previews cannot
+    // read it, so they open out of date.
+    const imported = await build(
+      `@import url("data:text/css,*{--lig:%23123456}");${own}`,
+      "charts-imported-charte",
     );
-    assert.deepEqual(requests, []);
-    await context.close();
+    await waitStates(imported.page, ["stale", "stale", "stale"]);
+    assert.equal((await tokens(imported.page))[4], "#123456");
+    await imported.context.close();
   }
 
   // ---- offline build: charts draw and edit with no request ----

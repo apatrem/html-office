@@ -18,8 +18,8 @@ import { fileURLToPath } from "node:url";
 import { readDocument, outside } from "../tools/document-html.mjs";
 import { writeModel } from "../model/document.mjs";
 import { preservation, compactRange } from "../tools/workbook-ops.mjs";
-import { guide } from "../tools/build.mjs";
-import { cssTheme } from "../tools/chart-previews.mjs";
+import { guide, completeCharte } from "../tools/build.mjs";
+import { cssTheme, charteTokens } from "../tools/chart-previews.mjs";
 
 const run = promisify(execFile),
   tool = fileURLToPath(new URL("../tools/workbook.mjs", import.meta.url)),
@@ -706,9 +706,13 @@ test("new --charte with a partial charte takes the default for the rest", async 
   assert.equal((await cli("validate", out)).code, 0);
   const html = await readFile(out, "utf8"),
     css = /<style id="charte">([\s\S]*?)<\/style>/.exec(html)[1];
-  // The charte's own rule is kept as written, the defaults follow it.
-  assert.ok(css.startsWith(own));
-  assert.match(css, /--mid:#4F7FA3;.*--font:Arial, Helvetica, sans-serif\}/);
+  // The charte's own rule is kept as written, the defaults follow it in
+  // a layer named first, below every other declaration.
+  assert.ok(css.startsWith(`@layer charte-defaults;\n${own}`));
+  assert.match(
+    css,
+    /@layer charte-defaults\{:root\{--mid:#4F7FA3;.*--font:Arial, Helvetica, sans-serif\}\}/,
+  );
   assert.doesNotMatch(css, /--acc:#14517A|--header-bg/);
   const [chart] = readDocument(html).book.charts;
   assert.match(chart.preview.svg, /#a01050/i);
@@ -718,6 +722,31 @@ test("new --charte with a partial charte takes the default for the rest", async 
   for (const [key, value] of Object.entries(theme))
     assert.equal(typeof value, "string", key);
   assert.equal(theme.mid, "");
+  // Only rules on the root count, at the top level or in @layer blocks,
+  // read as CSS tokenizes them; the defaults layer ranks below everything,
+  // so what the scanner misses (@import, @media) still wins in the browser.
+  assert.deepEqual(
+    charteTokens(
+      '@import url(x.css);@media print{:root{--ink:red}}.badge{--mid:red}:root{--font:"/*",Arial;--logo:url(data:a;b);--acc:blue}/* end */@layer brand{:root{--t2:#555}}html{--bd:#ddd',
+    ),
+    {
+      font: '"/*",Arial',
+      logo: "url(data:a;b)",
+      acc: "blue",
+      t2: "#555",
+      bd: "#ddd",
+    },
+  );
+  const completed = completeCharte(
+    ":root{--acc:blue}",
+    ":root{--ink:#000;--acc:#111;--mid:#222;--lig:#333;--alert:#444;--tint:#555;--callout:#666;--bd:#777;--t2:#888;--bg:#fff;--font:Arial;--header-bg:var(--ink)}",
+  );
+  assert.equal(
+    completed.css,
+    "@layer charte-defaults;\n:root{--acc:blue}\n/* Tokens this charte leaves out, from the default charte. */\n@layer charte-defaults{:root{--ink:#000;--mid:#222;--lig:#333;--alert:#444;--tint:#555;--callout:#666;--bd:#777;--t2:#888;--bg:#fff;--font:Arial}}\n",
+  );
+  // A completed charte is complete: extract and new keep it as it is.
+  assert.deepEqual(completeCharte(completed.css, completed.css).missing, []);
 });
 
 // T21 gap: inspect --range printed about 15 lines of JSON per cell. The text

@@ -198,9 +198,9 @@ export const CHARTE_TOKENS = [
 ];
 
 // A custom charte that leaves core tokens out takes the default charte's
-// value for each of them, appended in a :where(:root) rule: with no
-// specificity, it loses to any declaration of the charte that reaches the
-// root, including those charteTokens() does not read (@import, @media).
+// value for each of them, in a cascade layer named first (an @layer
+// statement may precede @import): it ranks below every other declaration,
+// including those charteTokens() does not read (@import, @media).
 export function completeCharte(css, defaults) {
   const own = charteTokens(css),
     base = charteTokens(defaults),
@@ -208,7 +208,7 @@ export function completeCharte(css, defaults) {
   if (!missing.length) return { css, missing };
   const rule = missing.map((name) => `--${name}:${base[name]}`).join(";");
   return {
-    css: `${css.replace(/\s*$/, "")}\n/* Tokens this charte leaves out, from the default charte. */\n:where(:root){${rule}}\n`,
+    css: `@layer charte-defaults;\n${css.replace(/\s*$/, "")}\n/* Tokens this charte leaves out, from the default charte. */\n@layer charte-defaults{:root{${rule}}}\n`,
     missing,
   };
 }

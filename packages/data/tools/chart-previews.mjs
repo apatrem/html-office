@@ -54,12 +54,12 @@ async function loadECharts() {
 }
 
 // Rules whose declarations reach the root element, as theme() reads it.
-const ROOT_SELECTORS = [":root", "html", "*", ":where(:root)"];
+const ROOT_SELECTORS = [":root", "html", "*"];
 
 // The custom properties a charte declares on the root, by name, in source
-// order (a later declaration wins). Only top-level rules selecting the root
-// count: declarations in @media or other blocks, on other elements or from an
-// @import are not read. Strings, comments and parentheses are skipped as CSS
+// order (a later declaration wins). Only rules selecting the root count, at
+// the top level or in an @layer block: declarations in @media or other
+// blocks, on other elements or from an @import are not read. Strings, comments and parentheses are skipped as CSS
 // tokenizes them, so "/*" in a string or ";" in url(…) ends nothing.
 export function charteTokens(css) {
   const tokens = {};
@@ -67,6 +67,7 @@ export function charteTokens(css) {
     parens = 0,
     prelude = "",
     root = false,
+    layer = -1,
     declaration = "";
   const flush = () => {
     const m = /^\s*--([\w-]+)\s*:([\s\S]*)$/.exec(declaration);
@@ -90,6 +91,7 @@ export function charteTokens(css) {
     else if (c === ")") parens = Math.max(0, parens - 1);
     else if (parens === 0 && c === "{") {
       if (depth++ === 0) {
+        layer = /^\s*@layer\b/i.test(prelude) ? i + 1 : -1;
         root = prelude
           .split(",")
           .some((s) => ROOT_SELECTORS.includes(s.trim().toLowerCase()));
@@ -98,6 +100,9 @@ export function charteTokens(css) {
       continue;
     } else if (parens === 0 && c === "}") {
       if (depth === 1 && root) flush();
+      // An @layer block is a stylesheet of its own.
+      if (depth === 1 && layer >= 0)
+        Object.assign(tokens, charteTokens(css.slice(layer, i)));
       depth = Math.max(0, depth - 1);
       continue;
     } else if (parens === 0 && c === ";") {
@@ -110,6 +115,8 @@ export function charteTokens(css) {
   }
   // The end of the stylesheet closes an open rule, as in the browser.
   if (depth === 1 && root) flush();
+  if (depth === 1 && layer >= 0)
+    Object.assign(tokens, charteTokens(css.slice(layer)));
   return tokens;
 }
 
