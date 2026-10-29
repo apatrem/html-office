@@ -646,6 +646,12 @@ function start() {
   refresh();
   mirrorLook(doc);
   document.body.classList.add("tx-editing");
+  // Firefox prints a blank last page once <body> is changed around the whitespace-only text that
+  // follows the article (the file's line breaks between its scripts, then the editor's own nodes).
+  // That text shows nothing, and the file was captured before: the live page drops it.
+  for (const node of [...document.body.childNodes])
+    if (node.nodeType === Node.TEXT_NODE && /^[ \t\n\f\r]*$/.test(node.data))
+      node.remove();
   // Tests and tools read the editor through this handle; it is not part of the file.
   window.htmlText = {
     view,

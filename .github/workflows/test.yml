@@ -182,3 +182,6 @@ jobs:
         run: node packages/text/tests/print-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
+      - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
+        run: node packages/text/tests/print-firefox.mjs
