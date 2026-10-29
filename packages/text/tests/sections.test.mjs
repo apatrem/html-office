@@ -464,18 +464,34 @@ test("review: repaired markup, a file without body, a protected section of anoth
     "</article   >",
   );
   assert.equal(show(spaced, "a"), '<h1 id="a">A</h1>\n<p>Last.</p>\n');
-  const open = small('<h1 id="a">A</h1>\n<p>Last.</p>').replace(
-    "</article>\n",
-    "",
+  // Without </article> there is no exact end: refused, never a slice holding </body>.
+  for (const last of ["<p>Last.</p>", "<p>Last."]) {
+    const open = small(`<h1 id="a">A</h1>\n${last}`).replace(
+      "</article>\n",
+      "",
+    );
+    assert.throws(() => show(open, "a"), /repaired/);
+  }
+  // Only the comments section's own class tokens count, however they are spaced.
+  const spacedClass = small(
+    '<h1 id="a">A</h1>\n<p>Text.</p>\n<section class="comments ">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x">\n<p class="comment" data-author="A" data-date="2026-10-01T09:00Z">Secret thread words</p>\n</aside>\n</section>\n',
   );
-  assert.equal(show(open, "a"), '<h1 id="a">A</h1>\n<p>Last.</p>');
+  assert.equal(checkSource(spacedClass).errors.length, 0);
+  assert.equal(show(spacedClass, "a"), '<h1 id="a">A</h1>\n<p>Text.</p>\n');
+  assert.equal(outline(spacedClass).sections[0].words, 2);
 });
 
 test("review: words across inline markup, protected blocks counted, an unchanged last text section, CR line breaks", () => {
-  const marked = small(
-    '<h1 id="a">A</h1>\n<p>hel<strong>lo</strong> world</p>\n',
+  for (const tag of ["strong", "span", "mark"]) {
+    const marked = small(
+      `<h1 id="a">A</h1>\n<p>hel<${tag}>lo</${tag}> world</p>\n`,
+    );
+    assert.equal(outline(marked).sections[0].words, 3, tag);
+  }
+  const noted = small(
+    '<h1 id="a">A</h1>\n<p>end.<span class="footnote">Note</span></p>\n',
   );
-  assert.equal(outline(marked).sections[0].words, 3);
+  assert.equal(outline(noted).sections[0].words, 3, "a footnote is separate");
 
   const legacy = small(
     '<h1 id="a">A</h1>\n<div>Legacy block</div>\n<p>Text.</p>\n',
@@ -517,4 +533,34 @@ test("review: words across inline markup, protected blocks counted, an unchanged
     ).length,
     1,
   );
+});
+
+test("re-verification: a temporary name already taken is an error that removes nothing", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "text-sections-collide-"));
+  try {
+    const doc = join(dir, "report.html"),
+      input = join(dir, "section.html"),
+      taken = `${doc}.000000000000.tmp`;
+    const text = small('<h1 id="a">A</h1>\n<p>Old.</p>\n');
+    await writeFile(doc, text);
+    await writeFile(taken, "someone else's file");
+    await writeFile(input, '<h1 id="a">A</h1>\n<p>New.</p>\n');
+    // randomBytes returns zeros: the temporary name is the one already taken.
+    const preload = join(dir, "zeros.mjs");
+    await writeFile(
+      preload,
+      'import crypto from "node:crypto"; import { syncBuiltinESMExports } from "node:module"; crypto.randomBytes = (n) => Buffer.alloc(n); syncBuiltinESMExports();',
+    );
+    const r = spawnSync(
+      process.execPath,
+      ["--import", preload, TOOL, "replace", doc, "a", input],
+      { encoding: "utf8" },
+    );
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /EEXIST/);
+    assert.equal(await readFile(taken, "utf8"), "someone else's file");
+    assert.equal(await readFile(doc, "utf8"), text);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
 });

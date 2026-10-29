@@ -34,7 +34,7 @@ export function outline(source, { report, numbers: wanted = true } = {}) {
   const found = sectionsOf(article);
   if (!found)
     throw new SectionError(
-      "The article holds markup the HTML parser repaired (such as a stray </p>): run check.mjs and pack.mjs",
+      "The article holds markup the HTML parser repaired (such as a stray </p> or a missing </article>): run check.mjs and pack.mjs",
     );
   const { blocks, sections } = found;
   report ??= checkSource(source);
@@ -272,10 +272,11 @@ if (main()) {
       // Written to a new file of its own next to the destination (never an existing one, never
       // through a link), then renamed over it: never a half-written file.
       const temporary = `${out}.${randomBytes(6).toString("hex")}.tmp`;
+      await writeFile(temporary, written, { flag: "wx" });
       try {
-        await writeFile(temporary, written, { flag: "wx" });
         await rename(temporary, out);
       } catch (error) {
+        // Only the file this run created is removed.
         await rm(temporary, { force: true });
         throw error;
       }

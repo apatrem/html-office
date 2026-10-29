@@ -2,13 +2,13 @@
 // next top-level heading of the same or a higher level, the comments section or the end of the
 // article (FORMAT.md › Rules for the whole content). Offsets are in the source text, so a section
 // is an exact slice of the file. Works on any parsed file (parse.mjs), valid or not; Node tools only.
-import { attr, isBlank } from "./html.mjs";
+import { attr, classes, isBlank } from "./html.mjs";
 
 const HEADING = /^h([1-4])$/;
 // Elements whose text is separate from their neighbours' (as browsers lay it out); footnotes
 // read as separate too (the editor shows a number, the theme brackets).
 const SEPARATE =
-  /^(address|article|aside|blockquote|br|caption|center|d[dlt]|details|div|fieldset|fig(caption|ure)|footer|h\d|header|hgroup|hr|legend|li|main|menu|nav|ol|p|pre|search|section|span|summary|t[dhr]|table|ul)$/;
+  /^(address|article|aside|blockquote|br|caption|center|d[dlt]|details|div|fieldset|fig(caption|ure)|footer|h\d|header|hgroup|hr|legend|li|main|menu|nav|ol|p|pre|search|section|summary|t[dhr]|table|ul)$/;
 
 // The visible text of a tree, without chart data, chart previews or templates.
 const visible = (node) =>
@@ -17,7 +17,8 @@ const visible = (node) =>
     : node.type !== "element" ||
         ["script", "svg", "template"].includes(node.name)
       ? ""
-      : SEPARATE.test(node.name)
+      : SEPARATE.test(node.name) ||
+          (node.name === "span" && classes(node).includes("footnote"))
         ? ` ${node.children.map(visible).join("")} `
         : node.children.map(visible).join("");
 
@@ -47,12 +48,11 @@ export function articleOf(file) {
 //   and to index `blocks` ([from, to)); words count the whole section, own only the text before
 //   its first subsection; parent is the enclosing section's ID or null.
 // Returns null when the parser made up an element the source does not have (a <p> for a stray
-// </p>): such an article has no exact slices.
+// </p>) or the article has no end tag: such an article has no exact slices.
 export function sectionsOf(article) {
   const nodes = article.children.filter((n) => !isBlank(n));
-  if (!article.loc || nodes.some((n) => !n.loc)) return null;
-  // The end tag as written, or else where the last node ends (an end tag left out).
-  const close = article.loc.closing ?? nodes.at(-1)?.loc.end ?? article.loc.end;
+  if (!article.loc?.closing || nodes.some((n) => !n.loc)) return null;
+  const close = article.loc.closing;
   const blocks = nodes.map((node, i) => ({
     node,
     start: node.loc.offset,
@@ -64,7 +64,7 @@ export function sectionsOf(article) {
   const comments =
     tail?.type === "element" &&
     tail.name === "section" &&
-    attr(tail, "class") === "comments"
+    classes(tail).join(" ") === "comments"
       ? nodes.length - 1
       : -1;
   const last = comments >= 0 ? comments : blocks.length;
