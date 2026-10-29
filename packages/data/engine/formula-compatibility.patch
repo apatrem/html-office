@@ -1,5 +1,5 @@
 diff --git a/base/src/formatter/format.rs b/base/src/formatter/format.rs
-index 9da3a79..1fc3895 100644
+index 9da3a79..b0b5706 100644
 --- a/base/src/formatter/format.rs
 +++ b/base/src/formatter/format.rs
 @@ -42,6 +42,14 @@ fn get_fract_part(value: f64, precision: i32, int_len: usize) -> Vec<char> {
@@ -17,41 +17,50 @@ index 9da3a79..1fc3895 100644
  /// Return true if we need to add a separator in position digit_index
  /// It normally happens if if digit_index -1 is 3, 6, 9,... digit_index ≡ 1 mod 3
  fn use_group_separator(use_thousands: bool, digit_index: i32, group_sizes: &str) -> bool {
-@@ -438,10 +446,13 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
+@@ -437,11 +445,22 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
+             }
              let tokens = &p.tokens;
              value = value * 100.0_f64.powi(p.percent) / (1000.0_f64.powi(p.comma));
-             // p.precision is the number of significant digits _after_ the decimal point
+-            // p.precision is the number of significant digits _after_ the decimal point
 -            value = to_precision(
 -                value,
 -                (p.precision as usize) + format!("{}", value.abs().floor()).len(),
 -            );
-+            let int_len = format!("{}", value.abs().floor()).len();
-+            if p.is_scientific || int_len + (p.precision as usize) >= 15 {
++            // Digits before the decimal point; leading zeros after it count as negative
++            let int_digits = if value == 0.0 {
++                0
++            } else {
++                value.abs().log10().floor() as i32 + 1
++            };
++            if p.is_scientific || int_digits + p.precision >= 15 {
 +                // Excel's 15 significant digits all fit: nothing is rounded away
-+                value = to_precision(value, (p.precision as usize) + int_len);
++                // p.precision is the number of significant digits _after_ the decimal point
++                value = to_precision(
++                    value,
++                    (p.precision as usize) + format!("{}", value.abs().floor()).len(),
++                );
 +            } else {
 +                value = round_half_away_from_zero(value, p.precision);
 +            }
              let mut value_abs = value.abs();
              let mut exponent_part: Vec<char> = vec![];
              let mut exponent_is_negative = value_abs < 10.0;
-@@ -480,8 +491,9 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
+@@ -480,8 +499,8 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
              let group_sizes = locale.numbers.decimal_formats.standard.to_owned();
              let group_separator = symbols.group.to_owned();
              let decimal_separator = symbols.decimal.to_owned();
 -            // There probably are better ways to check if a number at a given precision is negative :/
 -            let is_negative = value < -(10.0_f64.powf(-(p.precision as f64)));
-+            // A negative value shows its sign unless every displayed digit is zero
-+            let is_negative =
-+                value < 0.0 && (value_abs * 10.0_f64.powi(p.precision)).round() >= 1.0;
++            // Rounding turns a value too small to show into -0.0, which is not negative
++            let is_negative = value < 0.0;
              let mut needs_period = false;
  
              for token in tokens {
 diff --git a/base/src/formatter/test/test_general.rs b/base/src/formatter/test/test_general.rs
-index 8cf991f..78b9c9c 100644
+index 8cf991f..e1b30f2 100644
 --- a/base/src/formatter/test/test_general.rs
 +++ b/base/src/formatter/test/test_general.rs
-@@ -243,6 +243,32 @@ fn test_percent_correct_rounding() {
+@@ -243,6 +243,45 @@ fn test_percent_correct_rounding() {
      assert_eq!(format_number(-0.134499, "0.0%", locale).text, "-13.4%");
  }
  
@@ -79,6 +88,19 @@ index 8cf991f..78b9c9c 100644
 +    assert_eq!(format_number(-1.0, "0", locale).text, "-1");
 +    assert_eq!(format_number(-0.005, "0.00", locale).text, "-0.01");
 +    assert_eq!(format_number(-0.001, "0.00", locale).text, "0.00");
++    // Leading zeros after the decimal point are not significant digits
++    assert_eq!(
++        format_number(5e-15, "0.00000000000000", locale).text,
++        "0.00000000000001"
++    );
++    assert_eq!(
++        format_number(-5e-15, "0.00000000000000", locale).text,
++        "-0.00000000000001"
++    );
++    assert_eq!(
++        format_number(-4e-15, "0.00000000000000", locale).text,
++        "0.00000000000000"
++    );
 +}
 +
  #[test]

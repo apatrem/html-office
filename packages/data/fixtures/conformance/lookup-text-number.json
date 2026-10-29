@@ -830,6 +830,17 @@
       }
     },
     {
+      "id": "text-tie-leading-zeros",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-5E-15,\"0.00000000000000\")",
+      "expected": {
+        "type": "text",
+        "value": "-0.00000000000001"
+      }
+    },
+    {
       "id": "value-grouped-number",
       "functions": [
         "VALUE"
