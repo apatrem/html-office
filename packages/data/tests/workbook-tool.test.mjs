@@ -751,13 +751,14 @@ test("inspect --range prints one line per cell", async () => {
   assert.deepEqual(Object.keys(json), ["sheetId", "sheet", "range", "cells"]);
   assert.equal(json.cells[0].cell.formula, "=Inputs!B5*Inputs!B4");
   // Every value type, a missing result, a style-only cell, control
-  // characters and a value past the column width.
+  // characters (in inputs, formulas and results) and a value past the
+  // column width.
   const long = `=${"A1+".repeat(20)}1`;
   assert.equal(
     compactRange(
       {
         sheet: "S",
-        range: "A1:A8",
+        range: "A1:A9",
         cells: [
           {
             ref: "A1",
@@ -794,12 +795,20 @@ test("inspect --range prints one line per cell", async () => {
             cell: { formula: long, result: { type: "blank" } },
             shown: "",
           },
+          {
+            ref: "A9",
+            cell: {
+              formula: '="a\nb"',
+              result: { type: "text", value: "a\nb" },
+            },
+            shown: "a\nb",
+          },
         ],
       },
       "stale",
     ),
     [
-      "S!A1:A8: 8 cells; results stale.",
+      "S!A1:A9: 9 cells; results stale.",
       "Cell  Formula or input                          Result   Shown",
       'A1    "12"                                               12',
       "A2    45292 (date)                                       01/01/2024",
@@ -809,6 +818,7 @@ test("inspect --range prints one line per cell", async () => {
       "A6    (empty)",
       'A7    "a\\nb"                                             a\\nb',
       `A8    ${long}  (blank)`,
+      'A9    ="a\\nb"                                   "a\\nb"   a\\nb',
     ].join("\n"),
   );
 });

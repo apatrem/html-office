@@ -461,6 +461,38 @@ try {
     await none.context.close();
   }
 
+  // ---- a partial charte: the browser reads the tokens the build drew ----
+  {
+    // Tokens on other elements, in @media or after "/*" in a string do not
+    // count; the default fills the rest at the root.
+    const charte = resolve(out, "partial-charte.css");
+    await writeFile(
+      charte,
+      '@media print{:root{--ink:#000}}.badge{--mid:red}:root{--font:"/*",Arial;--acc:#a01050}/* end */',
+    );
+    const notes = [],
+      { context, page, requests } = await open(
+        await buildWorkbook(pnl(), {
+          charte,
+          note: (n) => notes.push(n),
+        }),
+        { name: "charts-partial-charte.html" },
+      );
+    assert.match(notes.join(), /leaves out --ink, --mid, --lig/);
+    await waitStates(page, ["current", "current", "current"]);
+    assert.deepEqual(
+      await page.evaluate(() => {
+        const cs = getComputedStyle(document.documentElement);
+        return ["acc", "mid", "ink", "font"].map((n) =>
+          cs.getPropertyValue(`--${n}`).trim(),
+        );
+      }),
+      ["#a01050", "#4F7FA3", "#0B1C2C", '"/*",Arial'],
+    );
+    assert.deepEqual(requests, []);
+    await context.close();
+  }
+
   // ---- offline build: charts draw and edit with no request ----
   {
     const { context, page, requests, errors } = await open(

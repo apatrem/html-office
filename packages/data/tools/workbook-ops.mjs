@@ -181,6 +181,9 @@ const scalarText = (v) =>
           : v.type === "date"
             ? `${v.value} (date)`
             : String(v.value);
+// Control characters, escaped as in JSON so each cell keeps one line.
+const oneLine = (text) =>
+  text.replace(/[\u0000-\u001f]/g, (c) => JSON.stringify(c).slice(1, -1));
 const COLUMN_WIDTH = 40;
 export function compactRange({ sheet, range, cells }, results) {
   const head = `${sheet}!${range}: ${cells.length} cell${cells.length === 1 ? "" : "s"}; results ${results}.`;
@@ -189,9 +192,13 @@ export function compactRange({ sheet, range, cells }, results) {
     ["Cell", "Formula or input", "Result", "Shown"],
     ...cells.map(({ ref, cell, shown }) => [
       ref,
-      cell.formula ?? (cell.input ? scalarText(cell.input) : "(empty)"),
+      cell.formula
+        ? oneLine(cell.formula)
+        : cell.input
+          ? scalarText(cell.input)
+          : "(empty)",
       cell.formula ? scalarText(cell.result) : "",
-      shown.replace(/[\u0000-\u001f]/g, (c) => JSON.stringify(c).slice(1, -1)),
+      oneLine(shown),
     ]),
   ];
   // Columns align up to a width; a longer value pushes only its own line.

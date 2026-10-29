@@ -53,14 +53,63 @@ async function loadECharts() {
   return (library = module.exports);
 }
 
-// The custom properties a charte declares, by name, in source order (a later
-// declaration wins).
+// Rules whose declarations reach the root element, as theme() reads it.
+const ROOT_SELECTORS = [":root", "html", "*", ":where(:root)"];
+
+// The custom properties a charte declares on the root, by name, in source
+// order (a later declaration wins). Only top-level rules selecting the root
+// count: declarations in @media or other blocks, on other elements or from an
+// @import are not read. Strings, comments and parentheses are skipped as CSS
+// tokenizes them, so "/*" in a string or ";" in url(…) ends nothing.
 export function charteTokens(css) {
   const tokens = {};
-  for (const m of css
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g))
-    tokens[m[1]] = m[2].trim();
+  let depth = 0,
+    parens = 0,
+    prelude = "",
+    root = false,
+    declaration = "";
+  const flush = () => {
+    const m = /^\s*--([\w-]+)\s*:([\s\S]*)$/.exec(declaration);
+    if (m && m[2].trim()) tokens[m[1]] = m[2].trim();
+    declaration = "";
+  };
+  for (let i = 0; i < css.length; i++) {
+    let c = css[i];
+    if (c === "/" && css[i + 1] === "*") {
+      const end = css.indexOf("*/", i + 2);
+      i = end < 0 ? css.length : end + 1;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < css.length && css[j] !== c && css[j] !== "\n")
+        j += css[j] === "\\" ? 2 : 1;
+      c = css.slice(i, j + 1);
+      i = j;
+    } else if (c === "(") parens++;
+    else if (c === ")") parens = Math.max(0, parens - 1);
+    else if (parens === 0 && c === "{") {
+      if (depth++ === 0) {
+        root = prelude
+          .split(",")
+          .some((s) => ROOT_SELECTORS.includes(s.trim().toLowerCase()));
+        prelude = declaration = "";
+      }
+      continue;
+    } else if (parens === 0 && c === "}") {
+      if (depth === 1 && root) flush();
+      depth = Math.max(0, depth - 1);
+      continue;
+    } else if (parens === 0 && c === ";") {
+      if (depth === 0) prelude = "";
+      else if (depth === 1 && root) flush();
+      continue;
+    }
+    if (depth === 0) prelude += c;
+    else if (depth === 1 && root) declaration += c;
+  }
+  // The end of the stylesheet closes an open rule, as in the browser.
+  if (depth === 1 && root) flush();
   return tokens;
 }
 
