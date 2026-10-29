@@ -9,7 +9,7 @@ Deliver one `.html` file: the document as a restricted subset of semantic HTML (
 
 ## Before starting
 
-1. Check once per session that Node.js ≥18 runs in the execution environment: `node <skill>/tools/document.mjs new probe.html --title Probe --force`, then `node <skill>/tools/document.mjs check probe.html`. Nothing else is needed: no npm install, no browser. If Node is unavailable, explain the missing capability; never present an unchecked file as verified.
+1. Check once per session that Node.js ≥18 runs in the execution environment: create a probe in a new empty temporary folder (never `--force`, never in the user's folder): `node <skill>/tools/document.mjs new <tmp>/probe.html --title Probe`, then `node <skill>/tools/document.mjs check <tmp>/probe.html`. Nothing else is needed: no npm install, no browser. If Node is unavailable, explain the missing capability; never present an unchecked file as verified.
 2. Read `references/FORMAT.md` (the document contract; § Document tools for the commands, the Markdown conventions and the payload map). Look at `examples/valid/report.md`, `examples/valid/payloads.json` and `examples/invalid/expected.json` before writing.
 
 ## Create a document: in passes
