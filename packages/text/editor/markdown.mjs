@@ -10,6 +10,14 @@ import { inlineTrees } from "./schema/serialize.mjs";
 import { attr, classes } from "../model/html.mjs";
 
 const N = schema.nodes;
+// The longest run of backticks in a text (a loop: a spread would overflow on long code).
+const longest = (s) => {
+  let n = 0;
+  for (const run of s.match(/`+/g) ?? []) n = Math.max(n, run.length);
+  return n;
+};
+// Whether a text starts and ends with a letter or digit.
+const worded = (s) => /^[\p{L}\p{N}]/u.test(s) && /[\p{L}\p{N}]$/u.test(s);
 
 // Backslash escapes for text: delimiters, link brackets, raw HTML, entity references and pipes
 // (tables); line starts are escaped by `block` below.
@@ -29,9 +37,7 @@ const HTML_MARK = { u: "u", mark: "mark", sub: "sub", sup: "sup" };
 // A code span fenced by more backticks than it holds, padded when it starts or ends with one.
 // In a table cell a pipe would end the cell: GitHub reads "\\|" there, code spans included.
 function codeSpan(s, where) {
-  const fence = "`".repeat(
-    Math.max(0, ...(s.match(/`+/g) ?? []).map((r) => r.length)) + 1,
-  );
+  const fence = "`".repeat(longest(s) + 1);
   const pad = /^`|`$|^ .*[^ ].* $/.test(s) ? " " : "";
   return (
     fence + pad + (where === "cell" ? s.replace(/\|/g, "\\|") : s) + pad + fence
@@ -43,6 +49,12 @@ function codeSpan(s, where) {
 // the document and their text collected in `out.notes`.
 function inline(trees, out, where) {
   let s = "";
+  // "!" before a link would make it an image.
+  const add = (chunk) => {
+    if (chunk.startsWith("[") && /(^|[^\\])!$/.test(s))
+      s = s.slice(0, -1) + "\\!";
+    s += chunk;
+  };
   for (const t of trees) {
     if (t.type === "text") {
       s += escape(t.value);
@@ -58,26 +70,35 @@ function inline(trees, out, where) {
     } else if (t.name === "a" && c.includes("xref"))
       s += escape(t.children.map((n) => n.value).join(""));
     else if (t.name === "a") {
-      const href = attr(t, "href").replace(
-        /[\\ ()<>|]/g,
-        (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase(),
-      );
-      s += `[${inline(t.children, out, where)}](${href})`;
-    } else if (t.name === "code" && t.children.every((n) => n.type === "text"))
-      s += codeSpan(t.children.map((n) => n.value).join(""), where);
-    else if (t.name === "mark" && c.includes("comment"))
-      s += inline(t.children, out, where);
+      // Percent-encoded where the destination would end; "\&" keeps entity-like text literal.
+      const href = attr(t, "href")
+        .replace(
+          /[\\ ()<>|]/g,
+          (ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase(),
+        )
+        .replace(/&(?=#?\w+;)/g, "\\&");
+      add(`[${inline(t.children, out, where)}](${href})`);
+    } else if (t.name === "code")
+      // Code text around a line break, a footnote or a cross-reference: one span per run.
+      for (const child of t.children)
+        add(
+          child.type === "text"
+            ? codeSpan(child.value, where)
+            : inline([child], out, where),
+        );
     else {
       const inner = inline(t.children, out, where);
       // Spaces and line breaks stay outside the delimiters, which would not close after them.
       const [, lead, core, trail] = inner.match(
         /^((?:\s|\\\n)*)([\s\S]*?)((?:\s|\\\n)*)$/,
       );
-      const open =
-        DELIMITER[t.name] ??
-        (HTML_MARK[t.name] ? `<${HTML_MARK[t.name]}>` : "");
-      const close = DELIMITER[t.name] ?? (open && `</${HTML_MARK[t.name]}>`);
-      s += core ? lead + open + core + close + trail : inner;
+      // * and ** open and close only next to a letter or digit (CommonMark's flanking rules);
+      // elsewhere bold and italic are written as HTML, as underline is.
+      const tag = HTML_MARK[t.name] ?? t.name;
+      const markdown = DELIMITER[t.name] && worded(core);
+      const open = markdown ? DELIMITER[t.name] : `<${tag}>`;
+      const close = markdown ? DELIMITER[t.name] : `</${tag}>`;
+      add(core ? lead + open + core + close + trail : inner);
     }
   }
   return s;
@@ -125,14 +146,16 @@ const ALIGN_ROW = { "ta-l": ":---", "ta-c": ":---:", "ta-r": "---:" };
 function table(node, out) {
   const map = TableMap.get(node);
   const grid = [],
-    aligns = [];
+    aligns = [],
+    seen = new Set();
   for (let r = 0; r < map.height; r++) {
     const cells = [];
     for (let c = 0; c < map.width; c++) {
       const pos = map.map[r * map.width + c];
-      const rect = map.findCell(pos);
       const cell = node.nodeAt(pos);
-      const origin = rect.left === c && rect.top === r;
+      // A row-major walk meets a merged cell first at its top-left corner.
+      const origin = !seen.has(pos);
+      seen.add(pos);
       cells.push(origin ? text(cell, out, "cell").trim() : "");
       if (origin && !node.child(r).attrs.head)
         (aligns[c] ??= new Set()).add(cell.attrs.align);
@@ -152,6 +175,14 @@ function table(node, out) {
   ].join("\n");
 }
 
+// Text from data (chart JSON, alt text) on one line, escaped.
+const flat = (value) =>
+  escape(
+    String(value ?? "")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+
 // A chart's title line, then its data as a table when it has categories and series.
 function chart(node, out) {
   let data = {};
@@ -160,18 +191,15 @@ function chart(node, out) {
   } catch {}
   const title = [data.title, data.unit].filter(Boolean).join(", ");
   const lines = [
-    `*Chart (${node.attrs.type})${title ? ": " + escape(title) : ""}*`,
+    `*Chart (${node.attrs.type})${title ? ": " + flat(title) : ""}*`,
   ];
   if (Array.isArray(data.categories) && Array.isArray(data.series))
     lines.push(
       [
-        row(["", ...data.series.map((s) => escape(String(s.name ?? "")))]),
+        row(["", ...data.series.map((s) => flat(s.name))]),
         row(["---", ...data.series.map(() => "---:")]),
         ...data.categories.map((category, i) =>
-          row([
-            escape(String(category)),
-            ...data.series.map((s) => String(s.values?.[i] ?? "")),
-          ]),
+          row([flat(category), ...data.series.map((s) => flat(s.values?.[i]))]),
         ),
       ].join("\n"),
     );
@@ -186,13 +214,20 @@ function caption(node, figure, out) {
   return paragraph(`**${figure.label}.** ${text(first, out, "line").trim()}`);
 }
 
-// The visible text of a plain tree (a protected block), spaces collapsed.
+// The visible text of a plain tree (a protected block): inline elements join their text, block
+// elements and line breaks separate it; hidden elements and templates are left out.
+const BLOCK =
+  /^(address|article|aside|blockquote|br|caption|d[dlt]|div|fig(caption|ure)|footer|h\d|header|hr|li|main|nav|ol|p|pre|section|t[dhr]|table|ul)$/;
 const treeText = (tree) =>
   tree.type === "text"
     ? tree.value
-    : tree.type === "element"
-      ? tree.children.map(treeText).join(" ")
-      : "";
+    : tree.type !== "element" ||
+        tree.name === "template" ||
+        attr(tree, "hidden") !== null
+      ? ""
+      : BLOCK.test(tree.name)
+        ? ` ${tree.children.map(treeText).join("")} `
+        : tree.children.map(treeText).join("");
 
 const entries = (list) =>
   list
@@ -205,24 +240,22 @@ const entries = (list) =>
     )
     .join("\n");
 
+// An ATX heading line; a closing run of # would end its text.
+const heading = (level, number, s) =>
+  `${"#".repeat(level)} ${number ? number + " " : ""}${s.trim().replace(/(^|\s)(#+)$/, "$1\\$2")}`.trimEnd();
+
 function block(node, info, out) {
   const T = node.type;
   if (T === N.paragraph) return paragraph(text(node, out));
   if (T === N.heading) {
     const number = info.numbers.get(info.pos);
-    // A closing run of # would end the heading's text.
-    const s = text(node, out, "line")
-      .trim()
-      .replace(/(^|\s)(#+)$/, "$1\\$2");
-    return `${"#".repeat(node.attrs.level)} ${number ? number + " " : ""}${s}`.trimEnd();
+    return heading(node.attrs.level, number, text(node, out, "line"));
   }
   if (T === N.cover) {
     const blocks = [];
     node.forEach((child) => {
       const s = text(child, out, child.type === N.title ? "line" : "text");
-      blocks.push(
-        child.type === N.title ? `# ${s.trim()}`.trimEnd() : paragraph(s),
-      );
+      blocks.push(child.type === N.title ? heading(1, null, s) : paragraph(s));
     });
     return blocks;
   }
@@ -242,12 +275,7 @@ function block(node, info, out) {
     );
   }
   if (T === N.code_block) {
-    const fence = "`".repeat(
-      Math.max(
-        2,
-        ...(node.textContent.match(/`+/g) ?? []).map((r) => r.length),
-      ) + 1,
-    );
+    const fence = "`".repeat(Math.max(2, longest(node.textContent)) + 1);
     return `${fence}\n${node.textContent}${node.textContent ? "\n" : ""}${fence}`;
   }
   if (T === N.bullet_list || T === N.ordered_list) {
@@ -267,7 +295,7 @@ function block(node, info, out) {
   if (T === N.image_figure) {
     out.lost.images++;
     if (node.attrs.wrap) out.lost.wrapped++;
-    return [`*(Image: ${escape(node.attrs.alt)})*`, caption(node, figure, out)];
+    return [`*(Image: ${flat(node.attrs.alt)})*`, caption(node, figure, out)];
   }
   if (T === N.chart) return [...chart(node, out), caption(node, figure, out)];
   if (T === N.table_figure) {
@@ -303,9 +331,11 @@ const LOSSES = [
 // The document as Markdown. format: the layout theme's heading format (numbering.mjs). Returns
 // {markdown, lost}: lost counts what the notice at the top of the text names.
 export function toMarkdown(doc, { format } = {}) {
-  // Labels and contents as the editor would write them, whatever the file says.
+  // Labels and contents as the editor would write them, whatever the file says; comment anchors
+  // are not exported, so they split no other mark.
   const tr = new Transform(doc);
   regenerate(tr, { format });
+  tr.removeMark(0, tr.doc.content.size, schema.marks.comment);
   doc = tr.doc;
   const result = numbering(doc, { format });
   const info = {
@@ -320,11 +350,17 @@ export function toMarkdown(doc, { format } = {}) {
   const blocks = [];
   doc.forEach((node, pos) => {
     info.pos = pos;
-    const b = block(node, info, out);
-    info.previous = node;
-    blocks.push(...[b].flat());
+    const b = [block(node, info, out)].flat().filter(Boolean);
+    // Lists apart are lists of the same kind with nothing written between them.
+    if (b.length) info.previous = node;
+    blocks.push(...b);
   });
-  const notes = out.notes.map((s, i) => `[^${i + 1}]: ${s.trim()}`);
+  // A note of one word (with, perhaps, a quoted part) would read in CommonMark as a link
+  // definition and vanish: an empty HTML comment, hidden when rendered, keeps it a paragraph.
+  const notes = out.notes.map(
+    (s, i) =>
+      `[^${i + 1}]: ${/^\S+(\s+["'(][^]*)?$/.test(s.trim()) ? "<!---->" : ""}${s.trim()}`,
+  );
   const counted = LOSSES.filter(([key]) => out.lost[key]).map(
     ([key, name, how]) =>
       `${out.lost[key]} ${name}${out.lost[key] === 1 ? "" : "s"} (${how})`,
@@ -335,11 +371,9 @@ export function toMarkdown(doc, { format } = {}) {
     " -->";
   return {
     markdown:
-      [
-        notice,
-        ...blocks.filter(Boolean),
-        ...(notes.length ? [notes.join("\n")] : []),
-      ].join("\n\n") + "\n",
+      [notice, ...blocks, ...(notes.length ? [notes.join("\n")] : [])].join(
+        "\n\n",
+      ) + "\n",
     lost: out.lost,
   };
 }

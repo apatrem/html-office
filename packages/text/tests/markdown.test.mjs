@@ -5,7 +5,19 @@
 // lost apart from comments. MARKDOWN_SNAPSHOTS=write rewrites both records after a deliberate change.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import {
+  readFile,
+  readdir,
+  writeFile,
+  mkdtemp,
+  symlink,
+  rm,
+} from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { element, text } from "../model/html.mjs";
 import { parseInert } from "../../../tests/helpers/inert-dom.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
@@ -109,6 +121,26 @@ function words(doc) {
   });
   return (main + notes).match(/[\p{L}\p{N}]+/gu) ?? [];
 }
+// Content that survives the import changed: code text in order, link targets as a set.
+function retained(doc, back) {
+  const of = (d) => {
+    const code = [],
+      links = [];
+    d.descendants((n) => {
+      if (n.type === N.code_block) code.push(n.textContent);
+      for (const m of n.marks) if (m.type === M.link) links.push(m.attrs.href);
+    });
+    return { code, links: [...new Set(links)].sort() };
+  };
+  const a = of(doc),
+    b = of(back);
+  return {
+    code: a.code
+      .map((text, i) => [text, b.code[i]])
+      .filter(([x, y]) => x !== y),
+    links: a.links.join("\n") === b.links.join("\n") ? [] : [a.links, b.links],
+  };
+}
 const isSubsequence = (small, big) => {
   let i = 0;
   for (const w of big) if (w === small[i]) i++;
@@ -145,6 +177,7 @@ for (const name of names)
     const record = {
       differences: delta(census(doc), census(back.doc)),
       importReport: Object.fromEntries(back.lost),
+      changed: retained(doc, back.doc),
       notice: Object.fromEntries(Object.entries(lost).filter(([, n]) => n)),
     };
     written[name] = record;
@@ -156,6 +189,10 @@ for (const name of names)
           `undocumented loss: ${key}`,
         );
       else assert.match(key, ADDED, `unexpected addition: ${key}`);
+    // Markdown has no carriage return: in code it reads back as a line feed (FORMAT.md).
+    for (const [was, now] of record.changed.code)
+      assert.equal(now, was.replace(/\r\n?/g, "\n"), "code text kept");
+    assert.deepEqual(record.changed.links, [], "link targets kept");
     assert.ok(
       isSubsequence(words(doc), words(back.doc)),
       "every word of the text is in the import, in order",
@@ -288,4 +325,164 @@ test("Markdown blocks: lists of one kind in a row stay apart, code fences outrun
   assert.equal(row.child(0).textContent, "a | b");
   assert.equal(row.child(1).textContent, "x | y");
   assert.ok(row.child(1).firstChild.marks.some((m) => m.type === M.code));
+});
+
+// Regressions from the T15 review: each input reads back as intended.
+const back = (doc) => {
+  const { markdown } = toMarkdown(doc);
+  const { doc: d } = reimport(markdown);
+  return { markdown, doc: d, first: d.firstChild };
+};
+
+test("Markdown review: ! before a link, one-word notes, entities in addresses, comments inside marks", () => {
+  const link = (href) => [M.link.create({ href })];
+  let r = back(
+    N.doc.create(null, p(t("!"), t("linked", link("https://example.org/")))),
+  );
+  assert.match(r.markdown, /^\\!\[linked\]/m);
+  assert.equal(r.first.toString(), 'paragraph("!", link("linked"))');
+  r = back(
+    N.doc.create(null, p(t("Body"), N.footnote.create(null, t("word")))),
+  );
+  assert.match(r.markdown, /^\[\^1\]: <!---->word$/m);
+  assert.deepEqual(words(r.doc), ["Body", "1", "1", "word"]);
+  const href = "https://example.org/?x=&#x41;&amp;y";
+  r = back(N.doc.create(null, p(t("x", link(href)))));
+  assert.equal(r.first.firstChild.marks[0].attrs.href, href);
+  const comment = M.comment.create({ ref: "c1" }),
+    code = M.code.create(),
+    em = M.em.create();
+  r = back(
+    N.doc.create(null, [
+      p(t("alpha", [code]), t("beta", [comment, code]), t("gamma", [code])),
+      p(t("a", [em]), t("b", [comment, em]), t("c", [em])),
+    ]),
+  );
+  assert.match(r.markdown, /^`alphabetagamma`$/m);
+  assert.match(r.markdown, /^\*abc\*$/m);
+  assert.equal(r.doc.child(0).toString(), 'paragraph(code("alphabetagamma"))');
+  assert.equal(r.doc.child(1).toString(), 'paragraph(em("abc"))');
+});
+
+test("Markdown review: emphasis next to punctuation and code, code around breaks, cover title hashes", () => {
+  const em = [M.em.create()],
+    code = M.code.create();
+  const r = back(
+    N.doc.create(null, [
+      N.cover.create(null, N.title.create(null, t("C #"))),
+      p(t("a"), t("!", em), t("b")),
+      p(t("a"), t("b", [M.em.create(), code]), t("c")),
+      p(
+        t("a", [code]),
+        N.hard_break.create(null, null, [code]),
+        t("b", [code]),
+      ),
+      p(t("31%", [M.strong.create()]), t(" and "), t("B", [M.strong.create()])),
+    ]),
+  );
+  const kids = [];
+  r.doc.forEach((n) => kids.push(n.toString()));
+  assert.deepEqual(kids, [
+    'heading("C #")',
+    'paragraph("a", em("!"), "b")',
+    'paragraph("a", em(code("b")), "c")',
+    'paragraph(code("a"), hard_break, code("b"))',
+    'paragraph(strong("31%"), " and ", strong("B"))',
+  ]);
+  assert.match(r.markdown, / and \*\*B\*\*$/m);
+});
+
+test("Markdown review: lists stay apart across left-out blocks; chart labels with line breaks stay in their cells", () => {
+  const item = (s) => N.list_item.create(null, N.list_text.create(null, t(s)));
+  const data = JSON.stringify({
+    title: "Two\nlines",
+    categories: ["North\nSouth", "East"],
+    series: [{ name: "A\nB", values: [1, 2] }],
+  });
+  const r = back(
+    N.doc.create(null, [
+      N.ordered_list.create(null, item("a")),
+      N.page_break.create(),
+      N.ordered_list.create(null, item("b")),
+      p(),
+      N.ordered_list.create(null, item("c")),
+      N.chart.create({ id: "fig-1", type: "column", data }),
+    ]),
+  );
+  const kinds = [];
+  r.doc.forEach((n) => kinds.push(n.type.name));
+  assert.deepEqual(kinds, [
+    "ordered_list",
+    "ordered_list",
+    "ordered_list",
+    "paragraph",
+    "table_figure",
+  ]);
+  const rows = r.doc.lastChild.lastChild;
+  assert.equal(rows.child(0).child(1).textContent, "A B");
+  assert.equal(rows.child(1).child(0).textContent, "North South");
+  assert.match(r.markdown, /^\*Chart \(column\): Two lines\*$/m);
+});
+
+test("Markdown review: protected text keeps words whole and leaves hidden content out; long code and large tables", () => {
+  const tree = element(
+    "section",
+    [],
+    [
+      element(
+        "p",
+        [["class", "other"]],
+        [text("foo"), element("strong", [], [text("bar")]), text("baz")],
+      ),
+      element("div", [["hidden", ""]], [text("secret")]),
+      element("p", [], [text("next")]),
+    ],
+  );
+  const { markdown } = toMarkdown(
+    N.doc.create(null, N.protected.create({ node: tree })),
+  );
+  assert.match(markdown, /^foobarbaz next$/m);
+  assert.doesNotMatch(markdown, /secret/);
+  const code = "` x ".repeat(140000);
+  const long = toMarkdown(
+    N.doc.create(null, [
+      N.code_block.create(null, t(code)),
+      p(t(code, [M.code.create()])),
+    ]),
+  ).markdown;
+  assert.ok(long.includes(code.trim()));
+  const size = 300;
+  const cell = N.table_cell.create(null, t("1"));
+  const row = N.table_row.create(null, Array(size).fill(cell));
+  const table = N.table_figure.create(
+    { id: "tab-1" },
+    N.table.create(null, Array(size).fill(row)),
+  );
+  const started = performance.now();
+  toMarkdown(N.doc.create(null, table));
+  const ms = performance.now() - started;
+  assert.ok(ms < 3000, `${size * size} cells in ${Math.round(ms)} ms`);
+});
+
+test("Markdown review: the command line runs through a symbolic link", async () => {
+  const tmp = await mkdtemp(join(tmpdir(), "text-markdown-"));
+  try {
+    const link = join(tmp, "markdown.mjs");
+    await symlink(
+      fileURLToPath(new URL("../tools/markdown.mjs", import.meta.url)),
+      link,
+    );
+    const r = spawnSync(
+      process.execPath,
+      [link, fileURLToPath(new URL("minimal.html", dir))],
+      { encoding: "utf8" },
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(
+      r.stdout,
+      /^<!-- Markdown export[\s\S]*\n\nOne paragraph\.\n$/,
+    );
+  } finally {
+    await rm(tmp, { recursive: true });
+  }
 });

@@ -26,6 +26,6 @@ Nested sub and sup
 
 An empty mark.
 
-A link holding a note Note
+A link holding a noteNote
 
 After the protected blocks.

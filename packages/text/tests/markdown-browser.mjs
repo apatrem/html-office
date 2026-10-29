@@ -51,9 +51,13 @@ async function run(name) {
     await page.click("#doc p.lead", { position: { x: 2, y: 6 } });
     await page.keyboard.press("Home");
     await page.keyboard.type("Overall, ");
+    // The edit is kept as a draft after a moment where the browser allows it: wait for that,
+    // so that only the view could change the state from here on.
+    if (await page.evaluate(() => window.htmlText.saving.recovery === "ready"))
+      await page.waitForSelector(".tx-shell [role=status][data-state=draft]");
     const before = await saved();
     const status = await state();
-    assert.equal(status, "unsaved");
+    assert.match(status, /^(unsaved|draft)$/);
     const expected = markdownSource(before).markdown;
     assert.match(expected, /^Overall, Revenue grew 18% in 2026/m);
 
