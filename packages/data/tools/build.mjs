@@ -179,7 +179,10 @@ async function defaultBrand() {
 }
 
 // Moved to the shared chart module (T18 Text); exported here as before.
-export { CHARTE_TOKENS, completeCharte } from "../../shared/charts/css-theme.mjs";
+export {
+  CHARTE_TOKENS,
+  completeCharte,
+} from "../../shared/charts/css-theme.mjs";
 
 export async function buildWorkbook(
   input,
