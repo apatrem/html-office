@@ -122,9 +122,13 @@ export function validatePivots(book) {
         pivot[key].length > max ||
         !pivot[key].every(fieldName)
       )
-        fail(`Pivot ${key} must list at most ${max} field names`);
+        fail(
+          `Pivot ${key} must be a list of at most ${max} field names ([] for none)`,
+        );
     if (!Array.isArray(pivot.filters) || pivot.filters.length > MAX_FILTERS)
-      fail(`Pivot filters must list at most ${MAX_FILTERS} fields`);
+      fail(
+        `Pivot filters must be a list of at most ${MAX_FILTERS} filters ([] for none)`,
+      );
     for (const filter of pivot.filters) {
       fields(filter, ["field", "values"], "pivot filter");
       if (!fieldName(filter.field)) fail("Invalid pivot filter field");

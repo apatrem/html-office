@@ -305,7 +305,7 @@ File › Print / PDF… (or Cmd/Ctrl+P) prints the selected sheet; the browser's
 | Command | What it does |
 | --- | --- |
 | `new OUT --model model.json [--offline] [--charte f.css] [--force]` | Validates a canonical workbook, calculates every result, draws chart previews and writes a standard or offline file |
-| `extract FILE [--out model.json]` | Prints the canonical JSON |
+| `extract FILE [--out model.json] [--charte-out theme.css]` | Prints the canonical JSON; `--charte-out` also writes the file's brand stylesheet (`style#charte`) for `new --charte` |
 | `inspect FILE [--range Sheet!A1:D20] [--json]` | Summarises sheets, results, pivots, charts and imported sources, or lists up to 5,000 cells with their displayed text |
 | `apply FILE PATCH (--out OUT \| --in-place) [--no-recalculate] [--refresh-pivots] [--dry-run]` | Validates the patch, writes it, recalculates, redraws out-of-date previews, and refuses any change outside the patch |
 | `recalculate FILE (--out OUT \| --in-place) [--refresh-pivots]` | Recalculates every result, optionally refreshes pivot tables, and redraws previews |
