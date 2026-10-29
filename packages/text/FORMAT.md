@@ -214,6 +214,34 @@ Pasted and imported content enters the document only as the constructs above (T0
 
 Copying writes the subset's own markup for a selection of text and blocks, without comment anchors, threads or images, and plain text with line breaks. A selected table (the whole table or its figure) is copied as the html-office envelope (`source.product` `text`), a semantic table with the theme's colours resolved for Word and Excel, and TSV; its caption, ID, emphasis column and density stay with the original.
 
+## Markdown view and export
+
+File › **Markdown view** shows the document as Markdown, read-only, for reading and copying; File › **Export Markdown (.md)** and the view's **Export .md** download the same text, as does `node tools/markdown.mjs <document.html> [<output.md>]`. One function writes it ([`editor/markdown.mjs`](editor/markdown.mjs)), from the document as it is at that moment (unsaved edits included) and with the numbers and labels of [Numbering](#numbering-and-generated-content). It is a **projection, not a copy**: it is never stored in the file or a draft, the view cannot be edited, and nothing reads a `.md` file back as the document. The HTML file stays the only document.
+
+The Markdown is CommonMark with GitHub's tables and footnotes. It starts with a note, an HTML comment that renderers hide, saying that it is a reading copy and not the document, that layout, styles, IDs, cross-reference links and comments are not kept, and how many of this document's constructs are reduced or left out (comment threads, images, wrapped images, charts, merged table cells, protected blocks, page breaks). Reading the export back through Insert › Markdown… (T07) does not restore the document: `tests/markdown.test.mjs` projects every valid fixture, imports the result and checks that the differences are exactly those recorded in [`fixtures/markdown/reimport.json`](fixtures/markdown/reimport.json), each one listed below, and that no word of the text is lost apart from comments.
+
+| Construct | In the Markdown | After Insert › Markdown… |
+| --- | --- | --- |
+| Cover | `# Title`, then the subtitle and each line as a paragraph | A heading 1 and paragraphs |
+| Contents | A bulleted list of the entries' labels (numbers included), nested as the contents; no links | A list |
+| Headings | `#` to `####`, with the heading's number before its text (`## 2.1 Regions`) when numbers are on. IDs, `unnumbered`, `new-page` and alignment are not written | Headings of the same level whose text starts with the number; new IDs from the text |
+| Paragraphs | Text. `lead` and alignment are not written; empty paragraphs are left out | Paragraphs |
+| Inline marks | `**bold**`, `*italic*`, `` `code` ``, `[link](url)`; underline, highlight, superscript and subscript as `<u>`, `<mark>`, `<sup>`, `<sub>`. Characters Markdown would read as syntax are escaped. A line break is a hard break (`\` at the end of a line), a space in headings and captions, `<br>` in table cells | The same marks and breaks |
+| Footnotes | `[^1]` where the note is, and `[^1]: text` after the content, numbered as in the document | Text: CommonMark has no footnotes, so `[^1]` stays in the paragraph and each note becomes a paragraph |
+| Cross-references | Their label as plain text (*Figure 1*, *Section 2.1*): no link, since the IDs are not written | Text |
+| Quotes | `>` paragraphs | Quotes |
+| Callouts | A quote whose first paragraph names the kind (**Note**, **Warning**, **Key message**) | A quote; a list inside becomes lines of one paragraph |
+| Code | A fenced block, with more backticks than the code holds | Code |
+| Lists | `-` and `1.` items, nested by indentation; a list right after another of its kind uses `*` or `1)` so that the two stay apart | The same lists |
+| Page breaks | Left out | — |
+| Captions | A paragraph `**Figure 1.** caption` (`**Table 1.**`): after the image or chart, before the table, as in the document | A paragraph with bold label text |
+| Images and assets | `*(Image: alt text)*`: the picture itself, its asset in `script#assets`, its width and its ID are not exported | A paragraph |
+| Wrapped layout | Not kept: a wrapped image is written where it is, as its own paragraph, like any other | — |
+| Charts | `*(Chart (type): title, unit)*`, then for charts with categories and series (column, bar, stacked, line) their data as a table; the drawing, its options and its saved preview are not exported | A paragraph and, for the data, a table |
+| Tables | A GitHub table. Its first header row is the table's header; other header rows lead the body; a table without header rows gets an empty header row. A **merged cell's text is in its first cell** and the cells it covers are empty. A column is aligned when all its body cells share an alignment. Widths, emphasis columns, compact density and the total-row style are not written | A table of single cells, with one header row |
+| Comments | Not exported: anchored text is written as plain text, threads are left out | — |
+| Protected blocks | Their visible text as one paragraph | A paragraph |
+
 ## Canonical form
 
 A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently. Before writing, `check`, `pack` and the editor read the result back: content the HTML parser repaired on the way in (typically inside a protected block) that would not reopen as the same document is an `unstable` error, and nothing is written.

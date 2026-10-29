@@ -185,6 +185,7 @@ Dependencies: T07, T09–T13. Scope: S per part. Paths: Markdown projection and 
 - Acceptance: a read-only Markdown view projects the canonical document; it is never stored and cannot be edited. Markdown export uses the same projection.
 - Acceptance: the export documents exactly how comments, wrapped layout, captions, cross-references, footnotes and assets are represented or dropped, and never implies a `.md` file preserves the document.
 - Verification: project every fixture; reimport the export through T07 and record the known, documented losses.
+- Status: implemented 29 October 2026 on `feature/text-t15-markdown`, in review. One projection (`editor/markdown.mjs`, plain code, no library) drives File › Markdown view (read-only), File › Export Markdown (.md) and `tools/markdown.mjs`. FORMAT.md › Markdown view and export documents each construct and what an import does with it; every export starts with a note that it is a reading copy, with this document's counts of what is reduced or left out. `tests/markdown.test.mjs` compares each valid fixture's projection with `fixtures/markdown/*.md`, imports it back through T07 and checks the differences against `fixtures/markdown/reimport.json` (every one in a documented row; no word lost apart from comments); `tests/markdown-browser.mjs` checks the view and both exports in Chromium, Firefox and WebKit.
 
 ### T16 — Provide section tooling for long documents
 

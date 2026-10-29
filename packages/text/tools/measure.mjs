@@ -3,7 +3,7 @@
 //   node tools/measure.mjs [--write]   (--write updates bench/code-size.json)
 // Each ProseMirror package is measured alone with its dependencies; our modules with ProseMirror external.
 // "Editor core" is everything together, the floor of the Text standard build before shell, CSS and UI
-// (with the T07 paste mapping and Markdown import).
+// (with the T07 paste mapping and Markdown import, and the T15 Markdown projection).
 import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -37,6 +37,7 @@ const OURS = {
   "Paste mapping (HTML, tables)": "./editor/clipboard/html.mjs",
   "Markdown import": "./editor/clipboard/markdown.mjs",
   "Table editing": "./editor/tables.mjs",
+  "Markdown projection": "./editor/markdown.mjs",
 };
 
 async function bundle(contents, external = []) {

@@ -173,6 +173,9 @@ export function mountShell(
         { label: "Document settings…", onSelect: () => openSettings() },
         "-",
         item("Print / PDF", "print"),
+        "-",
+        item("Markdown view", "markdown-view"),
+        item("Export Markdown (.md)", "markdown-export"),
       ],
     },
     {
