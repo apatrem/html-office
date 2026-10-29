@@ -142,7 +142,10 @@ try {
   assert.ok(last > 0, "the end of the content");
   for (const [i, note] of notes.entries()) {
     const at = flow.indexOf(plain(`${i + 1}. ${note}`), last);
-    assert.ok(at > last, `endnote ${i + 1}`);
+    assert.ok(
+      at > last,
+      `endnote ${i + 1} not after: ${flow.slice(last, last + 400)}`,
+    );
     last = at;
   }
   assert.ok(
