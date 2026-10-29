@@ -18,10 +18,14 @@ export function markdownSource(source) {
 }
 
 // Run as a command, also through a symbolic link or a path with escaped characters.
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+const main = () => {
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false; // standard input, or no script at all
+  }
+};
+if (main()) {
   const [input, output] = process.argv.slice(2);
   if (!input) {
     console.error("usage: markdown.mjs <document.html> [<output.md>]");
