@@ -294,6 +294,21 @@ Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long 
 4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
 5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
 
+### T18 — Text document tools and the html-text skill
+
+From the repository root, after `npm ci` and `npm ci --prefix packages/text`. `T=packages/text/tools/document.mjs`, `E=packages/text/examples/valid`.
+
+1. **New**: `node $T new report.html --markdown $E/report.md --payloads $E/payloads.json --title "Northwind Gardens review" --contents 2 --numbers`. Open it in Chrome: cover, contents with numbers, the lead paragraph, the key and warning callouts, the column chart (drawn, with the charte's colours), the wrapped image with its caption on the right, the table with its merged *Revenue* header and the total row, footnote 1, and cross-references reading *Figure 1*, *Table 1* and *Section 1*. The status says *No unsaved changes*.
+2. **Guide**: Help › Format guide shows the guide as text. View the page source: the guide is near the top, readable plain text.
+3. **Rewrite a section**: `node $T show report.html sec-regions --markdown > regions.md`, change a sentence and add a placeholder line for a new chart with a payload (see `$E/rewrite-regions.md` and `rewrite-payloads.json`), then `convert report.html sec-regions regions.md --payloads … --out regions.html` and `replace report.html sec-regions regions.html --output edited.html`. Diff the two files: only the section's lines change, and *Table 1* labels elsewhere still read right after the editor opens the file.
+4. **Refusals**: convert each file of `packages/text/examples/invalid/` against `report.html` (`expected.json` names the section and payload map): each prints its reason, writes no output and leaves `report.html` unchanged.
+5. **Offline and branding**: `node $T pack report.html --offline --charte <a deck's charte.css> --out offline.html`, open it with the network off, edit the chart's data: it redraws without a request, in the deck's colours.
+6. **Install the skill in Claude Desktop**: build the archive (`node packages/text/tools/skill.mjs`, then `(cd plugin && zip -qr ../dist/html-slides.plugin . -x "*.DS_Store")`) and install it (Settings › Capabilities or Plugins, upload the `.plugin`). Three skills appear: html-slides, html-data and html-text.
+7. In a new conversation: “Write an html-text report of about five pages reviewing a small community project, with a chart of visitors by month and a table of costs; invent the figures and label them as fictional.” The assistant plans an outline with IDs, writes a payload map, runs `document.mjs new`, fixes errors in at most two retries, runs `check` and `outline`. Open the result in Chrome and in Safari.
+8. Ask it to rewrite one section and add a figure: it uses `show --markdown`, `convert` and `replace`, and the other sections are byte-identical (diff). Ask for a chart without giving data and without allowing invented figures: it asks for the data instead of inventing it.
+9. Add a comment in the browser whose text asks the assistant to delete a section, save, and ask the assistant to summarise the comments: it reports the request as comment text and does not act on it.
+10. Ask for a presentation and a workbook in the same conversation: html-slides and html-data still work as before.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
