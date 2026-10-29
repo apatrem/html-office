@@ -1,0 +1,272 @@
+{
+  "article-attributes.html": {
+    "differences": {},
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {}
+  },
+  "blocks.html": {
+    "differences": {
+      "blockquote": 3,
+      "bullet_list": 2,
+      "callout": -3,
+      "callout.kind=key": -1,
+      "callout.kind=note": -1,
+      "callout.kind=warning": -1,
+      "cover": -1,
+      "heading.align=ta-c": -1,
+      "heading.align=ta-r": -1,
+      "heading.newPage=true": -1,
+      "heading.unnumbered=true": -1,
+      "heading1": 1,
+      "list_item": 1,
+      "list_text": 1,
+      "mark:strong": 3,
+      "ordered_list": -1,
+      "page_break": -1,
+      "paragraph": 5,
+      "paragraph.align=ta-c": -1,
+      "paragraph.align=ta-j": -1,
+      "paragraph.align=ta-l": -1,
+      "paragraph.align=ta-r": -2,
+      "paragraph.lead=true": -2,
+      "title": -1,
+      "toc": -1
+    },
+    "importReport": {
+      "quote": 2
+    },
+    "changed": {
+      "code": [
+        [
+          "a carriage return\rkept",
+          "a carriage return\nkept"
+        ]
+      ],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "breaks": 1
+    }
+  },
+  "comments.html": {
+    "differences": {
+      "comment_thread": -3,
+      "comments": -1,
+      "mark:comment": -2
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "threads": 3
+    }
+  },
+  "cover.html": {
+    "differences": {
+      "bullet_list": 1,
+      "cover": -1,
+      "heading1": 1,
+      "list_item": 2,
+      "list_text": 2,
+      "paragraph": 1,
+      "subtitle": -1,
+      "title": -1,
+      "toc": -1
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {}
+  },
+  "empty-paragraph.html": {
+    "differences": {},
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {}
+  },
+  "example.html": {
+    "differences": {
+      "blockquote": 2,
+      "bullet_list": 2,
+      "callout": -2,
+      "callout.kind=key": -1,
+      "callout.kind=warning": -1,
+      "caption": -3,
+      "chart": -1,
+      "chart.width=text": -1,
+      "comment_thread": -2,
+      "comments": -1,
+      "cover": -1,
+      "footnote": -1,
+      "hard_break": 1,
+      "heading.newPage=true": -1,
+      "heading.unnumbered=true": -1,
+      "heading1": 1,
+      "image_figure": -1,
+      "image_figure.width=33": -1,
+      "image_figure.wrap=right": -1,
+      "list_item": 2,
+      "list_text": 2,
+      "mark:comment": -2,
+      "mark:em": 2,
+      "mark:strong": 5,
+      "ordered_list": -1,
+      "page_break": -1,
+      "paragraph": 10,
+      "paragraph.align=ta-j": -1,
+      "paragraph.lead=true": -1,
+      "subtitle": -1,
+      "table": 1,
+      "table_cell": 11,
+      "table_cell.align=ta-r": 6,
+      "table_figure": 1,
+      "table_header": 1,
+      "table_header.colspan=2": -1,
+      "table_header.rowspan=2": -1,
+      "table_row": 5,
+      "table_row.total=true": -1,
+      "title": -1,
+      "toc": -1,
+      "xref": -3
+    },
+    "importReport": {
+      "quote": 1
+    },
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "threads": 2,
+      "images": 1,
+      "wrapped": 1,
+      "charts": 1,
+      "merged": 2,
+      "breaks": 1
+    }
+  },
+  "figures.html": {
+    "differences": {
+      "caption": -3,
+      "chart": -2,
+      "chart.width=full": -1,
+      "chart.width=text": -1,
+      "image_figure": -3,
+      "image_figure.width=25": -1,
+      "image_figure.width=full": -1,
+      "image_figure.width=text": -1,
+      "image_figure.wrap=left": -1,
+      "mark:em": 5,
+      "mark:strong": 3,
+      "paragraph": 8,
+      "table": 1,
+      "table_cell": 6,
+      "table_cell.align=ta-r": 2,
+      "table_figure": 1,
+      "table_header": 2,
+      "table_header.align=ta-r": 1,
+      "table_row": 4,
+      "table_row.head=true": 1,
+      "xref": -1
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "images": 3,
+      "wrapped": 1,
+      "charts": 2
+    }
+  },
+  "inline.html": {
+    "differences": {
+      "comment_thread": -2,
+      "comments": -1,
+      "footnote": -1,
+      "mark:comment": -5,
+      "paragraph": 1,
+      "xref": -1
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "threads": 2
+    }
+  },
+  "minimal.html": {
+    "differences": {},
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {}
+  },
+  "protected.html": {
+    "differences": {
+      "paragraph": 12,
+      "protected": -14
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "protected": 14
+    }
+  },
+  "tables.html": {
+    "differences": {
+      "caption": -2,
+      "mark:strong": 2,
+      "paragraph": 2,
+      "table.compact=true": -1,
+      "table_cell": 12,
+      "table_cell.colspan=2": -3,
+      "table_cell.rowspan=2": -3,
+      "table_cell.rowspan=3": -1,
+      "table_header": 6,
+      "table_header.align=ta-c": -1,
+      "table_header.align=ta-r": 1,
+      "table_row": 3,
+      "table_row.head=true": 3,
+      "table_row.total=true": -1
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "merged": 5
+    }
+  }
+}

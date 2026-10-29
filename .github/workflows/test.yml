@@ -174,3 +174,7 @@ jobs:
         run: node packages/text/tests/tables-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit
+      - name: Markdown view and export in Firefox and WebKit (Text T15)
+        run: node packages/text/tests/markdown-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit

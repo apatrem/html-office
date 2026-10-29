@@ -258,6 +258,27 @@ Use `text-example.html`, in Chrome, then Safari and Firefox, with the browser's 
 8. **Where only text goes**: paste a screenshot with the caret in a table cell, a caption or the code block: the picture goes after the table or block. Paste text with an embedded picture into a cell: the text goes in the cell, the picture is left out and reported.
 9. **Inside the document**: click the example's picture, copy, paste it after another paragraph. Save: `script#assets` holds it once, and both figures use the same `data-asset`.
 
+### T15 — Show and export Markdown
+
+Use `text-example.html`, in Chrome, then Safari and Firefox.
+
+1. **View**: type a word in the first paragraph, then File › Markdown view. The text shows the word, the heading numbers (`# 1 Executive summary`), *Figure 1* and *Table 1* as plain text, the chart's data table, `*(Image: …)*` and the footnote as `[^1]` with its note at the end. Typing, Backspace and Delete change nothing (and do not leave the page); select and copy part of it. Close: the document still says *Unsaved changes*, and Save writes no Markdown.
+2. **Copy**: in the view, Copy, then paste into a plain-text editor: the whole Markdown, starting with the `<!-- Markdown export … -->` note.
+3. **Export**: File › Export Markdown (.md), and Export .md in the view: each downloads `Business review and 2027 plan.md` with the same text.
+4. **Other Markdown editors**: open the exported file in VS Code's Markdown preview, Obsidian, Typora and on GitHub (a gist or a repository file). The note is hidden; headings, lists, quotes, code, tables (the regions table with its empty merged cells and two header rows), links, `<u>`, `<mark>`, `<sup>`, `<sub>` render; footnotes render as notes where the editor supports them (GitHub, Obsidian, Typora) and as `[^1]` otherwise. Nothing claims to be the document.
+5. **Back into Text**: Insert › Markdown… › Or open a file, choose the export: the content arrives as ordinary paragraphs, headings, lists, quotes and tables, with the losses FORMAT.md › Markdown view and export lists (no comments, no images or charts, footnotes as text).
+6. **Long document**: on a long document (the 100-page fixture of T16, built), File › Markdown view opens in about a second and scrolls smoothly.
+
+### T16 — Section tooling for long documents
+
+Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long document of your own (a report converted to Text, 50 pages or more).
+
+1. **Outline**: `node packages/text/tools/sections.mjs outline <file>`: every heading, with its number and ID, indented by level; the word counts look right against a word processor's count of the same section.
+2. **Show and edit**: `show <file> <id>` a middle section into `section.html`, edit it in a text editor (or ask an LLM to rewrite it, keeping the heading line), then `replace <file> <id> section.html`. Compare the two files with a diff tool (`git diff --no-index`, FileMerge, WinMerge): only lines inside that section change. Open the file in the editor: it shows the new text with *No unsaved changes*, unless the heading text changed (then the contents are rewritten: *Unsaved changes*).
+3. **Refusals**: try a replacement that changes the heading's ID, one with a `<script>`, one that deletes a figure referenced elsewhere: each is refused with its reason and the file's modification time does not change.
+4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
+5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

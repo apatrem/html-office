@@ -54,6 +54,8 @@ import { mountShell, refusal } from "./shell.mjs";
 import * as C from "../editor/charts.mjs";
 import { chartManager, chartPlugin, chartDialog } from "./charts.mjs";
 import { commentsPanel, commentHighlights } from "./comments.mjs";
+import { toMarkdown } from "../editor/markdown.mjs";
+import { markdownView, exportMarkdown } from "./markdown.mjs";
 import { LOOK_CSS, lookAttributes, mirrorLook, setLook } from "./look.mjs";
 import shellCSS from "../../shared/shell/shell.css";
 import drawerCSS from "../../shared/shell/drawer.css";
@@ -343,6 +345,18 @@ function start() {
     );
   commands.register("save-copy", () => saving.saveCopy());
   commands.register("print", () => window.print());
+  // Markdown view and export (T15): one projection of the document as it is now, never stored.
+  const markdown = () => toMarkdown(view.state.doc, numbers).markdown;
+  const markdownName = () => (document.title.trim() || "document") + ".md";
+  commands.register("markdown-view", () =>
+    markdownView(markdown(), markdownName(), saving.say),
+  );
+  commands.register("markdown-export", () => {
+    exportMarkdown(markdown(), markdownName());
+    saving.say(
+      `Markdown export ${markdownName()} downloaded: a reading copy, not the document.`,
+    );
+  });
   // Editing commands (T06): enabled where they apply; run from the chrome, they return the
   // keyboard to the document.
   const edit = (id, command) =>
