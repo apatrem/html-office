@@ -18,13 +18,13 @@ A 24-month P&L for an invented bike rental co-op, built through the html-data sk
 
 ## How it is generated
 
-`node packages/data/acceptance/generate.mjs` repeats the whole chain into `output/`:
+`node packages/data/acceptance/generate.mjs` repeats the whole chain into `output/`, starting with step 1:
 
 1. `author.mjs` writes the inputs: `model.json` (the canonical workbook an author writes, following [SKILL.md](../../../plugin/skills/html-data/SKILL.md) › Create), the two CSV files, and `patches/link-rentals.json`. `node packages/data/acceptance/author.mjs --check` compares them with the committed copies.
 2. The skill is packaged afresh; its `tools/workbook.mjs new --offline` builds the model and `validate` says `Valid.`
 3. In Chromium, a person's Data › Import CSV… reads `rentals-2025.csv` into a new Rentals sheet, then File › Save a copy. Imports happen only in the browser; the tools never read CSV files.
 4. `inspect` finds the imported sheet's ID; `apply … --refresh-pivots` links Monthly actuals to the records (`SUMIFS`), adds the record rows of the formula analysis and the pivot table; `validate --since` confirms nothing else changed.
-5. `extract`, then `new` and `new --offline` write the two published files from one canonical JSON; both validate.
+5. `extract --charte-out`, then `new --charte` and `new --charte --offline` write the two published files from one canonical JSON and the document's charte; both validate.
 6. Chromium exports the P&L as CSV and prints Summary and P&L to PDF (A4, the en-GB default) from the offline file, with every network request refused.
 
 `tests/acceptance-browser.mjs` runs the same chain in CI and requires the regenerated workbook to equal the published one (except times and chart drawings), then edits, extends, refreshes, undoes, saves and reopens it. `tests/acceptance.test.mjs` checks the committed files; `tests/acceptance-engines.mjs` reads the offline file in Chromium, Firefox and WebKit.
@@ -67,7 +67,8 @@ Found while generating this workbook through the skill:
 | A pivot definition without `filters` was refused with "Pivot filters must list at most 4 fields" | Fixed: the message says the field is a list, `[]` for none (one corrective retry of the patch) |
 | `set.pivots` and other `set` fields need stable sheet IDs; an imported sheet's ID is known only after the import | SKILL.md now says to `inspect` for IDs |
 | `new` does not refresh pivot tables, so a model with pivots fails `validate` until `recalculate --refresh-pivots` | SKILL.md › Create now says so |
-| No command turns a standard file into an offline one (or back) | SKILL.md now gives `extract` then `new [--offline]` |
+| No command turns a standard file into an offline one (or back), and `extract` kept only the JSON, so a rebuilt copy lost a custom charte | Fixed: `extract --charte-out theme.css` writes the document's charte; SKILL.md gives `extract … --charte-out`, then `new … --charte [--offline]` |
+| `new --charte` with a partial charte (some tokens missing) fails with "Unsupported JSON value" while drawing chart previews | Listed: a complete charte works; missing tokens should fall back to the default or be named |
 | Imports run only in the browser, so a workbook built on imported data needs a person (or a driven browser) between two tool steps | By design (FORMAT.md › Imported sources); documented in SKILL.md |
 | `inspect --range` prints about 15 lines of JSON per cell; reading 60 analysis results needed a small script | Listed: a compact table view would help |
 | The shared category axis draws every label, so 24 `mmm yy` labels overlap on the line chart | Worked around with `mmm` labels and a wider chart; listed for the shared chart module |

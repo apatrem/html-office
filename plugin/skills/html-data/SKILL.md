@@ -43,7 +43,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
 - Charts take one rectangular block, header row first (FORMAT.md › Charts); pivot tables read a range or a table sheet and own their output cells.
 - Match the user's language in labels; formulas stay in English with decimal points. Set `locale` for display.
 - CSV and XLSX files are imported by the person in the browser (Data › Import CSV…, Import XLSX…, Refresh source…), never by the tools. Keep `sources` as it is: patches cannot set it. A patched cell of an imported sheet is a hand edit; a later refresh asks before replacing it. To build on imported data, deliver the workbook, let the person import and save, then patch the saved file (formulas reading the new sheet, pivots with its ID).
-- To turn a standard file into an offline one (or back), `extract file.html --out model.json`, then `new other.html --model model.json [--offline]`: the workbook, its imported data and pivot outputs are kept.
+- To turn a standard file into an offline one (or back), `extract file.html --out model.json --charte-out theme.css`, then `new other.html --model model.json --charte theme.css [--offline]`: the workbook, its imported data, pivot outputs and branding are kept.
 - Do not use the html-slides skill or its tools on a Data file, or the reverse.
 
 ## Never do these

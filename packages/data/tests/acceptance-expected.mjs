@@ -300,11 +300,56 @@ export function differences(book, e, { months = 24, tolerance = 1e-9 } = {}) {
       block = Number(r) >= RECORD_ROW ? e.records : e.analysis;
     check("Formula analysis", `D${r}`, block[fn]);
   }
-  const stations = Object.keys(e.pivot).sort();
+  // The pivot: one row per station (sorted), its row total, then the
+  // Total row with the column totals and the grand total.
+  const stations = Object.keys(e.pivot).sort(),
+    plans = ["Casual", "Member"],
+    total = (s) => e.pivot[s].Casual + e.pivot[s].Member;
+  check("Stations", "B4", "Casual");
+  check("Stations", "C4", "Member");
+  check("Stations", "D4", "Total");
   stations.forEach((s, i) => {
     check("Stations", `A${6 + i}`, s);
-    check("Stations", `B${6 + i}`, e.pivot[s].Casual);
-    check("Stations", `C${6 + i}`, e.pivot[s].Member);
+    plans.forEach((plan, j) =>
+      check("Stations", `${"BC"[j]}${6 + i}`, e.pivot[s][plan]),
+    );
+    check("Stations", `D${6 + i}`, total(s));
+  });
+  const last = 6 + stations.length;
+  check("Stations", `A${last}`, "Total");
+  plans.forEach((plan, j) =>
+    check(
+      "Stations",
+      `${"BC"[j]}${last}`,
+      stations.reduce((a, s) => a + e.pivot[s][plan], 0),
+    ),
+  );
+  check(
+    "Stations",
+    `D${last}`,
+    stations.reduce((a, s) => a + total(s), 0),
+  );
+  if (sheet("Stations").cells[`A${last + 1}`])
+    out.push(`Stations!A${last + 1}: a row after the Total row`);
+  // Chart data: the monthly line, the 24-month bridge, the scenarios.
+  const MONTH = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(" ");
+  for (let m = 0; m < 24; m++) {
+    check("Chart data", `A${m + 2}`, MONTH[m % 12]);
+    check("Chart data", `B${m + 2}`, e.pnl.revenue[m]);
+    check("Chart data", `C${m + 2}`, e.pnl.net[m]);
+  }
+  const of24 = (row) => e.pnl[row].slice(0, 24).reduce((a, b) => a + b, 0);
+  [
+    ["Revenue", of24("revenue"), true],
+    ["Variable costs", -of24("variable")],
+    ["Fixed costs", -of24("fixed")],
+    ["Depreciation", -of24("depreciation")],
+    ["Tax", -of24("tax")],
+    ["Net income", undefined, true],
+  ].forEach(([label, value, isTotal], i) => {
+    check("Chart data", `E${2 + i}`, label);
+    check("Chart data", `F${2 + i}`, value);
+    check("Chart data", `G${2 + i}`, isTotal);
   });
   e.scenarios.forEach(([name, revenue, contribution], i) => {
     check("Chart data", `I${2 + i}`, name);

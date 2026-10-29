@@ -622,3 +622,60 @@ test("imported sources are listed and kept", async () => {
     0,
   );
 });
+
+// T21 review: an offline copy built from extracted JSON keeps the
+// document's own charte when extract writes it out for new --charte.
+test("extract --charte-out keeps a custom charte through new", async () => {
+  const charte = join(dir, "brand.css"),
+    branded = join(dir, "branded.html");
+  // A complete charte: the default one with another accent colour.
+  await writeFile(
+    charte,
+    (
+      await readFile(
+        new URL(
+          "../../../plugin/skills/html-slides/assets/default.css",
+          import.meta.url,
+        ),
+        "utf8",
+      )
+    ).replace("#14517A", "#a01050"),
+  );
+  const made = await cli(
+    "new",
+    branded,
+    "--model",
+    join(examples, "valid/budget.json"),
+    "--charte",
+    charte,
+  );
+  assert.equal(made.code, 0, made.out);
+  const model = join(dir, "branded.json"),
+    kept = join(dir, "branded-charte.css"),
+    offline = join(dir, "branded-offline.html");
+  const extracted = await cli(
+    "extract",
+    branded,
+    "--out",
+    model,
+    "--charte-out",
+    kept,
+  );
+  assert.equal(extracted.code, 0, extracted.out);
+  assert.match(await readFile(kept, "utf8"), /--acc:#a01050/);
+  const rebuilt = await cli(
+    "new",
+    offline,
+    "--model",
+    model,
+    "--charte",
+    kept,
+    "--offline",
+  );
+  assert.equal(rebuilt.code, 0, rebuilt.out);
+  const charteOf = async (file) =>
+    /<style id="charte">([\s\S]*?)<\/style>/.exec(
+      await readFile(file, "utf8"),
+    )[1];
+  assert.equal(await charteOf(offline), await charteOf(branded));
+});

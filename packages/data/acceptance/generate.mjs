@@ -9,21 +9,22 @@
 //   3. `inspect` gives the imported sheet's ID; the tools apply
 //      patches/link-rentals.json with --refresh-pivots, and `validate --since`
 //      checks that nothing else changed;
-//   4. `extract`, then `new` and `new --offline` write the published standard
+//   4. `extract` (with the charte), then `new` and `new --offline` write the published standard
 //      and offline files from the same canonical JSON, and `validate` both;
 //   5. Chromium exports the P&L as CSV and prints Summary and P&L to PDF from
 //      the offline file (no network).
 // Usage: node packages/data/acceptance/generate.mjs [--out DIR]
-// (default: packages/data/acceptance/output).
+// (default: packages/data/acceptance/output). The command line first writes
+// the inputs with author.mjs.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, mkdir, cp, readFile, rm, copyFile } from "node:fs/promises";
+import { mkdtemp, mkdir, cp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { packageSkill } from "../tools/skill.mjs";
-import { RECORD_ROW, RECORD_ANALYSIS } from "./author.mjs";
+import { RECORD_ROW, RECORD_ANALYSIS, FILES } from "./author.mjs";
 import { command, openMenu, menuItem } from "../tests/shell.mjs";
 
 const run = promisify(execFile),
@@ -210,11 +211,20 @@ export async function generate({ out, browser, skill, work }) {
       "Valid.",
     );
     // 4. The published files, from one canonical JSON.
-    await tool("extract", "step3.html", "--out", "final.json");
+    // The document's charte goes with it, as SKILL.md says.
+    await tool(
+      "extract",
+      "step3.html",
+      "--out",
+      "final.json",
+      "--charte-out",
+      "charte.css",
+    );
     const standard = join(out, `${NAME}.html`),
-      offline = join(out, `${NAME}-offline.html`);
-    await tool("new", standard, "--model", "final.json", "--force");
-    await tool("new", offline, "--model", "final.json", "--offline", "--force");
+      offline = join(out, `${NAME}-offline.html`),
+      model = ["--model", "final.json", "--charte", "charte.css", "--force"];
+    await tool("new", standard, ...model);
+    await tool("new", offline, ...model, "--offline");
     for (const file of [standard, offline])
       assert.equal((await tool("validate", file)).trim(), "Valid.");
     // 5. CSV and PDF samples.
@@ -230,13 +240,15 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const { chromium } = await import("playwright");
   const at = process.argv.indexOf("--out"),
     out = resolve(at > 0 ? process.argv[at + 1] : join(here, "output"));
+  // The inputs first, so a change to author.mjs reaches the outputs.
+  for (const [name, make] of Object.entries(FILES))
+    await writeFile(join(here, name), make());
   const { dir, skill } = await freshSkill(),
     browser = await chromium.launch();
   try {
     const result = await generate({ out, browser, skill });
     for (const line of result.log) console.log(line);
     console.log(`Wrote ${out}`);
-    await copyFile(join(result.work, "final.json"), join(out, "final.json"));
     await rm(result.work, { recursive: true, force: true });
   } finally {
     await browser.close();

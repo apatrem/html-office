@@ -3,7 +3,7 @@
 // workbook inside an HTML Data file; everything else in the file is kept
 // byte for byte.
 //   new         <out.html> --model model.json [--offline] [--charte f.css] [--force]
-//   extract     <file.html> [--out model.json]
+//   extract     <file.html> [--out model.json] [--charte-out theme.css]
 //   inspect     <file.html> [--range Sheet!A1:D20] [--json]
 //   apply       <file.html> <patch.json> (--out out.html | --in-place)
 //               [--no-recalculate] [--refresh-pivots] [--dry-run] [--json]
@@ -44,7 +44,7 @@ import { renderPreviews, cssTheme } from "./chart-previews.mjs";
 
 const USAGE = `Usage:
   workbook.mjs new <out.html> --model model.json [--offline] [--charte f.css] [--force]
-  workbook.mjs extract <file.html> [--out model.json]
+  workbook.mjs extract <file.html> [--out model.json] [--charte-out theme.css]
   workbook.mjs inspect <file.html> [--range Sheet!A1:D20] [--json]
   workbook.mjs apply <file.html> <patch.json> (--out out.html | --in-place) [--no-recalculate] [--refresh-pivots] [--dry-run] [--json]
   workbook.mjs recalculate <file.html> (--out out.html | --in-place) [--refresh-pivots]
@@ -64,6 +64,7 @@ export function parseArgs(argv) {
         "--since",
         "--allow",
         "--allow-fields",
+        "--charte-out",
       ].includes(a)
     )
       out[a.slice(2)] = argv[++i];
@@ -220,6 +221,12 @@ export async function run(argv) {
   }
   const { html, read } = await load(file);
   if (command === "extract") {
+    // The document's own brand stylesheet, to build another file of the
+    // same workbook with `new --charte`.
+    if (args["charte-out"]) {
+      await writeAtomic(args["charte-out"], charteCSS(html));
+      console.error(`Wrote ${args["charte-out"]}.`);
+    }
     const json = writeModel(read.book);
     if (args.out) {
       await writeAtomic(args.out, json + "\n");
