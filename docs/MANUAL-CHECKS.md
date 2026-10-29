@@ -131,6 +131,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 1. **Third-party notices (L01)**: Help › Third-party notices opens collapsed, readable text, with no external link, in each product.
 2. **Offline**: with the network off, each file opens and edits. Data and Slides show chart previews.
 3. **Keyboard only**: Tab reaches the file bar, the menus and the toolbar. The arrow keys move within the toolbar, and Escape closes menus and dialogs.
+4. **Long-series charts**: in each product, draw a column chart and a line chart over 24 months with two series (Slides: Insert › Chart and the data panel; Data: a 24-row block, Insert › Chart…; Text: Insert › Chart…). The month labels never overlap: every second or third one shows, at a regular step, and they all show again when the chart is wide enough. The legend swatches have the colours of the bars and lines, in each theme, live and in the saved preview with the network off. A chart with up to 12 categories (a year of months) still shows every label.
 
 ## 5. Copy and paste between Slides and Data (X02b, X02c)
 
