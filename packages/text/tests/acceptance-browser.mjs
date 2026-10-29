@@ -129,15 +129,19 @@ try {
     ...standard.matchAll(/<span class="footnote">(.*?)<\/span>/g),
   ].map((m) => m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&"));
   assert.equal(notes.length, 6);
-  const flow = pages
-    .map((t) => t.replace(HEADER, "").replace(/\b\d+ \/ \d+\b/, ""))
-    .join(" ")
-    .replace(/\s+/g, " ");
+  // Compared without spaces and with ligatures (fi, fl) split, as fonts and line wraps vary
+  // between systems.
+  const plain = (text) => text.normalize("NFKC").replace(/\s+/g, "");
+  const flow = plain(
+    pages
+      .map((t) => t.replace(HEADER, "").replace(/\b\d+ \/ \d+\b/, ""))
+      .join(" "),
+  );
   // After the last sentence of the content (Appendix C), not its contents entry.
-  let last = flow.indexOf("so that its margin is clear.");
+  let last = flow.indexOf(plain("so that its margin is clear."));
   assert.ok(last > 0, "the end of the content");
   for (const [i, note] of notes.entries()) {
-    const at = flow.indexOf(`${i + 1}. ${note}`, last);
+    const at = flow.indexOf(plain(`${i + 1}. ${note}`), last);
     assert.ok(at > last, `endnote ${i + 1}`);
     last = at;
   }
