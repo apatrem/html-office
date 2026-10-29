@@ -46,7 +46,8 @@ const fills = (svg, kind) => [...svg.matchAll(/<path [^>]*>/g)]
   .map(([tag]) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(a => [a[1], a[2]])))
   .filter(a => a.ecmeta_ssr_type === kind && a.fill !== 'transparent' && a.fill !== 'none')
   .map(a => ({ series: Number(a.ecmeta_series_index), fill: a.fill }));
-const months = Array.from({ length: 24 }, (_, i) => `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i % 12]} ${2025 + Math.floor(i / 12)}`);
+// Full month names are wider than 56 px: a wrapped label would not show as one text.
+const months = Array.from({ length: 24 }, (_, i) => `${['January','February','March','April','May','June','July','August','September','October','November','December'][i % 12]} ${2025 + Math.floor(i / 12)}`);
 const shown = (svg, categories) => categories.filter(c => svg.includes(`>${c}</text>`));
 const monthly = { unit: '€k', categories: months, series: [{ name: 'Revenue', values: months.map((_, i) => 100 + i) }, { name: 'Costs', values: months.map((_, i) => 80 + i) }] };
 
@@ -60,6 +61,17 @@ for (const type of ['column', 'line']) {
     assert.deepEqual(shown(svgOf(type, monthly, undefined, 3000), months), months);
   });
 }
+test('long labels on a long horizontal axis are cut to one line, keeping the plot', () => {
+  const names = Array.from({ length: 13 }, (_, i) => `Revenue for product ${i + 1} sold to Western Europe customers through independent retail distributors`);
+  const data = { unit: '€k', categories: names, series: [{ name: 'A', values: names.map((_, i) => 10 + i) }, { name: 'B', values: names.map((_, i) => 5 + i) }] };
+  for (const [type, d] of [['hbar', data], ['stacked', { ...data, horizontal: true }]]) {
+    const svg = svgOf(type, d, undefined, 544, 400);
+    const bars = [...svg.matchAll(/<path d="M([\d.]+) [\d.]+l([\d.]+) 0[^"]*"[^>]*ecmeta_ssr_type="chart"/g)].map(m => [Number(m[1]), Number(m[2])]);
+    assert.ok(bars.length && bars.every(([x, w]) => x >= 0 && x + w <= 544), `${type}: bars inside the chart`);
+    assert.ok(Math.min(...bars.map(([x]) => x)) <= 160, `${type}: label gutter at most 160 px`);
+    assert.ok(!names.some(c => svg.includes(`>${c}</text>`)) && svg.includes('...</text>'), `${type}: labels cut with an ellipsis`);
+  }
+});
 test('up to 12 categories every label is kept and wrapped to its share of the axis, as before', () => {
   const t = charteTheme(CHARTES.blue);
   for (let n = 1; n <= 12; n++) {
@@ -68,7 +80,7 @@ test('up to 12 categories every label is kept and wrapped to its share of the ax
     assert.equal(axisLabel.width, Math.max(56, Math.floor(680 / n) - 12));
     assert.equal(axisLabel.overflow, 'break');
   }
-  const year = { unit: '€k', categories: months.slice(0, 12), series: [{ name: 'A', values: Array(12).fill(1) }] };
+  const year = { unit: '€k', categories: months.slice(0, 12).map(m => m.slice(0, 3) + m.slice(-5)), series: [{ name: 'A', values: Array(12).fill(1) }] };
   for (const type of ['column', 'line']) assert.deepEqual(shown(svgOf(type, year), year.categories), year.categories);
 });
 test('legend swatches have the colours of their series in every built-in charte', () => {
