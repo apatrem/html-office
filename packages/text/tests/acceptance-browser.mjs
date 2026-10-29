@@ -133,7 +133,9 @@ try {
     .map((t) => t.replace(HEADER, "").replace(/\b\d+ \/ \d+\b/, ""))
     .join(" ")
     .replace(/\s+/g, " ");
-  let last = flow.indexOf("Appendix C. Questions");
+  // After the last sentence of the content (Appendix C), not its contents entry.
+  let last = flow.indexOf("so that its margin is clear.");
+  assert.ok(last > 0, "the end of the content");
   for (const [i, note] of notes.entries()) {
     const at = flow.indexOf(`${i + 1}. ${note}`, last);
     assert.ok(at > last, `endnote ${i + 1}`);
