@@ -64,14 +64,14 @@ export const printPlugin = () =>
   });
 
 // The document's print rules (@media print), applied to the preview on screen; the chrome's own
-// (.sh-…) are left out, since the preview bar is chrome.
+// (.sh-…) and the preview's (.tx-sheets) are left out, since the preview shows them.
 function printRules() {
   let css = "";
   const add = (rules, print) => {
     for (const rule of rules)
       if (rule instanceof CSSMediaRule)
         add(rule.cssRules, print || rule.media.mediaText.includes("print"));
-      else if (print && !/\.sh-/.test(rule.selectorText ?? ""))
+      else if (print && !/\.sh-|\.tx-sheets/.test(rule.selectorText ?? ""))
         css += rule.cssText;
   };
   for (const sheet of document.styleSheets)
@@ -117,11 +117,12 @@ function repeatHeads(doc, left, stride, style) {
     const id = found.tbody.closest("figure").id;
     const k = [...found.tbody.children].indexOf(found.tr) + 1;
     css += `#${id} tbody>tr:nth-child(${k})>*{padding-top:${parseFloat(getComputedStyle(cell).paddingTop) + found.height}px}`;
-    style.textContent = css;
+    style.textContent = `@media screen{${css}}`;
   }
 }
 
-// A copy of a table's header at (x, y): its cells where they are drawn on the first page.
+// A copy of a table's header at (x, y): its cells where they are drawn on the first page. Outside
+// #doc the editor's styles do not apply: a footnote shows as its number, a comment's mark goes.
 function headCopy({ thead }, x, y) {
   const box = thead.getBoundingClientRect();
   return h(
@@ -136,6 +137,10 @@ function headCopy({ thead }, x, y) {
       [...thead.querySelectorAll("th")].map((th) => {
         const r = th.getBoundingClientRect();
         const copy = th.cloneNode(true);
+        for (const note of copy.querySelectorAll(".footnote"))
+          note.replaceWith(h("sup", {}, note.dataset.txNote ?? ""));
+        for (const mark of copy.querySelectorAll("mark.comment"))
+          mark.replaceWith(...mark.childNodes);
         copy.style.cssText = `left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px`;
         return copy;
       }),
@@ -217,10 +222,10 @@ export function printPreview(view, print) {
       style: document.head.appendChild(h("style", {}, printRules())),
       repeat: document.head.appendChild(h("style")),
       heads: document.body.appendChild(
-        h("div", { class: "tx-pages tx-heads", "aria-hidden": "true" }),
+        h("div", { class: "tx-sheets tx-heads", "aria-hidden": "true" }),
       ),
       layer: document.body.appendChild(
-        h("div", { class: "tx-pages", "aria-hidden": "true" }),
+        h("div", { class: "tx-sheets", "aria-hidden": "true" }),
       ),
       bar: document.body.appendChild(
         h(
@@ -272,8 +277,9 @@ export function printPreview(view, print) {
   return {
     show,
     close,
-    // Redrawn after any change while it is open (a chart drawn, a draft restored).
-    update: layout,
+    // Redrawn after any change while it is open (a chart drawn, a paste, a draft restored), once
+    // the tables have copied their header rows.
+    update: () => open && queueMicrotask(layout),
     get pages() {
       return open?.pages ?? null;
     },

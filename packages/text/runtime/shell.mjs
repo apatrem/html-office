@@ -482,7 +482,6 @@ export function mountShell(
   // The running header (T14): applied when the field is left or Enter is pressed.
   const header = h("input", {
     type: "text",
-    maxlength: "120",
     placeholder: "None",
     onchange: () => cmd.run("header", header.value),
   });
@@ -544,7 +543,7 @@ export function mountShell(
           h(
             "p",
             { class: "sh-hint" },
-            "Pages are numbered at the bottom. File › Print preview shows the pages.",
+            "Up to 120 characters. Pages are numbered at the bottom. File › Print preview shows the pages.",
           ),
         ],
       })

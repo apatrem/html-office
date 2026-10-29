@@ -1,8 +1,9 @@
 // T14 without a browser: the running header attribute (validation, command, the CSS it prints
-// with) and the layout theme's print rules.
+// with), the layout theme's print rules and the test PDF reader.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { deflateSync } from "node:zlib";
 import { EditorState } from "prosemirror-state";
 import { history, undo } from "prosemirror-history";
 import { parseFile } from "../model/parse.mjs";
@@ -10,6 +11,7 @@ import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { cssString, headerCSS, setHeader } from "../runtime/look.mjs";
 import { LAYOUT_CSS } from "../theme/index.mjs";
+import { readPDF } from "./pdf.mjs";
 
 const minimal = await readFile(
   new URL("../fixtures/valid/minimal.html", import.meta.url),
@@ -106,4 +108,63 @@ test("the layout theme's print rules: breaks, keep-together, full-width figures,
     LAYOUT_CSS,
     /#doc\[data-page=letter\]\{--page-w:215\.9mm;--page-h:279\.4mm;/,
   );
+});
+
+test("setHeader always stores a header the validator accepts (code points, controls, ends)", () => {
+  const { doc } = openFile(parseFile(minimal));
+  const stored = (value) => {
+    let header;
+    setHeader(value)(EditorState.create({ doc }), (tr) => {
+      header = tr.doc.attrs.header;
+    });
+    return header;
+  };
+  // 121 code points, 185 UTF-16 units: the first 120 code points are kept, no emoji cut in two.
+  const emoji = "A" + "😀".repeat(64) + "b".repeat(56);
+  assert.equal(stored(emoji), "A" + "😀".repeat(64) + "b".repeat(55));
+  assert.equal(stored("Board\u0001report\u0085x y"), "Board report x y");
+  assert.equal(stored("x".repeat(119) + " y"), "x".repeat(119));
+  assert.equal(stored("lone \ud800 surrogate"), "lone surrogate");
+  for (const value of [
+    emoji,
+    "Board\u0001report",
+    "x".repeat(119) + " y",
+    "a\ud83d",
+    " 　 wide spaces  ",
+  ]) {
+    const header = stored(value);
+    const html = minimal.replace(
+      /<article ([^>]*)>/,
+      (_, a) =>
+        `<article ${a} data-header="${header.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">`,
+    );
+    assert.deepEqual(errors(html), [], JSON.stringify(value));
+  }
+});
+
+test("the PDF reader follows indirect resources and fonts", () => {
+  const stream = (body) => {
+    const data = deflateSync(Buffer.from(body, "latin1"));
+    return `<</Filter /FlateDecode /Length ${data.length}>>\nstream\n${data.toString("latin1")}\nendstream`;
+  };
+  const objects = [
+    "<</Type /Catalog /Pages 2 0 R>>",
+    "<</Type /Pages /Kids [3 0 R] /Count 1>>",
+    "<</Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources 4 0 R /Contents 7 0 R>>",
+    "<</Font 5 0 R>>",
+    "<</F1 6 0 R>>",
+    "<</Type /Font /Subtype /Type0 /ToUnicode 8 0 R>>",
+    stream("BT /F1 12 Tf <00010002> Tj ET"),
+    stream(
+      "beginbfchar\n<0001> <0048>\nendbfchar\nbeginbfrange\n<0002> <0002> <0069>\nendbfrange",
+    ),
+  ];
+  const pdf = Buffer.from(
+    `%PDF-1.4\n${objects.map((o, i) => `${i + 1} 0 obj\n${o}\nendobj\n`).join("")}%%EOF`,
+    "latin1",
+  );
+  const read = readPDF(pdf);
+  assert.equal(read.pages.length, 1);
+  assert.equal(read.pages[0].text.trim(), "Hi");
+  assert.deepEqual(read.size, [595, 842]);
 });

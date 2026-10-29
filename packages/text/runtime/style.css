@@ -89,9 +89,10 @@
 :root.tx-preview #doc.ProseMirror[data-page=letter]{--tx-page-h:279.4mm}
 :root.tx-preview #doc hr.page-break{break-after:column}
 :root.tx-preview #doc .new-page{break-before:column}
-.tx-pages{position:absolute;left:0;top:0;z-index:0}
+.tx-sheets{position:absolute;left:0;top:0;z-index:0}
 .tx-page{position:absolute;background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .tx-page>div{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;overflow:hidden;white-space:nowrap;font:9pt/1.2 var(--body-font,var(--font));color:var(--t2)}
 .tx-page-head{top:0}.tx-page-foot{bottom:0}
 .tx-preview-bar{position:fixed;top:0;left:0;right:0;z-index:4000;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-bottom:1px solid var(--sh-line)}}
-@media screen{.tx-pages.tx-heads{z-index:2;pointer-events:none}.tx-repeat{position:absolute;display:block;margin:0}.tx-repeat thead{display:block}.tx-repeat th{position:absolute;box-sizing:border-box}}
+@media print{.tx-sheets{display:none!important}}
+@media screen{.tx-sheets.tx-heads{z-index:2;pointer-events:none}.tx-repeat{position:absolute;display:block;margin:0}.tx-repeat thead{display:block}.tx-repeat th{position:absolute;box-sizing:border-box}}

@@ -227,6 +227,7 @@ function start() {
     refresh();
     saving.edited();
     mirrorLook(next);
+    preview?.update();
     commands.changed();
   }
   // New heading IDs avoid the IDs of the file's other elements (title, guide, zones).

@@ -76,17 +76,16 @@ export function readPDF(buffer) {
   };
   // Names to object numbers in a resource dictionary (/Font, /XObject), inline or by reference.
   const named = (body, kind) => {
-    const m =
-      body.match(new RegExp(`/${kind}\\s*<<([^>]*)>>`)) ??
-      body
-        .match(new RegExp(`/${kind} (\\d+) 0 R`))
-        ?.slice(1)
-        .map((id) => objects.get(+id).body.match(/<<([^>]*)>>/)?.[1]);
+    const resources = body.match(/\/Resources (\d+) 0 R/);
+    if (resources) body = objects.get(+resources[1]).body;
+    const inline = body.match(new RegExp(`/${kind}\\s*<<([^>]*)>>`));
+    const ref = body.match(new RegExp(`/${kind} (\\d+) 0 R`));
+    const dict =
+      inline?.[1] ??
+      (ref && objects.get(+ref[1]).body.match(/<<([^>]*)>>/)?.[1]) ??
+      "";
     return new Map(
-      [...(m?.[1] ?? "").matchAll(/\/(\w+) (\d+) 0 R/g)].map((x) => [
-        x[1],
-        +x[2],
-      ]),
+      [...dict.matchAll(/\/(\w+) (\d+) 0 R/g)].map((x) => [x[1], +x[2]]),
     );
   };
   // The text a content stream draws, forms (Do) included, in drawing order.

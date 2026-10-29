@@ -53,9 +53,14 @@ export const cssString = (text) =>
 export const headerCSS = (header) =>
   header ? `@page{@top-center{content:${cssString(header)}}}` : "";
 
-// Sets or removes the running header (data-header): one line of at most 120 characters.
+// Sets or removes the running header (data-header): one line of at most 120 characters (code
+// points), control characters and lone surrogates as spaces, no space at either end.
 export const setHeader = (value) => (state, dispatch) => {
-  const next = (value ?? "").replace(/\s+/g, " ").trim().slice(0, 120) || null;
+  const line = (value ?? "")
+    .replace(/[\0-\x1f\x7f-\x9f\u2028\u2029]|\p{Cs}/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const next = [...line].slice(0, 120).join("").trimEnd() || null;
   if (state.doc.attrs.header === next) return false;
   dispatch?.(state.tr.setDocAttribute("header", next));
   return true;

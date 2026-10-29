@@ -111,6 +111,7 @@ const previewed = (page) =>
         top: t.getBoundingClientRect().top - box.top,
         margin: parseFloat(cs.paddingTop),
         cells: t.querySelectorAll("th").length,
+        text: t.textContent,
       })),
       wrapped: [...doc.querySelectorAll("figure.image[data-wrap]")].map(
         (f) => new Set([...f.nextElementSibling.getClientRects()].map(at)).size,
@@ -210,6 +211,8 @@ async function run(name) {
         assert.equal(r.page, table + 1 + i);
         assert.ok(Math.abs(r.top - r.margin) < 1, `at the top: ${r.top}`);
         assert.equal(r.cells, 5);
+        // A footnote in a header cell shows as its number, as it prints.
+        assert.equal(plain(r.text), plain("Branch Loans Visits3 2025 2026"));
       });
       // A wrapped image whose paragraph starts on one page and ends on the next (where breaks
       // fall depends on the engine; this is the fixture's layout in Chromium).
@@ -223,6 +226,12 @@ async function run(name) {
       assert.equal(shown.text[shown.ids["sec-plan"]][0], "Plan for 2027");
       assert.equal(shown.text[shown.ids["sec-annex"]][0], "Annex");
       assert.ok(shown.heads.every((h) => h === HEADER));
+      // Printing from the preview prints the document, not the preview's pages or its rules.
+      const inPreview =
+        name === "chromium" &&
+        readPDF(await page.pdf({ preferCSSPageSize: true })).pages.map((p) =>
+          p.text.replace(/\s+/g, " "),
+        );
       pass(
         "preview: a merged table over three pages with its header on each, page breaks, header and page numbers",
       );
@@ -273,6 +282,8 @@ async function run(name) {
         const pages = pdf.pages.map((p) => p.text.replace(/\s+/g, " "));
         const flat = pages.map(plain);
         // Repeated header rows: both header rows at the top of each continuation page.
+        assert.deepEqual(inPreview, pages);
+        // (The header's note number is painted last on the page.)
         const head = plain("Branch Loans Visits 2025 2026");
         const body = (i) =>
           plain(pages[i].slice(`${HEADER} ${i + 1} / ${pages.length}`.length));
@@ -281,7 +292,7 @@ async function run(name) {
         // Endnotes: the notes list, numbered as on screen, on the last page.
         assert.match(
           pages.at(-1),
-          /Notes 1\. Fictional figures, rounded to the nearest hundred\. 2\. Counted at the door\. 3\. Branches 9 and 10 share a building\. 4\. Sources: fictional branch returns\./,
+          /Notes 1\. Fictional figures, rounded to the nearest hundred\. 2\. Counted at the door\. 3\. Door counts, all entrances\. 4\. Branches 9 and 10 share a building\. 5\. Sources: fictional branch returns\./,
         );
         // Explicit breaks: each section starts its page.
         assert.ok(body(shown.ids["sec-plan"]).startsWith("3Planfor2027"));
@@ -304,12 +315,52 @@ async function run(name) {
         );
         assert.ok(!flat.some((t) => t.includes("Sam")));
         pass(
-          "PDF: repeated table headers, endnotes, page breaks, linked contents, no comments",
+          "PDF: repeated table headers, endnotes, page breaks, linked contents, no comments; printing from the preview gives the same PDF",
         );
       }
 
+      // A table added while the preview is open (a paste completing): its header is copied
+      // before the pages are drawn again.
+      await preview(page);
+      await page.evaluate(() => {
+        const { view } = window.htmlText;
+        const s = view.state;
+        let figure, end;
+        s.doc.forEach((node, offset) => {
+          if (node.attrs.id === "tab-branches") figure = node;
+          if (node.type.name === "comments") end = offset;
+        });
+        view.dispatch(
+          s.tr.insert(
+            end,
+            figure.type.create({ id: "tab-copy" }, figure.content),
+          ),
+        );
+      });
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      const grown = await previewed(page);
+      assert.ok(grown.count > shown.count, `${grown.count} pages`);
+      assert.equal(grown.feet.length, grown.count);
+      assert.ok(grown.repeats.length >= 4, `${grown.repeats.length} copies`);
+      for (const r of grown.repeats) assert.equal(r.cells, 5);
+      await closePreview(page);
+      await page.keyboard.press(
+        process.platform === "darwin" ? "Meta+z" : "Control+z",
+      );
+      assert.equal(await page.locator("#tab-copy").count(), 0);
+      pass(
+        "a table added while previewing gets its pages and repeated headers",
+      );
+
       // ---- the running header: Document settings, undo, save ----
       await menu(page, "File", "Document settings…");
+      // The preview's classes never restyle the panel's choices.
+      assert.equal(
+        await page
+          .locator(".tx-drawer [role=radiogroup][aria-label='Page format']")
+          .evaluate((el) => getComputedStyle(el).position),
+        "static",
+      );
       const field = page.getByLabel("Text at the top of every printed page");
       assert.equal(await field.inputValue(), HEADER);
       await field.fill('  Draft "B" \\ for the board  ');
@@ -374,6 +425,31 @@ async function run(name) {
       }
       assert.deepEqual(errors, []);
       await page.close();
+    }
+
+    // ---- a draft restored while the preview is open is what the preview shows ----
+    if (name === "chromium") {
+      let { page } = await open("print");
+      await page.evaluate(() =>
+        window.htmlText.commands.run("header", "Draft header"),
+      );
+      await page.waitForSelector(".tx-shell [role=status][data-state=draft]");
+      await page.close();
+      ({ page } = await open("print"));
+      await page.waitForSelector("dialog.sh-dialog[open]");
+      await page.evaluate(() => window.htmlText.commands.run("preview"));
+      assert.deepEqual(
+        new Set(await page.locator(".tx-page-head").allTextContents()),
+        new Set([HEADER]),
+      );
+      await page.click("dialog.sh-dialog button:text('Restore draft')");
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      assert.deepEqual(
+        new Set(await page.locator(".tx-page-head").allTextContents()),
+        new Set(["Draft header"]),
+      );
+      await page.close();
+      pass("a draft restored while previewing is previewed");
     }
   } finally {
     await browser.close();
