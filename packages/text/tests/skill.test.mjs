@@ -205,5 +205,8 @@ test("the extracted skill creates, rewrites, checks and packs with Node alone", 
   ok(outline);
   assert.match(outline.stdout, / sec-regions +2 Regions\n/);
   ok(node("markdown", "edited.html", "edited.md"));
-  assert.match(await readFile(join(dir, "edited.md"), "utf8"), /^# 2 Regions$/m);
+  assert.match(
+    await readFile(join(dir, "edited.md"), "utf8"),
+    /^# 2 Regions$/m,
+  );
 });
