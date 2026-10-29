@@ -36,12 +36,15 @@ async function extract() {
   await cp(plugin, source, { recursive: true });
   // As release.sh builds it: the Text skill packaged afresh from the sources.
   await packageSkill(join(source, "skills/html-text"));
+  // A plain copy only where zip or unzip is not installed (CI has both): an archive they
+  // reject fails the test.
   try {
     await run("zip", ["-qr", archive, ".", "-x", "*.DS_Store"], {
       cwd: source,
     });
     await run("unzip", ["-q", archive, "-d", out]);
-  } catch {
+  } catch (error) {
+    if (error.code !== "ENOENT" || process.env.CI) throw error;
     await cp(source, out, { recursive: true });
   }
   return { dir, skill: join(out, "skills/html-text") };
@@ -87,10 +90,9 @@ test("the plugin keeps its identity, with the Slides, Data and Text skills", asy
     await access(join(plugin, "skills/html-text", path));
   // The release script packages the skill before zipping.
   const release = await readFile(join(repo, "tools/release.sh"), "utf8");
-  assert.ok(
-    release.indexOf("node packages/text/tools/skill.mjs") <
-      release.indexOf("zip -qr"),
-  );
+  const packaging = release.indexOf("node packages/text/tools/skill.mjs"),
+    zipping = release.indexOf("zip -qr");
+  assert.ok(packaging >= 0 && zipping > packaging);
   // The reference's links reach the repository; the guide links the releases.
   const format = await readFile(
     join(plugin, "skills/html-text/references/FORMAT.md"),
