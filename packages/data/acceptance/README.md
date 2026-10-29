@@ -71,7 +71,7 @@ Found while generating this workbook through the skill:
 | `new --charte` with a partial charte (some tokens missing) fails with "Unsupported JSON value" while drawing chart previews | Listed: a complete charte works; missing tokens should fall back to the default or be named |
 | Imports run only in the browser, so a workbook built on imported data needs a person (or a driven browser) between two tool steps | By design (FORMAT.md › Imported sources); documented in SKILL.md |
 | `inspect --range` prints about 15 lines of JSON per cell; reading 60 analysis results needed a small script | Listed: a compact table view would help |
-| The shared category axis draws every label, so 24 `mmm yy` labels overlap on the line chart | Worked around with `mmm` labels and a wider chart; listed for the shared chart module |
-| Column charts with several series set colours per bar, so the legend swatches take ECharts' default palette (blue-violet and lime) instead of the bar colours; the existing P&L fixture has the same | Listed for the shared chart module (it also affects Slides) |
+| The shared category axis draws every label, so 24 `mmm yy` labels overlap on the line chart | Worked around with `mmm` labels and a wider chart; fixed in the shared chart module by PR #94 (long axes thinned) |
+| Column charts with several series set colours per bar, so the legend swatches take ECharts' default palette (blue-violet and lime) instead of the bar colours; the existing P&L fixture has the same | Fixed in the shared chart module by PR #94 (it also affects Slides) |
 | Refresh source… lists only the formulas that read the sheet directly (Monthly actuals, Formula analysis), not the P&L and Summary that follow | Listed for T16 |
 | IronCalc's `TEXT` rounds halves to even (`TEXT(2.5,"0")` is `2`, `TEXT(0.125,"0%")` is `12%`); Excel rounds them away from zero | Listed as a formula-contract finding; this workbook avoids ties |
