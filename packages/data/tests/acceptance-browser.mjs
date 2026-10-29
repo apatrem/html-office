@@ -1,15 +1,15 @@
 // T21: the fictional P&L acceptance workbook, end to end in Chromium.
 // It is regenerated through the freshly packaged html-data skill
 // (acceptance/generate.mjs: tools, then the person's CSV import in the
-// browser) and must match the published files and independently known
-// totals. A person then edits the scenario and an assumption, extends the
+// browser; the files are generated, not committed) and must match
+// independently known totals, with CSV and PDF samples. A person then edits the scenario and an assumption, extends the
 // forecast, refreshes the imported source from a second CSV and the pivot,
 // undoes and redoes, saves a copy and reopens it; every step is checked
 // against the expected workbook, and what the grid shows against the saved
 // results. Offline file without any network request; the standard file is
 // read with the network blocked.
 import assert from "node:assert/strict";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, readdir, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
@@ -18,7 +18,6 @@ import { display } from "../runtime/view.mjs";
 import { parseCSV } from "./csv-parse.mjs";
 import { command, openMenu, menuItem } from "./shell.mjs";
 import {
-  NAME,
   freshSkill,
   generate,
   openWorkbook,
@@ -135,20 +134,16 @@ await rm(out, { recursive: true, force: true });
 const { dir, skill } = await freshSkill(),
   browser = await chromium.launch();
 try {
-  // ---- regenerated from the skill = published, = known totals ----
+  // ---- generated through the skill = known totals ----
   const result = await generate({ out, browser, skill });
-  const regenerated = await bookOf(result.offline),
-    published = await bookOf(join(acceptance, `output/${NAME}.html`));
+  const regenerated = await bookOf(result.offline);
   assert.deepEqual(
     content(await bookOf(result.standard)),
     content(regenerated),
   );
-  assert.deepEqual(
-    content(regenerated),
-    content(published),
-    "the published workbook is what the skill produces: run node packages/data/acceptance/generate.mjs",
-  );
   assertExpected(regenerated, expected(v1), 24);
+  assert.equal(regenerated.metadata.fictional, true);
+  assert.equal(regenerated.sources[0].file.name, "rentals-2025.csv");
   // Every function of the formula contract has its row in the analysis.
   const analysis = regenerated.sheets.find(
     (s) => s.name === "Formula analysis",
@@ -174,6 +169,33 @@ try {
       (_, m) => pnl.cells[`${String.fromCharCode(66 + m)}6`].result.value,
     ),
   );
+  // Each sheet prints on three pages (Summary: table and charts; P&L:
+  // three pages across).
+  for (const pdf of result.pdfs) {
+    const bytes = await readFile(pdf);
+    assert.equal(bytes.subarray(0, 5).toString(), "%PDF-");
+    assert.equal(
+      bytes.toString("latin1").match(/\/Type\s*\/Page\b/g).length,
+      3,
+    );
+  }
+  // No path of this machine in the generated files; no address or link in
+  // the workbook (chart previews are SVG, whose xmlns is a URL).
+  for (const name of await readdir(out)) {
+    const text = (await readFile(join(out, name))).toString("latin1");
+    for (const pattern of [
+      /\/Users\//,
+      /\/home\/(?!runner\b)[a-z]/,
+      /\/private\/tmp|\/var\/folders/,
+      /[A-Z]:\\\\Users/,
+      /fakepath/i,
+    ])
+      assert.ok(!pattern.test(text), `${name}: ${pattern}`);
+  }
+  const authored = structuredClone(regenerated);
+  for (const chart of authored.charts) delete chart.preview;
+  for (const pattern of [/@[a-z0-9-]+\.[a-z]{2,}/i, /https?:\/\//])
+    assert.ok(!pattern.test(JSON.stringify(authored)), `workbook: ${pattern}`);
 
   const context = await browser.newContext({
       acceptDownloads: true,

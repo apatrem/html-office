@@ -363,7 +363,7 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
 
 ### T21 — Fictional P&L acceptance workbook
 
-Use the published files in `packages/data/acceptance/output/` (copies: saving rewrites them) and the two CSV files in `packages/data/acceptance/sources/`. The expected figures are in `packages/data/acceptance/README.md` › Known totals.
+Generate the files first (`node packages/data/acceptance/generate.mjs`, after `npm ci` and `npx playwright install chromium`), then use them in `packages/data/acceptance/output/` (copies: saving rewrites them) and the two CSV files in `packages/data/acceptance/sources/`. The expected figures are in `packages/data/acceptance/README.md` › Known totals.
 
 1. **Chrome, standard file.** Open `fictional-bike-rentals.html`: "Saved results are current", Summary shows revenue €255.9k, net income €21.1k and NPV €2,560 over 24 months; the three charts show; the sheet groups read Summary, Inputs, Raw Data, Calculations with the consulting colours (dark-blue headers, light-blue row labels, pale-yellow inputs with orange text).
 2. **Edit and extend.** On Assumptions choose the High scenario in the Scenario control, then type 12% in D6: Summary and the charts follow (High before the change: revenue €267,461, NPV €9,295). On P&L select Y2:Z15 and use Edit › Fill right, then the same on Cash flow (Y2:Z8): column Z is January 2027 with forecast values; the data bars and highlights look right on screen.

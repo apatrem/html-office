@@ -9,7 +9,7 @@
 //   3. `inspect` gives the imported sheet's ID; the tools apply
 //      patches/link-rentals.json with --refresh-pivots, and `validate --since`
 //      checks that nothing else changed;
-//   4. `extract` (with the charte), then `new` and `new --offline` write the published standard
+//   4. `extract` (with the charte), then `new` and `new --offline` write the standard
 //      and offline files from the same canonical JSON, and `validate` both;
 //   5. Chromium exports the P&L as CSV and prints Summary and P&L to PDF from
 //      the offline file (no network).
@@ -146,7 +146,7 @@ async function outputs(context, file, out) {
 }
 
 // The whole chain; `browser` is a launched Chromium. Returns the paths of
-// the published files and the tool transcript.
+// the generated files and the tool transcript.
 export async function generate({ out, browser, skill, work }) {
   await mkdir(out, { recursive: true });
   work ??= await mkdtemp(join(tmpdir(), "html-data-t21-work-"));
@@ -210,7 +210,7 @@ export async function generate({ out, browser, skill, work }) {
       ).trim(),
       "Valid.",
     );
-    // 4. The published files, from one canonical JSON.
+    // 4. The standard and offline files, from one canonical JSON.
     // The document's charte goes with it, as SKILL.md says.
     await tool(
       "extract",

@@ -1,16 +1,21 @@
-// T21: the published acceptance workbook reads offline in Chromium, Firefox
+// T21: the generated acceptance workbook reads offline in Chromium, Firefox
 // and WebKit (ACCEPTANCE_ENGINES, comma-separated; all three by default):
 // saved results are current, every sheet tab opens, the summary, P&L and
 // pivot show their saved values, the chart previews load, and nothing is
 // requested from the network. Editing and saving need Chrome or Edge
-// (docs/MANUAL-CHECKS.md › T21). Needs only Playwright and the committed
-// files, so it runs where the other browsers are installed.
+// (docs/MANUAL-CHECKS.md › T21). Reads the files generate.mjs wrote to
+// ACCEPTANCE_DIR (default packages/data/acceptance/output); they are not
+// committed.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as playwright from "playwright";
 
-const dir = fileURLToPath(new URL("../acceptance/output/", import.meta.url)),
+const dir = process.env.ACCEPTANCE_DIR
+    ? resolve(process.env.ACCEPTANCE_DIR)
+    : fileURLToPath(new URL("../acceptance/output/", import.meta.url)),
+  file = join(dir, "fictional-bike-rentals-offline.html"),
   engines = (process.env.ACCEPTANCE_ENGINES ?? "chromium,firefox,webkit").split(
     ",",
   );
@@ -21,10 +26,11 @@ const SHOWN = {
   Stations: { A6: "East", D10: "18640" },
 };
 // The workbook JSON holds the sheet names the tabs show.
-const html = await readFile(
-    `${dir}fictional-bike-rentals-offline.html`,
-    "utf8",
-  ),
+const html = await readFile(file, "utf8").catch(() => {
+    throw new Error(
+      `${file} is missing: run node packages/data/acceptance/generate.mjs first.`,
+    );
+  }),
   names = [
     ...html
       .match(/<script id="workbook"[^>]*>([\s\S]*?)<\/script>/)[1]
@@ -47,9 +53,7 @@ for (const engine of engines) {
     });
     const page = await context.newPage();
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto(
-      pathToFileURL(`${dir}fictional-bike-rentals-offline.html`).href,
-    );
+    await page.goto(pathToFileURL(file).href);
     await page
       .getByText("Saved results are current.", { exact: true })
       .waitFor({ timeout: 30000 });

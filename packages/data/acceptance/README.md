@@ -18,20 +18,20 @@ A 24-month P&L for an invented bike rental co-op, built through the html-data sk
 
 ## How it is generated
 
-`node packages/data/acceptance/generate.mjs` repeats the whole chain into `output/`, starting with step 1:
+The generated files are not committed. `node packages/data/acceptance/generate.mjs` writes them into `output/` (ignored by git), repeating the whole chain from step 1:
 
 1. `author.mjs` writes the inputs: `model.json` (the canonical workbook an author writes, following [SKILL.md](../../../plugin/skills/html-data/SKILL.md) › Create), the two CSV files, and `patches/link-rentals.json`. `node packages/data/acceptance/author.mjs --check` compares them with the committed copies.
 2. The skill is packaged afresh; its `tools/workbook.mjs new --offline` builds the model and `validate` says `Valid.`
 3. In Chromium, a person's Data › Import CSV… reads `rentals-2025.csv` into a new Rentals sheet, then File › Save a copy. Imports happen only in the browser; the tools never read CSV files.
 4. `inspect` finds the imported sheet's ID; `apply … --refresh-pivots` links Monthly actuals to the records (`SUMIFS`), adds the record rows of the formula analysis and the pivot table; `validate --since` confirms nothing else changed.
-5. `extract --charte-out`, then `new --charte` and `new --charte --offline` write the two published files from one canonical JSON and the document's charte; both validate.
+5. `extract --charte-out`, then `new --charte` and `new --charte --offline` write the standard and offline files from one canonical JSON and the document's charte; both validate.
 6. Chromium exports the P&L as CSV and prints Summary and P&L to PDF (A4, the en-GB default) from the offline file, with every network request refused.
 
-`tests/acceptance-browser.mjs` runs the same chain in CI and requires the regenerated workbook to equal the published one (except times and chart drawings), then edits, extends, refreshes, undoes, saves and reopens it. `tests/acceptance.test.mjs` checks the committed files; `tests/acceptance-engines.mjs` reads the offline file in Chromium, Firefox and WebKit.
+`tests/acceptance-browser.mjs` runs the same chain in CI, checks the generated workbook against the known totals and the CSV and PDF samples, then edits, extends, refreshes, undoes, saves and reopens it. `tests/acceptance.test.mjs` checks the committed inputs; `tests/acceptance-engines.mjs` reads the generated offline file in Chromium, Firefox and WebKit (the clipboard-engines job generates it first).
 
-## Published files
+## Generated files
 
-Measured on 29 October 2026.
+Measured on 29 October 2026 (sizes vary by a few bytes between runs: calculation and import times are saved in the workbook).
 
 | File | Size |
 | --- | --- |
