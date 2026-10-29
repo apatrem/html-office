@@ -200,6 +200,7 @@ export function generate(seed, blocks = 30) {
       theme: r.pick([null, "green"]),
       page: r.pick([null, "a4", "letter"]),
       margins: r.pick([null, "narrow", "wide"]),
+      header: r.pick([null, "Annual report", 'Q&A "draft" <2027>']),
     },
     [
       N.cover.create(null, [

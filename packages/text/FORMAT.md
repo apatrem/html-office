@@ -34,7 +34,7 @@ Nothing else may appear in `head` or `body`, and `script#engine` is the last ele
 The look is never in the content: `article#doc` only names choices, and the styles apply them.
 
 - **`style#charte`** holds the brand tokens shared with Slides and Data on `:root` (`--ink`, `--acc`, `--mid`, `--lig`, `--alert`, `--tint`, `--callout`, `--bd`, `--t2`, `--bg`, `--font`, optional `--title-font` and the Office roles such as `--header-bg`). The default is the html-slides default charte, the built-in "blue" charte of [`packages/shared/themes/chartes.mjs`](../shared/themes/chartes.mjs).
-- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](theme/layout.css): A4, 25 mm margins, 11 pt body text. It sets the default heading-number format as `--heading-format` on `#doc` (a quoted format such as `"1.1.1.1"`, see [Numbering](#numbering-and-generated-content)). It defines the page format and margins as `--page-w` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins.
+- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](theme/layout.css): A4, 25 mm margins, 11 pt body text. It sets the default heading-number format as `--heading-format` on `#doc` (a quoted format such as `"1.1.1.1"`, see [Numbering](#numbering-and-generated-content)). It defines the page format and margins as `--page-w`, `--page-h` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins, and the print rules of [Print](#print).
 - `#doc` is as wide as the page's text (page width less both margins) on screen and in print, so lines break on screen where they print. The body uses `var(--body-font,var(--font))` and headings `var(--title-font,var(--font))`.
 - `data-theme` and `data-font` are applied by the editor, as in Slides: it mirrors them on `<html>`, where the shared overlays `:root[data-theme=…]` (built-in charte tokens) and `:root[data-font=…]` (`--body-font`) apply. The mirror is never saved, and the document's own charte is never rewritten.
 
@@ -62,8 +62,9 @@ The look is never in the content: `article#doc` only names choices, and the styl
 | `data-font` | `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, `times`: the body font | no |
 | `data-page` | `a4`, `letter` (absent: the theme's page format) | no |
 | `data-margins` | `narrow`, `normal`, `wide`: a margin preset of the theme (absent: the theme's margins) | no |
+| `data-header` | The running header: text printed at the top of every page, one line of at most 120 characters, without leading or trailing spaces or control characters (absent: none) | no |
 
-Running headers and footers join this list with print (T14). The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
+The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
 
 ## Blocks
 
@@ -195,6 +196,17 @@ Numbers are computed, never typed: one function ([`editor/numbering.mjs`](editor
 - Threads are excluded from print, and so is the anchors' underline.
 - **Editor (T13)**: threads are read and written in the Comments panel, not in the page. A new thread takes the selected text's quotation exactly (spaces kept, a cross-reference as its label, a line break or a new block as a line feed, a footnote's text where it is written), the ID of its section's heading (protected headings count), and up to 32 characters of context on each side, never half a character; its ID is `c1`, `c2`… Marks follow every edit, and each comment action is its own undo step. A thread a protected block refers to stays attached and cannot be deleted from the panel. An orphaned thread can be recovered: the editor proposes every place that holds its exact quotation, in its original section first, then elsewhere, each with context; looking, cancelling or saving changes nothing, and a proposal is applied only when the person confirms it, on the document it was found in (after any edit, search again). The new anchor's section and context replace the old ones; the quotation stays. Display names are free text, asked once and kept by the browser, never verified. Comment text is shown as text: no markup, no links followed.
 
+## Print
+
+The browser prints the document and makes the PDF (File › Print / PDF); nothing is generated on a server or by a library (T14).
+
+- **Pages.** Each page has the size and margins of `#doc`'s named `@page` (layout theme). The editor prints the running header (`data-header`) centred in the top margin and the page number with the page count (`3 / 9`) centred in the bottom margin, in 9 pt type of the body font and the charte's secondary text colour. The document prints its colours as shown (`print-color-adjust: exact`): table header rows, callouts and tints keep their backgrounds.
+- **Breaks.** `hr.page-break` ends the page; a heading with class `new-page` starts one. A heading stays with what follows it; figures (charts, images), the cover and table rows are not split; a table breaks between rows, its caption stays with it, and its header rows are repeated at the top of each page it continues on. A full-width figure prints at the text width, since nothing prints outside the page's text area.
+- **Generated content** prints as on screen: heading numbers, caption labels, cross-reference labels, and footnote numbers, with the notes listed as endnotes after the content. The contents list links to its headings (the PDF keeps the links); it shows no page numbers.
+- **Not printed**: comment threads and their anchors' underline, the editor's chrome, selections and marks of missing references.
+- **Print preview** (File › Print preview) shows the same pages read-only before printing: the document is laid out in columns one page high, which the browser breaks as it breaks printed pages, with each page drawn behind its column, the running header and the page numbers in its margins and the table header rows repeated. In Chromium and Edge it has the PDF's page count and breaks; other engines break pages a little differently. Escape or Close preview returns to editing.
+- **Engines.** The running header and page numbers use `@page` margin boxes, which Chromium and Edge print; Safari (WebKit) and Firefox ignore them and print the pages without header or numbers. Firefox also ends a document printed from the editor with a blank page (an issue older than print support). Firefox has no column breaks and never splits a table across columns: its preview starts the pages after a page break or a `new-page` heading itself, but shows a table longer than the rest of its page whole, running past the page's bottom, where print splits it and repeats its header.
+
 ## Paste and Markdown import
 
 Pasted and imported content enters the document only as the constructs above (T07): the editor maps it, it never inserts it as written. Clipboard HTML is parsed in a detached `<template>` ([ADR-013](../../docs/decisions/013-cross-product-clipboard.md) §1), so nothing in it runs or loads, and only `https:`, `http:` and `mailto:` links survive.
@@ -253,7 +265,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 
   | Element | Order |
   | --- | --- |
-  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins` |
+  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins`, `data-header` |
   | Headings | `class`, `id` |
   | `nav.toc` | `class`, `data-depth` |
   | `figure.chart` | `class`, `id`, `data-type`, `data-width` |

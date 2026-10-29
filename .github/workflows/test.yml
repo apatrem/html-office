@@ -176,5 +176,7 @@ jobs:
           TEXT_ENGINES: firefox,webkit
       - name: Markdown view and export in Firefox and WebKit (Text T15)
         run: node packages/text/tests/markdown-browser.mjs
+      - name: Print preview and the running header in Firefox and WebKit (Text T14)
+        run: node packages/text/tests/print-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit

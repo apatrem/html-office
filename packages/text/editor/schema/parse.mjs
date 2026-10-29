@@ -284,6 +284,7 @@ export function toDoc(article, blocks) {
       font: doc["data-font"] ?? null,
       page: doc["data-page"] ?? null,
       margins: doc["data-margins"] ?? null,
+      header: doc["data-header"] ?? null,
     },
     blocks.map(({ node, protected: kept }) =>
       kept ? N.protected.create({ node: plain(node) }) : block(node),

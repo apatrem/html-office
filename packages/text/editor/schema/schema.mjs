@@ -54,6 +54,7 @@ export const schema = new Schema({
         font: { default: null },
         page: { default: null },
         margins: { default: null },
+        header: { default: null },
       },
     },
     cover: {

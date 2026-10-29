@@ -258,6 +258,21 @@ Use `text-example.html`, in Chrome, then Safari and Firefox, with the browser's 
 8. **Where only text goes**: paste a screenshot with the caret in a table cell, a caption or the code block: the picture goes after the table or block. Paste text with an embedded picture into a cell: the text goes in the cell, the picture is left out and reported.
 9. **Inside the document**: click the example's picture, copy, paste it after another paragraph. Save: `script#assets` holds it once, and both figures use the same `data-asset`.
 
+### T14 — Print and print preview
+
+Use `text-example.html` and the print fixture built with `node packages/text/tools/build.mjs packages/text/fixtures/valid/print.html` (written to `dist/text/print.html`: nine A4 pages, a running header, a merged table over three pages, wrapped images, footnotes, a page break, a section that starts on a new page and a comment). In Chrome, Edge, Safari and Firefox, print with File › Print / PDF and save as PDF with the dialog's defaults (Chrome and Edge: *Margins: Default*, *Scale: Default*; "Background graphics" may stay off).
+
+1. **Preview**: File › Print preview. The pages sit side by side (scroll sideways), each with the running header at the top and *n / 9* at the bottom; the bar says *9 pages*. Typing, Backspace, ⌘Z / Ctrl+Z and clicks change nothing. Escape (or Close preview) returns to editing with the caret where it was.
+2. **Preview against the PDF** (Chrome, Edge): print from the preview's **Print / PDF**. The PDF has the preview's page count, and each page starts and ends at the same line, row or figure as in the preview.
+3. **Page breaks**: "3 Plan for 2027" starts a page (page break before it) and "4 Annex" starts the next one (Start on a new page). No heading is the last line of a page; no chart, picture or table row is split.
+4. **Repeated headers**: the "Loans and visits by branch" table runs over three pages; its two header rows (with the merged *Loans* and *Visits* cells) are at the top of each, in the charte's dark header colour; the merged "Branch 9 and annexe" rows and the total row print whole.
+5. **Wrapped images**: the reading-room picture moves to the top of page 3 while its paragraph starts at the bottom of page 2, and the text keeps wrapping beside it. Nothing overlaps the page edge.
+6. **Endnotes**: the last page lists *Notes* 1–4, numbered as the references in the text. In `text-example.html`, the footnote prints as the number 1 in the text and in the notes list.
+7. **Running header**: Theme & page › *Running header*: type a new text and press Enter; the preview and the next print show it on every page; Undo restores the previous one; an empty field removes it (page numbers stay). Save, reopen: it is kept.
+8. **Contents and comments**: in the PDF (Chrome, Edge, Safari's Preview), each contents entry is a link to its heading; no page numbers are printed in the contents. No comment, comment underline, selection highlight or editor bar is printed.
+9. **Colours**: in the PDF the table header rows, the emphasis column and the callouts keep their backgrounds even with "Background graphics" off.
+10. **Safari and Firefox**: the pages have the chosen size and margins and the breaks of point 3, with no blank page after the page break; neither prints the running header or page numbers (FORMAT.md › Print › Engines). Firefox's PDF ends with a blank page (known). In Firefox's preview, "Plan for 2027" and "Annex" start their pages as in print, and the long table shows whole on one page, running past its bottom (known); in print it spans three pages with its header repeated.
+
 ### T15 — Show and export Markdown
 
 Use `text-example.html`, in Chrome, then Safari and Firefox.
