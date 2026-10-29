@@ -41,11 +41,14 @@ await mkdir(out, { recursive: true });
 
 // Gated with --check, on medians over the runs, in every engine that measures the metric (long
 // tasks: Chromium only). The engineering targets at 50 pages are the plan's: keystroke-to-paint
-// under 50 ms and no editing task over 100 ms. The 100-page fixture is a stress document: its
-// limits catch a regression without promising the 50-page targets there.
+// under 50 ms and no editing task over 100 ms. The task limit applies to the longest task of the
+// whole editing window, the draft written after an edit included (Chromium), and to the slowest
+// editing operation's input-to-paint, which bounds its task from above (every engine). The
+// 100-page fixture is a stress document: its limits catch a regression without promising the
+// 50-page targets there.
 const THRESHOLDS = {
-  50: { keystrokeWorstMS: 50, editingTaskMS: 100 },
-  100: { keystrokeWorstMS: 100, editingTaskMS: 200 },
+  50: { keystrokeWorstMS: 50, editingTaskMS: 100, operationWorstMS: 100 },
+  100: { keystrokeWorstMS: 100, editingTaskMS: 200, operationWorstMS: 200 },
 };
 
 function median(values) {
@@ -67,7 +70,8 @@ const stats = (values) =>
 
 // Each operation's longest main-thread task: a long task belongs to the operation whose window
 // (from its input to the paint after it) it overlaps; the others (the draft written to the
-// browser's storage half a second after the last edit) are background work.
+// browser's storage half a second after the last edit) are background work, reported apart and
+// gated with the operations' (editingTaskMS).
 function longestTaskPerOperation(windows, tasks) {
   const longest = windows.map(() => 0);
   let background = 0;
@@ -380,9 +384,14 @@ async function measureRun(browser, kind, doc, { server }) {
       keystrokeMedianMS: median(typing),
       keystrokeWorstMS: Math.max(...typing),
       keystrokes: typing.map(round),
-      editingTaskMS: tasks ? Math.max(...tasks.longest) : null,
+      editingTaskMS: tasks
+        ? Math.max(...tasks.longest, tasks.background)
+        : null,
       backgroundTaskMS: tasks ? tasks.background : null,
       operations: perOperation,
+      operationWorstMS: Math.max(
+        ...Object.values(perOperation).map((o) => o.inputToPaintMS),
+      ),
       saveMS,
       savedBytes: Buffer.byteLength(saved),
       previewMS: preview.ms,
@@ -407,6 +416,7 @@ const METRICS = [
   "keystrokeWorstMS",
   "editingTaskMS",
   "backgroundTaskMS",
+  "operationWorstMS",
   "saveMS",
   "previewMS",
   "pdfMS",
@@ -439,7 +449,7 @@ const results = {
     loadAverage: { before: round(os.loadavg()[0]), after: null },
   },
   method:
-    "Built standard file from file:// (no network; any request is refused and counted), viewport 1280×900. Per engine and document: one warm-up run, discarded, then the measured runs, each in a fresh browser context of the same browser. Open: navigation start to the first frame after the editor is ready. Keystroke-to-paint: from the key event's timestamp to the end of the next rendered frame (a message posted from requestAnimationFrame), one key at a time, 21 characters typed at the end of the middle paragraph. Editing operations (Enter, Backspace, word selection, bold, heading 2 and back, footnote, two undos): input-to-paint each, and in Chromium the longest main-thread task (Long Tasks API, 50 ms and over) overlapping it; long tasks outside every operation (the draft written 500 ms after the last edit) are reported as background. Chromium collects garbage before the editing window. Save: File › Save a copy (serialise, read back, blob) to the next paint; the copy is validated. Print preview: the command to the next paint. PDF: Playwright page.pdf in Chromium only. Memory: Chromium JS heap after a forced collection; the browser process tree's peak RSS sampled every 200 ms with ps (shared pages counted more than once). Medians over the runs.",
+    "Built standard file from file:// (no network; any request is refused and counted), viewport 1280×900. Per engine and document: one warm-up run, discarded, then the measured runs, each in a fresh browser context of the same browser. Open: navigation start to the first frame after the editor is ready. Keystroke-to-paint: from the key event's timestamp to the end of the next rendered frame (a message posted from requestAnimationFrame), one key at a time, 21 characters typed at the end of the middle paragraph. Editing operations (Enter, Backspace, word selection, bold, heading 2 and back, footnote, two undos): input-to-paint each, and in Chromium the longest main-thread task (Long Tasks API, 50 ms and over) overlapping it; long tasks outside every operation (the draft written 500 ms after the last edit) are reported as background. Gates: each run's slowest keystroke, its longest long task (operations and background), and its slowest operation's input-to-paint; medians over the runs. Chromium collects garbage before the editing window. Save: File › Save a copy (serialise, read back, blob) to the next paint; the copy is validated. Print preview: the command to the next paint. PDF: Playwright page.pdf in Chromium only. Memory: Chromium JS heap after a forced collection; the browser process tree's peak RSS sampled every 200 ms with ps (shared pages counted more than once). Medians over the runs.",
   thresholds: THRESHOLDS,
   documents: documents.map(({ url, ...d }) => d),
   engines: {},
@@ -492,7 +502,7 @@ for (const kind of ENGINES) {
         runs,
       };
       console.log(
-        `${kind} ${doc.pages} pages: open ${summary.openMS.median} ms, keystroke ${summary.keystrokeMedianMS.median} ms (worst ${summary.keystrokeWorstMS.median}), editing task ${summary.editingTaskMS?.median ?? "n/a"} ms, background ${summary.backgroundTaskMS?.median ?? "n/a"} ms, save ${summary.saveMS.median} ms, preview ${summary.previewMS.median} ms, PDF ${summary.pdfMS?.median ?? "n/a"} ms`,
+        `${kind} ${doc.pages} pages: open ${summary.openMS.median} ms, keystroke ${summary.keystrokeMedianMS.median} ms (worst ${summary.keystrokeWorstMS.median}), slowest operation ${summary.operationWorstMS.median} ms, editing task ${summary.editingTaskMS?.median ?? "n/a"} ms, background ${summary.backgroundTaskMS?.median ?? "n/a"} ms, save ${summary.saveMS.median} ms, preview ${summary.previewMS.median} ms, PDF ${summary.pdfMS?.median ?? "n/a"} ms`,
       );
       await writeFile(
         join(out, "results.json"),
