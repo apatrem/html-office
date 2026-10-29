@@ -2,6 +2,10 @@
   "article-attributes.html": {
     "differences": {},
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {}
   },
   "blocks.html": {
@@ -35,6 +39,15 @@
     "importReport": {
       "quote": 2
     },
+    "changed": {
+      "code": [
+        [
+          "a carriage return\rkept",
+          "a carriage return\nkept"
+        ]
+      ],
+      "links": []
+    },
     "notice": {
       "breaks": 1
     }
@@ -46,6 +59,10 @@
       "mark:comment": -2
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "threads": 3
     }
@@ -63,11 +80,19 @@
       "toc": -1
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {}
   },
   "empty-paragraph.html": {
     "differences": {},
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {}
   },
   "example.html": {
@@ -118,6 +143,10 @@
     "importReport": {
       "quote": 1
     },
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "threads": 2,
       "images": 1,
@@ -152,6 +181,10 @@
       "xref": -1
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "images": 3,
       "wrapped": 1,
@@ -168,6 +201,10 @@
       "xref": -1
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "threads": 2
     }
@@ -175,6 +212,10 @@
   "minimal.html": {
     "differences": {},
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {}
   },
   "protected.html": {
@@ -183,6 +224,10 @@
       "protected": -14
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "protected": 14
     }
@@ -205,6 +250,10 @@
       "table_row.total=true": -1
     },
     "importReport": {},
+    "changed": {
+      "code": [],
+      "links": []
+    },
     "notice": {
       "merged": 5
     }

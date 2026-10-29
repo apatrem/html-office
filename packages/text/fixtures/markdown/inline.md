@@ -4,7 +4,7 @@
 
 **Bold**, *italic*, <u>underline</u>, <mark>highlight</mark>, `code`, x<sup>2</sup>, H<sub>2</sub>O.
 
-***Bold italic*** and [**a bold link**](https://example.org/a?b=1&c=2), [mail](mailto:team@example.org), [plain http](http://example.org/).
+<strong>*Bold italic*</strong> and [**a bold link**](https://example.org/a?b=1&c=2), [mail](mailto:team@example.org), [plain http](http://example.org/).
 
 Footnote here.[^1] Line\
 break.

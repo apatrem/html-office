@@ -21,7 +21,7 @@ Revenue grew 18% in 2026, ahead of plan.[^1] See Figure 1 and Table 1.
 
 # 2 2026 results
 
-Revenue reached **4.2 million** euros, with a margin of *31%*. Water use fell to 12 m<sup>3</sup> per site and CO<sub>2</sub> emissions fell by 6%.
+Revenue reached **4.2 million** euros, with a margin of <em>31%</em>. Water use fell to 12 m<sup>3</sup> per site and CO<sub>2</sub> emissions fell by 6%.
 
 *Chart (column): Revenue by quarter, EUR million*
 
