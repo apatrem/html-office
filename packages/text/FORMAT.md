@@ -34,7 +34,7 @@ Nothing else may appear in `head` or `body`, and `script#engine` is the last ele
 The look is never in the content: `article#doc` only names choices, and the styles apply them.
 
 - **`style#charte`** holds the brand tokens shared with Slides and Data on `:root` (`--ink`, `--acc`, `--mid`, `--lig`, `--alert`, `--tint`, `--callout`, `--bd`, `--t2`, `--bg`, `--font`, optional `--title-font` and the Office roles such as `--header-bg`). The default is the html-slides default charte, the built-in "blue" charte of [`packages/shared/themes/chartes.mjs`](../shared/themes/chartes.mjs).
-- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](theme/layout.css): A4, 25 mm margins, 11 pt body text. It sets the default heading-number format as `--heading-format` on `#doc` (a quoted format such as `"1.1.1.1"`, see [Numbering](#numbering-and-generated-content)). It defines the page format and margins as `--page-w` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins.
+- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](theme/layout.css): A4, 25 mm margins, 11 pt body text. It sets the default heading-number format as `--heading-format` on `#doc` (a quoted format such as `"1.1.1.1"`, see [Numbering](#numbering-and-generated-content)). It defines the page format and margins as `--page-w`, `--page-h` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins, and the print rules of [Print](#print).
 - `#doc` is as wide as the page's text (page width less both margins) on screen and in print, so lines break on screen where they print. The body uses `var(--body-font,var(--font))` and headings `var(--title-font,var(--font))`.
 - `data-theme` and `data-font` are applied by the editor, as in Slides: it mirrors them on `<html>`, where the shared overlays `:root[data-theme=…]` (built-in charte tokens) and `:root[data-font=…]` (`--body-font`) apply. The mirror is never saved, and the document's own charte is never rewritten.
 
@@ -62,8 +62,9 @@ The look is never in the content: `article#doc` only names choices, and the styl
 | `data-font` | `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, `times`: the body font | no |
 | `data-page` | `a4`, `letter` (absent: the theme's page format) | no |
 | `data-margins` | `narrow`, `normal`, `wide`: a margin preset of the theme (absent: the theme's margins) | no |
+| `data-header` | The running header: text printed at the top of every page, one line of at most 120 characters, without leading or trailing spaces or control characters (absent: none) | no |
 
-Running headers and footers join this list with print (T14). The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
+The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
 
 ## Blocks
 
@@ -195,6 +196,17 @@ Numbers are computed, never typed: one function ([`editor/numbering.mjs`](editor
 - Threads are excluded from print, and so is the anchors' underline.
 - **Editor (T13)**: threads are read and written in the Comments panel, not in the page. A new thread takes the selected text's quotation exactly (spaces kept, a cross-reference as its label, a line break or a new block as a line feed, a footnote's text where it is written), the ID of its section's heading (protected headings count), and up to 32 characters of context on each side, never half a character; its ID is `c1`, `c2`… Marks follow every edit, and each comment action is its own undo step. A thread a protected block refers to stays attached and cannot be deleted from the panel. An orphaned thread can be recovered: the editor proposes every place that holds its exact quotation, in its original section first, then elsewhere, each with context; looking, cancelling or saving changes nothing, and a proposal is applied only when the person confirms it, on the document it was found in (after any edit, search again). The new anchor's section and context replace the old ones; the quotation stays. Display names are free text, asked once and kept by the browser, never verified. Comment text is shown as text: no markup, no links followed.
 
+## Print
+
+The browser prints the document and makes the PDF (File › Print / PDF); nothing is generated on a server or by a library (T14).
+
+- **Pages.** Each page has the size and margins of `#doc`'s named `@page` (layout theme). The editor prints the running header (`data-header`) centred in the top margin and the page number with the page count (`3 / 9`) centred in the bottom margin, in 9 pt type of the body font and the charte's secondary text colour. The document prints its colours as shown (`print-color-adjust: exact`): table header rows, callouts and tints keep their backgrounds.
+- **Breaks.** `hr.page-break` ends the page; a heading with class `new-page` starts one. A heading stays with what follows it; figures (charts, images), the cover and table rows are not split; a table breaks between rows, its caption stays with it, and its header rows are repeated at the top of each page it continues on. A full-width figure prints at the text width, since nothing prints outside the page's text area.
+- **Generated content** prints as on screen: heading numbers, caption labels, cross-reference labels, and footnote numbers, with the notes listed as endnotes after the content. The contents list links to its headings (the PDF keeps the links); it shows no page numbers.
+- **Not printed**: comment threads and their anchors' underline, the editor's chrome, selections and marks of missing references.
+- **Print preview** (File › Print preview) shows the same pages read-only before printing: the document is laid out in columns one page high, which the browser breaks as it breaks printed pages, with each page drawn behind its column, the running header and the page numbers in its margins and the table header rows repeated. In Chromium and Edge it has the PDF's page count and breaks; other engines break pages a little differently. Escape or Close preview returns to editing.
+- **Engines.** The running header and page numbers use `@page` margin boxes, which Chromium and Edge print; Safari (WebKit) and Firefox ignore them and print the pages without header or numbers. Firefox also ends a document printed from the editor with a blank page (an issue older than print support). Firefox has no column breaks and never splits a table across columns: its preview starts the pages after a page break or a `new-page` heading itself, but shows a table longer than the rest of its page whole, running past the page's bottom, where print splits it and repeats its header.
+
 ## Paste and Markdown import
 
 Pasted and imported content enters the document only as the constructs above (T07): the editor maps it, it never inserts it as written. Clipboard HTML is parsed in a detached `<template>` ([ADR-013](../../docs/decisions/013-cross-product-clipboard.md) §1), so nothing in it runs or loads, and only `https:`, `http:` and `mailto:` links survive.
@@ -214,6 +226,35 @@ Pasted and imported content enters the document only as the constructs above (T0
 
 Copying writes the subset's own markup for a selection of text and blocks, without comment anchors, threads or images, and plain text with line breaks. A selected table (the whole table or its figure) is copied as the html-office envelope (`source.product` `text`), a semantic table with the theme's colours resolved for Word and Excel, and TSV; its caption, ID, emphasis column and density stay with the original.
 
+## Markdown view and export
+
+File › **Markdown view** shows the document as Markdown, read-only, for reading and copying; File › **Export Markdown (.md)** and the view's **Export .md** download the same text, as does `node tools/markdown.mjs <document.html> [<output.md>]`. One function writes it ([`editor/markdown.mjs`](editor/markdown.mjs)), from the document as it is at that moment (unsaved edits included) and with the numbers and labels of [Numbering](#numbering-and-generated-content). It is a **projection, not a copy**: it is never stored in the file or a draft, the view cannot be edited, and nothing reads a `.md` file back as the document. The HTML file stays the only document.
+
+The Markdown is CommonMark with GitHub's tables and footnotes. It starts with a note, an HTML comment that renderers hide, saying that it is a reading copy and not the document, that layout, styles, IDs, cross-reference links and comments are not kept, and how many of this document's constructs are reduced or left out (comment threads, images, wrapped images, charts, merged table cells, protected blocks, page breaks). Reading the export back through Insert › Markdown… (T07) does not restore the document: `tests/markdown.test.mjs` projects every valid fixture, imports the result and checks that the differences are exactly those recorded in [`fixtures/markdown/reimport.json`](fixtures/markdown/reimport.json), each one listed below, that code text and link addresses come back unchanged (apart from carriage returns in code blocks and runs of spaces in inline code), and that no word of the text is lost apart from comments.
+
+| Construct | In the Markdown | After Insert › Markdown… |
+| --- | --- | --- |
+| Document settings | Left out: theme, font, page format, margins, heading-number format and the running header (`data-header`) are layout, not text | — |
+| Cover | `# Title`, then the subtitle and each line as a paragraph | A heading 1 and paragraphs |
+| Contents | A bulleted list of the entries' labels (numbers included), nested as the contents; no links | A list |
+| Headings | `#` to `####`, with the heading's number before its text (`## 2.1 Regions`) when numbers are on. IDs, `unnumbered`, `new-page` and alignment are not written | Headings of the same level whose text starts with the number; new IDs from the text |
+| Paragraphs | Text. `lead` and alignment are not written; empty paragraphs are left out | Paragraphs |
+| Inline marks | `**bold**` and `*italic*` where the marked text starts and ends with a letter or digit, otherwise `<strong>` and `<em>` (CommonMark would not read the asterisks there); `` `code` `` (one span per run of text around a break or footnote; a cross-reference in code is a span of its label); `[link](url)`, with spaces, parentheses, `<`, `>`, `\` and `\|` percent-encoded and entity-like text escaped; underline, highlight, superscript and subscript as `<u>`, `<mark>`, `<sup>`, `<sub>`. Characters Markdown would read as syntax are escaped (`!` before a link too). A line break is a hard break (`\` at the end of a line), a space in headings and captions, `<br>` in table cells; a line break at the start or end of a paragraph or list item is left out | The same marks and breaks, apart from those left out; in inline code a run of spaces reads back as one (pasted HTML text) |
+| Footnotes | `[^1]` where the note is, and `[^1]: text` after the content, numbered as in the document. A note of one word (with perhaps a quoted part) starts with an empty HTML comment, `[^1]: <!---->word`, so that CommonMark does not read it as a link definition | Text: CommonMark has no footnotes, so `[^1]` stays in the paragraph and each note becomes a paragraph |
+| Cross-references | Their label as plain text (*Figure 1*, *Section 2.1*): no link, since the IDs are not written | Text |
+| Quotes | `>` paragraphs | Quotes |
+| Callouts | A quote whose first paragraph names the kind (**Note**, **Warning**, **Key message**) | A quote; a list inside becomes lines of one paragraph |
+| Code | A fenced block, with more backticks than the code holds | Code; a carriage return reads back as a line feed (Markdown has none) |
+| Lists | `-` and `1.` items, nested by indentation; a list with nothing written between it and the previous list of its kind (a page break or an empty paragraph is not written) uses `*` or `1)`, so that the two stay apart | The same lists |
+| Page breaks | Left out | — |
+| Captions | A paragraph `**Figure 1.** caption` (`**Table 1.**`): after the image or chart, before the table, as in the document | A paragraph with bold label text |
+| Images and assets | `*(Image: alt text)*`: the picture itself, its asset in `script#assets`, its width and its ID are not exported | A paragraph |
+| Wrapped layout | Not kept: a wrapped image is written where it is, as its own paragraph, like any other | — |
+| Charts | `*(Chart (type): title, unit)*`, then for charts with categories and series (column, bar, stacked, line) their data as a table; the drawing, its options and its saved preview are not exported | A paragraph and, for the data, a table |
+| Tables | A GitHub table. Its first header row is the table's header; other header rows lead the body; a table without header rows gets an empty header row. A **merged cell's text is in its first cell** and the cells it covers are empty. A column is aligned when all its body cells share an alignment. Widths, emphasis columns, compact density and the total-row style are not written | A table of single cells, with one header row |
+| Comments | Not exported: anchored text is written as if it had no anchor (marks it split are whole again), threads are left out | — |
+| Protected blocks | Their visible text as one paragraph: inline elements join their text, block elements and line breaks separate it with a space; `hidden` elements and templates are left out | A paragraph |
+
 ## Canonical form
 
 A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently. Before writing, `check`, `pack` and the editor read the result back: content the HTML parser repaired on the way in (typically inside a protected block) that would not reopen as the same document is an `unstable` error, and nothing is written.
@@ -225,7 +266,7 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 
   | Element | Order |
   | --- | --- |
-  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins` |
+  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins`, `data-header` |
   | Headings | `class`, `id` |
   | `nav.toc` | `class`, `data-depth` |
   | `figure.chart` | `class`, `id`, `data-type`, `data-width` |
@@ -241,6 +282,17 @@ A canonical document is byte for byte what the editor writes. Opening and saving
 - **Marks** nest in a fixed order, outermost first: comment anchor, link, `strong`, `em`, `u`, `mark`, `sub`/`sup`, `code`. A footnote or cross-reference sits inside the marks that cover it.
 - **Text**: line breaks and tabs in inline text read as spaces (rendered the same); write them as spaces.
 - **Escaping**: `&amp;`, `&lt;`, `&gt;` and `&nbsp;` (U+00A0) in text, plus `&quot;` in attribute values. A carriage return is written `&#13;`, since a literal one would read back as a line feed. Every other character, including non-ASCII, is written as itself in UTF-8. No other entity or numeric reference.
+
+## Section tools
+
+Long documents are read and rewritten one section at a time (T16), by heading ID, with `node tools/sections.mjs`. A section is the exact slice of the file from its heading's line to the line before the next heading of the same or a higher level, the comments section (the last block, `section` with the one class `comments`) or `</article>` as written; only top-level headings count (the cover title is not one). A file the HTML parser had to repair inside the article (a stray `</p>`, a missing `</article>`) has no exact slices: the tools refuse it until `pack.mjs` has rewritten it.
+
+- `outline <document.html> [--json]`: every section in document order with its level, ID, number (when numbers are on), text, and word count, for the whole section and for its own text before its first subsection. Words are the visible text: footnotes and cross-reference labels count (a footnote separately from the word before it), inline markup inside a word does not split it; chart data, previews and comment threads do not.
+- `show <document.html> <id>`: the section's bytes as they are in the file.
+- `replace <document.html> <id> <section.html> [--output <out.html>]`: puts the given HTML in place of the section. The document must be valid and canonical (run `pack.mjs` first). The replacement starts with the same heading (same ID, same level) and holds one section: no heading of that level or higher, no cover and no comments section. Everything before and after the section stays byte for byte as it was; a replacement in another spelling (letter case, quotes, spaces in tags) is rewritten into canonical form when that changes nothing outside it. The result must pass `check` with no error, add no protected block (a protected block of the old section may be kept as it was) and leave no cross-reference elsewhere without its target. New warnings are listed: `stale-label` and `stale-contents` (labels and contents elsewhere that the editor rewrites on open; they are outside the section, so `replace` leaves them), `orphaned-thread` (commented text removed), `unused-asset`. Anything else is refused with each reason, located by the replacement's own line numbers, and the file is not touched: files that are not valid UTF-8 are refused, the bytes around the section are compared as bytes before writing, and the result is written to a new file of its own next to the destination, then renamed over it.
+- `node tools/check.mjs <document.html> [--section <id>] [--json]` names the innermost section of each finding (`12:5 §sec-results`), with `--section` lists only that section's findings, and ends with what it checked: headings and figures with their IDs, cross-references (without target), images and assets (unused), comment threads and anchors (orphaned).
+
+`bench/fixtures/report-100.html` is the long fixture these tools are tested on: a fictional review of about 50,000 words with 50 figures (122 A4 pages printed from Chromium without the editor, each chapter starting a page) (20 charts, 15 images, 15 tables with merged header cells), 90 sections on four levels, footnotes, cross-references and comments, generated by `bench/long-document.mjs` (deterministic; `--pages` gives other lengths).
 
 ## Limits of the runtime check
 

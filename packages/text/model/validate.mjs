@@ -1000,6 +1000,11 @@ function articleAttributes(article, ctx, path) {
     (v) => F.MARGINS.includes(v),
     `data-margins is ${F.MARGINS.join(", ")}`,
   );
+  check(
+    "data-header",
+    (v) => F.HEADER.test(v) && [...v].length <= F.HEADER_LENGTH,
+    `data-header is one line of at most ${F.HEADER_LENGTH} characters, without leading or trailing spaces`,
+  );
 }
 
 const result = (ctx, blocks) => ({

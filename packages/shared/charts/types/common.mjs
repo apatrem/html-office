@@ -17,16 +17,19 @@ export function base(theme) {
   };
 }
 
-// Category labels: automatic wrapping depending on the number of categories.
+// Category labels: every label, wrapped to its share of a 680 px axis (at least 56 px), while they fit
+// at that width (up to 12 categories). Longer series let ECharts thin them to the axis's real length; it
+// measures one line, so they stay on one line, cut at 120 px to keep a horizontal bar chart's gutter.
 export const axisCat = (theme, extra = {}) => {
   const n = (extra.data || []).length || 1;
+  const labels = n * 56 <= 680 ? { interval: 0, width: Math.max(56, Math.floor(680 / n) - 12), overflow: 'break' }
+    : { interval: 'auto', width: 120, overflow: 'truncate' };
   return {
     type: 'category',
     axisTick: { show: false },
     axisLine: { lineStyle: { color: theme.ink } },
     ...extra,
-    axisLabel: { color: theme.t2, fontSize: 12.5, interval: 0, width: Math.max(56, Math.floor(680 / n) - 12), overflow: 'break',
-      lineHeight: 16, ...(extra.axisLabel || {}) }
+    axisLabel: { color: theme.t2, fontSize: 12.5, ...labels, lineHeight: 16, ...(extra.axisLabel || {}) }
   };
 };
 

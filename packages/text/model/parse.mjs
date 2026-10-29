@@ -19,6 +19,8 @@ function location(l) {
     col: l.startCol,
     offset: l.startOffset,
     end: l.endOffset,
+    // Where the end tag starts, when the source has one.
+    ...(l.endTag ? { closing: l.endTag.startOffset } : {}),
     attrs,
   };
 }

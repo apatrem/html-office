@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="html-text fixture">
+<title>Riverside libraries annual report</title>
+<meta name="html-text-format-version" content="1">
+<template id="html-text-guide"><pre># html-text — fixture
+
+Fictional example of the canonical Text subset. The content is article#doc; the format reference is packages/text/FORMAT.md.</pre></template>
+<style id="charte">:root{--ink:#0B1C2C;--acc:#14517A;--mid:#4F7FA3;--lig:#AFC5D4;--alert:#C2521C;--tint:#ECEFF2;--callout:#E9EEF2;--bd:#D7DDE3;--t2:#5A6670;--bg:#FFFFFF;--font:Arial, Helvetica, sans-serif;--title-size:34px;--title-track:-.035em;--body-size:16px;--header-bg:var(--ink);--header-ink:var(--bg);--row-label-bg:color-mix(in srgb,var(--lig) 35%,var(--bg));--row-label-ink:var(--acc);--assumption-bg:#FFF6D8;--assumption-ink:var(--alert);--calculation-bg:var(--tint)}</style>
+<style id="theme">/* html-text layout theme 1 (style#theme). Colours and fonts come from style#charte; page format A4, margins 25 mm. */
+html{background:var(--tint)}
+body{margin:0;color:var(--ink);font:11pt/1.45 var(--body-font,var(--font))}
+#doc{--page-w:210mm;--page-h:297mm;--margin:25mm;--heading-format:"1.1.1.1";page:a4;box-sizing:content-box;width:calc(var(--page-w) - 2*var(--margin));margin:24px auto;padding:var(--margin);background:var(--bg);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+#doc[data-page=letter]{--page-w:215.9mm;--page-h:279.4mm;page:letter}
+#doc[data-margins=narrow]{--margin:15mm;page:a4-narrow}
+#doc[data-margins=wide]{--margin:35mm;page:a4-wide}
+#doc[data-page=letter][data-margins=narrow]{page:letter-narrow}
+#doc[data-page=letter][data-margins=wide]{page:letter-wide}
+@page{size:A4;margin:25mm}
+@page a4{size:A4;margin:25mm}
+@page a4-narrow{size:A4;margin:15mm}
+@page a4-wide{size:A4;margin:35mm}
+@page letter{size:letter;margin:25mm}
+@page letter-narrow{size:letter;margin:15mm}
+@page letter-wide{size:letter;margin:35mm}
+h1,h2,h3,h4,.title{font-family:var(--title-font,var(--font));color:var(--acc);line-height:1.2;margin:1.3em 0 .45em;break-after:avoid}
+h1{font-size:20pt}h2{font-size:15pt}h3{font-size:12.5pt}h4{font-size:11pt}
+p{margin:0 0 .7em}
+.lead{font-size:13pt;line-height:1.4}
+.ta-l{text-align:left}.ta-c{text-align:center}.ta-r{text-align:right}.ta-j{text-align:justify}
+.cover{margin:0 0 2.5em;padding:0 0 1em;border-bottom:2px solid var(--acc)}
+.cover .title{font-size:30pt;color:var(--ink);margin:0 0 .25em}
+.cover .subtitle{font-size:15pt;color:var(--acc)}
+.cover p{color:var(--t2);margin:0 0 .3em}
+blockquote{margin:1em 0;padding:0 0 0 1.2em;border-left:3px solid var(--lig);color:var(--t2);font-style:italic}
+.callout{margin:1em 0;padding:.6em 1em;background:var(--callout,var(--tint));border-left:4px solid var(--mid)}
+.callout.warning{border-left-color:var(--alert)}
+.callout.key{border-left-color:var(--acc);color:var(--acc);font-weight:bold;font-size:12pt}
+.callout>:last-child,blockquote>:last-child{margin-bottom:0}
+ul,ol{margin:0 0 .7em;padding-left:1.6em}li>ul,li>ol{margin:0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em}
+pre{margin:1em 0;padding:.6em .8em;background:var(--tint);font:9.5pt/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+pre code{font:inherit}
+mark{background:color-mix(in srgb,var(--lig) 55%,var(--bg));color:inherit}
+mark.comment{background:none;border-bottom:2px solid var(--alert)}
+a{color:var(--acc)}
+.footnote{font-size:.85em;color:var(--t2)}.footnote::before{content:" ["}.footnote::after{content:"]"}
+hr.page-break{clear:both;border:0;border-top:1px dashed var(--bd);margin:1.5em 0}
+.new-page{clear:both}
+.toc ol{list-style:none;margin:0;padding-left:1.2em}.toc>ol{padding:0}.toc a{color:inherit;text-decoration:none}
+figure{margin:1.2em 0}
+figcaption{font-size:9.5pt;color:var(--t2);margin:.4em 0 0}
+figure.table figcaption{margin:0 0 .4em}
+figure img,figure svg.render{display:block;width:100%;height:auto}
+figure.image img{background:var(--tint);min-height:4em}
+figure.image[data-wrap=left]{float:left;clear:left;margin:.2em 1.2em .6em 0}
+figure.image[data-wrap=right]{float:right;clear:right;margin:.2em 0 .6em 1.2em}
+figure[data-width=full]{margin-left:calc(var(--margin)/-2);margin-right:calc(var(--margin)/-2)}
+figure.image[data-width="25"]{width:25%}figure.image[data-width="33"]{width:33%}figure.image[data-width="40"]{width:40%}figure.image[data-width="50"]{width:50%}
+table{width:100%;border-collapse:collapse;font-size:10pt}
+th,td{padding:.3em .5em;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+thead th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
+tbody th{color:var(--row-label-ink,var(--acc));font-weight:normal}
+tr.total>*{font-weight:bold;border-top:1.5px solid var(--ink);border-bottom:0}
+col.emphasis{background:var(--tint)}
+table.compact th,table.compact td{padding:.1em .4em}
+col[data-width="1"]{width:1%}col[data-width="2"]{width:2%}col[data-width="3"]{width:3%}col[data-width="4"]{width:4%}col[data-width="5"]{width:5%}col[data-width="6"]{width:6%}col[data-width="7"]{width:7%}col[data-width="8"]{width:8%}col[data-width="9"]{width:9%}col[data-width="10"]{width:10%}col[data-width="11"]{width:11%}col[data-width="12"]{width:12%}col[data-width="13"]{width:13%}col[data-width="14"]{width:14%}col[data-width="15"]{width:15%}col[data-width="16"]{width:16%}col[data-width="17"]{width:17%}col[data-width="18"]{width:18%}col[data-width="19"]{width:19%}col[data-width="20"]{width:20%}col[data-width="21"]{width:21%}col[data-width="22"]{width:22%}col[data-width="23"]{width:23%}col[data-width="24"]{width:24%}col[data-width="25"]{width:25%}col[data-width="26"]{width:26%}col[data-width="27"]{width:27%}col[data-width="28"]{width:28%}col[data-width="29"]{width:29%}col[data-width="30"]{width:30%}col[data-width="31"]{width:31%}col[data-width="32"]{width:32%}col[data-width="33"]{width:33%}col[data-width="34"]{width:34%}col[data-width="35"]{width:35%}col[data-width="36"]{width:36%}col[data-width="37"]{width:37%}col[data-width="38"]{width:38%}col[data-width="39"]{width:39%}col[data-width="40"]{width:40%}col[data-width="41"]{width:41%}col[data-width="42"]{width:42%}col[data-width="43"]{width:43%}col[data-width="44"]{width:44%}col[data-width="45"]{width:45%}col[data-width="46"]{width:46%}col[data-width="47"]{width:47%}col[data-width="48"]{width:48%}col[data-width="49"]{width:49%}col[data-width="50"]{width:50%}col[data-width="51"]{width:51%}col[data-width="52"]{width:52%}col[data-width="53"]{width:53%}col[data-width="54"]{width:54%}col[data-width="55"]{width:55%}col[data-width="56"]{width:56%}col[data-width="57"]{width:57%}col[data-width="58"]{width:58%}col[data-width="59"]{width:59%}col[data-width="60"]{width:60%}col[data-width="61"]{width:61%}col[data-width="62"]{width:62%}col[data-width="63"]{width:63%}col[data-width="64"]{width:64%}col[data-width="65"]{width:65%}col[data-width="66"]{width:66%}col[data-width="67"]{width:67%}col[data-width="68"]{width:68%}col[data-width="69"]{width:69%}col[data-width="70"]{width:70%}col[data-width="71"]{width:71%}col[data-width="72"]{width:72%}col[data-width="73"]{width:73%}col[data-width="74"]{width:74%}col[data-width="75"]{width:75%}col[data-width="76"]{width:76%}col[data-width="77"]{width:77%}col[data-width="78"]{width:78%}col[data-width="79"]{width:79%}col[data-width="80"]{width:80%}col[data-width="81"]{width:81%}col[data-width="82"]{width:82%}col[data-width="83"]{width:83%}col[data-width="84"]{width:84%}col[data-width="85"]{width:85%}col[data-width="86"]{width:86%}col[data-width="87"]{width:87%}col[data-width="88"]{width:88%}col[data-width="89"]{width:89%}col[data-width="90"]{width:90%}col[data-width="91"]{width:91%}col[data-width="92"]{width:92%}col[data-width="93"]{width:93%}col[data-width="94"]{width:94%}col[data-width="95"]{width:95%}col[data-width="96"]{width:96%}col[data-width="97"]{width:97%}col[data-width="98"]{width:98%}col[data-width="99"]{width:99%}col[data-width="100"]{width:100%}
+.comments{margin:2em 0 0;padding:.5em 1em;border-top:1px solid var(--bd);font-size:9.5pt;color:var(--t2)}
+@media print{html,body{background:none}#doc{margin:0;padding:0;box-shadow:none;background:none}hr.page-break{break-after:page;border:0;margin:0}.new-page{break-before:page}figure:not(.table),tr,h1,h2,h3,h4,.cover{break-inside:avoid}figure.table>figcaption{break-after:avoid}figure[data-width=full]{margin-left:0;margin-right:0}.comments{display:none}}</style>
+</head>
+<body>
+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on" data-header="Riverside libraries · Annual report 2026">
+<header class="cover">
+<h1 class="title">Riverside libraries annual report</h1>
+<p class="subtitle">Fictional example for print</p>
+<p>Prepared by the library board, October 2026</p>
+</header>
+<nav class="toc" data-depth="2">
+<ol>
+<li><a href="#sec-summary">1 Summary</a></li>
+<li><a href="#sec-visits">2 Visits</a><ol>
+<li><a href="#sec-branches">2.1 Branches</a></li>
+</ol></li>
+<li><a href="#sec-plan">3 Plan for 2027</a></li>
+<li><a href="#sec-annex">4 Annex</a></li>
+</ol>
+</nav>
+<h1 id="sec-summary">Summary</h1>
+<p>Ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened in quarter 1 of branch 1. And repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran in quarter 2 of branch 1. Neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés and in quarter 3 of branch 1. Hours while volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood in quarter 4 of branch 1.<span class="footnote">Fictional figures, rounded to the nearest hundred.</span></p>
+<p>Evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, in quarter 1 of branch 2. Rooms opened longer hours while volunteers ran homework clubs, language cafés and repair evenings in quarter 2 of branch 2. Volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms in quarter 3 of branch 2. Cafés and repair evenings for the neighbourhood reading rooms opened longer hours while volunteers in quarter 4 of branch 2. See <a class="xref" href="#tab-branches">Table 1</a>.</p>
+<h1 id="sec-visits">Visits</h1>
+<figure class="chart" id="fig-visits" data-type="column" data-width="text">
+<script type="application/json">{"title":"Visits by quarter","unit":"thousands","decimals":1,"categories":["Q1","Q2","Q3","Q4"],"series":[{"name":"2026","values":[0.9,1,1.1,1.2]}]}</script>
+<svg xmlns="http://www.w3.org/2000/svg" class="render" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet"><rect width="400" height="200" fill="none"></rect><g><rect x="40" y="110" width="60" height="60" fill="#14517A"></rect><rect x="130" y="100" width="60" height="70" fill="#14517A"></rect><rect x="220" y="90" width="60" height="80" fill="#14517A"></rect><rect x="310" y="80" width="60" height="90" fill="#14517A"></rect></g><g><text x="70" y="188" text-anchor="middle" style="font-size:11px;font-family:Arial">Q1</text><text x="160" y="188" text-anchor="middle" style="font-size:11px;font-family:Arial">Q2</text><text x="250" y="188" text-anchor="middle" style="font-size:11px;font-family:Arial">Q3</text><text x="340" y="188" text-anchor="middle" style="font-size:11px;font-family:Arial">Q4</text></g></svg>
+<figcaption>Visits by quarter</figcaption>
+</figure>
+<p>Longer hours while volunteers ran homework clubs, language cafés and repair evenings for the in quarter 1 of branch 3. Homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer in quarter 2 of branch 3. Repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework in quarter 3 of branch 3. Reading rooms opened longer hours while volunteers ran homework clubs, language cafés and repair in quarter 4 of branch 3.</p>
+<p>Language cafés and repair evenings for the neighbourhood reading rooms opened longer hours while in quarter 1 of branch 4. For the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language in quarter 2 of branch 4. Opened longer hours while volunteers ran homework clubs, language cafés and repair evenings for in quarter 3 of branch 4. Ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened in quarter 4 of branch 4.</p>
+<p>Neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés and in quarter 1 of branch 5. Hours while volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood in quarter 2 of branch 5. Clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer hours in quarter 3 of branch 5. Evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, in quarter 4 of branch 5.</p>
+<figure class="image" id="fig-reading" data-width="33" data-wrap="right">
+<img data-asset="a1" alt="The fictional reading room">
+<figcaption>The reading room</figcaption>
+</figure>
+<p>Volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms in quarter 1 of branch 6. Cafés and repair evenings for the neighbourhood reading rooms opened longer hours while volunteers in quarter 2 of branch 6. The neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés in quarter 3 of branch 6. Longer hours while volunteers ran homework clubs, language cafés and repair evenings for the in quarter 4 of branch 6.</p>
+<p>Repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework in quarter 1 of branch 7. Reading rooms opened longer hours while volunteers ran homework clubs, language cafés and repair in quarter 2 of branch 7. While volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading in quarter 3 of branch 7. Language cafés and repair evenings for the neighbourhood reading rooms opened longer hours while in quarter 4 of branch 7.<span class="footnote">Counted at the door.</span></p>
+<p>Opened longer hours while volunteers ran homework clubs, language cafés and repair evenings for in quarter 1 of branch 8. Ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened in quarter 2 of branch 8. And repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran in quarter 3 of branch 8. Neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés and in quarter 4 of branch 8.</p>
+<figure class="image" id="fig-garden" data-width="40" data-wrap="left">
+<img data-asset="a1" alt="The fictional garden library">
+<figcaption>The garden library</figcaption>
+</figure>
+<p>Clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer hours in quarter 1 of branch 9. Evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, in quarter 2 of branch 9. Rooms opened longer hours while volunteers ran homework clubs, language cafés and repair evenings in quarter 3 of branch 9. Volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms in quarter 4 of branch 9.</p>
+<p>The neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés in quarter 1 of branch 10. Longer hours while volunteers ran homework clubs, language cafés and repair evenings for the in quarter 2 of branch 10. Homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer in quarter 3 of branch 10. Repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework in quarter 4 of branch 10.</p>
+<p>While volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading in quarter 1 of branch 11. Language cafés and repair evenings for the neighbourhood reading rooms opened longer hours while in quarter 2 of branch 11. For the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language in quarter 3 of branch 11. Opened longer hours while volunteers ran homework clubs, language cafés and repair evenings for in quarter 4 of branch 11.</p>
+<h2 id="sec-branches">Branches</h2>
+<p>And repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran in quarter 1 of branch 12. Neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés and in quarter 2 of branch 12. Hours while volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood in quarter 3 of branch 12. Clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer hours in quarter 4 of branch 12.</p>
+<figure class="table" id="tab-branches">
+<figcaption>Loans and visits by branch, thousands</figcaption>
+<table>
+<colgroup><col data-width="34"><col data-width="22"><col class="emphasis" data-width="22"><col data-width="22"></colgroup>
+<thead>
+<tr><th rowspan="2">Branch</th><th colspan="2">Loans</th><th class="ta-r" rowspan="2">Visits<span class="footnote">Door counts, all entrances.</span></th></tr>
+<tr><th class="ta-r">2025</th><th class="ta-r">2026</th></tr>
+</thead>
+<tbody>
+<tr><td>Branch 1</td><td class="ta-r">3</td><td class="ta-r">4</td><td class="ta-r">11</td></tr>
+<tr><td>Branch 2</td><td class="ta-r">6</td><td class="ta-r">7</td><td class="ta-r">22</td></tr>
+<tr><td>Branch 3</td><td class="ta-r">9</td><td class="ta-r">10</td><td class="ta-r">33</td></tr>
+<tr><td>Branch 4</td><td class="ta-r">12</td><td class="ta-r">13</td><td class="ta-r">44</td></tr>
+<tr><td>Branch 5</td><td class="ta-r">15</td><td class="ta-r">16</td><td class="ta-r">55</td></tr>
+<tr><td>Branch 6</td><td class="ta-r">18</td><td class="ta-r">19</td><td class="ta-r">66</td></tr>
+<tr><td>Branch 7</td><td class="ta-r">21</td><td class="ta-r">22</td><td class="ta-r">77</td></tr>
+<tr><td>Branch 8</td><td class="ta-r">24</td><td class="ta-r">25</td><td class="ta-r">88</td></tr>
+<tr><td rowspan="2">Branch 9 and annexe</td><td class="ta-r">27</td><td class="ta-r">29</td><td class="ta-r">99</td></tr>
+<tr><td class="ta-r">30</td><td class="ta-r">31</td><td class="ta-r">110</td></tr>
+<tr><td>Branch 11</td><td class="ta-r">33</td><td class="ta-r">34</td><td class="ta-r">121</td></tr>
+<tr><td>Branch 12</td><td class="ta-r">36</td><td class="ta-r">37</td><td class="ta-r">132</td></tr>
+<tr><td>Branch 13</td><td class="ta-c" colspan="2">closed for works</td><td class="ta-r">91</td></tr>
+<tr><td>Branch 14</td><td class="ta-r">42</td><td class="ta-r">43</td><td class="ta-r">154</td></tr>
+<tr><td>Branch 15</td><td class="ta-r">45</td><td class="ta-r">46</td><td class="ta-r">165</td></tr>
+<tr><td>Branch 16</td><td class="ta-r">48</td><td class="ta-r">49</td><td class="ta-r">176</td></tr>
+<tr><td>Branch 17</td><td class="ta-r">51</td><td class="ta-r">52</td><td class="ta-r">187</td></tr>
+<tr><td rowspan="2">Branch 18 and annexe</td><td class="ta-r">54</td><td class="ta-r">56</td><td class="ta-r">198</td></tr>
+<tr><td class="ta-r">57</td><td class="ta-r">58</td><td class="ta-r">209</td></tr>
+<tr><td>Branch 20</td><td class="ta-r">60</td><td class="ta-r">61</td><td class="ta-r">220</td></tr>
+<tr><td>Branch 21</td><td class="ta-r">63</td><td class="ta-r">64</td><td class="ta-r">231</td></tr>
+<tr><td>Branch 22</td><td class="ta-r">66</td><td class="ta-r">67</td><td class="ta-r">242</td></tr>
+<tr><td>Branch 23</td><td class="ta-r">69</td><td class="ta-r">70</td><td class="ta-r">253</td></tr>
+<tr><td>Branch 24</td><td class="ta-r">72</td><td class="ta-r">73</td><td class="ta-r">264</td></tr>
+<tr><td>Branch 25</td><td class="ta-r">75</td><td class="ta-r">76</td><td class="ta-r">275</td></tr>
+<tr><td>Branch 26</td><td class="ta-c" colspan="2">closed for works</td><td class="ta-r">182</td></tr>
+<tr><td rowspan="2">Branch 27 and annexe</td><td class="ta-r">81</td><td class="ta-r">83</td><td class="ta-r">297</td></tr>
+<tr><td class="ta-r">84</td><td class="ta-r">85</td><td class="ta-r">308</td></tr>
+<tr><td>Branch 29</td><td class="ta-r">87</td><td class="ta-r">88</td><td class="ta-r">319</td></tr>
+<tr><td>Branch 30</td><td class="ta-r">90</td><td class="ta-r">91</td><td class="ta-r">330</td></tr>
+<tr><td>Branch 31</td><td class="ta-r">93</td><td class="ta-r">94</td><td class="ta-r">341</td></tr>
+<tr><td>Branch 32</td><td class="ta-r">96</td><td class="ta-r">97</td><td class="ta-r">352</td></tr>
+<tr><td>Branch 33</td><td class="ta-r">99</td><td class="ta-r">100</td><td class="ta-r">363</td></tr>
+<tr><td>Branch 34</td><td class="ta-r">102</td><td class="ta-r">103</td><td class="ta-r">374</td></tr>
+<tr><td>Branch 35</td><td class="ta-r">105</td><td class="ta-r">106</td><td class="ta-r">385</td></tr>
+<tr><td rowspan="2">Branch 36 and annexe</td><td class="ta-r">108</td><td class="ta-r">110</td><td class="ta-r">396</td></tr>
+<tr><td class="ta-r">111</td><td class="ta-r">112</td><td class="ta-r">407</td></tr>
+<tr><td>Branch 38</td><td class="ta-r">114</td><td class="ta-r">115</td><td class="ta-r">418</td></tr>
+<tr><td>Branch 39</td><td class="ta-c" colspan="2">closed for works</td><td class="ta-r">273</td></tr>
+<tr><td>Branch 40</td><td class="ta-r">120</td><td class="ta-r">121</td><td class="ta-r">440</td></tr>
+<tr><td>Branch 41</td><td class="ta-r">123</td><td class="ta-r">124</td><td class="ta-r">451</td></tr>
+<tr><td>Branch 42</td><td class="ta-r">126</td><td class="ta-r">127</td><td class="ta-r">462</td></tr>
+<tr><td>Branch 43</td><td class="ta-r">129</td><td class="ta-r">130</td><td class="ta-r">473</td></tr>
+<tr><td>Branch 44</td><td class="ta-r">132</td><td class="ta-r">133</td><td class="ta-r">484</td></tr>
+<tr><td>Branch 45</td><td class="ta-r">135</td><td class="ta-r">136</td><td class="ta-r">495</td></tr>
+<tr><td>Branch 46</td><td class="ta-r">138</td><td class="ta-r">139</td><td class="ta-r">506</td></tr>
+<tr><td>Branch 47</td><td class="ta-r">141</td><td class="ta-r">142</td><td class="ta-r">517</td></tr>
+<tr><td>Branch 48</td><td class="ta-r">144</td><td class="ta-r">145</td><td class="ta-r">528</td></tr>
+<tr><td>Branch 49</td><td class="ta-r">147</td><td class="ta-r">148</td><td class="ta-r">539</td></tr>
+<tr><td>Branch 50</td><td class="ta-r">150</td><td class="ta-r">151</td><td class="ta-r">550</td></tr>
+<tr><td>Branch 51</td><td class="ta-r">153</td><td class="ta-r">154</td><td class="ta-r">561</td></tr>
+<tr><td>Branch 52</td><td class="ta-r">156</td><td class="ta-r">157</td><td class="ta-r">572</td></tr>
+<tr><td>Branch 53</td><td class="ta-r">159</td><td class="ta-r">160</td><td class="ta-r">583</td></tr>
+<tr><td>Branch 54</td><td class="ta-r">162</td><td class="ta-r">163</td><td class="ta-r">594</td></tr>
+<tr><td>Branch 55</td><td class="ta-r">165</td><td class="ta-r">166</td><td class="ta-r">605</td></tr>
+<tr><td>Branch 56</td><td class="ta-r">168</td><td class="ta-r">169</td><td class="ta-r">616</td></tr>
+<tr><td>Branch 57</td><td class="ta-r">171</td><td class="ta-r">172</td><td class="ta-r">627</td></tr>
+<tr><td>Branch 58</td><td class="ta-r">174</td><td class="ta-r">175</td><td class="ta-r">638</td></tr>
+<tr><td>Branch 59</td><td class="ta-r">177</td><td class="ta-r">178</td><td class="ta-r">649</td></tr>
+<tr><td>Branch 60</td><td class="ta-r">180</td><td class="ta-r">181</td><td class="ta-r">660</td></tr>
+<tr><td>Branch 61</td><td class="ta-r">183</td><td class="ta-r">184</td><td class="ta-r">671</td></tr>
+<tr><td>Branch 62</td><td class="ta-r">186</td><td class="ta-r">187</td><td class="ta-r">682</td></tr>
+<tr><td>Branch 63</td><td class="ta-r">189</td><td class="ta-r">190</td><td class="ta-r">693</td></tr>
+<tr><td>Branch 64</td><td class="ta-r">192</td><td class="ta-r">193</td><td class="ta-r">704</td></tr>
+<tr><td>Branch 65</td><td class="ta-r">195</td><td class="ta-r">196</td><td class="ta-r">715</td></tr>
+<tr><td>Branch 66</td><td class="ta-r">198</td><td class="ta-r">199</td><td class="ta-r">726</td></tr>
+<tr><td>Branch 67</td><td class="ta-r">201</td><td class="ta-r">202</td><td class="ta-r">737</td></tr>
+<tr><td>Branch 68</td><td class="ta-r">204</td><td class="ta-r">205</td><td class="ta-r">748</td></tr>
+<tr><td>Branch 69</td><td class="ta-r">207</td><td class="ta-r">208</td><td class="ta-r">759</td></tr>
+<tr><td>Branch 70</td><td class="ta-r">210</td><td class="ta-r">211</td><td class="ta-r">770</td></tr>
+<tr><td>Branch 71</td><td class="ta-r">213</td><td class="ta-r">214</td><td class="ta-r">781</td></tr>
+<tr><td>Branch 72</td><td class="ta-r">216</td><td class="ta-r">217</td><td class="ta-r">792</td></tr>
+<tr><td>Branch 73</td><td class="ta-r">219</td><td class="ta-r">220</td><td class="ta-r">803</td></tr>
+<tr><td>Branch 74</td><td class="ta-r">222</td><td class="ta-r">223</td><td class="ta-r">814</td></tr>
+<tr><td>Branch 75</td><td class="ta-r">225</td><td class="ta-r">226</td><td class="ta-r">825</td></tr>
+<tr><td>Branch 76</td><td class="ta-r">228</td><td class="ta-r">229</td><td class="ta-r">836</td></tr>
+<tr><td>Branch 77</td><td class="ta-r">231</td><td class="ta-r">232</td><td class="ta-r">847</td></tr>
+<tr><td>Branch 78</td><td class="ta-r">234</td><td class="ta-r">235</td><td class="ta-r">858</td></tr>
+<tr><td>Branch 79</td><td class="ta-r">237</td><td class="ta-r">238</td><td class="ta-r">869</td></tr>
+<tr><td>Branch 80</td><td class="ta-r">240</td><td class="ta-r">241</td><td class="ta-r">880</td></tr>
+<tr class="total"><td>Total</td><td class="ta-r">2,709</td><td class="ta-r">2,750</td><td class="ta-r">9,933</td></tr>
+</tbody>
+</table>
+</figure>
+<p>Rooms opened longer hours while volunteers ran homework clubs, language cafés and repair evenings in quarter 1 of branch 13. Volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms in quarter 2 of branch 13. Cafés and repair evenings for the neighbourhood reading rooms opened longer hours while volunteers in quarter 3 of branch 13. The neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language cafés in quarter 4 of branch 13.<span class="footnote">Branches 9 and 10 share a building.</span></p>
+<hr class="page-break">
+<h1 id="sec-plan">Plan for 2027</h1>
+<p>The board <mark class="comment" data-ref="c1">keeps every branch open</mark> and extends the garden library.</p>
+<p>Homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer in quarter 1 of branch 14. Repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework in quarter 2 of branch 14. Reading rooms opened longer hours while volunteers ran homework clubs, language cafés and repair in quarter 3 of branch 14. While volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood reading in quarter 4 of branch 14.</p>
+<p>For the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, language in quarter 1 of branch 15. Opened longer hours while volunteers ran homework clubs, language cafés and repair evenings for in quarter 2 of branch 15. Ran homework clubs, language cafés and repair evenings for the neighbourhood reading rooms opened in quarter 3 of branch 15. And repair evenings for the neighbourhood reading rooms opened longer hours while volunteers ran in quarter 4 of branch 15.</p>
+<h1 class="new-page" id="sec-annex">Annex</h1>
+<p>Hours while volunteers ran homework clubs, language cafés and repair evenings for the neighbourhood in quarter 1 of branch 16. Clubs, language cafés and repair evenings for the neighbourhood reading rooms opened longer hours in quarter 2 of branch 16. Evenings for the neighbourhood reading rooms opened longer hours while volunteers ran homework clubs, in quarter 3 of branch 16. Rooms opened longer hours while volunteers ran homework clubs, language cafés and repair evenings in quarter 4 of branch 16.<span class="footnote">Sources: fictional branch returns.</span></p>
+<section class="comments">
+<aside class="comment-thread" id="c1" data-status="open" data-quote="keeps every branch open" data-section="sec-plan" data-prefix="The board " data-suffix=" and extends the garden">
+<p class="comment" data-author="Sam" data-date="2026-10-20T09:30Z">Confirm with the budget.</p>
+</aside>
+</section>
+</article>
+<script id="assets" type="application/json">{"a1":{"type":"image/png","data":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}}</script>
+</body>
+</html>

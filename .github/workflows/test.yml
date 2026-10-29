@@ -115,6 +115,10 @@ jobs:
           CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-clipboard.mjs
       - name: Slides charts through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02c)
         run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-charts-clipboard.mjs
+      - name: Generate the Data acceptance workbook, then read it offline in Chromium, Firefox and WebKit (Data T21)
+        run: |
+          node packages/data/acceptance/generate.mjs --out dist/data/acceptance
+          ACCEPTANCE_DIR=dist/data/acceptance node packages/data/tests/acceptance-engines.mjs
 
   text-engines:
     runs-on: ubuntu-latest
@@ -168,5 +172,13 @@ jobs:
           TEXT_ENGINES: firefox,webkit
       - name: Edit report tables in Firefox and WebKit (Text T10)
         run: node packages/text/tests/tables-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Markdown view and export in Firefox and WebKit (Text T15)
+        run: node packages/text/tests/markdown-browser.mjs
+        env:
+          TEXT_ENGINES: firefox,webkit
+      - name: Print preview and the running header in Firefox and WebKit (Text T14)
+        run: node packages/text/tests/print-browser.mjs
         env:
           TEXT_ENGINES: firefox,webkit

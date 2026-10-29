@@ -17,8 +17,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument, outside } from "../tools/document-html.mjs";
 import { writeModel } from "../model/document.mjs";
-import { preservation } from "../tools/workbook-ops.mjs";
-import { guide } from "../tools/build.mjs";
+import { preservation, compactRange } from "../tools/workbook-ops.mjs";
+import { guide, completeCharte } from "../tools/build.mjs";
+import { cssTheme, charteTokens } from "../tools/chart-previews.mjs";
 
 const run = promisify(execFile),
   tool = fileURLToPath(new URL("../tools/workbook.mjs", import.meta.url)),
@@ -620,5 +621,233 @@ test("imported sources are listed and kept", async () => {
   assert.equal(
     (await cli("validate", out, "--since", file, "--allow", "Sales!A3")).code,
     0,
+  );
+});
+
+// T21 review: an offline copy built from extracted JSON keeps the
+// document's own charte when extract writes it out for new --charte.
+test("extract --charte-out keeps a custom charte through new", async () => {
+  const charte = join(dir, "brand.css"),
+    branded = join(dir, "branded.html");
+  // A complete charte: the default one with another accent colour.
+  await writeFile(
+    charte,
+    (
+      await readFile(
+        new URL(
+          "../../../plugin/skills/html-slides/assets/default.css",
+          import.meta.url,
+        ),
+        "utf8",
+      )
+    ).replace("#14517A", "#a01050"),
+  );
+  const made = await cli(
+    "new",
+    branded,
+    "--model",
+    join(examples, "valid/budget.json"),
+    "--charte",
+    charte,
+  );
+  assert.equal(made.code, 0, made.out);
+  const model = join(dir, "branded.json"),
+    kept = join(dir, "branded-charte.css"),
+    offline = join(dir, "branded-offline.html");
+  const extracted = await cli(
+    "extract",
+    branded,
+    "--out",
+    model,
+    "--charte-out",
+    kept,
+  );
+  assert.equal(extracted.code, 0, extracted.out);
+  assert.match(await readFile(kept, "utf8"), /--acc:#a01050/);
+  const rebuilt = await cli(
+    "new",
+    offline,
+    "--model",
+    model,
+    "--charte",
+    kept,
+    "--offline",
+  );
+  assert.equal(rebuilt.code, 0, rebuilt.out);
+  const charteOf = async (file) =>
+    /<style id="charte">([\s\S]*?)<\/style>/.exec(
+      await readFile(file, "utf8"),
+    )[1];
+  assert.equal(await charteOf(offline), await charteOf(branded));
+});
+
+// T21 gap: a charte that sets only a few tokens failed with "Unsupported
+// JSON value" while drawing chart previews. The default charte's value now
+// fills each core token it leaves out, and new names them.
+test("new --charte with a partial charte takes the default for the rest", async () => {
+  const charte = join(dir, "partial.css"),
+    out = join(dir, "partial.html"),
+    own = ":root{--acc:#a01050;--ink:#111}\n";
+  await writeFile(charte, own);
+  const { stdout, stderr } = await run(process.execPath, [
+    tool,
+    "new",
+    out,
+    "--model",
+    join(examples, "valid/budget.json"),
+    "--charte",
+    charte,
+  ]);
+  assert.match(stdout, /results current/);
+  assert.match(
+    stderr,
+    /leaves out --mid, --lig, --alert, --tint, --callout, --bd, --t2, --bg, --font: the default charte's values are used/,
+  );
+  assert.equal((await cli("validate", out)).code, 0);
+  const html = await readFile(out, "utf8"),
+    css = /<style id="charte">([\s\S]*?)<\/style>/.exec(html)[1];
+  // The charte's own rule is kept as written, the defaults follow it in
+  // a layer named first, below every other declaration.
+  assert.ok(css.startsWith(`@layer charte-defaults;\n${own}`));
+  assert.match(
+    css,
+    /@layer charte-defaults\{:root\{--mid:#4F7FA3;.*--font:Arial, Helvetica, sans-serif\}\}/,
+  );
+  assert.doesNotMatch(css, /--acc:#14517A|--header-bg/);
+  const [chart] = readDocument(html).book.charts;
+  assert.match(chart.preview.svg, /#a01050/i);
+  // A document whose charte still lacks tokens (built before this fix)
+  // reads them as the browser does: empty, never undefined.
+  const theme = cssTheme(":root{--acc:#a01050}");
+  for (const [key, value] of Object.entries(theme))
+    assert.equal(typeof value, "string", key);
+  assert.equal(theme.mid, "");
+  // Only rules on the root count, at the top level or in @layer blocks,
+  // read as CSS tokenizes them; the defaults layer ranks below everything,
+  // so what the scanner misses (@import, @media) still wins in the browser.
+  assert.deepEqual(
+    charteTokens(
+      '@import url(x.css);@media print{:root{--ink:red}}.badge{--mid:red}:root{--font:"/*",Arial;--logo:url(data:a;b);--acc:blue}/* end */@layer brand{:root{--t2:#555}}html{--bd:#ddd',
+    ),
+    {
+      font: '"/*",Arial',
+      logo: "url(data:a;b)",
+      acc: "blue",
+      t2: "#555",
+      bd: "#ddd",
+    },
+  );
+  const completed = completeCharte(
+    ":root{--acc:blue}",
+    ":root{--ink:#000;--acc:#111;--mid:#222;--lig:#333;--alert:#444;--tint:#555;--callout:#666;--bd:#777;--t2:#888;--bg:#fff;--font:Arial;--header-bg:var(--ink)}",
+  );
+  assert.equal(
+    completed.css,
+    "@layer charte-defaults;\n:root{--acc:blue}\n/* Tokens this charte leaves out, from the default charte. */\n@layer charte-defaults{:root{--ink:#000;--mid:#222;--lig:#333;--alert:#444;--tint:#555;--callout:#666;--bd:#777;--t2:#888;--bg:#fff;--font:Arial}}\n",
+  );
+  // A completed charte is complete: extract and new keep it as it is.
+  assert.deepEqual(completeCharte(completed.css, completed.css).missing, []);
+});
+
+// T21 gap: inspect --range printed about 15 lines of JSON per cell. The text
+// view is one line per cell; --json keeps the full cells.
+test("inspect --range prints one line per cell", async () => {
+  const shown = await cli("inspect", budget, "--range", "Budget!A2:D3");
+  assert.equal(shown.code, 0, shown.out);
+  assert.equal(
+    shown.out,
+    [
+      "Budget!A2:D3: 8 cells; results current.",
+      "Cell  Formula or input      Result  Shown",
+      'A2    "Tickets"                     Tickets',
+      "B2    =Inputs!B5*Inputs!B4  4200    €4,200",
+      "C2    900                           €900",
+      "D2    =B2-C2                3300    €3,300",
+      'A3    "Catering"                    Catering',
+      "B3    0                             €0",
+      "C3    =Inputs!B5*18         2160    €2,160",
+      "D3    =B3-C3                -2160   (€2,160)",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(
+    (await cli("inspect", budget, "--range", "Budget!H1:H2")).out,
+    "Budget!H1:H2: 0 cells; results current.\n",
+  );
+  const json = JSON.parse(
+    (await cli("inspect", budget, "--range", "Budget!B2", "--json")).out,
+  );
+  assert.deepEqual(Object.keys(json), ["sheetId", "sheet", "range", "cells"]);
+  assert.equal(json.cells[0].cell.formula, "=Inputs!B5*Inputs!B4");
+  // Every value type, a missing result, a style-only cell, control
+  // characters (in inputs, formulas and results) and a value past the
+  // column width.
+  const long = `=${"A1+".repeat(20)}1`;
+  assert.equal(
+    compactRange(
+      {
+        sheet: "S",
+        range: "A1:A9",
+        cells: [
+          {
+            ref: "A1",
+            cell: { input: { type: "text", value: "12" } },
+            shown: "12",
+          },
+          {
+            ref: "A2",
+            cell: { input: { type: "date", value: 45292 } },
+            shown: "01/01/2024",
+          },
+          {
+            ref: "A3",
+            cell: { input: { type: "boolean", value: true } },
+            shown: "TRUE",
+          },
+          {
+            ref: "A4",
+            cell: {
+              formula: "=1/0",
+              result: { type: "error", value: "#DIV/0!" },
+            },
+            shown: "#DIV/0!",
+          },
+          { ref: "A5", cell: { formula: "=A9" }, shown: "" },
+          { ref: "A6", cell: { cellStyle: "note" }, shown: "" },
+          {
+            ref: "A7",
+            cell: { input: { type: "text", value: "a\nb" } },
+            shown: "a\nb",
+          },
+          {
+            ref: "A8",
+            cell: { formula: long, result: { type: "blank" } },
+            shown: "",
+          },
+          {
+            ref: "A9",
+            cell: {
+              formula: '="a\nb"',
+              result: { type: "text", value: "a\nb" },
+            },
+            shown: "a\nb",
+          },
+        ],
+      },
+      "stale",
+    ),
+    [
+      "S!A1:A9: 9 cells; results stale.",
+      "Cell  Formula or input                          Result   Shown",
+      'A1    "12"                                               12',
+      "A2    45292 (date)                                       01/01/2024",
+      "A3    TRUE                                               TRUE",
+      "A4    =1/0                                      #DIV/0!  #DIV/0!",
+      "A5    =A9                                       (none)",
+      "A6    (empty)",
+      'A7    "a\\nb"                                             a\\nb',
+      `A8    ${long}  (blank)`,
+      'A9    ="a\\nb"                                   "a\\nb"   a\\nb',
+    ].join("\n"),
   );
 });

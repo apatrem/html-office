@@ -1,7 +1,8 @@
 // A plain HTML tree shared by the Node tools (parse5) and the browser (DOM), and its serialiser.
 // Nodes: {type: "element", name, ns, attrs: [[name, value]], children, loc?}, {type: "text", value, loc?},
 // {type: "comment", value, loc?}. `ns` is "html", "svg" or "math"; attribute order is source order.
-// `loc` (Node only) is {line, col, offset, end, attrs: {name: {line, col}}}, 1-based lines and columns.
+// `loc` (Node only) is {line, col, offset, end, closing?, attrs: {name: {line, col}}}, 1-based lines and
+// columns; closing is the offset of the end tag, when the source has one.
 
 export const VOID = new Set([
   "area",

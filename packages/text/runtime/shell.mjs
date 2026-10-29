@@ -172,7 +172,11 @@ export function mountShell(
         "-",
         { label: "Document settings…", onSelect: () => openSettings() },
         "-",
+        item("Print preview", "preview"),
         item("Print / PDF", "print"),
+        "-",
+        item("Markdown view", "markdown-view"),
+        item("Export Markdown (.md)", "markdown-export"),
       ],
     },
     {
@@ -475,12 +479,20 @@ export function mountShell(
       margins: a.margins ?? "document",
       numbers: a.headingNumbers ? "on" : "off",
       format: a.headingFormat ?? "document",
+      header: a.header ?? "",
     };
   };
+  // The running header (T14): applied when the field is left or Enter is pressed.
+  const header = h("input", {
+    type: "text",
+    placeholder: "None",
+    onchange: () => cmd.run("header", header.value),
+  });
   const settings = () => ({
     title: "Document settings",
     subtitle: "Theme, font and page apply to the whole document",
-    body: () =>
+    body: () => (
+      (header.value = current().header),
       documentBody({
         ...current(),
         documentColours,
@@ -529,8 +541,16 @@ export function mountShell(
             { class: "sh-hint" },
             "Unnumbered headings are skipped. Contents and cross-references follow the numbers.",
           ),
+          h("h3", {}, "Running header"),
+          field("Text at the top of every printed page", header),
+          h(
+            "p",
+            { class: "sh-hint" },
+            "Up to 120 characters. Pages are numbered at the bottom. File › Print preview shows the pages.",
+          ),
         ],
-      }),
+      })
+    ),
   });
   const panel = createDrawer(h("div", { class: "sh-root tx-drawer" }));
   const width = h("span", { class: "sh-finfo", role: "status" });
@@ -648,6 +668,7 @@ export function mountShell(
       ])
         for (const b of panel.host.querySelectorAll(sel))
           b.setAttribute("aria-checked", String(b.dataset.value === v));
+      if (document.activeElement !== header) header.value = c.header;
     }
     // The editing width, measured when the look changes: the page's text width in millimetres.
     const key = JSON.stringify(look());

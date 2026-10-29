@@ -131,6 +131,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 1. **Third-party notices (L01)**: Help › Third-party notices opens collapsed, readable text, with no external link, in each product.
 2. **Offline**: with the network off, each file opens and edits. Data and Slides show chart previews.
 3. **Keyboard only**: Tab reaches the file bar, the menus and the toolbar. The arrow keys move within the toolbar, and Escape closes menus and dialogs.
+4. **Long-series charts**: in each product, draw a column chart and a line chart over 24 months with two series (Slides: Insert › Chart and the data panel; Data: a 24-row block, Insert › Chart…; Text: Insert › Chart…). The month labels never overlap: every second or third one shows, at a regular step, and they all show again when the chart is wide enough. The legend swatches have the colours of the bars and lines, in each theme, live and in the saved preview with the network off. A chart with up to 12 categories (a year of months) still shows every label.
 
 ## 5. Copy and paste between Slides and Data (X02b, X02c)
 
@@ -257,6 +258,42 @@ Use `text-example.html`, in Chrome, then Safari and Firefox, with the browser's 
 8. **Where only text goes**: paste a screenshot with the caret in a table cell, a caption or the code block: the picture goes after the table or block. Paste text with an embedded picture into a cell: the text goes in the cell, the picture is left out and reported.
 9. **Inside the document**: click the example's picture, copy, paste it after another paragraph. Save: `script#assets` holds it once, and both figures use the same `data-asset`.
 
+### T14 — Print and print preview
+
+Use `text-example.html` and the print fixture built with `node packages/text/tools/build.mjs packages/text/fixtures/valid/print.html` (written to `dist/text/print.html`: nine A4 pages, a running header, a merged table over three pages, wrapped images, footnotes, a page break, a section that starts on a new page and a comment). In Chrome, Edge, Safari and Firefox, print with File › Print / PDF and save as PDF with the dialog's defaults (Chrome and Edge: *Margins: Default*, *Scale: Default*; "Background graphics" may stay off).
+
+1. **Preview**: File › Print preview. The pages sit side by side (scroll sideways), each with the running header at the top and *n / 9* at the bottom; the bar says *9 pages*. Typing, Backspace, ⌘Z / Ctrl+Z and clicks change nothing. Escape (or Close preview) returns to editing with the caret where it was.
+2. **Preview against the PDF** (Chrome, Edge): print from the preview's **Print / PDF**. The PDF has the preview's page count, and each page starts and ends at the same line, row or figure as in the preview.
+3. **Page breaks**: "3 Plan for 2027" starts a page (page break before it) and "4 Annex" starts the next one (Start on a new page). No heading is the last line of a page; no chart, picture or table row is split.
+4. **Repeated headers**: the "Loans and visits by branch" table runs over three pages; its two header rows (with the merged *Loans* and *Visits* cells) are at the top of each, in the charte's dark header colour; the merged "Branch 9 and annexe" rows and the total row print whole.
+5. **Wrapped images**: the reading-room picture moves to the top of page 3 while its paragraph starts at the bottom of page 2, and the text keeps wrapping beside it. Nothing overlaps the page edge.
+6. **Endnotes**: the last page lists *Notes* 1–4, numbered as the references in the text. In `text-example.html`, the footnote prints as the number 1 in the text and in the notes list.
+7. **Running header**: Theme & page › *Running header*: type a new text and press Enter; the preview and the next print show it on every page; Undo restores the previous one; an empty field removes it (page numbers stay). Save, reopen: it is kept.
+8. **Contents and comments**: in the PDF (Chrome, Edge, Safari's Preview), each contents entry is a link to its heading; no page numbers are printed in the contents. No comment, comment underline, selection highlight or editor bar is printed.
+9. **Colours**: in the PDF the table header rows, the emphasis column and the callouts keep their backgrounds even with "Background graphics" off.
+10. **Safari and Firefox**: the pages have the chosen size and margins and the breaks of point 3, with no blank page after the page break; neither prints the running header or page numbers (FORMAT.md › Print › Engines). Firefox's PDF ends with a blank page (known). In Firefox's preview, "Plan for 2027" and "Annex" start their pages as in print, and the long table shows whole on one page, running past its bottom (known); in print it spans three pages with its header repeated.
+
+### T15 — Show and export Markdown
+
+Use `text-example.html`, in Chrome, then Safari and Firefox.
+
+1. **View**: type a word in the first paragraph, then File › Markdown view. The text shows the word, the heading numbers (`# 1 Executive summary`), *Figure 1* and *Table 1* as plain text, the chart's data table, `*(Image: …)*` and the footnote as `[^1]` with its note at the end. Typing, Backspace and Delete change nothing (and do not leave the page); select and copy part of it. Close: the document still says *Unsaved changes*, and Save writes no Markdown.
+2. **Copy**: in the view, Copy, then paste into a plain-text editor: the whole Markdown, starting with the `<!-- Markdown export … -->` note.
+3. **Export**: File › Export Markdown (.md), and Export .md in the view: each downloads `Business review and 2027 plan.md` with the same text.
+4. **Other Markdown editors**: open the exported file in VS Code's Markdown preview, Obsidian, Typora and on GitHub (a gist or a repository file). The note is hidden; headings, lists, quotes, code, tables (the regions table with its empty merged cells and two header rows), links, `<u>`, `<mark>`, `<sup>`, `<sub>` render; footnotes render as notes where the editor supports them (GitHub, Obsidian, Typora) and as `[^1]` otherwise. Nothing claims to be the document.
+5. **Back into Text**: Insert › Markdown… › Or open a file, choose the export: the content arrives as ordinary paragraphs, headings, lists, quotes and tables, with the losses FORMAT.md › Markdown view and export lists (no comments, no images or charts, footnotes as text).
+6. **Long document**: on a long document (the 100-page fixture of T16, built), File › Markdown view opens in about a second and scrolls smoothly.
+
+### T16 — Section tooling for long documents
+
+Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long document of your own (a report converted to Text, 50 pages or more).
+
+1. **Outline**: `node packages/text/tools/sections.mjs outline <file>`: every heading, with its number and ID, indented by level; the word counts look right against a word processor's count of the same section.
+2. **Show and edit**: `show <file> <id>` a middle section into `section.html`, edit it in a text editor (or ask an LLM to rewrite it, keeping the heading line), then `replace <file> <id> section.html`. Compare the two files with a diff tool (`git diff --no-index`, FileMerge, WinMerge): only lines inside that section change. Open the file in the editor: it shows the new text with *No unsaved changes*, unless the heading text changed (then the contents are rewritten: *Unsaved changes*).
+3. **Refusals**: try a replacement that changes the heading's ID, one with a `<script>`, one that deletes a figure referenced elsewhere: each is refused with its reason and the file's modification time does not change.
+4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
+5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
@@ -360,6 +397,20 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
 5. Ask for a presentation in the same conversation: the html-slides skill still works as before (`deck.mjs`, `check.mjs`).
 6. Repeat step 2 in an agent that uses skill folders (extract the archive, point it to `skills/html-data/SKILL.md`).
 7. Ask for an offline copy of the budget (`new … --offline`), open it with the network off and import an Excel workbook (Data › Import XLSX…): the embedded reader works with no request. Then ask the assistant to change a value on the imported sheet: it patches the cell and keeps `sources`; Data › Refresh source… with the same file asks before replacing that hand edit.
+
+### T21 — Fictional P&L acceptance workbook
+
+Generate the files first (`node packages/data/acceptance/generate.mjs`, after `npm ci` and `npx playwright install chromium`), then use them in `packages/data/acceptance/output/` (copies: saving rewrites them) and the two CSV files in `packages/data/acceptance/sources/`. The expected figures are in `packages/data/acceptance/README.md` › Known totals.
+
+1. **Chrome, standard file.** Open `fictional-bike-rentals.html`: "Saved results are current", Summary shows revenue €255.9k, net income €21.1k and NPV €2,560 over 24 months; the three charts show; the sheet groups read Summary, Inputs, Raw Data, Calculations with the consulting colours (dark-blue headers, light-blue row labels, pale-yellow inputs with orange text).
+2. **Edit and extend.** On Assumptions choose the High scenario in the Scenario control, then type 12% in D6: Summary and the charts follow (High before the change: revenue €267,461, NPV €9,295). On P&L select Y2:Z15 and use Edit › Fill right, then the same on Cash flow (Y2:Z8): column Z is January 2027 with forecast values; the data bars and highlights look right on screen.
+3. **Refresh the source.** On Rentals, Data › Refresh source… with `rentals-2025-v2.csv`: the dialog shows Rows 97 → 103, the changed December values and the impact. Refresh, then Data › Refresh all pivot tables: Stations gains a Harbour row; with the Base scenario and no other edit, revenue would be €263,655.
+4. **Undo, save, reopen.** Ctrl/Cmd+Z twice returns to the values before the refresh; Ctrl/Cmd+Shift+Z twice brings them back. File › Save (choose a new file), close, reopen with the network off: same values, "Saved results are current".
+5. **Edge.** Repeat 1, 2 and 4 once.
+6. **Safari and Firefox, offline reading.** With the network off, open `fictional-bike-rentals-offline.html`: results current, every sheet opens, the charts and data bars show, the pivot table reads East, North, South, West and Total 18640, the Formula analysis lists one row per function with no `#` error.
+7. **PDF.** Open `fictional-bike-rentals-summary.pdf` and `fictional-bike-rentals-pnl.pdf`: A4 landscape, the summary table then each chart on its own page with axis labels that do not overlap (known: the scenario chart's legend swatches use other colours than its bars, a shared chart issue); the P&L split into three pages across, each starting with the row labels, negative data bars in orange, negative margins in bold orange. Print Summary again from Chrome and Safari (File › Print / PDF…, Save as PDF) and compare.
+8. **CSV.** Open `fictional-bike-rentals-pnl.csv` in Excel (English) and Google Sheets: one value per column, dates as dates, amounts as numbers matching the P&L.
+9. **Fiction only.** Skim every sheet, the notes and the PDFs: no real company, person, client theme or file path.
 
 ## Log
 

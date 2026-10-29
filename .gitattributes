@@ -5,3 +5,5 @@ tools/engine-assessment/** text eol=lf
 packages/data/** text eol=lf
 packages/data/engine/vendor/*.wasm binary
 packages/data/engine/vendor/*.wasm.gz binary
+# T21 CSV sources keep their CRLF bytes: the workbook records their SHA-256.
+packages/data/acceptance/sources/*.csv -text

@@ -63,32 +63,35 @@ async function open(target, disk = built) {
   return { page, errors };
 }
 
-// The character offset where each line of each text block starts.
+// The character offset where each line of each rendered text block starts. Print shows a table's
+// header rows from their print-only copy (T14), just before the rows it copies.
 const lineStarts = (page) =>
   page.evaluate(() => {
     const blocks = document.querySelectorAll(
       "#doc :is(p, h1, h2, h3, h4, pre, figcaption, td, th):not(.comments *)",
     );
-    return [...blocks].map((el) => {
-      const step = parseFloat(getComputedStyle(el).lineHeight) * 0.6;
-      const range = document.createRange();
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      const starts = [];
-      let top = null,
-        i = 0;
-      for (let n; (n = walker.nextNode()); )
-        for (let k = 0; k < n.length; k++, i++) {
-          range.setStart(n, k);
-          range.setEnd(n, k + 1);
-          const rect = range.getClientRects()[0];
-          if (!rect || !rect.width) continue;
-          if (top === null || rect.top > top + step) {
-            starts.push(i);
-            top = rect.top;
+    return [...blocks]
+      .filter((el) => el.getClientRects().length)
+      .map((el) => {
+        const step = parseFloat(getComputedStyle(el).lineHeight) * 0.6;
+        const range = document.createRange();
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        const starts = [];
+        let top = null,
+          i = 0;
+        for (let n; (n = walker.nextNode()); )
+          for (let k = 0; k < n.length; k++, i++) {
+            range.setStart(n, k);
+            range.setEnd(n, k + 1);
+            const rect = range.getClientRects()[0];
+            if (!rect || !rect.width) continue;
+            if (top === null || rect.top > top + step) {
+              starts.push(i);
+              top = rect.top;
+            }
           }
-        }
-      return starts;
-    });
+        return starts;
+      });
   });
 const textWidth = (page) =>
   page.evaluate(() => {
