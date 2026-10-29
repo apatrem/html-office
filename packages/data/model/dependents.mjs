@@ -15,12 +15,11 @@ const ROWS = 1048576,
   // columns, tall ones by bands of BW columns, wide ones by bands of BH rows.
   BH = 16,
   BW = 8,
-  BLOCKS = COLUMNS / BW,
-  // A cell as one number: row × KEY + column.
-  KEY = COLUMNS + 1;
+  BLOCKS = COLUMNS / BW;
 const REF =
     /(?:\$?[A-Za-z]{1,3}\$?[1-9]\d{0,6}(?::\$?[A-Za-z]{1,3}\$?[1-9]\d{0,6})?|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3}|\$?[1-9]\d{0,6}:\$?[1-9]\d{0,6})(?![\p{L}\p{N}_.!(])/uy,
-  WORD = /[A-Za-z_\\¡-￿][\w.¡-￿]*/uy;
+  WORD = /[A-Za-z_\\¡-￿][\w.¡-￿]*/uy,
+  CALL = /\s*\(/y;
 const meets = (a, b) =>
   a.top <= b.bottom &&
   b.top <= a.bottom &&
@@ -49,16 +48,28 @@ function rect(token) {
     return null;
   }
 }
-// The references of a formula: {sheet (lower-case name, or null for its
-// own sheet), rect} ranges, the lower-case names it may read, and whether
-// it calls INDIRECT or OFFSET.
+// The operands of a formula, in order: {sheet (lower-case name, or null
+// for its own sheet), rect} ranges and {name} (lower case) names it may
+// read. `join`: the range operator ties it to the previous operand
+// (Start:End, A1 : B2), so the cells between them are read too; `open`: the
+// operator ties it to a function result (A1:INDEX(…)), which may reach
+// anywhere on its sheet. Also whether it calls INDIRECT or OFFSET.
 export function references(formula) {
-  const refs = [],
-    names = [];
+  const operands = [];
   let i = 0,
     sheet = null,
     indirect = false,
-    offset = false;
+    offset = false,
+    // After an operand ("operand"), after ":" following one ("join") or
+    // following anything else ("open"), or none.
+    state = null;
+  const operand = (op) => {
+    if (state === "join") op.join = true;
+    if (state === "open") op.open = true;
+    operands.push(op);
+    state = "operand";
+    sheet = null;
+  };
   while (i < formula.length) {
     const ch = formula[i];
     if (ch === '"') {
@@ -69,7 +80,7 @@ export function references(formula) {
       )
         j += formula[j] === '"' ? 2 : 1;
       i = j + 1;
-      sheet = null;
+      sheet = state = null;
       continue;
     }
     if (ch === "'") {
@@ -92,35 +103,39 @@ export function references(formula) {
       const m = REF.exec(formula),
         r = m && rect(m[0]);
       if (r) {
-        refs.push({ sheet, rect: r });
         i += m[0].length;
-        sheet = null;
+        operand({ sheet, rect: r });
         continue;
       }
       WORD.lastIndex = i;
       const w = WORD.exec(formula);
       if (w) {
         const end = i + w[0].length,
-          word = w[0].toLowerCase();
+          word = w[0].toLowerCase().replace(/^_xl(?:fn|ws)\./, "");
         if (formula[end] === "!") {
           sheet = word;
           i = end + 1;
           continue;
         }
-        if (/^\s*\(/.test(formula.slice(end, end + 16))) {
+        CALL.lastIndex = end;
+        i = end;
+        if (CALL.test(formula)) {
           if (word === "indirect") indirect = true;
           if (word === "offset") offset = true;
+          if (state === "join") operands.at(-1).open = true;
+          sheet = state = null;
           // Sheet!Name would be a sheet-scoped name; Data's are workbook-wide.
-        } else if (sheet === null) names.push(word);
-        i = end;
-        sheet = null;
+        } else if (sheet === null) operand({ name: word });
+        else sheet = state = null;
         continue;
       }
     }
+    if (ch === ":") state = state === "operand" ? "join" : "open";
+    else if (!/\s/.test(ch)) state = null;
     i++;
     sheet = null;
   }
-  return { refs, names, indirect, offset };
+  return { operands, indirect, offset };
 }
 function register(readers, { sheetId, rect }, n) {
   let r = readers.get(sheetId);
@@ -166,16 +181,31 @@ export function formulaGraph(book) {
       if (!cell.formula) continue;
       const found = references(cell.formula),
         reads = [];
-      for (const { sheet, rect } of found.refs) {
-        const id = sheet === null ? s.id : ids.get(sheet);
-        if (id) reads.push({ sheetId: id, rect: found.offset ? WHOLE : rect });
-      }
-      for (const name of found.names) {
-        const target = named.get(name);
-        if (target)
-          reads.push(
-            found.offset ? { sheetId: target.sheetId, rect: WHOLE } : target,
-          );
+      let previous = null;
+      for (const op of found.operands) {
+        const id = op.sheet === null ? s.id : ids.get(op.sheet);
+        let read =
+          op.name !== undefined
+            ? named.get(op.name)
+            : id && { sheetId: id, rect: op.rect };
+        if (read && (op.open || found.offset))
+          read = { sheetId: read.sheetId, rect: WHOLE };
+        // A:B spans both operands on one sheet.
+        if (op.join && read && previous?.sheetId === read.sheetId) {
+          const a = previous.rect,
+            b = read.rect;
+          read = {
+            sheetId: read.sheetId,
+            rect: {
+              top: Math.min(a.top, b.top),
+              left: Math.min(a.left, b.left),
+              bottom: Math.max(a.bottom, b.bottom),
+              right: Math.max(a.right, b.right),
+            },
+          };
+          reads[reads.length - 1] = read;
+        } else if (read) reads.push(read);
+        previous = read ?? null;
       }
       const n = formulas.length;
       formulas.push({
@@ -269,7 +299,7 @@ export function dependents(
     }
   }
   const sheets = new Map(),
-    // Changed formula cells by sheet ID, as keys.
+    // Changed formula cells: sheet ID → column → rows.
     changed = new Map();
   for (const n of queue) {
     const f = formulas[n];
@@ -283,43 +313,56 @@ export function dependents(
     if (via[n] === null) s.direct++;
     else if (via[n] !== f.sheet && !s.through.includes(via[n].name))
       s.through.push(via[n].name);
-    let keys = changed.get(f.sheet.id);
-    if (!keys) changed.set(f.sheet.id, (keys = new Set()));
-    keys.add(f.row * KEY + f.column);
+    let columns = changed.get(f.sheet.id);
+    if (!columns) changed.set(f.sheet.id, (columns = new Map()));
+    const rows = columns.get(f.column);
+    if (rows) rows.push(f.row);
+    else columns.set(f.column, [f.row]);
   }
+  for (const columns of changed.values())
+    for (const rows of columns.values()) rows.sort((a, b) => a - b);
   // Whether a range (no ref: a pivot source over the whole sheet) holds a
-  // changed cell: in the refreshed range, or a formula reached, through
-  // whichever is shorter.
+  // changed cell: in the refreshed range, or a formula reached, looked up
+  // column by column. Once the budget is spent, ranges count as untouched
+  // and the result is partial.
+  let spent = k < queue.length;
   const touched = ({ sheetId: id, ref }) => {
     if (ref === "#REF!") return false;
     const r = ref === undefined ? WHOLE : parseRange(ref),
-      keys = changed.get(id);
+      columns = changed.get(id);
     if (id === sheetId && meets(r, region)) return true;
-    if (!keys) return false;
-    if ((r.bottom - r.top + 1) * (r.right - r.left + 1) < keys.size) {
-      for (let row = r.top; row <= r.bottom; row++)
-        for (let column = r.left; column <= r.right; column++)
-          if (keys.has(row * KEY + column)) return true;
+    if (!columns || spent) return false;
+    const holds = (rows) => {
+      if (!rows) return false;
+      let lo = 0,
+        hi = rows.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (rows[mid] < r.top) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo < rows.length && rows[lo] <= r.bottom;
+    };
+    const width = r.right - r.left + 1;
+    work += Math.min(width, columns.size);
+    if (work > limit) spent = true;
+    if (width < columns.size) {
+      for (let column = r.left; column <= r.right; column++)
+        if (holds(columns.get(column))) return true;
       return false;
     }
-    for (const key of keys) {
-      const row = Math.floor(key / KEY),
-        column = key % KEY;
-      if (
-        row >= r.top &&
-        row <= r.bottom &&
-        column >= r.left &&
-        column <= r.right
-      )
-        return true;
-    }
+    for (const [column, rows] of columns)
+      if (column >= r.left && column <= r.right && holds(rows)) return true;
     return false;
   };
+  const pivots = (book.pivots ?? []).filter((p) => touched(p.source)),
+    charts = (book.charts ?? []).filter((c) => touched(c.source)),
+    names = (book.names ?? []).filter(touched).map((n) => n.name);
   return {
     formulas: [...sheets.values()],
-    pivots: (book.pivots ?? []).filter((p) => touched(p.source)),
-    charts: (book.charts ?? []).filter((c) => touched(c.source)),
-    names: (book.names ?? []).filter(touched).map((n) => n.name),
+    pivots,
+    charts,
+    names,
     conditional: (book.conditionalFormats ?? []).filter(
       (rule) => rule.sheetId === sheetId,
     ).length,
@@ -328,6 +371,6 @@ export function dependents(
         rule.sheetId === sheetId ||
         (rule.source.kind === "range" && rule.source.sheetId === sheetId),
     ).length,
-    partial: k < queue.length,
+    partial: spent,
   };
 }

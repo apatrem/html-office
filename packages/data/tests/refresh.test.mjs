@@ -376,15 +376,16 @@ test("formula references: ranges, sheets, names and functions", () => {
   const r = references(
     "=SUM('It''s'!A1:B2,Plan!$C:$C,3:4)+Sales*XFE1+SUM(\"A1\")+Plan!Tax+LOG10(2)",
   );
-  assert.deepEqual(r.refs, [
+  // XFE1 is past the last column: a name. Plan!Tax would be sheet-scoped.
+  assert.deepEqual(r.operands, [
     { sheet: "it's", rect: { top: 1, left: 1, bottom: 2, right: 2 } },
     { sheet: "plan", rect: { top: 1, left: 3, bottom: 1048576, right: 3 } },
     { sheet: null, rect: { top: 3, left: 1, bottom: 4, right: 16384 } },
+    { name: "sales" },
+    { name: "xfe1" },
   ]);
-  // XFE1 is past the last column: a name. Plan!Tax would be sheet-scoped.
-  assert.deepEqual(r.names, ["sales", "xfe1"]);
   assert.equal(r.indirect, false);
-  assert.deepEqual(references("=B5:A1").refs[0].rect, {
+  assert.deepEqual(references("=B5:A1").operands[0].rect, {
     top: 1,
     left: 1,
     bottom: 5,
@@ -392,6 +393,82 @@ test("formula references: ranges, sheets, names and functions", () => {
   });
   assert.equal(references('=INDIRECT("A"&B1)').indirect, true);
   assert.equal(references("=SUM(OFFSET(A1,1,0))").offset, true);
+  // Codex review of #95: prefixed and spaced calls, range operators.
+  assert.equal(references('=_xlfn.INDIRECT("Raw!A2")').indirect, true);
+  assert.equal(references(`=OFFSET${" ".repeat(40)}(A1,1,0)`).offset, true);
+  assert.deepEqual(
+    references("=SUM(Start:End)+SUM(Raw!A1 : Raw!A3)").operands,
+    [
+      { name: "start" },
+      { name: "end", join: true },
+      { sheet: "raw", rect: { top: 1, left: 1, bottom: 1, right: 1 } },
+      {
+        sheet: "raw",
+        rect: { top: 3, left: 1, bottom: 3, right: 1 },
+        join: true,
+      },
+    ],
+  );
+  assert.deepEqual(references("=SUM(A1:INDEX(B:B,5))").operands, [
+    { sheet: null, rect: { top: 1, left: 1, bottom: 1, right: 1 }, open: true },
+    { sheet: null, rect: { top: 1, left: 2, bottom: 1048576, right: 2 } },
+  ]);
+});
+
+// Codex review of #95.
+test("range operators read every cell between their operands", () => {
+  const book = {
+    sheets: [
+      { id: "raw", name: "Raw", cells: {} },
+      {
+        id: "calc",
+        name: "Calc",
+        cells: {
+          A1: { formula: "=SUM(Start:End)" },
+          A2: { formula: "=SUM(Raw!A1 : Raw!A3)" },
+          A3: { formula: "=SUM(Raw!A1:INDEX(Raw!A:A,1))" },
+          A4: { formula: '=_xlfn.INDIRECT("Raw!A2")' },
+          A5: { formula: "=_xlfn.OFFSET(Raw!A3,-1,0)" },
+          A6: { formula: "=SUM(Raw!A1,Raw!A3)" },
+          B1: { formula: "=A1" },
+        },
+      },
+    ],
+    names: [
+      { name: "Start", sheetId: "raw", ref: "A1" },
+      { name: "End", sheetId: "raw", ref: "A3" },
+    ],
+    charts: [{ source: { sheetId: "calc", ref: "B1:B2" } }],
+  };
+  // Only A2 changes: A6 reads A1 and A3 alone.
+  const d = dependents(book, "raw", ["A2"]);
+  assert.deepEqual(d.formulas, [
+    { sheetName: "Calc", count: 6, direct: 5, through: [] },
+  ]);
+  assert.equal(d.charts.length, 1);
+});
+
+test("named ranges over many changed cells are checked within the budget", () => {
+  const cells = {};
+  for (let r = 1; r <= 20000; r++) cells[`A${r}`] = { formula: "=Raw!A1" };
+  const book = {
+    sheets: [
+      { id: "raw", name: "Raw", cells: {} },
+      { id: "calc", name: "Calc", cells },
+    ],
+    names: Array.from({ length: 2000 }, (_, i) => ({
+      name: `N${i}`,
+      sheetId: "calc",
+      ref: i ? "B1:B20000" : "A20000:B20000",
+    })),
+  };
+  const d = dependents(book, "raw", ["A1"]);
+  assert.deepEqual(d.names, ["N0"]);
+  assert.equal(d.partial, false);
+  // Past the budget, the remaining ranges are not checked, and it says so.
+  const short = dependents(book, "raw", ["A1"], undefined, 20000);
+  assert.equal(short.formulas[0].count, 20000);
+  assert.equal(short.partial, true);
 });
 
 // T21: the P&L and summary follow the formulas that read the import.
