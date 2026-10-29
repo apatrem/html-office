@@ -5,11 +5,8 @@
 // source is refreshed from one worksheet of the replacement workbook.
 import { readCSV, ENCODINGS, DELIMITERS, CSV_LIMITS } from "../model/csv.mjs";
 import { columnFingerprints, fileDigest } from "../model/source-digest.mjs";
-import {
-  planRefresh,
-  dependents,
-  overwrittenEdits,
-} from "../model/refresh.mjs";
+import { planRefresh, overwrittenEdits } from "../model/refresh.mjs";
+import { dependents, formulaGraph } from "../model/dependents.mjs";
 import {
   mapSheet,
   mapNames,
@@ -23,6 +20,11 @@ import { readXLSX } from "./xlsx-reader.mjs";
 
 const plural = (n, one, many) =>
   `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+// "A", "A and B", "A, B and C".
+const listed = (items) =>
+  items.length < 2
+    ? items.join("")
+    : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 function select(h, id, choices, value) {
   const s = h("select", { id });
   for (const [v, label] of choices) {
@@ -205,7 +207,9 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
     fresh = null,
     workbook = null,
     // The refresh being committed, while Refresh runs.
-    committing = null;
+    committing = null,
+    // The workbook's formulas and what they read, scanned on the first draw.
+    graph = null;
   // Cancel, Escape or any other close during the commit stops it.
   dialog.addEventListener("close", () => {
     if (!committing) return;
@@ -337,21 +341,47 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         ),
       );
     columns.replaceChildren(table());
-    const d = dependents(book, source.sheetId);
-    for (const f of d.formulas)
+    graph ??= formulaGraph(book);
+    const d = dependents(book, source.sheetId, [source.ref, plan.ref], graph);
+    for (const f of d.formulas) {
+      const formulas = `${plural(f.count, "formula", "formulas")} on ${f.sheetName}`,
+        others = f.count - f.direct,
+        follow = (n) => (n === 1 ? "follows" : "follow"),
+        sheets =
+          f.through.length > 3
+            ? `${f.through.slice(0, 2).join(", ")} and ${f.through.length - 2} other sheets`
+            : listed(f.through);
       impact.append(
         h(
           "li",
           {},
-          `${plural(f.count, "formula", "formulas")} on ${f.sheetName} will recalculate.`,
+          !others
+            ? `${formulas} will recalculate.`
+            : !f.direct
+              ? `${formulas} will recalculate, following ${sheets}.`
+              : `${formulas} will recalculate: ${f.direct.toLocaleString("en-US")} ${f.direct === 1 ? "reads" : "read"} this sheet, ${others.toLocaleString("en-US")} ${follow(others)} ${f.through.length ? sheets : "them"}.`,
         ),
       );
+    }
+    if (d.partial)
+      impact.append(
+        h(
+          "li",
+          {},
+          "More formulas may follow: the count stops there on a workbook this large.",
+        ),
+      );
+    // Read through the refreshed sheet, or only through formulas.
+    const reads = (items) =>
+      items.every((item) => item.source.sheetId === source.sheetId)
+        ? "this sheet"
+        : "changed cells";
     if (d.pivots.length)
       impact.append(
         h(
           "li",
           {},
-          `${plural(d.pivots.length, "pivot table reads", "pivot tables read")} this sheet and will be out of date until refreshed (Data › Refresh all pivot tables).`,
+          `${plural(d.pivots.length, "pivot table reads", "pivot tables read")} ${reads(d.pivots)} and will be out of date until refreshed (Data › Refresh all pivot tables).`,
         ),
       );
     if (d.charts.length)
@@ -359,7 +389,15 @@ export async function openRefresh({ file, book, source, deps, onRefresh }) {
         h(
           "li",
           {},
-          `${plural(d.charts.length, "chart reads", "charts read")} this sheet and will be redrawn.`,
+          `${plural(d.charts.length, "chart reads", "charts read")} ${reads(d.charts)} and will be redrawn.`,
+        ),
+      );
+    if (d.names.length)
+      impact.append(
+        h(
+          "li",
+          {},
+          `${plural(d.names.length, "named range covers", "named ranges cover")} changed cells: ${listed(d.names.slice(0, 5))}${d.names.length > 5 ? "…" : ""}.`,
         ),
       );
     if (d.conditional)

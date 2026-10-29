@@ -264,10 +264,18 @@ try {
     await page.locator("#refresh-summary").textContent(),
     /Rows: 97 → 103\./,
   );
-  // Direct dependents only: the P&L and Summary follow through them.
-  const impact = await page.locator("#refresh-impact").textContent();
-  assert.match(impact, /12 formulas on Monthly actuals will recalculate/);
-  assert.match(impact, /1 pivot table reads this sheet/);
+  // The formulas reading the records, and every one that follows them.
+  const impact = await page.locator("#refresh-impact li").allTextContents();
+  assert.deepEqual(impact.slice(0, 8), [
+    "12 formulas on Monthly actuals will recalculate.",
+    "43 formulas on Formula analysis will recalculate: 10 read this sheet, 33 follow P&L, Summary and Cash flow.",
+    "225 formulas on P&L will recalculate, following Monthly actuals.",
+    "24 formulas on Summary will recalculate, following P&L and Cash flow.",
+    "57 formulas on Chart data will recalculate, following P&L.",
+    "100 formulas on Cash flow will recalculate, following P&L.",
+    "1 pivot table reads this sheet and will be out of date until refreshed (Data › Refresh all pivot tables).",
+    "3 charts read changed cells and will be redrawn.",
+  ]);
   await page.locator("#refresh-apply").click();
   await waitStatus(page, /^Refreshed "Rentals" from rentals-2025-v2\.csv/);
   await openMenu(page, "Data");
