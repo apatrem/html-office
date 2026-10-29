@@ -1,3 +1,89 @@
+diff --git a/base/src/formatter/format.rs b/base/src/formatter/format.rs
+index 9da3a79..1fc3895 100644
+--- a/base/src/formatter/format.rs
++++ b/base/src/formatter/format.rs
+@@ -42,6 +42,14 @@ fn get_fract_part(value: f64, precision: i32, int_len: usize) -> Vec<char> {
+     b[2..last_non_zero].to_vec()
+ }
+ 
++/// Rounds to `decimals` places after the decimal point like Excel: the value is
++/// read at 15 significant digits and halves go away from zero (2.5 => 3, -2.5 => -3).
++fn round_half_away_from_zero(value: f64, decimals: i32) -> f64 {
++    let value = to_precision(value, 15);
++    let scale = 10.0_f64.powi(decimals);
++    to_precision(value * scale, 15).round() / scale
++}
++
+ /// Return true if we need to add a separator in position digit_index
+ /// It normally happens if if digit_index -1 is 3, 6, 9,... digit_index ≡ 1 mod 3
+ fn use_group_separator(use_thousands: bool, digit_index: i32, group_sizes: &str) -> bool {
+@@ -438,10 +446,13 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
+             let tokens = &p.tokens;
+             value = value * 100.0_f64.powi(p.percent) / (1000.0_f64.powi(p.comma));
+             // p.precision is the number of significant digits _after_ the decimal point
+-            value = to_precision(
+-                value,
+-                (p.precision as usize) + format!("{}", value.abs().floor()).len(),
+-            );
++            let int_len = format!("{}", value.abs().floor()).len();
++            if p.is_scientific || int_len + (p.precision as usize) >= 15 {
++                // Excel's 15 significant digits all fit: nothing is rounded away
++                value = to_precision(value, (p.precision as usize) + int_len);
++            } else {
++                value = round_half_away_from_zero(value, p.precision);
++            }
+             let mut value_abs = value.abs();
+             let mut exponent_part: Vec<char> = vec![];
+             let mut exponent_is_negative = value_abs < 10.0;
+@@ -480,8 +491,9 @@ pub fn format_number(value_original: f64, format: &str, locale: &Locale) -> Form
+             let group_sizes = locale.numbers.decimal_formats.standard.to_owned();
+             let group_separator = symbols.group.to_owned();
+             let decimal_separator = symbols.decimal.to_owned();
+-            // There probably are better ways to check if a number at a given precision is negative :/
+-            let is_negative = value < -(10.0_f64.powf(-(p.precision as f64)));
++            // A negative value shows its sign unless every displayed digit is zero
++            let is_negative =
++                value < 0.0 && (value_abs * 10.0_f64.powi(p.precision)).round() >= 1.0;
+             let mut needs_period = false;
+ 
+             for token in tokens {
+diff --git a/base/src/formatter/test/test_general.rs b/base/src/formatter/test/test_general.rs
+index 8cf991f..78b9c9c 100644
+--- a/base/src/formatter/test/test_general.rs
++++ b/base/src/formatter/test/test_general.rs
+@@ -243,6 +243,32 @@ fn test_percent_correct_rounding() {
+     assert_eq!(format_number(-0.134499, "0.0%", locale).text, "-13.4%");
+ }
+ 
++#[test]
++fn test_halves_round_away_from_zero() {
++    let locale = get_default_locale();
++    // Exact binary halves, as Excel rounds them
++    assert_eq!(format_number(2.5, "0", locale).text, "3");
++    assert_eq!(format_number(-2.5, "0", locale).text, "-3");
++    assert_eq!(format_number(-0.5, "0", locale).text, "-1");
++    assert_eq!(format_number(-2.5, "0;(0)", locale).text, "(3)");
++    assert_eq!(format_number(0.125, "0%", locale).text, "13%");
++    assert_eq!(format_number(-0.125, "0%", locale).text, "-13%");
++    assert_eq!(format_number(1234.5, "#,##0", locale).text, "1,235");
++    assert_eq!(format_number(-1234.5, "#,##0", locale).text, "-1,235");
++    assert_eq!(format_number(0.125, "0.00", locale).text, "0.13");
++    assert_eq!(format_number(-0.125, "0.00", locale).text, "-0.13");
++    // Halves at 15 significant digits
++    assert_eq!(format_number(2.675, "0.00", locale).text, "2.68");
++    assert_eq!(format_number(1.005, "0.00", locale).text, "1.01");
++    // A rounded digit carries into the integer part
++    assert_eq!(format_number(0.999, "0.00", locale).text, "1.00");
++    assert_eq!(format_number(9.995, "0.00", locale).text, "10.00");
++    // Whole negative values keep their sign
++    assert_eq!(format_number(-1.0, "0", locale).text, "-1");
++    assert_eq!(format_number(-0.005, "0.00", locale).text, "-0.01");
++    assert_eq!(format_number(-0.001, "0.00", locale).text, "0.00");
++}
++
+ #[test]
+ fn test_scientific() {
+     let locale = get_default_locale();
 diff --git a/base/src/functions/logical/and_or_xor_not.rs b/base/src/functions/logical/and_or_xor_not.rs
 index 20edaac..546b3ca 100644
 --- a/base/src/functions/logical/and_or_xor_not.rs
@@ -337,6 +423,40 @@ index 7a42f32..7cef700 100644
 +    for cell in ["H1", "H2", "H3"] { assert_eq!(model._get_text(cell), "ten", "{cell}"); }
 +    assert_eq!(model._get_text("H4"), "missing");
 +}
+diff --git a/base/src/test/text_functions/fn_text_rounding.rs b/base/src/test/text_functions/fn_text_rounding.rs
+new file mode 100644
+index 0000000..9c94354
+--- /dev/null
++++ b/base/src/test/text_functions/fn_text_rounding.rs
+@@ -0,0 +1,28 @@
++#![allow(clippy::unwrap_used)]
++
++use crate::test::util::new_empty_model;
++
++#[test]
++fn halves_round_away_from_zero() {
++    let mut model = new_empty_model();
++    model._set("A1", "=TEXT(2.5,\"0\")");
++    model._set("A2", "=TEXT(-2.5,\"0\")");
++    model._set("A3", "=TEXT(0.125,\"0%\")");
++    model._set("A4", "=TEXT(-0.125,\"0%\")");
++    model._set("A5", "=TEXT(1234.5,\"#,##0\")");
++    model._set("A6", "=TEXT(-1234.5,\"#,##0\")");
++    model._set("A7", "=TEXT(0.125,\"0.00\")");
++    model._set("A8", "=TEXT(-0.125,\"0.00\")");
++    model._set("A9", "=TEXT(ROUND(2.5,0),\"0\")");
++    model.evaluate();
++
++    assert_eq!(model._get_text("A1"), *"3");
++    assert_eq!(model._get_text("A2"), *"-3");
++    assert_eq!(model._get_text("A3"), *"13%");
++    assert_eq!(model._get_text("A4"), *"-13%");
++    assert_eq!(model._get_text("A5"), *"1,235");
++    assert_eq!(model._get_text("A6"), *"-1,235");
++    assert_eq!(model._get_text("A7"), *"0.13");
++    assert_eq!(model._get_text("A8"), *"-0.13");
++    assert_eq!(model._get_text("A9"), *"3");
++}
 diff --git a/base/src/test/text_functions/fn_textjoin.rs b/base/src/test/text_functions/fn_textjoin.rs
 index 3d2a403..4fc96bc 100644
 --- a/base/src/test/text_functions/fn_textjoin.rs
@@ -365,3 +485,15 @@ index 3d2a403..4fc96bc 100644
 +    model.evaluate();
 +    for (i, (_, expected)) in cases.iter().enumerate() { assert_eq!(model._get_text(&format!("H{}", i + 1)), *expected); }
 +}
+diff --git a/base/src/test/text_functions/mod.rs b/base/src/test/text_functions/mod.rs
+index 65b7c97..10f091c 100644
+--- a/base/src/test/text_functions/mod.rs
++++ b/base/src/test/text_functions/mod.rs
+@@ -7,6 +7,7 @@ mod fn_clean;
+ mod fn_left_right_mid_arrays;
+ mod fn_regex;
+ mod fn_text_arrays;
++mod fn_text_rounding;
+ mod fn_textbefore;
+ mod fn_textjoin;
+ mod fn_textsplit;

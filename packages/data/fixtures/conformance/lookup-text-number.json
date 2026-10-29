@@ -709,6 +709,127 @@
       }
     },
     {
+      "id": "text-tie-integer",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(2.5,\"0\")",
+      "expected": {
+        "type": "text",
+        "value": "3"
+      }
+    },
+    {
+      "id": "text-tie-integer-negative",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-2.5,\"0\")",
+      "expected": {
+        "type": "text",
+        "value": "-3"
+      }
+    },
+    {
+      "id": "text-tie-percent",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(0.125,\"0%\")",
+      "expected": {
+        "type": "text",
+        "value": "13%"
+      }
+    },
+    {
+      "id": "text-tie-percent-negative",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-0.125,\"0%\")",
+      "expected": {
+        "type": "text",
+        "value": "-13%"
+      }
+    },
+    {
+      "id": "text-tie-thousands",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(1234.5,\"#,##0\")",
+      "expected": {
+        "type": "text",
+        "value": "1,235"
+      }
+    },
+    {
+      "id": "text-tie-thousands-negative",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-1234.5,\"#,##0\")",
+      "expected": {
+        "type": "text",
+        "value": "-1,235"
+      }
+    },
+    {
+      "id": "text-tie-decimal",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(0.125,\"0.00\")",
+      "expected": {
+        "type": "text",
+        "value": "0.13"
+      }
+    },
+    {
+      "id": "text-tie-decimal-negative",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-0.125,\"0.00\")",
+      "expected": {
+        "type": "text",
+        "value": "-0.13"
+      }
+    },
+    {
+      "id": "text-tie-decimal-15-digits",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-2.675,\"0.00\")",
+      "expected": {
+        "type": "text",
+        "value": "-2.68"
+      }
+    },
+    {
+      "id": "text-tie-carry",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(9.995,\"0.00\")",
+      "expected": {
+        "type": "text",
+        "value": "10.00"
+      }
+    },
+    {
+      "id": "text-tie-negative-section",
+      "functions": [
+        "TEXT"
+      ],
+      "formula": "=TEXT(-2.5,\"0;(0)\")",
+      "expected": {
+        "type": "text",
+        "value": "(3)"
+      }
+    },
+    {
       "id": "value-grouped-number",
       "functions": [
         "VALUE"
