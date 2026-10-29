@@ -16,6 +16,8 @@ export default {
       series: d.series.map((s, j) => ({
         type: 'bar', name: s.name, barMaxWidth: 28, barGap: '15%',
         label: { show: true, position: 'right', color: t.ink, fontWeight: 700, fontSize: 13, formatter: p => fmt(p.value, d) },
+        // The series colour is the legend swatch; each bar sets its own.
+        itemStyle: { color: seriesColor(t, j) },
         data: s.values.map((v, i) => ({
           value: v,
           itemStyle: { color: !multi && d.highlight !== undefined ? (i === d.highlight ? t.acc : t.lig) : seriesColor(t, j) }

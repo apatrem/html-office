@@ -21,6 +21,8 @@ Table adapters are lossless: `fromRows(toRows(d))` returns every per-item field,
 | `bubble` | Name, X, Y, Size |
 | `gantt` | Task, Start, End, Group, Highlight (y/n) |
 
+Category axes show every label, wrapped to its share of the axis, up to 12 categories; longer series let ECharts thin the labels to the axis's real length (every second, third… label). Every series carries its colour at series level, which the legend swatch takes, even where bars set their own (column and bar highlights).
+
 ECharts loads from the CDN with SRI only when a chart must be drawn or edited. Offline builds embed the same verified bytes: Slides as an executable `script#echarts`, Data as inert text (`script#echarts-source`) run only when a chart is first drawn or edited. Saved SVG previews display and print without it.
 
 Moving the module out of `src/` left the Slides engine byte-identical (first X03 commit). `src/engine/model.js` still re-exports the ECharts constants so the bundle keeps its module order.
