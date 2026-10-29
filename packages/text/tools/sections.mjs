@@ -218,8 +218,9 @@ const main = () => {
     return false; // standard input, or no script at all
   }
 };
-if (main()) {
-  const args = process.argv.slice(2);
+// The command line, also run by document.mjs (T18). Returns the exit code.
+export async function run(argv) {
+  const args = [...argv];
   const json = args.includes("--json");
   const at = args.indexOf("--output");
   const target = at >= 0 ? args.splice(at, 2)[1] : null;
@@ -229,7 +230,7 @@ if (main()) {
     { outline: path, show: path && id, replace: path && id && input }[command];
   if (!ok) {
     console.error(usage);
-    process.exit(2);
+    return 2;
   }
   // Bytes that are not UTF-8 would be rewritten as U+FFFD, outside the section too: refused.
   const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
@@ -294,6 +295,9 @@ if (main()) {
         `  ${typeof p === "string" ? p : `${p.code}: ${p.message}`}`,
       );
     console.error("Nothing was written.");
-    process.exit(1);
+    return 1;
   }
+  return 0;
 }
+
+if (main()) process.exitCode = await run(process.argv.slice(2));

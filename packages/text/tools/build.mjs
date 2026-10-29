@@ -5,7 +5,6 @@
 // draw with no network; it is reported apart from the application code.
 // Default output: dist/text/<name>.html at the repository root. The document must be valid and
 // canonical (check.mjs, pack.mjs). Reports embedded application code, content, assets and total bytes.
-import { build, transform } from "esbuild";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +28,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, "..");
 const repo = resolve(pkg, "../..");
 
-// Stylesheets imported by the runtime are embedded as minified text.
-const cssText = {
+// Stylesheets imported by the runtime are embedded as minified text. esbuild is loaded only
+// to build: the document tools reach this module without it (T18).
+const cssText = (transform) => ({
   name: "css-text",
   setup: (b) =>
     b.onLoad({ filter: /\.css$/ }, async (a) => ({
@@ -42,7 +42,7 @@ const cssText = {
         })
       ).code,
     })),
-};
+});
 
 // commonmark's HTML patterns hold "<!--", which an inline script cannot carry. esbuild writes it
 // only inside strings and regular expressions, where \x3c is the same character.
@@ -72,12 +72,13 @@ export async function buildEngine() {
   const version = JSON.parse(
     await readFile(join(pkg, "package.json"), "utf8"),
   ).version;
+  const { build, transform } = await import("esbuild");
   const result = await build({
     entryPoints: [join(pkg, "runtime/main.mjs")],
     bundle: true,
     minify: true,
     format: "iife",
-    plugins: [cssText],
+    plugins: [cssText(transform)],
     target: ["chrome110", "edge110", "safari16", "firefox115"],
     write: false,
     legalComments: "none",
@@ -118,10 +119,22 @@ export async function embeddedECharts() {
     code,
     JSON.parse(await readFile(join(dir, "package.json"), "utf8")).version,
   );
-  const notices = formatNotices(
-    groupNotices(packageEntries([packageAt(dir, [file])])),
+  return offlineECharts(code, echartsNotices());
+}
+
+// The licence notices of the pinned ECharts (the skill ships them beside the library).
+export function echartsNotices() {
+  const dir = join(repo, "node_modules/echarts");
+  return formatNotices(
+    groupNotices(
+      packageEntries([packageAt(dir, [join(dir, "dist/echarts.min.js")])]),
+    ),
     { title: "Licence notices for ECharts, embedded for offline use." },
   );
+}
+
+// script#echarts's text: the notices, then the verified library.
+export function offlineECharts(code, notices) {
   if (/\*\/|\r/.test(notices))
     throw new Error('Notices cannot contain "*/" or a carriage return');
   return inlineScript(`/*!\n${notices}*/\n${code.toString("utf8")}`, "echarts");
@@ -129,25 +142,32 @@ export async function embeddedECharts() {
 
 const bytes = (s) => Buffer.byteLength(s, "utf8");
 
-// Byte counts (UTF-8) of a built file by zone. Application code is everything except content and assets.
+// Byte counts (UTF-8) of a built file by zone. Application code is everything except content,
+// assets, the embedded guide (document content written by the tools, T18) and offline ECharts.
 export function measureFile(html) {
   const file = parseFile(html);
-  const body = file.html.children.find((n) => n.name === "body");
+  const [head, body] = ["head", "body"].map((name) =>
+    file.html.children.find((n) => n.name === name),
+  );
   const zone = (id) =>
-    body.children.find((n) => n.type === "element" && attr(n, "id") === id);
+    [...head.children, ...body.children].find(
+      (n) => n.type === "element" && attr(n, "id") === id,
+    );
   // parse5 offsets count UTF-16 code units: slice, then count UTF-8 bytes.
   const size = (node) =>
     node ? bytes(html.slice(node.loc.offset, node.loc.end)) : 0;
   const total = bytes(html),
     content = size(findArticle(file)),
     assets = size(zone("assets")),
+    guide = size(zone("html-text-guide")),
     echarts = size(zone("echarts"));
   return {
     total,
-    applicationCode: total - content - assets - echarts,
+    applicationCode: total - content - assets - guide - echarts,
     engine: size(zone("engine")),
     content,
     assets,
+    guide,
     echarts,
     ceiling: STANDARD_CODE_CEILING,
   };

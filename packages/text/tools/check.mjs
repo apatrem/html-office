@@ -219,14 +219,15 @@ export function formatReport(report) {
   return lines.join("\n");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const args = process.argv.slice(2);
+// The command line, also run by document.mjs (T18). Returns the exit code.
+export async function run(argv) {
+  const args = [...argv];
   const at = args.indexOf("--section");
   const id = at >= 0 ? args.splice(at, 2)[1] : null;
   const file = args.find((a) => !a.startsWith("--"));
   if (!file || (at >= 0 && !id)) {
     console.error("usage: check.mjs <document.html> [--section <id>] [--json]");
-    process.exit(2);
+    return 2;
   }
   const whole = await checkFile(file);
   const report = id ? sectionReport(whole, id) : whole;
@@ -234,7 +235,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.error(
       `No section with the heading ID "${id}": sections.mjs outline lists them`,
     );
-    process.exit(1);
+    return 1;
   }
   const { blocks, sections, ...findings } = report;
   console.log(
@@ -242,5 +243,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       ? JSON.stringify(findings, null, 2)
       : formatReport(report),
   );
-  process.exit(report.ok ? 0 : 1);
+  return report.ok ? 0 : 1;
 }
+
+if (import.meta.url === `file://${process.argv[1]}`)
+  process.exitCode = await run(process.argv.slice(2));

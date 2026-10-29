@@ -365,6 +365,8 @@ export class Mapper {
   // (another document's heading) becomes its label's text.
   // images: whether a data: image among the pasted blocks becomes a placeholder figure (T12b),
   // listed in `images` as {node, type, base64, payload, bytes, alt} for the runtime to resolve.
+  // threads: the comment threads whose anchors are kept (the document tools' section rewrite,
+  // T18); the editor never pastes anchors.
   constructor(
     root,
     {
@@ -372,9 +374,11 @@ export class Mapper {
       targets = new Set(),
       maxCells = Infinity,
       images = false,
+      threads = null,
     } = {},
   ) {
     this.root = root;
+    this.threads = threads;
     this.images = images ? [] : null;
     this.used = used;
     this.targets = targets;
@@ -510,6 +514,9 @@ export class Mapper {
     if (tag === "sub") set(M.sub, true);
     if (["code", "kbd", "samp", "tt"].includes(tag)) set(M.code, true);
     if (tag === "mark" && !has(node, "comment")) set(M.highlight, true);
+    const ref = tag === "mark" && node.getAttribute("data-ref");
+    if (ref && has(node, "comment") && this.threads?.has(ref))
+      marks = M.comment.create({ ref }).addToSet(marks);
     const bold = weight(css.get("font-weight"));
     if (bold !== undefined) set(M.strong, bold);
     const italic = slant(css.get("font-style"));

@@ -300,6 +300,22 @@ export function mountShell(
           label: "Keyboard shortcuts",
           onSelect: () => shortcuts(document.activeElement),
         },
+        // The embedded guide (T18), shown as text: it is inert data in template#html-text-guide.
+        {
+          label: "Format guide",
+          disabled: !document.getElementById("html-text-guide"),
+          onSelect: () =>
+            modal(
+              "Format guide",
+              h(
+                "pre",
+                { class: "tx-guide" },
+                document.getElementById("html-text-guide").content.textContent,
+              ),
+              [],
+              { opener: document.activeElement },
+            ),
+        },
       ],
     },
   ];

@@ -22,6 +22,8 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form and lists changed lines |
 | `tools/markdown.mjs` | `node tools/markdown.mjs <document.html> [<output.md>]`: the Markdown export, as the editor writes it (T15) |
 | `tools/sections.mjs` | Section tooling (T16): `outline`, `show <id>` and `replace <id> <file>` (FORMAT.md › Section tools); `model/sections.mjs` finds the sections in a source |
+| `tools/document.mjs` | The html-text skill's command line (T18): `new`, `pack`, `add-image`, `convert` and `show --markdown` (FORMAT.md › Document tools), with `outline`, `show`, `replace`, `check` and `markdown`. `convert.mjs` (Markdown with block placeholders to the subset), `section-markdown.mjs` (a section as editable Markdown), `previews.mjs` (chart previews drawn in Node), `guide.mjs` (the embedded guide), `node-dom.mjs` (the small DOM they need in Node) |
+| `examples/` | The skill's examples, also test fixtures: `valid/` (a report in Markdown, its payload map, a section rewrite), `invalid/` (one Markdown file per refusal, `expected.json`) |
 | `tools/measure.mjs` | Code budget by component (`--write` updates `bench/code-size.json`) |
 | `fixtures/valid/` | One fixture per construct; `example.html` is a compact complete document |
 | `fixtures/invalid/` | One fixture per rejection; `expected.json` lists each error and its location |
