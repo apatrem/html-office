@@ -8,7 +8,7 @@ Revenue grew faster than costs for the first time since 2022, and operating prof
 
 Total revenue was EUR 9.6 million, up EUR 1.2 million or 14.3% on 2025. Price rises explain about a third of the growth: the shops raised prices by an average of 3% in March and 2% in September, and wholesale prices were indexed on flour costs in January as the contracts allow. The rest is volume, mostly from the two new wholesale contracts and from subscriptions.
 
-The quarterly pattern in [[xref: fig-revenue]] is familiar: a quiet first quarter, then steady growth to the December peak. What changed is the size of the step from the third to the fourth quarter, smaller than in earlier years because wholesale, which has little seasonality, now makes up a larger part of the total.
+The quarterly pattern in [[xref: fig-revenue]] is familiar: a quiet first quarter, then steady growth to the December peak. Every quarter of 2026 was between 10% and 17% above the same quarter of 2025, with the largest gap in the fourth quarter, when the café contract and the subscriptions were at full strength.
 
 Revenue per worker-member rose from EUR 80,800 to EUR 81,400. This is a modest increase, since much of the new business is wholesale, which needs more hours per euro of revenue than the shops. It is still the best figure in the co-operative's history.
 

@@ -20,7 +20,7 @@ The investment is EUR 780,000: EUR 420,000 for the ovens, mixers and cooling, EU
 
 [[block: table | intent: "2027 budget by quarter" | id: tab-budget]]
 
-The budget in [[xref: tab-budget]] assumes revenue of EUR 10.7 million, up 11.5%. Shops grow 5% (mostly prices), wholesale 15% and online 20%. Operating costs rise 11.8% to EUR 10.0 million, including EUR 120,000 of opening costs for Riverside, a 3.5% pay rise in July, and flour prices 5% above the 2026 average.
+The budget in [[xref: tab-budget]] assumes revenue of EUR 10.7 million, up 11.5%. Shops grow 5% (mostly prices), wholesale 15% and online 20%, and the Riverside shop adds about EUR 170,000 from September. Operating costs rise 11.8% to EUR 10.0 million, including EUR 120,000 of opening costs for Riverside, a 3.5% pay rise in July, and flour prices 5% above the 2026 average.
 
 [[block: chart | intent: "From 2026 operating profit to the 2027 plan" | id: fig-bridge]]
 
@@ -44,7 +44,7 @@ The budget includes a 3.5% increase in the base rate from 1 July, in line with e
 
 ## Milestones and governance {#sec-milestones}
 
-The board will report progress to the members each quarter, with the figures by shop and by channel, using the same tables as this review. The main milestones are:
+The board will report progress to the members each quarter, with the figures by shop and by channel, using the same tables as this review, with a new table by shop and bakehouse. The main milestones are:
 
 - January: second salesperson joins; Westgate lunch test starts.
 - March: Riverside building works start; the members receive the first-quarter report in April.

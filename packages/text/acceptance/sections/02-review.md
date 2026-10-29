@@ -37,7 +37,7 @@ Energy remains the most volatile cost. Gas still heats two of the three bakehous
 
 ## People {#sec-people}
 
-The co-operative ended the year with 118 worker-members and 23 employees on trial periods or fixed-term contracts, up from 104 and 19 a year earlier. Thirty-one people joined during the year and seventeen left, a turnover of 15%, lower than the 22% of 2025 and well below the average for the trade in the region.[^turnover]
+The co-operative ended the year with 118 worker-members and 23 employees on trial periods or fixed-term contracts, up from 104 and 19 a year earlier. Thirty-five people joined during the year and seventeen left, a turnover of 13%, lower than the 22% of 2025 and well below the average for the trade in the region.[^turnover]
 
 Every baker and shop worker is paid at least 8% above the regional living wage, as the co-operative's rules require. The general meeting in June approved a 4.5% increase in the base rate from 1 July, slightly above inflation. Night work at the Docks is paid a 25% premium.
 

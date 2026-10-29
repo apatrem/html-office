@@ -12,6 +12,6 @@ Two open evenings, on 14 and 28 October, discussed a draft of this plan. About s
 
 **What happens to Westgate's staff if the shop closes?** No worker-member will lose their job. If the members decide to close or move the shop, its six colleagues will be offered places at Riverside, Mill Lane or Hillcrest, as the co-operative's rules require.
 
-**Can members see the figures by shop during the year?** Yes. From 2027 the quarterly report will show revenue, costs and profit for each shop and bakehouse, in the same tables as this review ([[xref: tab-revenue]], [[xref: tab-costs]]).
+**Can members see the figures by shop during the year?** Yes. From 2027 the quarterly report will add revenue, costs and profit for each shop and bakehouse to the tables by channel and by cost line used in this review ([[xref: tab-revenue]], [[xref: tab-costs]]).
 
 **Could the subscription boxes include products from other local producers?** A pilot with a cheese maker and a fruit farm will start in the spring for subscribers who ask for it. It will be reported separately so that its margin is clear.

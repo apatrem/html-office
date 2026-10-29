@@ -13,6 +13,7 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import * as playwright from "playwright";
 import { generate, NAME, HEADER, REVIEW } from "../acceptance/generate.mjs";
 import { checkSource } from "../tools/check.mjs";
+import { outline } from "../tools/sections.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { charteTokens } from "../../shared/charts/css-theme.mjs";
 
@@ -123,10 +124,21 @@ try {
       `number on page ${i + 1}`,
     );
   });
-  assert.ok(
-    pages.at(-1).includes("Fictional management accounts") ||
-      pages.some((t) => /Notes/.test(t)),
-  );
+  // Every note, numbered in document order, after the content.
+  const notes = [
+    ...standard.matchAll(/<span class="footnote">(.*?)<\/span>/g),
+  ].map((m) => m[1].replace(/<[^>]+>/g, "").replace(/&amp;/g, "&"));
+  assert.equal(notes.length, 6);
+  const flow = pages
+    .map((t) => t.replace(HEADER, "").replace(/\b\d+ \/ \d+\b/, ""))
+    .join(" ")
+    .replace(/\s+/g, " ");
+  let last = flow.indexOf("Appendix C. Questions");
+  for (const [i, note] of notes.entries()) {
+    const at = flow.indexOf(`${i + 1}. ${note}`, last);
+    assert.ok(at > last, `endnote ${i + 1}`);
+    last = at;
+  }
   assert.ok(
     !pages.join(" ").includes(REVIEW.open.text),
     "comments do not print",
@@ -152,28 +164,41 @@ try {
   // ---- edit and extend a section by hand, save a copy, reopen ----
   await page.goto(pathToFileURL(files.standard).href);
   await page.waitForFunction(() => window.htmlText);
-  const added = "The board thanks every member who answered the autumn survey.";
-  await page.evaluate((sentence) => {
-    const { view } = window.htmlText;
-    let end;
-    view.state.doc.descendants((node, pos) => {
-      if (
-        end === undefined &&
-        node.type.name === "paragraph" &&
-        node.textContent.startsWith("The board also notes one lesson")
-      )
-        end = pos + node.nodeSize;
-    });
-    view.dispatch(
-      view.state.tr.insert(
-        end,
-        view.state.schema.nodes.paragraph.create(
-          null,
-          view.state.schema.text(sentence),
-        ),
-      ),
+  // Typed: an edit inside a sentence, then a new paragraph at the end of the section's text.
+  const caret = (text, atEnd) =>
+    page.evaluate(
+      ([t, end]) => {
+        const { view } = window.htmlText;
+        let at;
+        view.state.doc.descendants((node, pos) => {
+          // The start of a text, or the end of the paragraph that starts with it.
+          if (at !== undefined) return;
+          if (!end && node.isText && node.text.includes(t))
+            at = pos + node.text.indexOf(t);
+          if (
+            end &&
+            node.type.name === "paragraph" &&
+            node.textContent.startsWith(t)
+          )
+            at = pos + node.nodeSize - 1;
+        });
+        view.dispatch(
+          view.state.tr.setSelection(
+            view.state.selection.constructor.create(view.state.doc, at),
+          ),
+        );
+        view.focus();
+      },
+      [text, atEnd],
     );
-  }, added);
+  await caret("Four risks need", false);
+  await page.keyboard.type("This year ");
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.type("f");
+  const added = "The board thanks every member who answered the autumn survey.";
+  await caret("The board also notes one lesson", true);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type(added);
   await page.click(".tx-shell [role=menubar] button:text-is('File')");
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -183,7 +208,8 @@ try {
   await download.saveAs(copy);
   const edited = await readFile(copy, "utf8");
   assert.deepEqual(checkSource(edited).errors, []);
-  assert.ok(edited.includes(`<p>${added}</p>`));
+  assert.ok(edited.includes(`<p>${added}</p>`), "a typed paragraph");
+  assert.ok(edited.includes("This year four risks need"), "a typed edit");
   await page.goto(pathToFileURL(copy).href);
   await page.waitForFunction(() => window.htmlText);
   assert.equal(
@@ -234,14 +260,14 @@ try {
       "<p>The register will be published to members each quarter from 2027.</p>",
     ),
   );
-  const outside = (s) =>
-    s.slice(0, s.indexOf('<h1 class="new-page" id="sec-risks">'));
-  assert.equal(
-    outside(extended),
-    outside(edited),
-    "everything before the section unchanged",
-  );
-  assert.equal(parseFile(extended).html.name, "html");
+  // Everything outside the section, before and after it, is byte for byte as it was.
+  const around = (s) => {
+    const section = outline(s, { numbers: false }).sections.find(
+      (x) => x.id === "sec-risks",
+    );
+    return [s.slice(0, section.start), s.slice(section.end)];
+  };
+  assert.deepEqual(around(extended), around(edited));
   pass("and extended again with show --markdown, convert and replace");
 } finally {
   await browser.close();
