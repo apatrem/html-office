@@ -361,6 +361,20 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/data`.
 6. Repeat step 2 in an agent that uses skill folders (extract the archive, point it to `skills/html-data/SKILL.md`).
 7. Ask for an offline copy of the budget (`new … --offline`), open it with the network off and import an Excel workbook (Data › Import XLSX…): the embedded reader works with no request. Then ask the assistant to change a value on the imported sheet: it patches the cell and keeps `sources`; Data › Refresh source… with the same file asks before replacing that hand edit.
 
+### T21 — Fictional P&L acceptance workbook
+
+Use the published files in `packages/data/acceptance/output/` (copies: saving rewrites them) and the two CSV files in `packages/data/acceptance/sources/`. The expected figures are in `packages/data/acceptance/README.md` › Known totals.
+
+1. **Chrome, standard file.** Open `fictional-bike-rentals.html`: "Saved results are current", Summary shows revenue €255.9k, net income €21.1k and NPV €2,560 over 24 months; the three charts show; the sheet groups read Summary, Inputs, Raw Data, Calculations with the consulting colours (dark-blue headers, light-blue row labels, pale-yellow inputs with orange text).
+2. **Edit and extend.** On Assumptions choose the High scenario in the Scenario control, then type 12% in D6: Summary and the charts follow (High before the change: revenue €267,461, NPV €9,295). On P&L select Y2:Z15 and use Edit › Fill right, then the same on Cash flow (Y2:Z8): column Z is January 2027 with forecast values; the data bars and highlights look right on screen.
+3. **Refresh the source.** On Rentals, Data › Refresh source… with `rentals-2025-v2.csv`: the dialog shows Rows 97 → 103, the changed December values and the impact. Refresh, then Data › Refresh all pivot tables: Stations gains a Harbour row; with the Base scenario and no other edit, revenue would be €263,655.
+4. **Undo, save, reopen.** Ctrl/Cmd+Z twice returns to the values before the refresh; Ctrl/Cmd+Shift+Z twice brings them back. File › Save (choose a new file), close, reopen with the network off: same values, "Saved results are current".
+5. **Edge.** Repeat 1, 2 and 4 once.
+6. **Safari and Firefox, offline reading.** With the network off, open `fictional-bike-rentals-offline.html`: results current, every sheet opens, the charts and data bars show, the pivot table reads East, North, South, West and Total 18640, the Formula analysis lists one row per function with no `#` error.
+7. **PDF.** Open `fictional-bike-rentals-summary.pdf` and `fictional-bike-rentals-pnl.pdf`: A4 landscape, the summary table then each chart on its own page with axis labels that do not overlap (known: the scenario chart's legend swatches use other colours than its bars, a shared chart issue); the P&L split into three pages across, each starting with the row labels, negative data bars in orange, negative margins in bold orange. Print Summary again from Chrome and Safari (File › Print / PDF…, Save as PDF) and compare.
+8. **CSV.** Open `fictional-bike-rentals-pnl.csv` in Excel (English) and Google Sheets: one value per column, dates as dates, amounts as numbers matching the P&L.
+9. **Fiction only.** Skim every sheet, the notes and the PDFs: no real company, person, client theme or file path.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |

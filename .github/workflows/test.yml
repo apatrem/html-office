@@ -115,6 +115,8 @@ jobs:
           CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-clipboard.mjs
       - name: Slides charts through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02c)
         run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-charts-clipboard.mjs
+      - name: Read the published Data acceptance workbook offline in Chromium, Firefox and WebKit (Data T21)
+        run: node packages/data/tests/acceptance-engines.mjs
 
   text-engines:
     runs-on: ubuntu-latest

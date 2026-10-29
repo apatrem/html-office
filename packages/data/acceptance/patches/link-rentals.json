@@ -1,0 +1,594 @@
+{
+  "edits": [
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B2",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A2)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B3",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A3)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B4",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A4)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B5",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A5)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B6",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A6)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B7",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A7)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B8",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A8)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B9",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A9)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B10",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A10)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B11",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A11)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B12",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A12)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Monthly actuals",
+      "ref": "B13",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$A$2:$A$2000,A13)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A57",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B57",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "SUMIF"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C57",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Rentals at the selected station"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D57",
+      "cell": {
+        "formula": "=SUMIF(Rentals!$B$2:$B$2000,$B$4,Rentals!$D$2:$D$2000)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A58",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B58",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "SUMIFS"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C58",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Member rentals at the selected station"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D58",
+      "cell": {
+        "formula": "=SUMIFS(Rentals!$D$2:$D$2000,Rentals!$B$2:$B$2000,$B$4,Rentals!$C$2:$C$2000,\"Member\")",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A59",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B59",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "COUNTIFS"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C59",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Records above 300 rentals at the selected station"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D59",
+      "cell": {
+        "formula": "=COUNTIFS(Rentals!$B$2:$B$2000,$B$4,Rentals!$D$2:$D$2000,\">300\")",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A60",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B60",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "AVERAGEIFS"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C60",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Average casual rentals per month at the selected station"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D60",
+      "cell": {
+        "formula": "=AVERAGEIFS(Rentals!$D$2:$D$2000,Rentals!$B$2:$B$2000,$B$4,Rentals!$C$2:$C$2000,\"Casual\")",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 2
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A61",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B61",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "COUNTA"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C61",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Imported records"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D61",
+      "cell": {
+        "formula": "=COUNTA(Rentals!$B$2:$B$2000)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A62",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Aggregation"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B62",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "COUNTBLANK"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C62",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Records without a note (first 96 rows)"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D62",
+      "cell": {
+        "formula": "=COUNTBLANK(Rentals!E2:E97)",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A63",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Text"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B63",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "TEXTJOIN"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C63",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Stations of the first month's records"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D63",
+      "cell": {
+        "formula": "=TEXTJOIN(\", \",TRUE,Rentals!B2:B9)",
+        "cellStyle": "calculation"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A64",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Text"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B64",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "TRIM"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C64",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Festival note without extra spaces"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D64",
+      "cell": {
+        "formula": "=TRIM(Rentals!E50)",
+        "cellStyle": "calculation"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A65",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Text"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B65",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "CLEAN"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C65",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Storm note without its line break"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D65",
+      "cell": {
+        "formula": "=CLEAN(Rentals!E97)",
+        "cellStyle": "calculation"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "A66",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Text"
+        },
+        "cellStyle": "rowHeader"
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "B66",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "LEN"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "C66",
+      "cell": {
+        "input": {
+          "type": "text",
+          "value": "Characters removed by TRIM"
+        }
+      }
+    },
+    {
+      "sheet": "Formula analysis",
+      "ref": "D66",
+      "cell": {
+        "formula": "=LEN(Rentals!E50)-LEN(TRIM(Rentals!E50))",
+        "cellStyle": "calculation",
+        "format": {
+          "kind": "number",
+          "digits": 0
+        }
+      }
+    }
+  ],
+  "set": {
+    "pivots": [
+      {
+        "id": "rentals-by-station",
+        "name": "Rentals by station and plan",
+        "source": {
+          "sheetId": "import-1"
+        },
+        "output": {
+          "sheetId": "stations",
+          "ref": "A4"
+        },
+        "rows": [
+          "Station"
+        ],
+        "columns": [
+          "Plan"
+        ],
+        "filters": [],
+        "values": [
+          {
+            "field": "Rentals",
+            "aggregate": "sum"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -5,3 +5,9 @@ tools/engine-assessment/** text eol=lf
 packages/data/** text eol=lf
 packages/data/engine/vendor/*.wasm binary
 packages/data/engine/vendor/*.wasm.gz binary
+# T21 acceptance samples and CSV sources are published byte for byte (CRLF
+# CSV, binary PDF); their digests are recorded in the workbook.
+packages/data/acceptance/sources/*.csv -text
+packages/data/acceptance/output/*.csv -text
+packages/data/acceptance/output/*.pdf binary
+packages/data/acceptance/output/*.html -text
