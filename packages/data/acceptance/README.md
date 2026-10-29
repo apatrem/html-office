@@ -68,9 +68,9 @@ Found while generating this workbook through the skill:
 | `set.pivots` and other `set` fields need stable sheet IDs; an imported sheet's ID is known only after the import | SKILL.md now says to `inspect` for IDs |
 | `new` does not refresh pivot tables, so a model with pivots fails `validate` until `recalculate --refresh-pivots` | SKILL.md › Create now says so |
 | No command turns a standard file into an offline one (or back), and `extract` kept only the JSON, so a rebuilt copy lost a custom charte | Fixed: `extract --charte-out theme.css` writes the document's charte; SKILL.md gives `extract … --charte-out`, then `new … --charte [--offline]` |
-| `new --charte` with a partial charte (some tokens missing) fails with "Unsupported JSON value" while drawing chart previews | Listed: a complete charte works; missing tokens should fall back to the default or be named |
+| `new --charte` with a partial charte (some tokens missing) fails with "Unsupported JSON value" while drawing chart previews | Fixed: each core token the charte leaves out takes the default charte's value, and `new` names them |
 | Imports run only in the browser, so a workbook built on imported data needs a person (or a driven browser) between two tool steps | By design (FORMAT.md › Imported sources); documented in SKILL.md |
-| `inspect --range` prints about 15 lines of JSON per cell; reading 60 analysis results needed a small script | Listed: a compact table view would help |
+| `inspect --range` prints about 15 lines of JSON per cell; reading 60 analysis results needed a small script | Fixed: `inspect --range` prints one line per cell (address, formula or input, result, displayed text); `--json` keeps the full cells |
 | The shared category axis draws every label, so 24 `mmm yy` labels overlap on the line chart | Worked around with `mmm` labels and a wider chart; fixed in the shared chart module by PR #94 (long axes thinned) |
 | Column charts with several series set colours per bar, so the legend swatches take ECharts' default palette (blue-violet and lime) instead of the bar colours; the existing P&L fixture has the same | Fixed in the shared chart module by PR #94 (it also affects Slides) |
 | Refresh source… lists only the formulas that read the sheet directly (Monthly actuals, Formula analysis), not the P&L and Summary that follow | Listed for T16 |

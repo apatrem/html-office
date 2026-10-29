@@ -53,16 +53,22 @@ async function loadECharts() {
   return (library = module.exports);
 }
 
-// The theme() of the shared chart module, read from charte CSS text: the
-// document's tokens, then a built-in charte's overlay, with var() references
-// resolved as the browser computes them.
-export function cssTheme(css, overlay = {}) {
+// The custom properties a charte declares, by name, in source order (a later
+// declaration wins).
+export function charteTokens(css) {
   const tokens = {};
   for (const m of css
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g))
     tokens[m[1]] = m[2].trim();
-  Object.assign(tokens, overlay);
+  return tokens;
+}
+
+// The theme() of the shared chart module, read from charte CSS text: the
+// document's tokens, then a built-in charte's overlay, with var() references
+// resolved as the browser computes them.
+export function cssTheme(css, overlay = {}) {
+  const tokens = { ...charteTokens(css), ...overlay };
   // var(--name, fallback) with nested fallbacks, as CSS substitutes them.
   function resolve(value, depth = 0) {
     if (depth > 10) return "";
@@ -91,14 +97,16 @@ export function cssTheme(css, overlay = {}) {
     return (out + value.slice(i)).trim();
   }
   for (const key of Object.keys(tokens)) tokens[key] = resolve(tokens[key]);
+  // A token the charte leaves out reads as "", as getPropertyValue() does.
+  const get = (name) => tokens[name] ?? "";
   return {
-    ink: tokens.ink,
-    acc: tokens.acc,
-    mid: tokens.mid,
-    lig: tokens.lig,
-    alert: tokens.alert,
-    t2: tokens.t2,
-    bd: tokens.bd,
+    ink: get("ink"),
+    acc: get("acc"),
+    mid: get("mid"),
+    lig: get("lig"),
+    alert: get("alert"),
+    t2: get("t2"),
+    bd: get("bd"),
     w: tokens.bg || "#fff",
     font: tokens.font || "Arial, sans-serif",
   };

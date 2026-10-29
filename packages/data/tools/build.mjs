@@ -19,7 +19,11 @@ import { cellClasses } from "../model/formatting.mjs";
 import { recalculate } from "./engine-node.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
-import { renderPreviews, embeddedECharts } from "./chart-previews.mjs";
+import {
+  renderPreviews,
+  embeddedECharts,
+  charteTokens,
+} from "./chart-previews.mjs";
 import { xlsxLibrary, xlsxPackage } from "./xlsx-library.mjs";
 // Standard-mode embedded application code ceiling for HTML Data (ADR-010).
 export const STANDARD_CODE_CEILING = 750000;
@@ -177,6 +181,38 @@ async function defaultBrand() {
   throw new Error("The default brand stylesheet is missing.");
 }
 
+// The charte's core tokens: colours and font. The optional role tokens
+// (--header-bg…) fall back to these in the editor's own CSS.
+export const CHARTE_TOKENS = [
+  "ink",
+  "acc",
+  "mid",
+  "lig",
+  "alert",
+  "tint",
+  "callout",
+  "bd",
+  "t2",
+  "bg",
+  "font",
+];
+
+// A custom charte that leaves core tokens out takes the default charte's
+// value for each of them, in a rule after its own: only names it never
+// declares are added, so none of its own values (nor an @import first)
+// changes.
+export function completeCharte(css, defaults) {
+  const own = charteTokens(css),
+    base = charteTokens(defaults),
+    missing = CHARTE_TOKENS.filter((name) => !(name in own));
+  if (!missing.length) return { css, missing };
+  const rule = missing.map((name) => `--${name}:${base[name]}`).join(";");
+  return {
+    css: `${css.replace(/\s*$/, "")}\n/* Tokens this charte leaves out, from the default charte. */\n:root{${rule}}\n`,
+    missing,
+  };
+}
+
 export async function buildWorkbook(
   input,
   {
@@ -188,12 +224,24 @@ export async function buildWorkbook(
     charte,
     previews = true,
     runtime,
+    note = () => {},
   } = {},
 ) {
   let book = parseWorkbook(stringifyWorkbook(input));
-  const brand = await readFile(charte ?? (await defaultBrand()), "utf8");
+  let brand = await readFile(charte ?? (await defaultBrand()), "utf8");
   if (/<\/style/i.test(brand))
     throw new Error("Brand CSS cannot close its style element");
+  if (charte) {
+    const completed = completeCharte(
+      brand,
+      await readFile(await defaultBrand(), "utf8"),
+    );
+    brand = completed.css;
+    if (completed.missing.length)
+      note(
+        `The charte leaves out ${completed.missing.map((n) => `--${n}`).join(", ")}: the default charte's values are used.`,
+      );
+  }
   // The pinned engine, its digests checked (engine-node.mjs).
   if (calculate) book = await recalculate(book);
   // Charts open with saved previews drawn from the saved results.

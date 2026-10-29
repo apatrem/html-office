@@ -410,19 +410,20 @@ test("build previews follow the charte, and oversized drawings are not kept", as
   const css = (acc) =>
     `:root{--ink:#000;--acc:${acc};--mid:#456;--lig:#789;--alert:#a00;--t2:#555;--bd:#ddd;--bg:#fff;--font:Arial}`;
   const { cssTheme } = await import("../tools/chart-previews.mjs");
-  // Aliases resolve as the browser computes them.
+  // Aliases resolve as the browser computes them; a token the charte leaves
+  // out reads as "", as getPropertyValue() returns it.
   assert.deepEqual(
     cssTheme(
       ":root{--brand:#14517A;--acc:var(--brand);--mid:var(--missing, #456 );--lig:var(--missing,var(--brand));--font:var(--face);--face:Arial}",
     ),
     {
-      ink: undefined,
+      ink: "",
       acc: "#14517A",
       mid: "#456",
       lig: "#14517A",
-      alert: undefined,
-      t2: undefined,
-      bd: undefined,
+      alert: "",
+      t2: "",
+      bd: "",
       w: "#fff",
       font: "Arial",
     },

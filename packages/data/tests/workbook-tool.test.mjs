@@ -17,8 +17,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readDocument, outside } from "../tools/document-html.mjs";
 import { writeModel } from "../model/document.mjs";
-import { preservation } from "../tools/workbook-ops.mjs";
+import { preservation, compactRange } from "../tools/workbook-ops.mjs";
 import { guide } from "../tools/build.mjs";
+import { cssTheme } from "../tools/chart-previews.mjs";
 
 const run = promisify(execFile),
   tool = fileURLToPath(new URL("../tools/workbook.mjs", import.meta.url)),
@@ -678,4 +679,136 @@ test("extract --charte-out keeps a custom charte through new", async () => {
       await readFile(file, "utf8"),
     )[1];
   assert.equal(await charteOf(offline), await charteOf(branded));
+});
+
+// T21 gap: a charte that sets only a few tokens failed with "Unsupported
+// JSON value" while drawing chart previews. The default charte's value now
+// fills each core token it leaves out, and new names them.
+test("new --charte with a partial charte takes the default for the rest", async () => {
+  const charte = join(dir, "partial.css"),
+    out = join(dir, "partial.html"),
+    own = ":root{--acc:#a01050;--ink:#111}\n";
+  await writeFile(charte, own);
+  const { stdout, stderr } = await run(process.execPath, [
+    tool,
+    "new",
+    out,
+    "--model",
+    join(examples, "valid/budget.json"),
+    "--charte",
+    charte,
+  ]);
+  assert.match(stdout, /results current/);
+  assert.match(
+    stderr,
+    /leaves out --mid, --lig, --alert, --tint, --callout, --bd, --t2, --bg, --font: the default charte's values are used/,
+  );
+  assert.equal((await cli("validate", out)).code, 0);
+  const html = await readFile(out, "utf8"),
+    css = /<style id="charte">([\s\S]*?)<\/style>/.exec(html)[1];
+  // The charte's own rule is kept as written, the defaults follow it.
+  assert.ok(css.startsWith(own));
+  assert.match(css, /--mid:#4F7FA3;.*--font:Arial, Helvetica, sans-serif\}/);
+  assert.doesNotMatch(css, /--acc:#14517A|--header-bg/);
+  const [chart] = readDocument(html).book.charts;
+  assert.match(chart.preview.svg, /#a01050/i);
+  // A document whose charte still lacks tokens (built before this fix)
+  // reads them as the browser does: empty, never undefined.
+  const theme = cssTheme(":root{--acc:#a01050}");
+  for (const [key, value] of Object.entries(theme))
+    assert.equal(typeof value, "string", key);
+  assert.equal(theme.mid, "");
+});
+
+// T21 gap: inspect --range printed about 15 lines of JSON per cell. The text
+// view is one line per cell; --json keeps the full cells.
+test("inspect --range prints one line per cell", async () => {
+  const shown = await cli("inspect", budget, "--range", "Budget!A2:D3");
+  assert.equal(shown.code, 0, shown.out);
+  assert.equal(
+    shown.out,
+    [
+      "Budget!A2:D3: 8 cells; results current.",
+      "Cell  Formula or input      Result  Shown",
+      'A2    "Tickets"                     Tickets',
+      "B2    =Inputs!B5*Inputs!B4  4200    €4,200",
+      "C2    900                           €900",
+      "D2    =B2-C2                3300    €3,300",
+      'A3    "Catering"                    Catering',
+      "B3    0                             €0",
+      "C3    =Inputs!B5*18         2160    €2,160",
+      "D3    =B3-C3                -2160   (€2,160)",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(
+    (await cli("inspect", budget, "--range", "Budget!H1:H2")).out,
+    "Budget!H1:H2: 0 cells; results current.\n",
+  );
+  const json = JSON.parse(
+    (await cli("inspect", budget, "--range", "Budget!B2", "--json")).out,
+  );
+  assert.deepEqual(Object.keys(json), ["sheetId", "sheet", "range", "cells"]);
+  assert.equal(json.cells[0].cell.formula, "=Inputs!B5*Inputs!B4");
+  // Every value type, a missing result, a style-only cell, control
+  // characters and a value past the column width.
+  const long = `=${"A1+".repeat(20)}1`;
+  assert.equal(
+    compactRange(
+      {
+        sheet: "S",
+        range: "A1:A8",
+        cells: [
+          {
+            ref: "A1",
+            cell: { input: { type: "text", value: "12" } },
+            shown: "12",
+          },
+          {
+            ref: "A2",
+            cell: { input: { type: "date", value: 45292 } },
+            shown: "01/01/2024",
+          },
+          {
+            ref: "A3",
+            cell: { input: { type: "boolean", value: true } },
+            shown: "TRUE",
+          },
+          {
+            ref: "A4",
+            cell: {
+              formula: "=1/0",
+              result: { type: "error", value: "#DIV/0!" },
+            },
+            shown: "#DIV/0!",
+          },
+          { ref: "A5", cell: { formula: "=A9" }, shown: "" },
+          { ref: "A6", cell: { cellStyle: "note" }, shown: "" },
+          {
+            ref: "A7",
+            cell: { input: { type: "text", value: "a\nb" } },
+            shown: "a\nb",
+          },
+          {
+            ref: "A8",
+            cell: { formula: long, result: { type: "blank" } },
+            shown: "",
+          },
+        ],
+      },
+      "stale",
+    ),
+    [
+      "S!A1:A8: 8 cells; results stale.",
+      "Cell  Formula or input                          Result   Shown",
+      'A1    "12"                                               12',
+      "A2    45292 (date)                                       01/01/2024",
+      "A3    TRUE                                               TRUE",
+      "A4    =1/0                                      #DIV/0!  #DIV/0!",
+      "A5    =A9                                       (none)",
+      "A6    (empty)",
+      'A7    "a\\nb"                                             a\\nb',
+      `A8    ${long}  (blank)`,
+    ].join("\n"),
+  );
 });
