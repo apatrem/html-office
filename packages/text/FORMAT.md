@@ -234,6 +234,7 @@ The Markdown is CommonMark with GitHub's tables and footnotes. It starts with a 
 
 | Construct | In the Markdown | After Insert › Markdown… |
 | --- | --- | --- |
+| Document settings | Left out: theme, font, page format, margins, heading-number format and the running header (`data-header`) are layout, not text | — |
 | Cover | `# Title`, then the subtitle and each line as a paragraph | A heading 1 and paragraphs |
 | Contents | A bulleted list of the entries' labels (numbers included), nested as the contents; no links | A list |
 | Headings | `#` to `####`, with the heading's number before its text (`## 2.1 Regions`) when numbers are on. IDs, `unnumbered`, `new-page` and alignment are not written | Headings of the same level whose text starts with the number; new IDs from the text |

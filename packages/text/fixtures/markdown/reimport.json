@@ -227,6 +227,63 @@
     },
     "notice": {}
   },
+  "print.html": {
+    "differences": {
+      "bullet_list": 2,
+      "caption": -4,
+      "chart": -1,
+      "chart.width=text": -1,
+      "comment_thread": -1,
+      "comments": -1,
+      "cover": -1,
+      "footnote": -5,
+      "heading.newPage=true": -1,
+      "heading1": 1,
+      "image_figure": -2,
+      "image_figure.width=33": -1,
+      "image_figure.width=40": -1,
+      "image_figure.wrap=left": -1,
+      "image_figure.wrap=right": -1,
+      "list_item": 5,
+      "list_text": 5,
+      "mark:comment": -1,
+      "mark:em": 3,
+      "mark:strong": 4,
+      "page_break": -1,
+      "paragraph": 9,
+      "subtitle": -1,
+      "table": 1,
+      "table_cell": 19,
+      "table_cell.align=ta-c": -3,
+      "table_cell.align=ta-r": -73,
+      "table_cell.colspan=2": -3,
+      "table_cell.rowspan=2": -4,
+      "table_figure": 1,
+      "table_header": 1,
+      "table_header.align=ta-r": -1,
+      "table_header.colspan=2": -1,
+      "table_header.rowspan=2": -2,
+      "table_row": 5,
+      "table_row.total=true": -1,
+      "title": -1,
+      "toc": -1,
+      "xref": -1
+    },
+    "importReport": {},
+    "changed": {
+      "code": [],
+      "inline": [],
+      "links": []
+    },
+    "notice": {
+      "threads": 1,
+      "images": 2,
+      "wrapped": 2,
+      "charts": 1,
+      "merged": 10,
+      "breaks": 1
+    }
+  },
   "protected.html": {
     "differences": {
       "paragraph": 12,
