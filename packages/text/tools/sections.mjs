@@ -202,10 +202,14 @@ function printOutline({ sections }) {
 }
 
 // Run as a command, also through a symbolic link or a path with escaped characters.
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+const main = () => {
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false; // standard input, or no script at all
+  }
+};
+if (main()) {
   const args = process.argv.slice(2);
   const json = args.includes("--json");
   const at = args.indexOf("--output");

@@ -382,10 +382,14 @@ export function longDocument({ pages = 100 } = {}) {
 }
 
 // Run as a command, also through a symbolic link or a path with escaped characters.
-if (
-  process.argv[1] &&
-  realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
-) {
+const main = () => {
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false; // standard input, or no script at all
+  }
+};
+if (main()) {
   const args = process.argv.slice(2);
   const at = args.indexOf("--pages");
   const pages = at >= 0 ? Number(args.splice(at, 2)[1]) : 100;
