@@ -9,10 +9,11 @@
 // Exit code 1 on a refusal or an unknown ID, 2 on a usage error.
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { readFile, writeFile, rename } from "node:fs/promises";
+import { readFile, writeFile, rename, rm } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { parseFile } from "../model/parse.mjs";
-import { sectionsOf } from "../model/sections.mjs";
-import { findArticle, canonicalize } from "../editor/schema/document.mjs";
+import { sectionsOf, articleOf } from "../model/sections.mjs";
+import { canonicalize } from "../editor/schema/document.mjs";
 import { numbering, fileFormat } from "../editor/numbering.mjs";
 import { checkSource } from "./check.mjs";
 
@@ -28,9 +29,14 @@ export class SectionError extends Error {
 // heading numbers out (one parse less).
 export function outline(source, { report, numbers: wanted = true } = {}) {
   const file = parseFile(source);
-  const article = findArticle(file);
-  if (!article?.loc) throw new SectionError("The file has no article#doc");
-  const { blocks, sections } = sectionsOf(article);
+  const article = articleOf(file);
+  if (!article) throw new SectionError("The file has no article#doc");
+  const found = sectionsOf(article);
+  if (!found)
+    throw new SectionError(
+      "The article holds markup the HTML parser repaired (such as a stray </p>): run check.mjs and pack.mjs",
+    );
+  const { blocks, sections } = found;
   report ??= checkSource(source);
   let numbers = new Map();
   if (report.ok && wanted) {
@@ -68,7 +74,8 @@ export function show(source, id) {
   return source.slice(start, end);
 }
 
-const lineOf = (text, offset) => text.slice(0, offset).split("\n").length;
+// Lines as the HTML parser counts them.
+const lineOf = (text, offset) => text.slice(0, offset).split(/\r\n?|\n/).length;
 const counted = (warnings) => {
   const out = new Map();
   for (const w of warnings) {
@@ -95,7 +102,9 @@ export function replace(source, id, html) {
     );
   const target = find(before.sections, id);
   if (!html.trim()) throw new SectionError("The replacement is empty");
-  if (!html.endsWith("\n")) html += "\n";
+  // The replacement ends as the section did: with a line break, unless the section was the
+  // article's last text, written without one.
+  if (!html.endsWith("\n") && source[target.end - 1] === "\n") html += "\n";
   const prefix = source.slice(0, target.start),
     suffix = source.slice(target.end);
   const candidate = prefix + html + suffix;
@@ -145,20 +154,20 @@ export function replace(source, id, html) {
     problems.push(
       `The replacement must hold one section: a heading of level ${target.level} or higher, a cover or a comments section inside it would end it early`,
     );
-  // Protected content enters only as it was: a block kept from the old section, byte for byte.
-  const kept = new Set(
-    before.blocks
-      .slice(target.from, target.to)
-      .filter((b) => before.report.blocks[before.blocks.indexOf(b)]?.protected)
-      .map((b) => source.slice(b.start, b.end)),
-  );
+  // Protected content enters only as it was: each block kept from the old section, byte for
+  // byte, at most as many times as it was there.
+  const kept = new Map();
+  before.blocks.slice(target.from, target.to).forEach((b, i) => {
+    if (!before.report.blocks[target.from + i]?.protected) return;
+    const bytes = source.slice(b.start, b.end);
+    kept.set(bytes, (kept.get(bytes) ?? 0) + 1);
+  });
   after.blocks.forEach((b, i) => {
-    if (
-      b.start >= target.start &&
-      b.start < target.start + length &&
-      after.report.blocks[i]?.protected &&
-      !kept.has(output.slice(b.start, b.end))
-    )
+    const inside = b.start >= target.start && b.start < target.start + length;
+    if (!inside || !after.report.blocks[i]?.protected) return;
+    const bytes = output.slice(b.start, b.end);
+    if (kept.get(bytes) > 0) kept.set(bytes, kept.get(bytes) - 1);
+    else
       problems.push(
         `New content outside the subset at replacement line ${lineOf(output, b.start) - first + 1}: it would be a protected block`,
       );
@@ -215,17 +224,25 @@ if (main()) {
   const at = args.indexOf("--output");
   const target = at >= 0 ? args.splice(at, 2)[1] : null;
   const [command, path, id, input] = args.filter((a) => a !== "--json");
-  const ok = {
-    outline: path,
-    show: path && id,
-    replace: path && id && input,
-  }[command];
+  const ok =
+    (at < 0 || (target && !target.startsWith("--") && command === "replace")) &&
+    { outline: path, show: path && id, replace: path && id && input }[command];
   if (!ok) {
     console.error(usage);
     process.exit(2);
   }
+  // Bytes that are not UTF-8 would be rewritten as U+FFFD, outside the section too: refused.
+  const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+  const read = async (file) => {
+    const bytes = await readFile(file);
+    try {
+      return { bytes, text: utf8.decode(bytes) };
+    } catch {
+      throw new SectionError(`${file} is not valid UTF-8`);
+    }
+  };
   try {
-    const source = await readFile(path, "utf8");
+    const { bytes, text: source } = await read(path);
     if (command === "outline") {
       const result = outline(source);
       console.log(
@@ -239,11 +256,29 @@ if (main()) {
       );
     } else if (command === "show") process.stdout.write(show(source, id));
     else {
-      const result = replace(source, id, await readFile(input, "utf8"));
+      const result = replace(source, id, (await read(input)).text);
+      const written = Buffer.from(result.output);
+      const head = Buffer.byteLength(source.slice(0, result.start)),
+        tail = Buffer.byteLength(source.slice(result.end));
+      // The bytes around the section, compared as bytes.
+      if (
+        !written.subarray(0, head).equals(bytes.subarray(0, head)) ||
+        !written
+          .subarray(written.length - tail)
+          .equals(bytes.subarray(bytes.length - tail))
+      )
+        throw new SectionError("The file would change outside the section");
       const out = target ?? path;
-      // Written next to the destination, then renamed: never a half-written file.
-      await writeFile(`${out}.tmp`, result.output);
-      await rename(`${out}.tmp`, out);
+      // Written to a new file of its own next to the destination (never an existing one, never
+      // through a link), then renamed over it: never a half-written file.
+      const temporary = `${out}.${randomBytes(6).toString("hex")}.tmp`;
+      try {
+        await writeFile(temporary, written, { flag: "wx" });
+        await rename(temporary, out);
+      } catch (error) {
+        await rm(temporary, { force: true });
+        throw error;
+      }
       const lines = (a, b) => `${lineOf(source, a)}–${lineOf(source, b) - 1}`;
       console.log(
         `Replaced section "${id}" (lines ${lines(result.start, result.end)}, now ${lineOf(result.output, result.start)}–${lineOf(result.output, result.start + result.length) - 1})${result.normalised ? ", rewritten into canonical form" : ""}; everything else is unchanged. Wrote ${out}.`,

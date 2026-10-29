@@ -13,8 +13,7 @@ import { canonicalize } from "../editor/schema/document.mjs";
 import { attr, classes } from "../model/html.mjs";
 import { usedAssets } from "../editor/images.mjs";
 import { numbering, fileFormat } from "../editor/numbering.mjs";
-import { sectionsOf, sectionAt } from "../model/sections.mjs";
-import { findArticle } from "../editor/schema/document.mjs";
+import { sectionsOf, sectionAt, articleOf } from "../model/sections.mjs";
 
 const excerpt = (text, offset) =>
   JSON.stringify(text.slice(offset, offset + 40));
@@ -99,9 +98,9 @@ function coverage(file) {
       c.threads = (c.threads ?? 0) + 1;
     node.children.forEach(walk);
   };
-  const article = findArticle(file);
+  const article = articleOf(file);
   if (article) walk(article);
-  const body = file.html.children.find((n) => n.name === "body");
+  const body = file.html?.children.find((n) => n.name === "body");
   const zone = body?.children.find(
     (n) => n.type === "element" && attr(n, "id") === "assets",
   );
@@ -118,12 +117,14 @@ function coverage(file) {
 
 // Each finding with a line gets the ID of the innermost section it is in (or none).
 function locate(source, file, report) {
-  const article = findArticle(file);
-  if (!article?.loc) return;
-  report.sections = sectionsOf(article).sections;
+  const article = articleOf(file);
+  const found = article && sectionsOf(article);
+  if (!found) return;
+  report.sections = found.sections;
+  // Line starts as the HTML parser counts lines: after CR LF, CR or LF.
   const starts = [0];
-  for (let i = source.indexOf("\n"); i >= 0; i = source.indexOf("\n", i + 1))
-    starts.push(i + 1);
+  for (const m of source.matchAll(/\r\n?|\n/g))
+    starts.push(m.index + m[0].length);
   for (const f of [...report.errors, ...report.protected, ...report.warnings])
     if (f.line)
       f.section =

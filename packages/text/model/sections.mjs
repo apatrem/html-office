@@ -2,19 +2,42 @@
 // next top-level heading of the same or a higher level, the comments section or the end of the
 // article (FORMAT.md › Rules for the whole content). Offsets are in the source text, so a section
 // is an exact slice of the file. Works on any parsed file (parse.mjs), valid or not; Node tools only.
-import { attr, classes, isBlank } from "./html.mjs";
+import { attr, isBlank } from "./html.mjs";
 
 const HEADING = /^h([1-4])$/;
-const END_TAG = "</article>".length;
+// Elements whose text is separate from their neighbours' (as browsers lay it out); footnotes
+// read as separate too (the editor shows a number, the theme brackets).
+const SEPARATE =
+  /^(address|article|aside|blockquote|br|caption|center|d[dlt]|details|div|fieldset|fig(caption|ure)|footer|h\d|header|hgroup|hr|legend|li|main|menu|nav|ol|p|pre|search|section|span|summary|t[dhr]|table|ul)$/;
 
-// The visible words of a tree: its text, without chart data, chart previews or comment threads.
-export function wordCount(node) {
-  if (node.type === "text")
-    return node.value.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w))
-      .length;
-  if (node.type !== "element") return 0;
-  if (["script", "svg", "template"].includes(node.name)) return 0;
-  return node.children.reduce((n, child) => n + wordCount(child), 0);
+// The visible text of a tree, without chart data, chart previews or templates.
+const visible = (node) =>
+  node.type === "text"
+    ? node.value
+    : node.type !== "element" ||
+        ["script", "svg", "template"].includes(node.name)
+      ? ""
+      : SEPARATE.test(node.name)
+        ? ` ${node.children.map(visible).join("")} `
+        : node.children.map(visible).join("");
+
+// Its words: inline markup inside a word does not split it.
+export const wordCount = (node) =>
+  visible(node)
+    .split(/\s+/)
+    .filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+
+// article#doc of a parsed file, or null when the file has no body or article.
+export function articleOf(file) {
+  const body = file.html?.children.find(
+    (n) => n.type === "element" && n.name === "body",
+  );
+  return (
+    body?.children.find(
+      (n) =>
+        n.type === "element" && n.name === "article" && attr(n, "id") === "doc",
+    ) ?? null
+  );
 }
 
 // article: the article#doc node of a parsed file. Returns {blocks, sections}:
@@ -23,20 +46,27 @@ export function wordCount(node) {
 // - sections: [{id, level, start, end, from, to, words, own, parent}], in document order. from
 //   and to index `blocks` ([from, to)); words count the whole section, own only the text before
 //   its first subsection; parent is the enclosing section's ID or null.
+// Returns null when the parser made up an element the source does not have (a <p> for a stray
+// </p>): such an article has no exact slices.
 export function sectionsOf(article) {
   const nodes = article.children.filter((n) => !isBlank(n));
-  const close = article.loc.end - END_TAG;
+  if (!article.loc || nodes.some((n) => !n.loc)) return null;
+  // The end tag as written, or else where the last node ends (an end tag left out).
+  const close = article.loc.closing ?? nodes.at(-1)?.loc.end ?? article.loc.end;
   const blocks = nodes.map((node, i) => ({
     node,
     start: node.loc.offset,
     end: i + 1 < nodes.length ? nodes[i + 1].loc.offset : close,
   }));
-  const comments = blocks.findIndex(
-    ({ node }) =>
-      node.type === "element" &&
-      node.name === "section" &&
-      classes(node).includes("comments"),
-  );
+  // The comments section is the last block, a section of class "comments" alone (FORMAT.md);
+  // any other section is a protected block like the others.
+  const tail = nodes.at(-1);
+  const comments =
+    tail?.type === "element" &&
+    tail.name === "section" &&
+    attr(tail, "class") === "comments"
+      ? nodes.length - 1
+      : -1;
   const last = comments >= 0 ? comments : blocks.length;
   const sections = [];
   const open = [];

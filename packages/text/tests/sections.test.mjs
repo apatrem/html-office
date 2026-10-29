@@ -395,3 +395,126 @@ test("the long fixture through the other tools: Markdown export, and sections.mj
     await rm(dir, { recursive: true });
   }
 });
+
+// Regressions from the T16 review, on small documents.
+const small = (article) =>
+  `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Small</title>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en">\n${article}</article>\n</body>\n</html>\n`;
+
+test("review: the temporary file is new and never followed through a link; non-UTF-8 bytes and a missing --output value are refused", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "text-sections-review-"));
+  try {
+    const doc = join(dir, "report.html"),
+      input = join(dir, "section.html");
+    const text = small('<h1 id="a">A</h1>\n<p>Old.</p>\n');
+    await writeFile(doc, text);
+    await symlink(doc, `${doc}.tmp`);
+    await writeFile(input, '<h1 id="a">A</h1>\n<p>New.</p>\n');
+    const r = cli("replace", doc, "a", input);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(await readFile(doc, "utf8"), text.replace("Old.", "New."));
+    assert.equal(
+      await readFile(`${doc}.tmp`, "utf8"),
+      text.replace("Old.", "New."),
+      "the link still points to the document",
+    );
+    assert.deepEqual((await readdir(dir)).sort(), [
+      "report.html",
+      "report.html.tmp",
+      "section.html",
+    ]);
+
+    const broken = Buffer.from(text.replace("<title>Small", "<title>\u0000"));
+    broken[broken.indexOf(0)] = 0xff;
+    await writeFile(doc, broken);
+    const bad = cli("replace", doc, "a", input);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /is not valid UTF-8/);
+    assert.ok((await readFile(doc)).equals(broken));
+
+    await writeFile(doc, text);
+    const usage = cli("replace", doc, "a", input, "--output");
+    assert.equal(usage.status, 2);
+    assert.equal(await readFile(doc, "utf8"), text);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test("review: repaired markup, a file without body, a protected section of another class, other end tags", () => {
+  const repaired = small('<h1 id="a">A</h1>\n<p>end</p></p>\n');
+  const report = checkSource(repaired);
+  assert.ok(report.warnings.some((w) => w.code === "not-canonical"));
+  assert.throws(() => outline(repaired), /repaired/);
+  const frameset =
+    "<!doctype html><html><head><title>T</title></head><frameset></frameset></html>";
+  assert.ok(checkSource(frameset).errors.some((e) => e.code === "structure"));
+  JSON.stringify(checkSource(frameset));
+
+  const legacy = small(
+    '<h1 id="a">A</h1>\n<section class="comments legacy">Old content</section>\n<h1 id="b">B</h1>\n<p>After.</p>\n',
+  );
+  assert.deepEqual(
+    outline(legacy).sections.map((s) => s.id),
+    ["a", "b"],
+  );
+  assert.match(show(legacy, "a"), /legacy">Old content<\/section>\n$/);
+
+  const spaced = small('<h1 id="a">A</h1>\n<p>Last.</p>\n').replace(
+    "</article>",
+    "</article   >",
+  );
+  assert.equal(show(spaced, "a"), '<h1 id="a">A</h1>\n<p>Last.</p>\n');
+  const open = small('<h1 id="a">A</h1>\n<p>Last.</p>').replace(
+    "</article>\n",
+    "",
+  );
+  assert.equal(show(open, "a"), '<h1 id="a">A</h1>\n<p>Last.</p>');
+});
+
+test("review: words across inline markup, protected blocks counted, an unchanged last text section, CR line breaks", () => {
+  const marked = small(
+    '<h1 id="a">A</h1>\n<p>hel<strong>lo</strong> world</p>\n',
+  );
+  assert.equal(outline(marked).sections[0].words, 3);
+
+  const legacy = small(
+    '<h1 id="a">A</h1>\n<div>Legacy block</div>\n<p>Text.</p>\n',
+  );
+  const one = replace(
+    legacy,
+    "a",
+    '<h1 id="a">A</h1>\n<div>Legacy block</div>\n<p>New.</p>\n',
+  );
+  assert.equal(one.output, legacy.replace("Text.", "New."));
+  assert.throws(
+    () =>
+      replace(
+        legacy,
+        "a",
+        '<h1 id="a">A</h1>\n<div>Legacy block</div>\n<div>Legacy block</div>\n',
+      ),
+    (e) => e.problems.some((p) => /protected block/.test(p)),
+  );
+
+  // The article's last block is loose text written without a line break before </article>.
+  const loose = small('<h1 id="a">A</h1>\nLoose text');
+  assert.equal(checkSource(loose).ok, true);
+  assert.ok(
+    !checkSource(loose).warnings.some((w) => w.code === "not-canonical"),
+    "canonical",
+  );
+  assert.equal(replace(loose, "a", show(loose, "a")).output, loose);
+
+  const cr = small(
+    '<h1 id="a">A</h1>\n<p>One.</p>\n<h1 id="b">B</h1>\n<p>See <a class="xref" href="#gone">Section 9</a>.</p>\n',
+  ).replace(/\n/g, "\r");
+  const report = checkSource(cr);
+  const missing = report.warnings.find((w) => w.code === "missing-target");
+  assert.equal(missing.section, "b");
+  assert.equal(
+    sectionReport(report, "b").warnings.filter(
+      (w) => w.code === "missing-target",
+    ).length,
+    1,
+  );
+});
