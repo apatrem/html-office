@@ -1,122 +1,150 @@
 {
   "ceiling": 600000,
-  "total": 440055,
-  "headroom": 159945,
+  "document": "fixtures/valid/example.html",
+  "applicationCode": 577048,
+  "headroom": 22952,
+  "engineGzip": 188348,
+  "file": {
+    "total": 582326,
+    "engine": 568483,
+    "content": 5092,
+    "assets": 186
+  },
   "rows": [
     {
-      "component": "prosemirror-model 1.25.12",
-      "bytes": 46376,
-      "gzip": 14692
-    },
-    {
-      "component": "prosemirror-transform 1.12.4",
-      "bytes": 58030,
-      "gzip": 17401
-    },
-    {
-      "component": "prosemirror-state 1.4.4",
-      "bytes": 66687,
-      "gzip": 19788
-    },
-    {
       "component": "prosemirror-view 1.42.8",
-      "bytes": 155870,
-      "gzip": 48297
+      "bytes": 98586,
+      "share": 16.4
     },
     {
-      "component": "prosemirror-history 1.5.1",
-      "bytes": 54020,
-      "gzip": 15898
-    },
-    {
-      "component": "prosemirror-keymap 1.2.3",
-      "bytes": 45688,
-      "gzip": 13812
-    },
-    {
-      "component": "prosemirror-commands 1.7.2",
-      "bytes": 63176,
-      "gzip": 18792
+      "component": "prosemirror-model 1.25.12",
+      "bytes": 46359,
+      "share": 7.7
     },
     {
       "component": "commonmark 0.31.2",
-      "bytes": 34618,
-      "gzip": 11021
+      "bytes": 34082,
+      "share": 5.7
+    },
+    {
+      "component": "prosemirror-transform 1.12.4",
+      "bytes": 32007,
+      "share": 5.3
     },
     {
       "component": "prosemirror-tables 1.8.1",
-      "bytes": 219132,
-      "gzip": 68099
+      "bytes": 26723,
+      "share": 4.5
     },
     {
-      "component": "HTML tree and serialiser",
-      "bytes": 2379,
-      "gzip": 1163
+      "component": "@csstools/css-tokenizer 3.0.4",
+      "bytes": 16912,
+      "share": 2.8
     },
     {
-      "component": "Validator",
-      "bytes": 58298,
-      "gzip": 18474
+      "component": "prosemirror-state 1.4.4",
+      "bytes": 11858,
+      "share": 2
     },
     {
-      "component": "Schema",
-      "bytes": 6322,
-      "gzip": 2066
+      "component": "prosemirror-history 1.5.1",
+      "bytes": 9235,
+      "share": 1.5
     },
     {
-      "component": "Parser (tree to document)",
-      "bytes": 11783,
-      "gzip": 4133
+      "component": "prosemirror-commands 1.7.2",
+      "bytes": 9102,
+      "share": 1.5
     },
     {
-      "component": "Serialiser (document to HTML)",
-      "bytes": 6099,
-      "gzip": 2382
+      "component": "prosemirror-keymap 1.2.3",
+      "bytes": 2732,
+      "share": 0.5
     },
     {
-      "component": "File layout",
-      "bytes": 1995,
-      "gzip": 900
+      "component": "Editor UI: shell, saving, print, figures, comments",
+      "bytes": 70961,
+      "share": 11.8
     },
     {
-      "component": "Editing guard",
-      "bytes": 8617,
-      "gzip": 3058
+      "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
+      "bytes": 52667,
+      "share": 8.8
     },
     {
-      "component": "Editing commands",
-      "bytes": 22931,
-      "gzip": 8190
+      "component": "Text model: HTML tree, file layout, validator",
+      "bytes": 27598,
+      "share": 4.6
     },
     {
-      "component": "Paste mapping (HTML, tables)",
-      "bytes": 38224,
-      "gzip": 14147
+      "component": "Paste mapping and Markdown import",
+      "bytes": 22790,
+      "share": 3.8
     },
     {
-      "component": "Markdown import",
-      "bytes": 8337,
-      "gzip": 3063
+      "component": "Shared: charts",
+      "bytes": 21947,
+      "share": 3.7
     },
     {
-      "component": "Table editing",
-      "bytes": 21181,
-      "gzip": 7707
+      "component": "CSS: shell, panels and editor styles",
+      "bytes": 20680,
+      "share": 3.4
     },
     {
-      "component": "Markdown projection",
-      "bytes": 18481,
-      "gzip": 7275
+      "component": "Shared: shell",
+      "bytes": 18653,
+      "share": 3.1
     },
     {
-      "component": "Editor core (all of the above, shared code once)",
-      "bytes": 435584,
-      "gzip": 139260
+      "component": "Schema, parser, serialiser, editing guard",
+      "bytes": 17982,
+      "share": 3
     },
     {
-      "component": "Licence notices of the editor core",
-      "bytes": 4421,
-      "gzip": 1950
+      "component": "Shared: clipboard",
+      "bytes": 16594,
+      "share": 2.8
+    },
+    {
+      "component": "Slides format vocabulary (theme CSS checks)",
+      "bytes": 2421,
+      "share": 0.4
+    },
+    {
+      "component": "Shared: persistence",
+      "bytes": 1948,
+      "share": 0.3
+    },
+    {
+      "component": "Shared: themes",
+      "bytes": 1468,
+      "share": 0.2
+    },
+    {
+      "component": "Bundle scaffolding (esbuild module wrappers)",
+      "bytes": 550,
+      "share": 0.1
+    },
+    {
+      "component": "Licence notices and banner",
+      "bytes": 4545,
+      "share": 0.8
+    },
+    {
+      "component": "Inline-script escaping and the script element",
+      "bytes": 83,
+      "share": 0
+    },
+    {
+      "component": "Document theme styles (style#charte, style#theme)",
+      "bytes": 8046,
+      "share": 1.3
+    },
+    {
+      "component": "HTML skeleton (head, metadata, zones)",
+      "bytes": 519,
+      "share": 0.1
     }
   ]
 }
