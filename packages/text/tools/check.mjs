@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // html-text checker: validates a document against the canonical subset (FORMAT.md).
-//   node check.mjs <document.html> [--json]
-// Lists errors (rejected), protected blocks (kept, not editable) and warnings, with line:column.
+//   node check.mjs <document.html> [--section <id>] [--json]
+// Lists errors (rejected), protected blocks (kept, not editable) and warnings, with line:column
+// and the section they are in (T16), then what was checked: IDs, cross-references, assets and
+// comment anchors. --section lists only the findings inside that section (sections.mjs outline).
 // A valid document that is not in canonical form gets a not-canonical warning: run pack.mjs.
-// Exit code 1 when at least one error remains.
+// Exit code 1 when at least one error remains (in the whole document, also with --section).
 import { readFile } from "node:fs/promises";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
@@ -11,6 +13,8 @@ import { canonicalize } from "../editor/schema/document.mjs";
 import { attr, classes } from "../model/html.mjs";
 import { usedAssets } from "../editor/images.mjs";
 import { numbering, fileFormat } from "../editor/numbering.mjs";
+import { sectionsOf, sectionAt } from "../model/sections.mjs";
+import { findArticle } from "../editor/schema/document.mjs";
 
 const excerpt = (text, offset) =>
   JSON.stringify(text.slice(offset, offset + 40));
@@ -79,9 +83,61 @@ function unusedAssets(file, doc) {
     }));
 }
 
+// What the checks covered, counted in the source: headings and figures (their IDs), cross-
+// references, image assets and comment threads with their anchors (T16).
+function coverage(file) {
+  const c = { headings: 0, figures: 0, xrefs: 0, images: 0, anchors: 0 };
+  const walk = (node) => {
+    if (node.type !== "element") return;
+    const k = classes(node);
+    if (/^h[1-4]$/.test(node.name) && !k.includes("title")) c.headings++;
+    else if (node.name === "figure") c.figures++;
+    else if (node.name === "a" && k.includes("xref")) c.xrefs++;
+    else if (node.name === "img") c.images++;
+    else if (node.name === "mark" && k.includes("comment")) c.anchors++;
+    else if (node.name === "aside" && k.includes("comment-thread"))
+      c.threads = (c.threads ?? 0) + 1;
+    node.children.forEach(walk);
+  };
+  const article = findArticle(file);
+  if (article) walk(article);
+  const body = file.html.children.find((n) => n.name === "body");
+  const zone = body?.children.find(
+    (n) => n.type === "element" && attr(n, "id") === "assets",
+  );
+  try {
+    c.assets = Object.keys(
+      JSON.parse(zone?.children.map((n) => n.value).join("") || "{}"),
+    ).length;
+  } catch {
+    c.assets = 0;
+  }
+  c.threads ??= 0;
+  return c;
+}
+
+// Each finding with a line gets the ID of the innermost section it is in (or none).
+function locate(source, file, report) {
+  const article = findArticle(file);
+  if (!article?.loc) return;
+  report.sections = sectionsOf(article).sections;
+  const starts = [0];
+  for (let i = source.indexOf("\n"); i >= 0; i = source.indexOf("\n", i + 1))
+    starts.push(i + 1);
+  for (const f of [...report.errors, ...report.protected, ...report.warnings])
+    if (f.line)
+      f.section =
+        sectionAt(report.sections, starts[f.line - 1] + f.col - 1)?.id ?? null;
+}
+
 export function checkSource(source) {
-  const report = validateFile(parseFile(source));
-  if (!report.ok) return report;
+  const parsed = parseFile(source);
+  const report = validateFile(parsed);
+  report.coverage = coverage(parsed);
+  if (!report.ok) {
+    locate(source, parsed, report);
+    return report;
+  }
   const { canonical, difference, unstable, file, doc } = canonicalize(
     source,
     parseFile,
@@ -106,6 +162,7 @@ export function checkSource(source) {
       ...staleFindings(file, doc, report.blocks),
       ...unusedAssets(file, doc),
     );
+  locate(source, parsed, report);
   return report;
 }
 
@@ -113,7 +170,28 @@ export async function checkFile(file) {
   return checkSource(await readFile(file, "utf8"));
 }
 
-const at = (f) => (f.line ? `${f.line}:${f.col}` : "-");
+const at = (f) =>
+  (f.line ? `${f.line}:${f.col}` : "-") + (f.section ? ` §${f.section}` : "");
+
+// The findings inside one section (sections.mjs outline lists the IDs), or null for an unknown ID.
+export function sectionReport(report, id) {
+  const section = report.sections?.find((s) => s.id === id);
+  if (!section) return null;
+  const inside = (f) =>
+    f.section !== undefined &&
+    f.section !== null &&
+    report.sections.some(
+      (s) =>
+        s.id === f.section && s.start >= section.start && s.start < section.end,
+    );
+  return {
+    ...report,
+    errors: report.errors.filter(inside),
+    protected: report.protected.filter(inside),
+    warnings: report.warnings.filter(inside),
+    section: id,
+  };
+}
 
 export function formatReport(report) {
   const lines = [
@@ -128,20 +206,36 @@ export function formatReport(report) {
     ),
   ];
   lines.push(
-    `${report.errors.length} error(s), ${report.protected.length} protected block(s), ${report.warnings.length} warning(s)`,
+    `${report.errors.length} error(s), ${report.protected.length} protected block(s), ${report.warnings.length} warning(s)${report.section ? ` in section ${report.section}` : ""}`,
   );
+  const c = report.coverage;
+  if (c && !report.section) {
+    const n = (code) => report.warnings.filter((w) => w.code === code).length;
+    lines.push(
+      `Checked ${c.headings} heading(s) and ${c.figures} figure(s) with their IDs, ${c.xrefs} cross-reference(s) (${n("missing-target")} without target), ${c.images} image(s) and ${c.assets} asset(s) (${n("unused-asset")} unused), ${c.threads} comment thread(s) and ${c.anchors} anchor(s) (${n("orphaned-thread")} orphaned)`,
+    );
+  }
   return lines.join("\n");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
+  const at = args.indexOf("--section");
+  const id = at >= 0 ? args.splice(at, 2)[1] : null;
   const file = args.find((a) => !a.startsWith("--"));
-  if (!file) {
-    console.error("usage: check.mjs <document.html> [--json]");
+  if (!file || (at >= 0 && !id)) {
+    console.error("usage: check.mjs <document.html> [--section <id>] [--json]");
     process.exit(2);
   }
-  const report = await checkFile(file);
-  const { blocks, ...findings } = report;
+  const whole = await checkFile(file);
+  const report = id ? sectionReport(whole, id) : whole;
+  if (!report) {
+    console.error(
+      `No section with the heading ID "${id}": sections.mjs outline lists them`,
+    );
+    process.exit(1);
+  }
+  const { blocks, sections, ...findings } = report;
   console.log(
     args.includes("--json")
       ? JSON.stringify(findings, null, 2)

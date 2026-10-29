@@ -10,6 +10,7 @@
     "check": "node tools/check.mjs",
     "pack": "node tools/pack.mjs",
     "measure": "node tools/measure.mjs",
+    "sections": "node tools/sections.mjs",
     "format:check": "prettier --check \"{model,editor,runtime,theme,tools,tests}/**/*.mjs\""
   },
   "devDependencies": {

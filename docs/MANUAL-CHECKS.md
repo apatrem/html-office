@@ -268,6 +268,16 @@ Use `text-example.html`, in Chrome, then Safari and Firefox.
 5. **Back into Text**: Insert › Markdown… › Or open a file, choose the export: the content arrives as ordinary paragraphs, headings, lists, quotes and tables, with the losses FORMAT.md › Markdown view and export lists (no comments, no images or charts, footnotes as text).
 6. **Long document**: on a long document (the 100-page fixture of T16, built), File › Markdown view opens in about a second and scrolls smoothly.
 
+### T16 — Section tooling for long documents
+
+Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long document of your own (a report converted to Text, 50 pages or more).
+
+1. **Outline**: `node packages/text/tools/sections.mjs outline <file>`: every heading, with its number and ID, indented by level; the word counts look right against a word processor's count of the same section.
+2. **Show and edit**: `show <file> <id>` a middle section into `section.html`, edit it in a text editor (or ask an LLM to rewrite it, keeping the heading line), then `replace <file> <id> section.html`. Compare the two files with a diff tool (`git diff --no-index`, FileMerge, WinMerge): only lines inside that section change. Open the file in the editor: it shows the new text with *No unsaved changes*, unless the heading text changed (then the contents are rewritten: *Unsaved changes*).
+3. **Refusals**: try a replacement that changes the heading's ID, one with a `<script>`, one that deletes a figure referenced elsewhere: each is refused with its reason and the file's modification time does not change.
+4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
+5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
