@@ -430,6 +430,7 @@ test("range operators read every cell between their operands", () => {
           A4: { formula: '=_xlfn.INDIRECT("Raw!A2")' },
           A5: { formula: "=_xlfn.OFFSET(Raw!A3,-1,0)" },
           A6: { formula: "=SUM(Raw!A1,Raw!A3)" },
+          A7: { formula: "=SUM(Start:(End))" },
           B1: { formula: "=A1" },
         },
       },
@@ -443,9 +444,17 @@ test("range operators read every cell between their operands", () => {
   // Only A2 changes: A6 reads A1 and A3 alone.
   const d = dependents(book, "raw", ["A2"]);
   assert.deepEqual(d.formulas, [
-    { sheetName: "Calc", count: 6, direct: 5, through: [] },
+    { sheetName: "Calc", count: 7, direct: 6, through: [] },
   ]);
   assert.equal(d.charts.length, 1);
+  // A sheet whose name starts like a function prefix is still a sheet.
+  const prefixed = {
+    sheets: [
+      { id: "raw", name: "_xlfn.Raw", cells: {} },
+      { id: "calc", name: "Calc", cells: { B1: { formula: "=_xlfn.Raw!A2" } } },
+    ],
+  };
+  assert.equal(dependents(prefixed, "raw", ["A2"]).formulas.length, 1);
 });
 
 test("named ranges over many changed cells are checked within the budget", () => {

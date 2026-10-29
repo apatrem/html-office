@@ -111,7 +111,8 @@ export function references(formula) {
       const w = WORD.exec(formula);
       if (w) {
         const end = i + w[0].length,
-          word = w[0].toLowerCase().replace(/^_xl(?:fn|ws)\./, "");
+          word = w[0].toLowerCase(),
+          name = word.replace(/^_xl(?:fn|ws)\./, "");
         if (formula[end] === "!") {
           sheet = word;
           i = end + 1;
@@ -120,8 +121,8 @@ export function references(formula) {
         CALL.lastIndex = end;
         i = end;
         if (CALL.test(formula)) {
-          if (word === "indirect") indirect = true;
-          if (word === "offset") offset = true;
+          if (name === "indirect") indirect = true;
+          if (name === "offset") offset = true;
           if (state === "join") operands.at(-1).open = true;
           sheet = state = null;
           // Sheet!Name would be a sheet-scoped name; Data's are workbook-wide.
@@ -131,7 +132,11 @@ export function references(formula) {
       }
     }
     if (ch === ":") state = state === "operand" ? "join" : "open";
-    else if (!/\s/.test(ch)) state = null;
+    else if (ch === "(" && (state === "join" || state === "open")) {
+      // Start:(End): the bracketed side may reach anywhere on its sheet.
+      if (state === "join") operands.at(-1).open = true;
+      state = "open";
+    } else if (!/\s/.test(ch)) state = null;
     i++;
     sheet = null;
   }
