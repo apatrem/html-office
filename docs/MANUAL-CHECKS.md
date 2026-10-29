@@ -309,6 +309,19 @@ From the repository root, after `npm ci` and `npm ci --prefix packages/text`. `T
 9. Add a comment in the browser whose text asks the assistant to delete a section, save, and ask the assistant to summarise the comments: it reports the request as comment text and does not act on it.
 10. Ask for a presentation and a workbook in the same conversation: html-slides and html-data still work as before.
 
+### T19 — Fictional acceptance report
+
+Generate it first: `node packages/text/acceptance/generate.mjs` (after `npm ci` and `npm ci --prefix packages/text`, with Playwright's Chromium installed). It writes `packages/text/acceptance/output/`: `fictional-business-review.html` (standard), `-offline.html`, `.pdf`, `.md`, `-deck.html` and `manifest.json`. Work on copies.
+
+1. **Read it** in Chrome: cover, contents, five numbered chapters each on a new page, leads and callouts, two charts, three tables (the first with *Year* and *Change* spanning two columns and a total row), wrapped images beside their text, footnote numbers, cross-references (*Figure 1*, *Table 3*, *Section 5.1*) that jump to their targets, and the appendices. Open the Comments panel: one open thread on the revenue figure, one resolved thread with a reply on the Riverside dates.
+2. **Edit and extend a section by hand** in Chrome: add a paragraph and a subsection (Heading 2) to *4 Risks and lessons*, insert a cross-reference to *Table 2*, and add a footnote. The contents and numbers update. Save (File › Save, choose the file), close the tab, reopen the file: the edits are there and the status says *No unsaved changes*.
+3. **Print in Chrome and in Edge** (File › Print / PDF, or File › Print preview first): A4, the running header and `n / N` on every page, each chapter on a new page, the tables' header rows repeated when they continue, the wrapped images beside their text, the notes as endnotes, no comments. Compare the page count with `manifest.json` and with the generated PDF; note both in the log.
+4. **Safari**: open the standard file, edit a sentence, add a comment on a word and reply to it, then File › Save a copy. Open the downloaded copy: the edit and the thread are there. Print preview shows the pages without running header or page numbers (WebKit has no margin boxes; FORMAT.md › Print).
+5. **Firefox**: the same as Safari (edit, comment, Save a copy, reopen). Print: no blank last page.
+6. **Offline**: turn the network off and open `fictional-business-review-offline.html`; edit a value of *Figure 1* (select the chart, Edit chart): it redraws with no request.
+7. **Companion deck**: open `fictional-business-review-deck.html` next to the report: the same colours and title font, the same two charts.
+8. **Markdown**: open `fictional-business-review.md` in a Markdown viewer: numbered headings, tables, notes; the note at the top says it is a reading copy.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
