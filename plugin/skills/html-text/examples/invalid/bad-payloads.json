@@ -1,0 +1,11 @@
+{
+  "fig-costs": {
+    "kind": "chart",
+    "type": "column",
+    "data": {
+      "categories": ["Q1", "Q2"],
+      "series": [{ "name": "2026", "values": ["0.4", "0.5"] }]
+    },
+    "colour": "red"
+  }
+}

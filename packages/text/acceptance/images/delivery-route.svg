@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <title>Cargo-bike delivery loop (fictional schematic)</title>
+  <rect width="400" height="300" fill="#F6EFE4"/>
+  <path d="M0 210 C80 190 120 240 200 220 S320 170 400 190" fill="none" stroke="#AFC5D4" stroke-width="22"/>
+  <g stroke="#E2D3BD" stroke-width="2">
+    <path d="M0 60 H400 M0 120 H400 M0 180 H400 M80 0 V300 M160 0 V300 M240 0 V300 M320 0 V300"/>
+  </g>
+  <path d="M200 150 L90 70 L70 160 L130 250 L270 250 L330 150 L290 60 Z" fill="none" stroke="#9C4A1A" stroke-width="5" stroke-dasharray="14 8" stroke-linejoin="round"/>
+  <g fill="#FFFFFF" stroke="#2B2118" stroke-width="2.5">
+    <circle cx="90" cy="70" r="11"/><circle cx="70" cy="160" r="11"/><circle cx="130" cy="250" r="11"/><circle cx="270" cy="250" r="11"/><circle cx="330" cy="150" r="11"/><circle cx="290" cy="60" r="11"/>
+  </g>
+  <rect x="180" y="132" width="40" height="36" rx="4" fill="#9C4A1A" stroke="#2B2118" stroke-width="2.5"/>
+  <g font-family="Arial, sans-serif" font-size="13" fill="#2B2118">
+    <text x="200" y="190" text-anchor="middle">Bakehouse</text>
+    <text x="106" y="56">Old Town</text>
+    <text x="16" y="186">Westgate</text>
+    <text x="146" y="278">Riverside</text>
+    <text x="282" y="278" text-anchor="end">Docks</text>
+    <text x="344" y="138">Hillcrest</text>
+    <text x="304" y="46">Station</text>
+  </g>
+</svg>

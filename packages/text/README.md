@@ -1,6 +1,6 @@
 # html-text
 
-The html-office alternative to Word, in progress: [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). Not part of the plugin yet.
+The html-office alternative to Word, in progress: [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). The html-text skill ([`plugin/skills/html-text/`](../../plugin/skills/html-text/SKILL.md), T18) ships in the html-slides plugin beside html-slides and html-data.
 
 | Path | Contents |
 | --- | --- |
@@ -22,12 +22,16 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form and lists changed lines |
 | `tools/markdown.mjs` | `node tools/markdown.mjs <document.html> [<output.md>]`: the Markdown export, as the editor writes it (T15) |
 | `tools/sections.mjs` | Section tooling (T16): `outline`, `show <id>` and `replace <id> <file>` (FORMAT.md › Section tools); `model/sections.mjs` finds the sections in a source |
-| `tools/measure.mjs` | Code budget by component (`--write` updates `bench/code-size.json`) |
+| `tools/document.mjs` | The html-text skill's command line (T18): `new`, `pack`, `add-image`, `convert` and `show --markdown` (FORMAT.md › Document tools), with `outline`, `show`, `replace`, `check` and `markdown`. `convert.mjs` (Markdown with block placeholders to the subset), `section-markdown.mjs` (a section as editable Markdown), `previews.mjs` (chart previews drawn in Node), `guide.mjs` (the embedded guide), `node-dom.mjs` (the small DOM they need in Node) |
+| `tools/skill.mjs` | Packages the skill into `plugin/skills/html-text/` (bundled `tools/document.mjs`, `assets/engine.json`, ECharts and its notices, default charte and layout, `references/FORMAT.md`, `examples/`); `--check` compares with the committed copy. `tools/release.sh` runs it before zipping; `tests/skill.test.mjs` packages afresh, zips, extracts and runs the workflow with Node alone |
+| `examples/` | The skill's examples, also test fixtures: `valid/` (a report in Markdown, its payload map, a section rewrite), `invalid/` (one Markdown file per refusal, `expected.json`) |
+| `tools/measure.mjs` | Code budget by component (T17): the built file's application code split by what it embeds, rows adding up to the total (`--write` updates `bench/code-size.json`) |
 | `fixtures/valid/` | One fixture per construct; `example.html` is a compact complete document |
 | `fixtures/invalid/` | One fixture per rejection; `expected.json` lists each error and its location |
 | `fixtures/markdown/` | The Markdown projection of each valid fixture, and `reimport.json`: what importing it back through T07 changes (T15) |
 | `fixtures/clipboard/` | Clipboard HTML in the shape Word, Google Docs and web pages write it, and a Markdown report (hand-written, fictional; see FORMAT.md › Paste and Markdown import) |
-| `bench/long-document.mjs` | The long fixture (T16, T17): `bench/fixtures/report-100.html`, about 50,000 words and 50 figures, generated deterministically |
+| `bench/long-document.mjs` | The long fixtures (T16, T17): `bench/fixtures/report-100.html`, about 50,000 words and 50 figures, and `report-50.html` (`--pages 50`), generated deterministically |
+| `bench/browser.mjs` | Size and responsiveness benchmark (T17) from `file://`: open, keystroke-to-paint, editing tasks, save, print preview, PDF, memory; `--check` gates the medians (CI, every PR). Results and method: [`bench/RESULTS.md`](bench/RESULTS.md) |
 | `tests/generate.mjs` | Seeded random documents for the round-trip properties |
 
 The validator reuses the Slides safety rules (`src/format.js`) and the strict chart schemas (`packages/shared/charts/schema.mjs`). Fixtures are fictional.

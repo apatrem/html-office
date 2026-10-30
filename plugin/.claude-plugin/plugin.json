@@ -1,7 +1,7 @@
 {
   "name": "html-slides",
   "version": "0.7.1",
-  "description": "Standalone HTML presentations (html-slides) and spreadsheet workbooks (html-data): one HTML file each, with an embedded browser editor and a self-contained format guide.",
+  "description": "Standalone HTML presentations (html-slides), spreadsheet workbooks (html-data) and long documents (html-text): one HTML file each, with an embedded browser editor and a self-contained format guide.",
   "author": {
     "name": "Pierre Supau"
   },
@@ -15,7 +15,9 @@
     "echarts",
     "spreadsheet",
     "workbook",
-    "ironcalc"
+    "ironcalc",
+    "document",
+    "report"
   ],
   "homepage": "https://github.com/apatrem/html-office",
   "repository": "https://github.com/apatrem/html-office"

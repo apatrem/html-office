@@ -96,3 +96,4 @@
 .tx-preview-bar{position:fixed;top:0;left:0;right:0;z-index:4000;display:flex;align-items:center;gap:12px;height:48px;padding:0 16px;border-bottom:1px solid var(--sh-line)}}
 @media print{.tx-sheets{display:none!important}}
 @media screen{.tx-sheets.tx-heads{z-index:2;pointer-events:none}.tx-repeat{position:absolute;display:block;margin:0}.tx-repeat thead{display:block}.tx-repeat th{position:absolute;box-sizing:border-box}}
+.tx-guide{max-width:72ch;max-height:60vh;overflow:auto;white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,Consolas,monospace}

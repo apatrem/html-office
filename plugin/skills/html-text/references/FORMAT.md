@@ -1,0 +1,340 @@
+# html-text format reference (draft, format version 1)
+
+Status: T01 draft, 25 October 2026. Product decisions are in the [Text V1 specification](https://github.com/apatrem/html-office/blob/main/docs/HTML-TEXT-V1.md) and [ADR-004](https://github.com/apatrem/html-office/blob/main/docs/decisions/004-html-text-format-and-editor.md). The validator is [`model/validate.mjs`](https://github.com/apatrem/html-office/blob/main/packages/text/model/validate.mjs); `node tools/check.mjs <file>` reports every finding with its line and column. [`fixtures/valid/example.html`](https://github.com/apatrem/html-office/blob/main/packages/text/fixtures/valid/example.html) is a compact complete example; open it in a browser to read it without any editor.
+
+A Text document is one HTML file. Its **content** is `article#doc`: a restricted subset of semantic HTML, the only authoritative copy of the document. Everything else in the file is written by tools.
+
+## Findings
+
+The checker sorts what it finds into three kinds:
+
+| Kind | Meaning | Effect |
+| --- | --- | --- |
+| **Error** | Unsafe content (scripts, event handlers, executable URLs, external resources, `style` attributes, form, media and raw-text elements), duplicate, reserved or missing IDs, comment anchors without a thread, malformed figures, tables and comment threads, invalid `article#doc` attributes, nesting deeper than 256 elements | The file is rejected before editing. Fix the source |
+| **Protected** | Inert content outside the subset: an unknown element, class or attribute, an HTML comment, loose text, a construct in the wrong place | Its **top-level block** (a child of `article#doc`) is displayed and saved unchanged, but cannot be edited. It is never dropped |
+| **Warning** | Valid content that needs attention: a cross-reference or contents entry without target, generated content out of date (`stale-label`, `stale-contents`), an orphaned comment thread, a chart without a saved preview | Reported by `check`; shown in the editor (later tasks) |
+
+## File zones
+
+| Zone | Element | Written by |
+| --- | --- | --- |
+| Metadata | `meta[charset=utf-8]`, `meta[name=viewport\|generator\|html-text-*]`, `title` | Tools |
+| Guide | `template#html-text-guide` (inert text; see [Document tools](#document-tools)) | Tools |
+| Brand theme, shared with Slides and Data | `style#charte` | Skill |
+| Text layout styles | `style#theme` | Skill |
+| **Content** | `article#doc` | **LLM and editor** |
+| Assets | `script#assets[type=application/json]`: `{"a1": {"type": "image/webp", "data": "<base64>"}}` | Skill and editor |
+| Editor | `script#engine` | Build tools |
+| Offline chart library (optional) | `script#echarts` | Offline build |
+
+Nothing else may appear in `head` or `body`, and `script#engine` is the last element of `body`: the editor reads the file while that script runs. `html` may have `lang` and `dir`; `head` and `body` have no attributes. The HTML parser moves attributes of a stray `<body>` or `<html>` tag in the content onto these elements, so they are checked too. Styles may embed `data:` resources but never load or import anything. Assets follow the Slides contract: base64 images (PNG, JPEG, WebP, GIF, SVG) and fonts.
+
+## Look: charte, layout theme and page
+
+The look is never in the content: `article#doc` only names choices, and the styles apply them.
+
+- **`style#charte`** holds the brand tokens shared with Slides and Data on `:root` (`--ink`, `--acc`, `--mid`, `--lig`, `--alert`, `--tint`, `--callout`, `--bd`, `--t2`, `--bg`, `--font`, optional `--title-font` and the Office roles such as `--header-bg`). The default is the html-slides default charte, the built-in "blue" charte of [`packages/shared/themes/chartes.mjs`](https://github.com/apatrem/html-office/blob/main/packages/shared/themes/chartes.mjs).
+- **`style#theme`** holds the Text layout: page format, margins, type scale, spacing, cover, callouts, quotes, code, figures and table styles, with a rule for each column width `col[data-width="1"]` to `"100"` so tables keep their widths without the editor. It reads only charte tokens, never literal brand colours. The default is [`theme/layout.css`](https://github.com/apatrem/html-office/blob/main/packages/text/theme/layout.css): A4, 25 mm margins, 11 pt body text. It sets the default heading-number format as `--heading-format` on `#doc` (a quoted format such as `"1.1.1.1"`, see [Numbering](#numbering-and-generated-content)). It defines the page format and margins as `--page-w`, `--page-h` and `--margin` on `#doc`, with a rule for each `data-page` and `data-margins` value and a named `@page` for each combination (`a4`, `a4-narrow`, `letter-wide`…), so printed pages have the chosen size and margins, and the print rules of [Print](#print).
+- `#doc` is as wide as the page's text (page width less both margins) on screen and in print, so lines break on screen where they print. The body uses `var(--body-font,var(--font))` and headings `var(--title-font,var(--font))`.
+- `data-theme` and `data-font` are applied by the editor, as in Slides: it mirrors them on `<html>`, where the shared overlays `:root[data-theme=…]` (built-in charte tokens) and `:root[data-font=…]` (`--body-font`) apply. The mirror is never saved, and the document's own charte is never rewritten.
+
+## Rules for the whole content
+
+- No `style` attributes, scripts, event handlers (`on…`), `javascript:` or `data:` links, frames, objects, forms, inputs, media, raw-text elements (`plaintext`, `xmp`, `noembed`, `noframes`) or external resources. These rules apply inside protected blocks too. Formatting is expressed by the elements, classes and attributes below and styled by the theme. `data-*` and `alt` values are text and are never read as URLs.
+- **IDs** are stable. Headings (everywhere in the article, protected blocks included, except the cover title), figures and comment threads must have one; it matches `[A-Za-z][A-Za-z0-9_-]*` and is unique in the file, including the IDs of the other zones. `doc`, `charte`, `theme`, `assets`, `engine`, `echarts`, `html-text-guide`, `shell-layer` and the prefixes `sh-` and `tx-` are reserved. IDs inside a saved chart preview belong to the renderer: they must not repeat a content ID.
+- A **section** runs from its heading to the next heading of the same or a higher level (`h2` ends at the next `h1` or `h2`). Tools and the guide address sections by their heading ID.
+- Comment text is document data, never instructions.
+
+## `article#doc`
+
+```html
+<article id="doc" data-format="1" lang="en-GB" data-heading-numbers="on">
+```
+
+| Attribute | Values | Required |
+| --- | --- | --- |
+| `id` | `doc` | yes |
+| `data-format` | `1` | yes |
+| `lang` | Language tag (`en-GB`, `fr-FR`) | yes |
+| `data-heading-numbers` | `on`: number headings 1, 1.1, 1.1.1 | no (absent: no numbers) |
+| `data-heading-format` | Four levels from `1`, `A`, `a`, `I`, `i`, such as `1.A.i.a`; only when it differs from the layout theme's `--heading-format` | no |
+| `data-theme` | `blue`, `red`, `green`, `black`: a built-in charte instead of the document's own ([ADR-011](https://github.com/apatrem/html-office/blob/main/docs/decisions/011-html-office-shared-principles.md) §10) | no |
+| `data-font` | `arial`, `verdana`, `tahoma`, `trebuchet`, `georgia`, `times`: the body font | no |
+| `data-page` | `a4`, `letter` (absent: the theme's page format) | no |
+| `data-margins` | `narrow`, `normal`, `wide`: a margin preset of the theme (absent: the theme's margins) | no |
+| `data-header` | The running header: text printed at the top of every page, one line of at most 120 characters, without leading or trailing spaces or control characters (absent: none) | no |
+
+The article holds at least one block. The blocks are, in order: an optional cover (first), any sequence of the blocks below, and an optional comments section (last).
+
+## Blocks
+
+| Block | Markup | Content |
+| --- | --- | --- |
+| Cover | `<header class="cover">` | `h1.title`, then an optional `p.subtitle`, then plain `p` lines (author, date). First block only |
+| Contents | `<nav class="toc" data-depth="1–4">` | Generated: empty, or one `ol` of `li > a[href="#heading-id"]`, each optionally followed by a nested `ol`. The labels are saved so the file stays readable; see [Numbering](#numbering-and-generated-content) |
+| Heading | `<h1 id="…">` to `<h4 id="…">` | Inline content. Classes: `unnumbered` (no number, does not advance the count), `new-page` (start on a new page), one of `ta-l`, `ta-c`, `ta-r` |
+| Paragraph | `<p>` | Inline content. Classes: `lead`, and one of `ta-l`, `ta-c`, `ta-r`, `ta-j` (justified) |
+| Quote | `<blockquote>` | One or more `p` (alignment classes only) |
+| Callout | `<aside class="callout note\|warning\|key">` | One or more `p` (alignment only), `ul` and `ol`. `key` is the key message |
+| Code | `<pre><code>…</code></pre>` | Text only; spaces, tabs and line breaks are kept |
+| List | `<ul>`, `<ol>` with `<li>` | Each `li` holds inline content, optionally followed by one nested `ul` or `ol` |
+| Page break | `<hr class="page-break">` | — |
+| Figures | `<figure class="chart\|image\|table" id="…">` | See [Figures](#figures) |
+| Comments | `<section class="comments">` | See [Comments](#comments). Last block only |
+
+`p.subtitle` and `h1.title` exist only in the cover. Headings outside the cover always carry an `id`, also when their block is protected.
+
+## Inline content
+
+| Construct | Markup |
+| --- | --- |
+| Bold, italic, underline | `<strong>`, `<em>`, `<u>` |
+| Highlight | `<mark>` |
+| Superscript, subscript | `<sup>`, `<sub>` (never combined) |
+| Inline code | `<code>` |
+| Link | `<a href="https://…">`; `http:` and `mailto:` too. No other attribute. A link holds text, marks and line breaks: no footnote or cross-reference, since HTML cannot nest links. The editor leaves them unlinked when a link is added over them |
+| Cross-reference | `<a class="xref" href="#id">Figure 1</a>`: plain text label, saved and rewritten by the editor; the target is a heading or figure ID. See [Numbering](#numbering-and-generated-content) |
+| Footnote | `<span class="footnote">…</span>` at the point of reference: inline content without footnotes or line breaks. Shown as numbered notes, printed as endnotes; see [Numbering](#numbering-and-generated-content) |
+| Comment anchor | `<mark class="comment" data-ref="thread-id">…</mark>`; anchors may overlap and nest |
+| Line break | `<br>` (not in footnotes) |
+
+Marks have no attributes and no classes, apart from links, cross-references and comment anchors, and each holds some text, a line break, a footnote or a cross-reference: an empty `<strong></strong>` is protected, since it would carry nothing. There are no colour, font or size marks.
+
+## Figures
+
+Malformed figures are errors. A `figcaption` is optional; when present it holds inline content and is numbered in document order (T08).
+
+### Chart
+
+```html
+<figure class="chart" id="fig-revenue" data-type="column" data-width="text">
+<script type="application/json">{"title":"Revenue by quarter","unit":"EUR million","categories":["Q1","Q2"],"series":[{"name":"2026","values":[0.9,1]}]}</script>
+<svg xmlns="http://www.w3.org/2000/svg" class="render" viewBox="0 0 400 200">…</svg>
+<figcaption>Revenue by quarter, 2026</figcaption>
+</figure>
+```
+
+- `data-type` is a type of the shared chart contract ([`packages/shared/charts/`](https://github.com/apatrem/html-office/blob/main/packages/shared/charts/README.md)): `column`, `hbar`, `stacked`, `line`, `waterfall`, `bubble`, `gantt`. The JSON must pass the strict schema of that type.
+- `data-width` is `text` (text column) or `full` (page width). Charts do not wrap text.
+- The JSON never contains `</script` or `<!--`: write `<` as `\u003c` there. Only this JSON script, in a top-level chart, is allowed in content.
+- The SVG is the saved preview, written by the editor, so the chart displays and prints without ECharts. It may contain only drawing elements (`g`, `path`, `rect`, `text`, gradients, clip paths…) and, there only, `style` attributes without resources. Its IDs belong to the renderer: they must not repeat a content ID, and a repeat between two previews is a warning. Without a preview, the checker warns.
+- The editor (T11) draws a preview with ECharts at a nominal size (640 × 320 for `text`, 860 × 360 for `full`), rebuilds it through the shared SVG allow-list (ADR-013 §4) with IDs prefixed `tx-c<n>-`, a prefix no other preview of the document uses, and records what it was drawn from in `data-key` on the `svg`: a hash of the type, width, data and charte. A different key means the preview is out of date (`stale` after an edit, `pasted` for a preview drawn by another document); a preview without `data-key`, written by a tool, counts as current; changing the theme or font keys it `stale` in the same undo step, so it is drawn again even after the file is saved and reopened. The title and unit are drawn above the plot by the editor, as in Slides; a full-width figure reaches half-way into the page margins.
+- ECharts (the one pinned, SRI-checked version of `packages/shared/charts/`) loads only to draw a chart whose preview is missing, or out of date after an edit; a chart gets its ECharts instance only when it first scrolls into view, and the others keep their previews. A blocked or tampered library leaves every preview as it is and says so. The offline build (`tools/build.mjs --offline`) embeds the same verified bytes as `script#echarts`, before the editor, and then makes no request.
+- Charts copy and paste through the ADR-013 envelope (`kind: chart`), with Text and Slides: the envelope carries the chart's `caption` and `width`, which a Text paste uses; a pasted chart gets a new ID and its sanitised preview until this document's charte draws it.
+- Order: JSON, preview, caption.
+
+### Image
+
+```html
+<figure class="image" id="fig-site" data-width="33" data-wrap="right">
+<img data-asset="a1" alt="Raised planting beds at the north site">
+<figcaption>The north site</figcaption>
+</figure>
+```
+
+- `img` has exactly `data-asset` (a key of `script#assets`) and a non-empty `alt`.
+- Without `data-wrap`, `data-width` is `text` or `full`. With `data-wrap="left|right"` the image floats beside the following paragraphs (rectangular wrapping) and `data-width` is `25`, `33`, `40` or `50` (percent of the text width). The theme sets the gap; consecutive images wrapped on the same side stack. No contour wrapping.
+- **Anchoring**: a wrapped image is anchored to the block that follows it. The editor's Move up / Move down (Alt+Shift+↑/↓) move a block together with the wrapped images just before it.
+- **Assets** follow the Slides contract: base64 PNG, JPEG, WebP, GIF or SVG in `script#assets`. The editor embeds a picked file at most 1,600 px wide, as WebP where the browser encodes it (Chrome, Edge, Firefox); otherwise (Safari) a JPEG stays JPEG and any other picture becomes PNG, so transparency is kept. SVG and GIF (which may be animated) are kept as they are. It shows images from the store at runtime, those of protected blocks included, never saves a `src`, and installs the store's fonts as `@font-face` rules. On save it writes only the assets an image refers to (in a figure or a protected block), plus every font, so replacing or deleting an image leaves no orphan; when that set has not changed, the zone keeps its bytes. `check` reports an image asset nothing uses as `unused-asset`.
+
+### Table
+
+```html
+<figure class="table" id="tab-regions">
+<figcaption>Revenue by region, EUR million</figcaption>
+<table>
+<colgroup><col data-width="40"><col class="emphasis" data-width="30"><col data-width="30"></colgroup>
+<thead>
+<tr><th rowspan="2">Region</th><th colspan="2">Revenue</th></tr>
+<tr><th class="ta-r">2025</th><th class="ta-r">2026</th></tr>
+</thead>
+<tbody>
+<tr><td>North</td><td class="ta-r">1.6</td><td class="ta-r">1.9</td></tr>
+<tr class="total"><td>Total</td><td class="ta-r">3.6</td><td class="ta-r">4.2</td></tr>
+</tbody>
+</table>
+</figure>
+```
+
+- Order: caption (above the table), then the table.
+- `table` may have `class="compact"`. It holds an optional `colgroup`, an optional `thead` (header rows, repeated on each printed page; `th` cells only) and one `tbody` (`th` row headers and `td` cells). No `tfoot` and no `caption` element. `colgroup`, `thead` and `tbody` have no attributes.
+- `col` may have `data-width` (whole percentage 1–100) and `class="emphasis"`; when present, the `colgroup` declares every column.
+- `tr.total` marks a total row in `tbody`.
+- Cells: `colspan` (≤ 1,000) and `rowspan` (≤ 65,534), within their row group; one of `ta-l`, `ta-c`, `ta-r` (numbers use `ta-r`). Each cell holds one paragraph of inline content: no lists, paragraphs or nested tables.
+- The rows form a rectangular grid once spans are expanded, with no cell covered by two spans, at most 1,000 columns and at most 1,000,000 cells.
+
+The editor (T10) keeps this shape while tables are edited: header rows always lead the table and hold `th` cells only, at least one body row follows, no merged cell crosses from the header into the body, a total row is never a header row, and the `colgroup` (present only while a column has a width or emphasis) has one `col` per column. Merging cells joins their text with line breaks, since a cell holds one paragraph.
+
+The table model maps onto the portable table of [ADR-013](https://github.com/apatrem/html-office/blob/main/docs/decisions/013-cross-product-clipboard.md) §3 (header rows, total rows, merges, alignment, percentage widths, links).
+
+## Numbering and generated content
+
+Numbers are computed, never typed: one function ([`editor/numbering.mjs`](https://github.com/apatrem/html-office/blob/main/packages/text/editor/numbering.mjs)) computes every number and label for the editor, print, `check` and the Markdown view (T15). Headings and figures inside protected blocks are not counted; a cross-reference to one keeps the label it has (any other ID of a protected block is a missing target).
+
+- **Heading numbers** show only when `data-heading-numbers="on"`. They are hierarchical (1, 1.1, 1.1.1): each level has a counter that a heading of a higher level restarts. Each level is formatted with its token of the heading format, `data-heading-format` or else the layout theme's `--heading-format` (the last such declaration in `style#theme`, comments left out: the editor and `check` read it the same way; `1` decimal, `A`/`a` letters A…Z, AA…, `I`/`i` Roman numerals up to 3999), joined with dots: with `I.A.1.a`, the second `h2` of the third `h1` is `III.B`. A heading with class `unnumbered` shows no number and does not advance its counter. A number is built only from numbered ancestors: an `h3` under an unnumbered `h2` is `1.1`, not `1.0.1`. The cover title is never numbered. Heading numbers are drawn by the editor and are not saved.
+- **Figure and table numbers** follow document order, counted separately: charts and images are figures, `figure.table` is a table. Only a figure with a `figcaption` has a number, shown before its caption (*Figure 2.*); it is not saved.
+- **Cross-reference labels**: a numbered heading is *Section 2.1*, any other heading its text, footnotes left out. A cross-reference inside a heading's text reads as its target's number label (*Figure 1*), or, for an unnumbered heading, as that heading's own text without its cross-references: one level only, so headings that refer to each other, or to themselves, always settle at once; a captioned figure *Figure 1* or *Table 1*, and a figure without caption just *Figure* or *Table*. The words follow the article's `lang`: French (`fr…`) uses *Figure*, *Tableau* and *Section*; other languages use English. A cross-reference to a missing ID keeps its label, is reported by `check` (`missing-target`) and is underlined in the editor.
+- **Footnotes** are numbered 1, 2, 3… in document order, wherever they are (headings, captions, lists and table cells included). The editor shows each as its number, with the note's text on hover, and lists the notes at the end of the content, before the comments; the same numbers print as endnotes. The number and the list are drawn, never saved: without the editor, the layout theme shows each note in brackets where it is written.
+- **Contents** list the headings up to `data-depth`, each nested under the closest preceding heading of a higher level; a numbered heading's entry starts with its number and a space (`2.1 Regions`).
+- The editor rewrites labels and contents **on open** (outside the undo history: the document then shows *Unsaved changes*) and after every edit that changes them, so saving always writes them current. `check` reports a label or contents list that differs as `stale-label` or `stale-contents`, with its line, so a label an LLM wrote wrong is corrected on the next save, and the diff shows only labels and contents.
+
+## Comments
+
+```html
+<section class="comments">
+<aside class="comment-thread" id="c1" data-status="open" data-quote="Revenue grew 18% in 2026" data-section="sec-summary" data-suffix=", ahead of plan.">
+<p class="comment" data-author="Alex" data-date="2026-10-15T14:02Z">Check against the audited figure.</p>
+<p class="comment" data-author="Sam" data-date="2026-10-15T15:10Z">Checked.</p>
+</aside>
+</section>
+```
+
+- `section.comments` is the last block and holds one or more threads (omit it when there are none).
+- A thread has `id`, `data-status` (`open` or `resolved`) and `data-quote` (the quoted text when it was attached). Optional: `data-section` (the ID of its section's heading), `data-prefix` and `data-suffix` (a few characters of context before and after). These serve anchor recovery (T13).
+- Each `p.comment` is one comment, the first opening the thread and the others replies: `data-author` (free-text name, not verified), `data-date` (a real UTC date and time, `YYYY-MM-DDTHH:MMZ` with optional seconds) and plain text.
+- Every `mark.comment[data-ref]` refers to an existing thread, also inside a protected block. A thread no mark refers to is **orphaned**: kept, reported, never reattached automatically.
+- Threads are excluded from print, and so is the anchors' underline.
+- **Editor (T13)**: threads are read and written in the Comments panel, not in the page. A new thread takes the selected text's quotation exactly (spaces kept, a cross-reference as its label, a line break or a new block as a line feed, a footnote's text where it is written), the ID of its section's heading (protected headings count), and up to 32 characters of context on each side, never half a character; its ID is `c1`, `c2`… Marks follow every edit, and each comment action is its own undo step. A thread a protected block refers to stays attached and cannot be deleted from the panel. An orphaned thread can be recovered: the editor proposes every place that holds its exact quotation, in its original section first, then elsewhere, each with context; looking, cancelling or saving changes nothing, and a proposal is applied only when the person confirms it, on the document it was found in (after any edit, search again). The new anchor's section and context replace the old ones; the quotation stays. Display names are free text, asked once and kept by the browser, never verified. Comment text is shown as text: no markup, no links followed.
+
+## Print
+
+The browser prints the document and makes the PDF (File › Print / PDF); nothing is generated on a server or by a library (T14).
+
+- **Pages.** Each page has the size and margins of `#doc`'s named `@page` (layout theme). The editor prints the running header (`data-header`) centred in the top margin and the page number with the page count (`3 / 9`) centred in the bottom margin, in 9 pt type of the body font and the charte's secondary text colour. The document prints its colours as shown (`print-color-adjust: exact`): table header rows, callouts and tints keep their backgrounds.
+- **Breaks.** `hr.page-break` ends the page; a heading with class `new-page` starts one. A heading stays with what follows it; figures (charts, images), the cover and table rows are not split; a table breaks between rows, its caption stays with it, and its header rows are repeated at the top of each page it continues on. A full-width figure prints at the text width, since nothing prints outside the page's text area.
+- **Generated content** prints as on screen: heading numbers, caption labels, cross-reference labels, and footnote numbers, with the notes listed as endnotes after the content. The contents list links to its headings (the PDF keeps the links); it shows no page numbers.
+- **Not printed**: comment threads and their anchors' underline, the editor's chrome, selections and marks of missing references.
+- **Print preview** (File › Print preview) shows the same pages read-only before printing: the document is laid out in columns one page high, which the browser breaks as it breaks printed pages, with each page drawn behind its column, the running header and the page numbers in its margins and the table header rows repeated. In Chromium and Edge it has the PDF's page count and breaks; other engines break pages a little differently. Escape or Close preview returns to editing.
+- **Engines.** The running header and page numbers use `@page` margin boxes, which Chromium and Edge print; Safari (WebKit) and Firefox ignore them and print the pages without header or numbers. Firefox prints from the editor the pages it prints from the file, with no blank page: the editor drops the whitespace-only text around the article in `<body>` (with the editor's nodes beside it, Firefox printed a blank last page) and a page break just before a `new-page` heading breaks once in print (Firefox broke twice where no text separates them, as in the editor). Firefox has no column breaks and never splits a table across columns: its preview starts the pages after a page break or a `new-page` heading itself, but shows a table longer than the rest of its page whole, running past the page's bottom, where print splits it and repeats its header.
+
+## Paste and Markdown import
+
+Pasted and imported content enters the document only as the constructs above (T07): the editor maps it, it never inserts it as written. Clipboard HTML is parsed in a detached `<template>` ([ADR-013](https://github.com/apatrem/html-office/blob/main/docs/decisions/013-cross-product-clipboard.md) §1), so nothing in it runs or loads, and only `https:`, `http:` and `mailto:` links survive.
+
+- **Order of reading**: an html-office envelope (`application/x-html-office+json`, or the `data-html-office` attribute in the HTML), then the HTML, then image files (when the HTML gives nothing of its own: a screenshot, a picture whose HTML only links it), then plain text. ⌘⇧V / Ctrl+Shift+V and Edit › Paste as plain text read plain text only.
+- **Blocks**: `h1`–`h6` become headings 1–4 (5 and 6 become Heading 4); Word's Title becomes Heading 1 and its Subtitle a lead paragraph; paragraphs, lists (also Word's `mso-list` paragraphs and Docs' nested lists), quotes, code (`pre`) and tables map to their own kinds. A list item keeps its text, with its paragraphs joined by line breaks, and one nested list; a quote holds paragraphs, so other blocks inside it become paragraphs. Horizontal rules, images by URL, charts (T11), embedded objects, navigation, forms, Word comments and footnotes are left out.
+- **Inline**: bold, italic, underline, highlight (`mark`), superscript, subscript, code and links, from tags or from the styles Word and Docs write (`font-weight`, `font-style`, `text-decoration`, `vertical-align`). Colours, fonts, sizes, spacing and alignment are dropped: pasted text takes the document's styles. Text's own markup (`lead`, `ta-*`, callouts, page breaks, footnotes, cross-references, unnumbered and new-page headings, table widths and total rows) reads back as itself.
+- **Undo**: each paste, drop or import is one undo step of its own, an internal or chart paste included. A pasted cross-reference whose target is not in the resulting document (deleted by the paste, or since the copy) becomes its label's text. Plain text pasted in commented text is not commented.
+- **IDs**: a pasted heading keeps its `id` when it is valid and free, and otherwise gets a new one from its text; a pasted table always gets a new `tab-N` ID. Comment anchors and threads are not pasted.
+- **Notes, references, figures and comments** (T08–T13): a pasted `span.footnote` stays a footnote. A cross-reference stays one only when its target is a heading or figure of this document; otherwise its label is text. Text's image figures (`data-asset` belongs to the other file's asset store) and chart figures are left out and reported, and copies leave images out; charts enter through a chart envelope (T11). Comment anchors and threads are never pasted, and a generated contents list is not read.
+- **Images** (T12b): an image whose data is in the clipboard, a pasted or dropped file (PNG, JPEG, GIF, WebP, SVG) or an `<img>` with a `data:` URL in the HTML, goes through Insert › Image…'s path: reduced to at most 1,600 px wide (WebP where the browser encodes it, else JPEG for a JPEG and PNG for the rest; GIF kept as it is; SVG cleaned as Insert › Image… cleans it: parsed inert, it keeps its drawing, its own styles and references inside itself, and loses scripts, foreign content, event handlers, entity declarations, animation and anything it would load or embed), stored as one asset in `script#assets` and referenced by `data-asset`, at text width. Pastes wait their turn, each going where it was made (mapped through any edit meanwhile; refused if what it was pasted over was deleted), the next after the previous. It keeps the pasted `alt`; without one, the image dialog asks for it (and the layout), and Cancel leaves that image out. Among pasted content each image takes its place, splitting the paragraph it was in; images pasted alone go where Insert › Image… puts them, after the caret's top-level block. An image inside a pasted heading, list, quote or table, or pasted with text where only text goes (a cell, a caption, a cover line, a footnote, code), is left out. Nothing is fetched: an image by URL (`http(s):`, `file:`, `blob:`, a relative path) is left out. At most 20 images per paste or drop, each at most 20 MB and, from its header before it is decoded, 50 megapixels and 16,384 px a side; HTML stays within the 8 MiB clipboard limit (ADR-013). What is left out is reported in the status line. The paste is one undo step, and an undone paste leaves nothing in the saved assets.
+- **Inside the document**: a copy pasted back into the same document, a copied table included, is reinserted whole by the internal clipboard (T09: footnotes and cross-references kept; a table gets a new ID and no caption, as from the envelope), except that a comment anchor is pasted only when it moves (cut whole, then pasted) and threads never are; a chart envelope goes to the chart paste (T11). Both come before the mapping; a plain-text paste skips them.
+- **Tables**: the shared reader ([`packages/shared/clipboard/`](https://github.com/apatrem/html-office/blob/main/packages/shared/clipboard/README.md)) gives the grid (merged cells, header rows, alignment); `thead` rows become the header, `tfoot` rows and `tr.total` total rows, and each cell's text keeps its marks as one paragraph. A span stops at the end of its row group, as in HTML; spans that overlap (malformed HTML) are dropped and their cells kept. A table over 1,000 rows or 30 columns refuses the whole paste, a Markdown one before it is rendered.
+- **Where it lands**: in a table cell, caption, cover line or footnote, the pasted blocks become lines of that one paragraph; in code, plain text. Elsewhere a pasted paragraph joins the paragraph at the caret, while a heading, list, quote or table stays itself next to it; a table is never opened into text. Text copied inside one table cell pastes as text.
+- **Markdown** (Insert › Markdown…): CommonMark through [commonmark.js](https://github.com/commonmark/commonmark.js) 0.31.2, the specification's reference implementation, plus tables as GitHub writes them (a header row, a delimiter row such as `| :--- | ---: |`, then rows; at the top level only). The result goes through the same mapping; raw HTML in the Markdown is read like pasted HTML. Images, `data:` ones included, are left out and reported: a picture is pasted or inserted (T12b, T12).
+- **Report**: the status line names what was left out or adapted, for example "Left out: 1 image, 1 horizontal rule. Adapted to the document's styles: 1 heading of level 5 or 6."
+
+Copying writes the subset's own markup for a selection of text and blocks, without comment anchors, threads or images, and plain text with line breaks. A selected table (the whole table or its figure) is copied as the html-office envelope (`source.product` `text`), a semantic table with the theme's colours resolved for Word and Excel, and TSV; its caption, ID, emphasis column and density stay with the original.
+
+## Markdown view and export
+
+File › **Markdown view** shows the document as Markdown, read-only, for reading and copying; File › **Export Markdown (.md)** and the view's **Export .md** download the same text, as does `node tools/markdown.mjs <document.html> [<output.md>]`. One function writes it ([`editor/markdown.mjs`](https://github.com/apatrem/html-office/blob/main/packages/text/editor/markdown.mjs)), from the document as it is at that moment (unsaved edits included) and with the numbers and labels of [Numbering](#numbering-and-generated-content). It is a **projection, not a copy**: it is never stored in the file or a draft, the view cannot be edited, and nothing reads a `.md` file back as the document. The HTML file stays the only document.
+
+The Markdown is CommonMark with GitHub's tables and footnotes. It starts with a note, an HTML comment that renderers hide, saying that it is a reading copy and not the document, that layout, styles, IDs, cross-reference links and comments are not kept, and how many of this document's constructs are reduced or left out (comment threads, images, wrapped images, charts, merged table cells, protected blocks, page breaks). Reading the export back through Insert › Markdown… (T07) does not restore the document: `tests/markdown.test.mjs` projects every valid fixture, imports the result and checks that the differences are exactly those recorded in [`fixtures/markdown/reimport.json`](https://github.com/apatrem/html-office/blob/main/packages/text/fixtures/markdown/reimport.json), each one listed below, that code text and link addresses come back unchanged (apart from carriage returns in code blocks and runs of spaces in inline code), and that no word of the text is lost apart from comments.
+
+| Construct | In the Markdown | After Insert › Markdown… |
+| --- | --- | --- |
+| Document settings | Left out: theme, font, page format, margins, heading-number format and the running header (`data-header`) are layout, not text | — |
+| Cover | `# Title`, then the subtitle and each line as a paragraph | A heading 1 and paragraphs |
+| Contents | A bulleted list of the entries' labels (numbers included), nested as the contents; no links | A list |
+| Headings | `#` to `####`, with the heading's number before its text (`## 2.1 Regions`) when numbers are on. IDs, `unnumbered`, `new-page` and alignment are not written | Headings of the same level whose text starts with the number; new IDs from the text |
+| Paragraphs | Text. `lead` and alignment are not written; empty paragraphs are left out | Paragraphs |
+| Inline marks | `**bold**` and `*italic*` where the marked text starts and ends with a letter or digit, otherwise `<strong>` and `<em>` (CommonMark would not read the asterisks there); `` `code` `` (one span per run of text around a break or footnote; a cross-reference in code is a span of its label); `[link](https://github.com/apatrem/html-office/blob/main/packages/text/url)`, with spaces, parentheses, `<`, `>`, `\` and `\|` percent-encoded and entity-like text escaped; underline, highlight, superscript and subscript as `<u>`, `<mark>`, `<sup>`, `<sub>`. Characters Markdown would read as syntax are escaped (`!` before a link too). A line break is a hard break (`\` at the end of a line), a space in headings and captions, `<br>` in table cells; a line break at the start or end of a paragraph or list item is left out | The same marks and breaks, apart from those left out; in inline code a run of spaces reads back as one (pasted HTML text) |
+| Footnotes | `[^1]` where the note is, and `[^1]: text` after the content, numbered as in the document. A note of one word (with perhaps a quoted part) starts with an empty HTML comment, `[^1]: <!---->word`, so that CommonMark does not read it as a link definition | Text: CommonMark has no footnotes, so `[^1]` stays in the paragraph and each note becomes a paragraph |
+| Cross-references | Their label as plain text (*Figure 1*, *Section 2.1*): no link, since the IDs are not written | Text |
+| Quotes | `>` paragraphs | Quotes |
+| Callouts | A quote whose first paragraph names the kind (**Note**, **Warning**, **Key message**) | A quote; a list inside becomes lines of one paragraph |
+| Code | A fenced block, with more backticks than the code holds | Code; a carriage return reads back as a line feed (Markdown has none) |
+| Lists | `-` and `1.` items, nested by indentation; a list with nothing written between it and the previous list of its kind (a page break or an empty paragraph is not written) uses `*` or `1)`, so that the two stay apart | The same lists |
+| Page breaks | Left out | — |
+| Captions | A paragraph `**Figure 1.** caption` (`**Table 1.**`): after the image or chart, before the table, as in the document | A paragraph with bold label text |
+| Images and assets | `*(Image: alt text)*`: the picture itself, its asset in `script#assets`, its width and its ID are not exported | A paragraph |
+| Wrapped layout | Not kept: a wrapped image is written where it is, as its own paragraph, like any other | — |
+| Charts | `*(Chart (type): title, unit)*`, then for charts with categories and series (column, bar, stacked, line) their data as a table; the drawing, its options and its saved preview are not exported | A paragraph and, for the data, a table |
+| Tables | A GitHub table. Its first header row is the table's header; other header rows lead the body; a table without header rows gets an empty header row. A **merged cell's text is in its first cell** and the cells it covers are empty. A column is aligned when all its body cells share an alignment. Widths, emphasis columns, compact density and the total-row style are not written | A table of single cells, with one header row |
+| Comments | Not exported: anchored text is written as if it had no anchor (marks it split are whole again), threads are left out | — |
+| Protected blocks | Their visible text as one paragraph: inline elements join their text, block elements and line breaks separate it with a space; `hidden` elements and templates are left out | A paragraph |
+
+## Canonical form
+
+A canonical document is byte for byte what the editor writes. Opening and saving it without edits changes nothing. `check.mjs` reports the first place where a valid document differs from this form (`not-canonical` warning); `node tools/pack.mjs <file> [<output>]` rewrites it into the form and lists every changed line. That is the only normalisation step: the editor never normalises silently. Before writing, `check`, `pack` and the editor read the result back: content the HTML parser repaired on the way in (typically inside a protected block) that would not reopen as the same document is an `unstable` error, and nothing is written.
+
+- **File layout**: `<!doctype html>`, then `html`, `head` and `body` each on their own line, one zone per line, ending with `</body>`, `</html>` and a newline, as in Slides.
+- **Lines**: each block of `article#doc` starts on its own line. So do the children of the cover, quotes, callouts, lists, the contents list, figures, `table`, `thead`, `tbody`, `section.comments` and threads. A table row, with its cells, is one line; so is a `colgroup`. A nested list starts directly after its item's text: `<li>Text<ul>`, and ends `</ul></li>`. Inline content and `pre` keep their text exactly; inline text contains no line breaks or tabs.
+- **Tags**: HTML tags lowercase, every end tag written (`</p>`, `</li>`), void elements without a slash (`<br>`, `<col data-width="40">`). SVG elements and attributes keep their SVG spelling (`clipPath`, `linearGradient`, `viewBox`), as browsers write them, with end tags (`<rect …></rect>`).
+- **Attributes**: double-quoted, in this order. Default values are omitted (`colspan="1"`).
+
+  | Element | Order |
+  | --- | --- |
+  | `article` | as in its table: `id`, `data-format`, `lang`, `data-heading-numbers`, `data-heading-format`, `data-theme`, `data-font`, `data-page`, `data-margins`, `data-header` |
+  | Headings | `class`, `id` |
+  | `nav.toc` | `class`, `data-depth` |
+  | `figure.chart` | `class`, `id`, `data-type`, `data-width` |
+  | `figure.image` | `class`, `id`, `data-width`, `data-wrap` |
+  | `img` | `data-asset`, `alt` |
+  | `col` | `class`, `data-width` |
+  | `th`, `td` | `class`, `colspan`, `rowspan` |
+  | `a.xref`, `mark.comment` | `class`, `href` / `data-ref` |
+  | `aside.comment-thread` | `class`, `id`, `data-status`, `data-quote`, `data-section`, `data-prefix`, `data-suffix` |
+  | `p.comment` | `class`, `data-author`, `data-date` |
+
+  Class tokens follow the order of this reference: `lead ta-c`, `unnumbered new-page ta-r`, `callout warning`.
+- **Marks** nest in a fixed order, outermost first: comment anchor, link, `strong`, `em`, `u`, `mark`, `sub`/`sup`, `code`. A footnote or cross-reference sits inside the marks that cover it.
+- **Text**: line breaks and tabs in inline text read as spaces (rendered the same); write them as spaces.
+- **Escaping**: `&amp;`, `&lt;`, `&gt;` and `&nbsp;` (U+00A0) in text, plus `&quot;` in attribute values. A carriage return is written `&#13;`, since a literal one would read back as a line feed. Every other character, including non-ASCII, is written as itself in UTF-8. No other entity or numeric reference.
+
+## Section tools
+
+Long documents are read and rewritten one section at a time (T16), by heading ID, with `node tools/sections.mjs`. A section is the exact slice of the file from its heading's line to the line before the next heading of the same or a higher level, the comments section (the last block, `section` with the one class `comments`) or `</article>` as written; only top-level headings count (the cover title is not one). A file the HTML parser had to repair inside the article (a stray `</p>`, a missing `</article>`) has no exact slices: the tools refuse it until `pack.mjs` has rewritten it.
+
+- `outline <document.html> [--json]`: every section in document order with its level, ID, number (when numbers are on), text, and word count, for the whole section and for its own text before its first subsection. Words are the visible text: footnotes and cross-reference labels count (a footnote separately from the word before it), inline markup inside a word does not split it; chart data, previews and comment threads do not.
+- `show <document.html> <id>`: the section's bytes as they are in the file.
+- `replace <document.html> <id> <section.html> [--output <out.html>]`: puts the given HTML in place of the section. The document must be valid and canonical (run `pack.mjs` first). The replacement starts with the same heading (same ID, same level) and holds one section: no heading of that level or higher, no cover and no comments section. Everything before and after the section stays byte for byte as it was; a replacement in another spelling (letter case, quotes, spaces in tags) is rewritten into canonical form when that changes nothing outside it. The result must pass `check` with no error, add no protected block (a protected block of the old section may be kept as it was) and leave no cross-reference elsewhere without its target. New warnings are listed: `stale-label` and `stale-contents` (labels and contents elsewhere that the editor rewrites on open; they are outside the section, so `replace` leaves them), `orphaned-thread` (commented text removed), `unused-asset`. Anything else is refused with each reason, located by the replacement's own line numbers, and the file is not touched: files that are not valid UTF-8 are refused, the bytes around the section are compared as bytes before writing, and the result is written to a new file of its own next to the destination, then renamed over it.
+- `node tools/check.mjs <document.html> [--section <id>] [--json]` names the innermost section of each finding (`12:5 §sec-results`), with `--section` lists only that section's findings, and ends with what it checked: headings and figures with their IDs, cross-references (without target), images and assets (unused), comment threads and anchors (orphaned).
+
+`bench/fixtures/report-100.html` is the long fixture these tools are tested on: a fictional review of about 50,000 words with 50 figures (122 A4 pages printed from Chromium without the editor, each chapter starting a page) (20 charts, 15 images, 15 tables with merged header cells), 90 sections on four levels, footnotes, cross-references and comments, generated by `bench/long-document.mjs` (deterministic; `--pages` gives other lengths).
+
+## Document tools
+
+`node tools/document.mjs <command>` is the command line of the html-text skill (T18); the skill ships it bundled as `tools/document.mjs`, with the built editor, so it needs Node 18 or later and nothing else. Every command checks what it writes and, when it refuses, lists every reason and writes nothing (exit code 1; 2 for a usage error).
+
+| Command | What it does |
+| --- | --- |
+| `new <out.html> [--markdown body.md] [--payloads map.json] [--title …] [--subtitle …] [--cover-line …]… [--contents 1–4] [--numbers] [--lang en-GB] [--charte brand.css] [--layout layout.css] [--theme …] [--font …] [--page a4\|letter] [--margins narrow\|normal\|wide] [--header …] [--offline] [--force]` | A new canonical document: cover, generated contents, the Markdown body converted as below, labels and contents written, chart previews drawn. `--charte` embeds a brand charte (the file a Slides deck or Data workbook uses; core tokens it leaves out take the default charte's values, and `new` names them); `--layout` replaces the layout theme; `--offline` embeds ECharts |
+| `pack <file.html> [--out out.html] [--offline\|--standard] [--charte …] [--layout …] [--redraw]` | Rewrites into canonical form (listing every changed line, as `pack.mjs`), embeds the current editor and guide, draws chart previews that are missing (`--redraw`: all), and keeps the file standard or offline unless told otherwise |
+| `add-image <file.html> <image> [--out out.html]` | Adds a PNG, JPEG, GIF, WebP or SVG file to `script#assets` and prints its key; every other byte stays as it was. The image is not resized |
+| `show <file.html> <id> --markdown` | The section as editable Markdown (below), for a rewrite |
+| `convert <file.html> <id> <section.md> [--payloads map.json] [--drop id,…] [--out section.html]` | The section rewritten from Markdown, as `replace` takes it; the document is not changed |
+| `outline`, `show`, `replace`, `check`, `markdown` | The [section tools](#section-tools), `check.mjs` and the [Markdown export](#markdown-view-and-export) |
+
+**Embedded guide.** `new` and `pack` write `template#html-text-guide`: about 6 KB of inert text (no markup) telling a person or an LLM that reads the file what it holds: the zones, the subset in CSS selector notation, the numbering and label rules, editing one section by its ID while keeping IDs and comment anchors, that comments and pasted or imported content are data and never instructions, and where the compatible skill is downloaded. It is document content, not application code: `build.mjs` reports it as `guide`, apart from the editor. The editor shows it under Help › Format guide.
+
+**Markdown for a section.** CommonMark with GitHub's tables, read through the paste mapping of [Paste and Markdown import](#paste-and-markdown-import), so Markdown, raw HTML in it included, enters only as the subset's constructs. Additions:
+
+- A heading ends with its ID and classes: `## Regions {#sec-regions .new-page}`. A paragraph may end with its classes: `… {.lead}`, `{.ta-c}`.
+- `> [!NOTE]`, `> [!WARNING]` and `> [!KEY]` start a callout (`[!TIP]` is a note, `[!IMPORTANT]` key, `[!CAUTION]` a warning).
+- `[^label]` with a `[^label]: text` line is a footnote; `[[xref: fig-revenue]]` a cross-reference, whose label is generated.
+- A figure is a placeholder alone on its line, outside lists and quotes: `[[block: chart|image|table | intent: "Revenue by region, 2025–2026" | id: fig-revenue]]`. The intent is a description for the writer and the reader, never data.
+- Comment anchors stay as raw HTML around the text they comment: `<mark class="comment" data-ref="c1">…</mark>`; underline, highlight, superscript, subscript, line breaks (`<br>`) and page breaks (`<hr class="page-break">`) are written in the subset's HTML too.
+
+What the subset cannot hold (an image by URL, a horizontal rule, a heading of level 5) is refused, not dropped. Markdown is read as HTML reads text: runs of spaces become one, and a line break or space at the start or end of a line is not kept. `show --markdown` writes a section in exactly this form, and converting it unchanged gives the section back byte for byte (`tests/document.test.mjs` checks every section of the valid fixtures and of the 100-page fixture). It refuses a section that Markdown cannot carry (a contents list, a protected block, an empty paragraph, a run of spaces, a space or line break at either end of a line); `convert` refuses to rewrite a section holding a contents list or a protected block. Edit those in HTML with `show` and `replace`.
+
+**Placeholders resolve** from the section's existing figure with that ID, kept as it is (data, preview, caption, layout, comment anchors), or from the payload map, a JSON object keyed by ID, validated whole before anything is converted:
+
+```json
+{
+  "fig-revenue": { "kind": "chart", "type": "column", "data": { "categories": ["Q1", "Q2"], "series": [{ "name": "2026", "values": [0.9, 1] }] }, "width": "text", "caption": "Revenue by quarter" },
+  "fig-site": { "kind": "image", "asset": "a2", "alt": "Raised beds at the north site", "width": "33", "wrap": "right", "caption": "The north site" },
+  "tab-regions": { "kind": "table", "caption": "Revenue by region", "columns": [{ "width": 40 }, { "width": 60, "align": "right", "emphasis": true }], "head": [["Region", "Revenue"]], "body": [["North", "1.9"]], "total": [["Total", "1.9"]], "rowHeaders": true, "compact": false }
+}
+```
+
+A chart's `data` follows the strict schema of its type (FORMAT.md › Chart); an image names an asset of the file (`add-image` first) or, for `new` only, a `file` next to the map; a table's cells are text (inline Markdown), numbers or `{text, colspan, rowspan, align}`. A payload for an existing figure changes only the fields it gives: the rest, the ID and the comment anchors in its caption are kept, and a chart whose data did not change keeps its preview. A chart's merged type and data are checked together. A table payload with any of `head`, `body`, `total` replaces those parts and keeps the others (header rows, total rows), the column widths, density, row headers and, for new cells without `align`, each column's alignment in that part. New charts get a preview drawn in Node with the document's charte (ECharts' SVG renderer, rebuilt through the shared allow-list, without `data-key`).
+
+**Refused**, with nothing written: a placeholder with no figure in the section and no payload (an intent alone is not data), an ID placed twice, the ID of a figure in another section or of anything else in the file, a kind that differs from the figure's or the payload's, a figure, or any one of a thread's anchored passages, that the Markdown leaves out (unless `--drop` names it: a thread with no anchor left is orphaned), a cross-reference or anchor to nothing (in the Markdown or in payload captions and cells, however it is spelled), a section that does not start with its own heading at its level or holds a heading that would end it, an undefined or unused footnote, a malformed placeholder, and an invalid payload map. [`examples/invalid/`](https://github.com/apatrem/html-office/blob/main/packages/text/examples/invalid) holds one file per refusal with the expected message ([`expected.json`](https://github.com/apatrem/html-office/blob/main/packages/text/examples/invalid/expected.json)); [`examples/valid/`](https://github.com/apatrem/html-office/blob/main/packages/text/examples/valid) a complete report, its payloads, and a section rewrite. Both are the skill's examples and the tests' fixtures.
+
+## Limits of the runtime check
+
+The checker runs on the source. The editor runs the same rules on the browser's parsed document before it allows editing, but a file is HTML: whatever a tampered file contains has already been parsed, and possibly run, by the time any editor code starts. Check files from unknown sources with `node tools/check.mjs` before opening them.
+
+The editor saves only a file it can tell is canonical. Save binds only an empty file or the file's exact bytes as opened, so any difference stops it. Save a copy has no file to compare: it checks what the parsed page still shows (zones, whitespace, the article) and refuses when that differs from the canonical form. Spellings the parser does not keep, such as `&#38;` for `&amp;`, single quotes or uppercase tags, are invisible to it, so a copy of such a file is written in canonical form. `check.mjs` reports these, and `pack.mjs` rewrites them explicitly.

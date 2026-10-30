@@ -1,0 +1,1070 @@
+{
+  "environment": {
+    "date": "2026-10-29T21:36:57.325Z",
+    "node": "v26.0.0",
+    "platform": "darwin 27.0.0",
+    "architecture": "arm64",
+    "cpu": "Apple M5",
+    "logicalCPUs": 10,
+    "memoryBytes": 25769803776,
+    "playwright": "1.62.1",
+    "browsers": {
+      "chromium": "151.0.7922.34"
+    },
+    "ci": false,
+    "cpuThrottle": 6,
+    "loadAverage": {
+      "before": 3.1,
+      "after": 2.3
+    }
+  },
+  "method": "Built standard file from file:// (no network; any request is refused and counted), viewport 1280×900. Per engine and document: one warm-up run, discarded, then the measured runs, each in a fresh browser context of the same browser. Open: navigation start to the first frame after the editor is ready. Keystroke-to-paint: from the key event's timestamp to the end of the next rendered frame (a message posted from requestAnimationFrame), one key at a time, 21 characters typed at the end of the middle paragraph. Editing operations (Enter, Backspace, word selection, bold, heading 2 and back, footnote, two undos): input-to-paint each, and in Chromium the longest main-thread task (Long Tasks API, 50 ms and over) overlapping it; long tasks outside every operation (the draft written 500 ms after the last edit) are reported as background. Chromium collects garbage before the editing window. Save: File › Save a copy (serialise, read back, blob) to the next paint; the copy is validated. Print preview: the command to the next paint. PDF: Playwright page.pdf in Chromium only. Memory: Chromium JS heap after a forced collection; the browser process tree's peak RSS sampled every 200 ms with ps (shared pages counted more than once). Medians over the runs.",
+  "thresholds": {
+    "50": {
+      "keystrokeWorstMS": 50,
+      "editingTaskMS": 100
+    },
+    "100": {
+      "keystrokeWorstMS": 100,
+      "editingTaskMS": 200
+    }
+  },
+  "documents": [
+    {
+      "pages": 50,
+      "size": {
+        "total": 782939,
+        "applicationCode": 576888,
+        "engine": 568483,
+        "content": 203901,
+        "assets": 2150,
+        "echarts": 0,
+        "ceiling": 600000
+      },
+      "paragraphWords": 25154,
+      "figures": 25
+    },
+    {
+      "pages": 100,
+      "size": {
+        "total": 988113,
+        "applicationCode": 576889,
+        "engine": 568483,
+        "content": 406668,
+        "assets": 4556,
+        "echarts": 0,
+        "ceiling": 600000
+      },
+      "paragraphWords": 50259,
+      "figures": 50
+    }
+  ],
+  "engines": {
+    "chromium": {
+      "50": {
+        "summary": {
+          "openMS": {
+            "median": 69.6,
+            "min": 67.7,
+            "max": 72.1
+          },
+          "keystrokeMedianMS": {
+            "median": 15.4,
+            "min": 13.7,
+            "max": 17.2
+          },
+          "keystrokeWorstMS": {
+            "median": 41.1,
+            "min": 36.5,
+            "max": 55.6
+          },
+          "editingTaskMS": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "backgroundTaskMS": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "saveMS": {
+            "median": 106.7,
+            "min": 100,
+            "max": 112.4
+          },
+          "previewMS": {
+            "median": 187.2,
+            "min": 183,
+            "max": 193.3
+          },
+          "pdfMS": {
+            "median": 535.8,
+            "min": 532.1,
+            "max": 565.3
+          },
+          "jsHeapAfterOpenBytes": {
+            "median": 4272956,
+            "min": 4272700,
+            "max": 4273328
+          },
+          "jsHeapAfterEditingBytes": {
+            "median": 5631972,
+            "min": 5629648,
+            "max": 5683200
+          },
+          "peakBrowserTreeRSSBytes": {
+            "median": 469303296,
+            "min": 463585280,
+            "max": 475348992
+          }
+        },
+        "operations": {
+          "enter": {
+            "inputToPaintMS": {
+              "median": 25.2,
+              "min": 23.3,
+              "max": 26.8
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "backspace": {
+            "inputToPaintMS": {
+              "median": 23.4,
+              "min": 22,
+              "max": 24.2
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "bold": {
+            "inputToPaintMS": {
+              "median": 20,
+              "min": 18.5,
+              "max": 24.4
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "heading 2": {
+            "inputToPaintMS": {
+              "median": 39.5,
+              "min": 36.6,
+              "max": 42.8
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "footnote": {
+            "inputToPaintMS": {
+              "median": 31.7,
+              "min": 30.8,
+              "max": 37.4
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "undo": {
+            "inputToPaintMS": {
+              "median": 29.1,
+              "min": 27.5,
+              "max": 31.3
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "previewPages": 68,
+        "pdfPages": 68,
+        "domNodes": 1530,
+        "savedBytes": 782977,
+        "blockedRequests": 0,
+        "targets": {
+          "keystrokeWorstMS": {
+            "limit": 50,
+            "median": 41.1,
+            "passed": true
+          },
+          "editingTaskMS": {
+            "limit": 100,
+            "median": 0,
+            "passed": true
+          }
+        },
+        "runs": [
+          {
+            "openMS": 69.60000000149012,
+            "readyMS": 64.30000000074506,
+            "domContentLoadedMS": 66.30000000074506,
+            "domNodes": 1530,
+            "keystrokeMedianMS": 13.700000002980232,
+            "keystrokeWorstMS": 37.100000001490116,
+            "keystrokes": [
+              37.1,
+              18.7,
+              15.5,
+              14.4,
+              12.5,
+              15.7,
+              12.1,
+              11.9,
+              13.7,
+              13.8,
+              13,
+              16.2,
+              11.9,
+              14.7,
+              20.8,
+              11,
+              10.2,
+              19,
+              12.4,
+              11.6,
+              12.1
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 23.600000001490116,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 23.899999998509884,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 18.5,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 36.599999997764826,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 34.899999998509884,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 29.100000001490116,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 103.90000000223517,
+            "savedBytes": 782977,
+            "previewMS": 190,
+            "previewPages": 68,
+            "pdfMS": 535.77225,
+            "pdfPages": 68,
+            "pdfBytes": 635533,
+            "jsHeapAfterOpenBytes": 4272700,
+            "jsHeapAfterEditingBytes": 5631972,
+            "peakBrowserTreeRSSBytes": 469303296,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 70.30000000074506,
+            "readyMS": 65,
+            "domContentLoadedMS": 67,
+            "domNodes": 1530,
+            "keystrokeMedianMS": 16.900000002235174,
+            "keystrokeWorstMS": 48.399999998509884,
+            "keystrokes": [
+              48.4,
+              26.8,
+              23.8,
+              17.7,
+              18.7,
+              21.5,
+              15.6,
+              14.9,
+              18.3,
+              17,
+              15.1,
+              15.4,
+              15.3,
+              13.3,
+              14.9,
+              14,
+              13.9,
+              16.5,
+              16.9,
+              18.7,
+              18.4
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 25.200000002980232,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 22.700000002980232,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 20,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 39.69999999925494,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 31.100000001490116,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 27.5,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 100,
+            "savedBytes": 782977,
+            "previewMS": 183.39999999850988,
+            "previewPages": 68,
+            "pdfMS": 546.6163750000014,
+            "pdfPages": 68,
+            "pdfBytes": 635533,
+            "jsHeapAfterOpenBytes": 4273156,
+            "jsHeapAfterEditingBytes": 5632756,
+            "peakBrowserTreeRSSBytes": 470384640,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 67.70000000298023,
+            "readyMS": 62.80000000074506,
+            "domContentLoadedMS": 64.5,
+            "domNodes": 1530,
+            "keystrokeMedianMS": 14,
+            "keystrokeWorstMS": 36.5,
+            "keystrokes": [
+              36.5,
+              18.4,
+              15.8,
+              14.9,
+              16.1,
+              14.2,
+              14.5,
+              13.2,
+              13.9,
+              12.8,
+              14,
+              13,
+              15.2,
+              12.8,
+              13.7,
+              12,
+              11.8,
+              15.5,
+              13.1,
+              12.8,
+              14.6
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 23.299999997019768,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 22,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 21.699999999254942,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 39.5,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 31.699999999254942,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 28.699999999254942,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 112.40000000223517,
+            "savedBytes": 782977,
+            "previewMS": 183,
+            "previewPages": 68,
+            "pdfMS": 534.8551250000019,
+            "pdfPages": 68,
+            "pdfBytes": 635533,
+            "jsHeapAfterOpenBytes": 4272700,
+            "jsHeapAfterEditingBytes": 5683200,
+            "peakBrowserTreeRSSBytes": 463585280,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 68,
+            "readyMS": 63,
+            "domContentLoadedMS": 64.69999999925494,
+            "domNodes": 1530,
+            "keystrokeMedianMS": 15.399999998509884,
+            "keystrokeWorstMS": 55.600000001490116,
+            "keystrokes": [
+              55.6,
+              25,
+              19.4,
+              14.4,
+              16.2,
+              13.9,
+              12.3,
+              14.1,
+              20.4,
+              15.7,
+              13.6,
+              15.4,
+              15.7,
+              15.5,
+              15.6,
+              12.9,
+              14.5,
+              13.1,
+              15.4,
+              13.6,
+              12.7
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 26.800000000745058,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 23.399999998509884,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 19.799999997019768,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 37.100000001490116,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 30.800000000745058,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 29.5,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 108.30000000074506,
+            "savedBytes": 782977,
+            "previewMS": 187.19999999925494,
+            "previewPages": 68,
+            "pdfMS": 532.1494170000005,
+            "pdfPages": 68,
+            "pdfBytes": 635533,
+            "jsHeapAfterOpenBytes": 4273328,
+            "jsHeapAfterEditingBytes": 5630144,
+            "peakBrowserTreeRSSBytes": 468221952,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 72.10000000149012,
+            "readyMS": 66.5,
+            "domContentLoadedMS": 68.39999999850988,
+            "domNodes": 1530,
+            "keystrokeMedianMS": 17.200000002980232,
+            "keystrokeWorstMS": 41.100000001490116,
+            "keystrokes": [
+              41.1,
+              21.5,
+              19.1,
+              18.8,
+              21.3,
+              17.2,
+              21.4,
+              16.5,
+              18,
+              16.9,
+              16.7,
+              16.7,
+              20.7,
+              19.9,
+              15.8,
+              17.6,
+              15.5,
+              15.8,
+              15.7,
+              16.2,
+              15.1
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 26.099999997764826,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 24.199999999254942,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 24.399999998509884,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 42.80000000074506,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 37.400000002235174,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 31.300000000745058,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 106.70000000298023,
+            "savedBytes": 782977,
+            "previewMS": 193.30000000074506,
+            "previewPages": 68,
+            "pdfMS": 565.2647500000021,
+            "pdfPages": 68,
+            "pdfBytes": 635533,
+            "jsHeapAfterOpenBytes": 4272956,
+            "jsHeapAfterEditingBytes": 5629648,
+            "peakBrowserTreeRSSBytes": 475348992,
+            "blockedRequests": 0
+          }
+        ]
+      },
+      "100": {
+        "summary": {
+          "openMS": {
+            "median": 102,
+            "min": 100.1,
+            "max": 103.4
+          },
+          "keystrokeMedianMS": {
+            "median": 22.5,
+            "min": 22.4,
+            "max": 26
+          },
+          "keystrokeWorstMS": {
+            "median": 53.4,
+            "min": 50.8,
+            "max": 61.9
+          },
+          "editingTaskMS": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "backgroundTaskMS": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "saveMS": {
+            "median": 217.7,
+            "min": 213.1,
+            "max": 224.1
+          },
+          "previewMS": {
+            "median": 364.7,
+            "min": 356.8,
+            "max": 371.7
+          },
+          "pdfMS": {
+            "median": 1025.6,
+            "min": 995.3,
+            "max": 1028.1
+          },
+          "jsHeapAfterOpenBytes": {
+            "median": 5213180,
+            "min": 5211796,
+            "max": 5213848
+          },
+          "jsHeapAfterEditingBytes": {
+            "median": 6776636,
+            "min": 6773812,
+            "max": 6777212
+          },
+          "peakBrowserTreeRSSBytes": {
+            "median": 534740992,
+            "min": 520470528,
+            "max": 536920064
+          }
+        },
+        "operations": {
+          "enter": {
+            "inputToPaintMS": {
+              "median": 45.8,
+              "min": 41.5,
+              "max": 54.5
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "backspace": {
+            "inputToPaintMS": {
+              "median": 42,
+              "min": 40.4,
+              "max": 44.7
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "bold": {
+            "inputToPaintMS": {
+              "median": 34.3,
+              "min": 30.8,
+              "max": 41.5
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "heading 2": {
+            "inputToPaintMS": {
+              "median": 60.1,
+              "min": 58.1,
+              "max": 62.6
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "footnote": {
+            "inputToPaintMS": {
+              "median": 59.8,
+              "min": 55.5,
+              "max": 69.9
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          },
+          "undo": {
+            "inputToPaintMS": {
+              "median": 56.5,
+              "min": 50.1,
+              "max": 57.6
+            },
+            "taskMS": {
+              "median": 0,
+              "min": 0,
+              "max": 0
+            }
+          }
+        },
+        "previewPages": 136,
+        "pdfPages": 136,
+        "domNodes": 2868,
+        "savedBytes": 988151,
+        "blockedRequests": 0,
+        "targets": {
+          "keystrokeWorstMS": {
+            "limit": 100,
+            "median": 53.4,
+            "passed": true
+          },
+          "editingTaskMS": {
+            "limit": 200,
+            "median": 0,
+            "passed": true
+          }
+        },
+        "runs": [
+          {
+            "openMS": 100.09999999776483,
+            "readyMS": 92.39999999850988,
+            "domContentLoadedMS": 95.19999999925494,
+            "domNodes": 2868,
+            "keystrokeMedianMS": 22.400000002235174,
+            "keystrokeWorstMS": 52.599999997764826,
+            "keystrokes": [
+              52.6,
+              27.8,
+              25.8,
+              25.2,
+              23.7,
+              23.4,
+              22.4,
+              23.3,
+              22.1,
+              22,
+              22,
+              21.4,
+              23,
+              22.3,
+              22.9,
+              21.8,
+              20.6,
+              20.8,
+              22.6,
+              19.8,
+              19.8
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 41.5,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 42,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 31.799999997019768,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 58.70000000298023,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 55.5,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 50.100000001490116,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 213.09999999776483,
+            "savedBytes": 988151,
+            "previewMS": 356.80000000074506,
+            "previewPages": 136,
+            "pdfMS": 1012.3609579999902,
+            "pdfPages": 136,
+            "pdfBytes": 1027405,
+            "jsHeapAfterOpenBytes": 5213648,
+            "jsHeapAfterEditingBytes": 6777212,
+            "peakBrowserTreeRSSBytes": 535068672,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 102,
+            "readyMS": 94.39999999850988,
+            "domContentLoadedMS": 97.29999999701977,
+            "domNodes": 2868,
+            "keystrokeMedianMS": 26,
+            "keystrokeWorstMS": 61.899999998509884,
+            "keystrokes": [
+              61.9,
+              32.7,
+              29.4,
+              28.6,
+              27.6,
+              26.4,
+              27.4,
+              24.9,
+              25.2,
+              26.7,
+              25,
+              24.4,
+              27.9,
+              25.6,
+              26.6,
+              25.3,
+              26,
+              25.7,
+              24.6,
+              23,
+              25.8
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 45.80000000074506,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 42.80000000074506,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 34.30000000074506,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 62.600000001490116,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 61.5,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 57.600000001490116,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 224.09999999776483,
+            "savedBytes": 988151,
+            "previewMS": 366.19999999925494,
+            "previewPages": 136,
+            "pdfMS": 1028.1029589999962,
+            "pdfPages": 136,
+            "pdfBytes": 1027405,
+            "jsHeapAfterOpenBytes": 5213168,
+            "jsHeapAfterEditingBytes": 6775120,
+            "peakBrowserTreeRSSBytes": 524845056,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 103.40000000223517,
+            "readyMS": 95.40000000223517,
+            "domContentLoadedMS": 98.30000000074506,
+            "domNodes": 2868,
+            "keystrokeMedianMS": 25.800000000745058,
+            "keystrokeWorstMS": 60.099999997764826,
+            "keystrokes": [
+              60.1,
+              30.1,
+              29.4,
+              27.5,
+              26.2,
+              27,
+              26.1,
+              26,
+              24.8,
+              27.2,
+              24.6,
+              25.8,
+              26,
+              25.2,
+              25.8,
+              24.4,
+              23.7,
+              23.5,
+              23.2,
+              23.8,
+              23.7
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 46.29999999701977,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 40.399999998509884,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 34.79999999701977,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 61.29999999701977,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 59.80000000074506,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 56.69999999925494,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 217.69999999925494,
+            "savedBytes": 988151,
+            "previewMS": 371.69999999925494,
+            "previewPages": 136,
+            "pdfMS": 1025.5672500000073,
+            "pdfPages": 136,
+            "pdfBytes": 1027405,
+            "jsHeapAfterOpenBytes": 5211796,
+            "jsHeapAfterEditingBytes": 6773812,
+            "peakBrowserTreeRSSBytes": 520470528,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 100.30000000074506,
+            "readyMS": 92.60000000149012,
+            "domContentLoadedMS": 95.40000000223517,
+            "domNodes": 2868,
+            "keystrokeMedianMS": 22.5,
+            "keystrokeWorstMS": 50.80000000074506,
+            "keystrokes": [
+              50.8,
+              27.1,
+              25.5,
+              24.9,
+              24.3,
+              23.1,
+              21.8,
+              23.5,
+              22.4,
+              22.5,
+              21.1,
+              24,
+              22.5,
+              22.8,
+              21.7,
+              21.7,
+              21,
+              20.6,
+              20.5,
+              21.3,
+              20.9
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 43.69999999925494,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 40.79999999701977,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 30.800000000745058,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 58.100000001490116,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 59.19999999925494,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 50.69999999925494,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 215.89999999850988,
+            "savedBytes": 988151,
+            "previewMS": 358.30000000074506,
+            "previewPages": 136,
+            "pdfMS": 995.3285420000029,
+            "pdfPages": 136,
+            "pdfBytes": 1027405,
+            "jsHeapAfterOpenBytes": 5213180,
+            "jsHeapAfterEditingBytes": 6776636,
+            "peakBrowserTreeRSSBytes": 536920064,
+            "blockedRequests": 0
+          },
+          {
+            "openMS": 103.09999999776483,
+            "readyMS": 95.09999999776483,
+            "domContentLoadedMS": 97.89999999850988,
+            "domNodes": 2868,
+            "keystrokeMedianMS": 22.5,
+            "keystrokeWorstMS": 53.399999998509884,
+            "keystrokes": [
+              53.4,
+              26.3,
+              25.1,
+              24.7,
+              24.8,
+              23.1,
+              21.8,
+              23.7,
+              21.7,
+              20.9,
+              22.5,
+              21.8,
+              21.7,
+              22.3,
+              23.1,
+              23.7,
+              21.3,
+              19.8,
+              22.1,
+              21.1,
+              25.7
+            ],
+            "editingTaskMS": 0,
+            "backgroundTaskMS": 0,
+            "operations": {
+              "enter": {
+                "inputToPaintMS": 54.5,
+                "taskMS": 0
+              },
+              "backspace": {
+                "inputToPaintMS": 44.69999999925494,
+                "taskMS": 0
+              },
+              "bold": {
+                "inputToPaintMS": 41.5,
+                "taskMS": 0
+              },
+              "heading 2": {
+                "inputToPaintMS": 60.100000001490116,
+                "taskMS": 0
+              },
+              "footnote": {
+                "inputToPaintMS": 69.89999999850988,
+                "taskMS": 0
+              },
+              "undo": {
+                "inputToPaintMS": 56.5,
+                "taskMS": 0
+              }
+            },
+            "saveMS": 220.5,
+            "savedBytes": 988151,
+            "previewMS": 364.69999999925494,
+            "previewPages": 136,
+            "pdfMS": 1026.02012500001,
+            "pdfPages": 136,
+            "pdfBytes": 1027405,
+            "jsHeapAfterOpenBytes": 5213848,
+            "jsHeapAfterEditingBytes": 6776812,
+            "peakBrowserTreeRSSBytes": 534740992,
+            "blockedRequests": 0
+          }
+        ]
+      }
+    }
+  }
+}

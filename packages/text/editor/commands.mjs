@@ -79,13 +79,19 @@ export function headingId(text, taken) {
 }
 
 // ---------- textblocks and the selection ----------
+// Documents never change, so each is walked once (T17): after every edit the toolbar asks each
+// style and list command whether it applies, and each asks for the textblocks. Read only.
+const textblocks = new WeakMap();
 function allTextblocks(doc) {
-  const out = [];
+  let out = textblocks.get(doc);
+  if (out) return out;
+  out = [];
   doc.descendants((node, pos) => {
     if (!node.isTextblock) return true;
     out.push({ node, pos });
     return false;
   });
+  textblocks.set(doc, Object.freeze(out));
   return out;
 }
 const blockAt = (doc, i) => allTextblocks(doc)[i];

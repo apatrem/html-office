@@ -1,0 +1,85 @@
+[
+  {
+    "markdown": "missing-payload.md",
+    "section": "sec-summary",
+    "error": "no figure \"fig-costs\" in this section and no payload for it"
+  },
+  {
+    "markdown": "unknown-target.md",
+    "section": "sec-summary",
+    "error": "the cross-reference to \"fig-margins\" has no target"
+  },
+  {
+    "markdown": "placed-twice.md",
+    "section": "sec-summary",
+    "error": "\"fig-revenue\" is placed twice"
+  },
+  {
+    "markdown": "other-section.md",
+    "section": "sec-summary",
+    "error": "\"fig-site\" is a figure of another section"
+  },
+  {
+    "markdown": "id-taken.md",
+    "section": "sec-summary",
+    "error": "\"sec-plan\" is already the ID of something else"
+  },
+  {
+    "markdown": "kind-mismatch.md",
+    "section": "sec-summary",
+    "error": "\"fig-revenue\" is a chart, not a table"
+  },
+  {
+    "markdown": "payload-kind.md",
+    "section": "sec-summary",
+    "payloads": "payloads.json",
+    "error": "chart \"fig-photo\": its payload is of kind image"
+  },
+  {
+    "markdown": "intent-only.md",
+    "section": "sec-summary",
+    "payloads": "payloads.json",
+    "error": "a new chart needs type and data in its payload (an intent is not data)"
+  },
+  {
+    "markdown": "not-placed.md",
+    "section": "sec-summary",
+    "error": "chart \"fig-revenue\" is in the section but not placed"
+  },
+  {
+    "markdown": "placeholder-in-list.md",
+    "section": "sec-summary",
+    "error": "a placeholder is one line on its own"
+  },
+  {
+    "markdown": "unknown-field.md",
+    "section": "sec-summary",
+    "error": "unknown field \"size\""
+  },
+  {
+    "markdown": "heading-level.md",
+    "section": "sec-summary",
+    "error": "stays a level 1 heading"
+  },
+  {
+    "markdown": "second-chapter.md",
+    "section": "sec-summary",
+    "error": "inside this section, headings are below level 1"
+  },
+  {
+    "markdown": "footnote-undefined.md",
+    "section": "sec-summary",
+    "error": "footnote [^audit] has no definition"
+  },
+  {
+    "markdown": "image-by-url.md",
+    "section": "sec-summary",
+    "error": "Left out: 1 image."
+  },
+  {
+    "markdown": "missing-payload.md",
+    "section": "sec-summary",
+    "payloads": "bad-payloads.json",
+    "error": "payload \"fig-costs\": unknown field \"colour\" for a chart"
+  }
+]

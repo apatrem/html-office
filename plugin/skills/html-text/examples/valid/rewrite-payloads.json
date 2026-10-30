@@ -1,0 +1,17 @@
+{
+  "fig-visits": {
+    "kind": "chart",
+    "type": "hbar",
+    "data": {
+      "title": "Visits by region",
+      "unit": "thousand",
+      "categories": ["North", "South", "Coast"],
+      "series": [{ "name": "2026", "values": [12.4, 9.8, 3.1] }]
+    },
+    "caption": "Visits by region, 2026"
+  },
+  "tab-regions": {
+    "kind": "table",
+    "caption": "Revenue by region, EUR million (restated)"
+  }
+}
