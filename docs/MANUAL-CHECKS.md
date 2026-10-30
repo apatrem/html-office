@@ -294,6 +294,14 @@ Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long 
 4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
 5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
 
+### TOC heading retype
+
+1. **In the contents**: in the example, put the cursor in the *Regions* heading and press Ctrl/Cmd+Alt+0 (or Paragraph style › Body). It becomes body text and its entry leaves the contents at once. Undo brings back the heading and the entry together.
+2. **Other styles**: do the same with the *2027 plan* heading and Paragraph style › Note, then Undo. The heading leaves the contents, and comes back with its number.
+3. **Still protected by a cross-reference**: insert a cross-reference to *Regions*. Paragraph style › Body is now greyed out and Ctrl/Cmd+Alt+0 does nothing; Heading 3 still works. Delete the cross-reference: Body is available again.
+4. **Still protected by a comment**: *Executive summary* holds a comment thread, so Body is greyed out there too.
+5. **Safari and Firefox**: steps 1–4 behave the same.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

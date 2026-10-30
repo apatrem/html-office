@@ -27,6 +27,7 @@ import {
   setHeadingNumbers,
   referenceTargets,
 } from "../editor/generated.mjs";
+import { setStyle } from "../editor/commands.mjs";
 import { envelope } from "./generate.mjs";
 
 const N = schema.nodes;
@@ -430,6 +431,62 @@ test("typing in a paragraph maps the decorations; typing in a heading updates th
   assert.equal(generatedKey.getState(e.state).decorations.find().length, start);
   e.dispatch(e.state.tr.insertText("Renamed ", e.find("Two A")));
   assert.match(e.saved(), /<a href="#two-a">2\.1 Renamed Two A<\/a>/);
+});
+
+test("a heading only the contents list links to can become text: the entry goes, undo brings it back", () => {
+  const cursor = (e, text) =>
+    e.dispatch(
+      e.state.tr.setSelection(TextSelection.create(e.state.doc, e.find(text))),
+    );
+  const e = editor(SECTIONS);
+  const opened = e.saved();
+  cursor(e, "Two A");
+  assert.ok(e.run(setStyle("body")));
+  assert.match(e.saved(), /<p>Two A<\/p>/);
+  assert.doesNotMatch(e.saved(), /#two-a/);
+  // One undo step, with its contents entry.
+  undo(e.state, e.dispatch);
+  assert.equal(e.saved(), opened);
+  // A later heading renumbers, in the contents and in the cross-references.
+  cursor(e, "One");
+  assert.ok(e.run(setStyle("note")));
+  assert.match(e.saved(), /<a href="#two">1 Two<\/a>/);
+  assert.match(e.saved(), /href="#two">Section 1</);
+
+  // The other styles a heading can leave for, the cover included.
+  for (const style of ["lead", "code", "quote", "warning", "title"]) {
+    const first = editor(
+      '<h1 id="a">A</h1>\n<nav class="toc" data-depth="1"></nav>\n<p>End.</p>',
+    );
+    cursor(first, "A");
+    assert.ok(first.run(setStyle(style)), style);
+    assert.doesNotMatch(first.saved(), /#a/, style);
+  }
+  const cover = editor(
+    '<header class="cover">\n<h1 class="title">T</h1>\n</header>\n<h1 id="a">A</h1>\n<nav class="toc" data-depth="1"></nav>',
+  );
+  cursor(cover, "A");
+  assert.ok(cover.run(setStyle("subtitle")));
+  assert.doesNotMatch(cover.saved(), /#a/);
+});
+
+test("a heading a cross-reference or a thread names keeps its ID, contents or not", () => {
+  const toc = '<nav class="toc" data-depth="1"></nav>';
+  const thread =
+    '<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x" data-section="a">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>';
+  for (const rest of [
+    '<p>See <a class="xref" href="#a">Section 1</a>.</p>',
+    `<p>End.</p>\n${thread}`,
+  ]) {
+    const e = editor(`${toc}\n<h1 id="a">Alpha</h1>\n${rest}`);
+    e.dispatch(
+      e.state.tr.setSelection(
+        TextSelection.create(e.state.doc, e.find("Alpha")),
+      ),
+    );
+    assert.equal(setStyle("body")(e.state), false);
+    assert.ok(setStyle("h2")(e.state));
+  }
 });
 
 test("heading numbers and format are document settings; contents and cross-references insert", () => {
