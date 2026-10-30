@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -44,6 +45,7 @@ for (const [name] of DOCUMENTS) {
 
 // Firefox with its WebDriver BiDi server on a free port, in a profile of its own.
 const profile = await mkdtemp(join(tmpdir(), "text-firefox-"));
+await writeFile(join(profile, "user.js"), 'user_pref("remote.log.level", "Debug");\n');
 const firefox = spawn(
   FIREFOX,
   ["--headless", "--remote-debugging-port", "0", "--profile", profile],
@@ -57,6 +59,7 @@ const address = await new Promise((resolve, reject) => {
   );
   firefox.stderr.on("data", (data) => {
     log += data;
+    if (process.env.PF_DIAG) appendFileSync(process.env.PF_DIAG, data);
     const found = log.match(/WebDriver BiDi listening on (ws:\/\/\S+)/);
     if (found) resolve(found[1]);
   });
@@ -70,7 +73,10 @@ await new Promise((resolve, reject) => {
   socket.onopen = resolve;
   socket.onerror = reject;
 });
+firefox.on("exit", (code, signal) => console.log(`DIAG firefox exit ${code} ${signal}`));
+socket.addEventListener("close", (e) => console.log(`DIAG socket close ${e.code} ${e.reason}`));
 let last = 0;
+const T0 = Date.now();
 const waiting = new Map();
 socket.onmessage = ({ data }) => {
   const message = JSON.parse(data);
@@ -85,6 +91,13 @@ const send = (method, params = {}) =>
         ? reject(new Error(`${method}: ${m.error}: ${m.message}`))
         : resolve(m.result),
     );
+    const t0 = Date.now();
+    const inner = waiting.get(id);
+    const target = (params.url || "").split("/").pop();
+    waiting.set(id, (m) => {
+      console.log(`DIAG ${((Date.now() - T0) / 1000).toFixed(2)} ${method} ${target} ${Date.now() - t0}ms ${m.type}`);
+      inner(m);
+    });
     socket.send(JSON.stringify({ id, method, params }));
   });
 
