@@ -1,0 +1,215 @@
+{
+  "fig-revenue": {
+    "kind": "chart",
+    "type": "column",
+    "data": {
+      "title": "Revenue by quarter",
+      "unit": "EUR million",
+      "decimals": 1,
+      "categories": ["Q1", "Q2", "Q3", "Q4"],
+      "series": [
+        {
+          "name": "2025",
+          "values": [1.9, 2, 2.2, 2.3]
+        },
+        {
+          "name": "2026",
+          "values": [2.1, 2.3, 2.5, 2.7]
+        }
+      ]
+    },
+    "width": "text",
+    "caption": "Revenue by quarter, 2025 and 2026 (fictional)"
+  },
+  "fig-bridge": {
+    "kind": "chart",
+    "type": "waterfall",
+    "data": {
+      "title": "Operating profit, 2026 to 2027 plan",
+      "unit": "EUR thousand",
+      "items": [
+        {
+          "label": "2026",
+          "value": 620,
+          "total": true
+        },
+        {
+          "label": "Volume",
+          "value": 350
+        },
+        {
+          "label": "Prices",
+          "value": 180
+        },
+        {
+          "label": "Flour and energy",
+          "value": -210
+        },
+        {
+          "label": "Wages",
+          "value": -160
+        },
+        {
+          "label": "Riverside opening",
+          "value": -120
+        },
+        {
+          "label": "2027 plan",
+          "value": 660,
+          "total": true
+        }
+      ],
+      "increase": "good"
+    },
+    "width": "full",
+    "caption": "From 2026 operating profit to the 2027 plan (fictional)"
+  },
+  "fig-mill-lane": {
+    "kind": "image",
+    "file": "images/mill-lane.svg",
+    "alt": "Drawing of the Mill Lane bakery shopfront with its striped awning and bread in the window",
+    "width": "40",
+    "wrap": "right",
+    "caption": "Mill Lane, the first bakery (illustration)"
+  },
+  "fig-route": {
+    "kind": "image",
+    "file": "images/delivery-route.svg",
+    "alt": "Schematic map of the cargo-bike delivery loop linking the bakehouse to five districts",
+    "width": "40",
+    "wrap": "left",
+    "caption": "The cargo-bike delivery loop (schematic)"
+  },
+  "fig-oven": {
+    "kind": "image",
+    "file": "images/oven-line.svg",
+    "alt": "Drawing of the planned electric deck-oven line at the Riverside bakehouse",
+    "width": "text",
+    "caption": "The electric oven line planned for Riverside (illustration)"
+  },
+  "tab-revenue": {
+    "kind": "table",
+    "caption": "Revenue by channel, EUR thousand (fictional)",
+    "columns": [
+      {
+        "width": 32
+      },
+      {
+        "width": 17,
+        "align": "right"
+      },
+      {
+        "width": 17,
+        "align": "right",
+        "emphasis": true
+      },
+      {
+        "width": 17,
+        "align": "right"
+      },
+      {
+        "width": 17,
+        "align": "right"
+      }
+    ],
+    "head": [
+      [
+        {
+          "text": "Channel",
+          "rowspan": 2
+        },
+        {
+          "text": "Year",
+          "colspan": 2,
+          "align": "center"
+        },
+        {
+          "text": "Change",
+          "colspan": 2,
+          "align": "center"
+        }
+      ],
+      ["2025", "2026", "EUR k", "%"]
+    ],
+    "body": [
+      ["Shops", "5,100", "5,640", "+540", "+10.6"],
+      ["Wholesale (cafés, schools)", "2,400", "2,880", "+480", "+20.0"],
+      ["Online and subscriptions", "900", "1,080", "+180", "+20.0"]
+    ],
+    "total": [["Revenue", "8,400", "9,600", "+1,200", "+14.3"]],
+    "rowHeaders": true
+  },
+  "tab-costs": {
+    "kind": "table",
+    "caption": "Operating costs and profit, EUR thousand (fictional)",
+    "columns": [
+      {
+        "width": 40
+      },
+      {
+        "width": 20,
+        "align": "right"
+      },
+      {
+        "width": 20,
+        "align": "right"
+      },
+      {
+        "width": 20,
+        "align": "right"
+      }
+    ],
+    "head": [["Line", "2025", "2026", "Share of 2026 revenue"]],
+    "body": [
+      ["Ingredients and packaging", "2,690", "3,170", "33.0%"],
+      ["Wages and training", "3,190", "3,550", "37.0%"],
+      ["Energy", "420", "510", "5.3%"],
+      ["Rent and sites", "760", "800", "8.3%"],
+      ["Distribution", "390", "430", "4.5%"],
+      ["Other overheads", "520", "520", "5.4%"]
+    ],
+    "total": [
+      ["Operating costs", "7,970", "8,980", "93.5%"],
+      ["Operating profit", "430", "620", "6.5%"]
+    ],
+    "rowHeaders": true,
+    "compact": true
+  },
+  "tab-budget": {
+    "kind": "table",
+    "caption": "2027 budget by quarter, EUR thousand (fictional)",
+    "columns": [
+      {
+        "width": 30
+      },
+      {
+        "width": 14,
+        "align": "right"
+      },
+      {
+        "width": 14,
+        "align": "right"
+      },
+      {
+        "width": 14,
+        "align": "right"
+      },
+      {
+        "width": 14,
+        "align": "right"
+      },
+      {
+        "width": 14,
+        "align": "right",
+        "emphasis": true
+      }
+    ],
+    "head": [["", "Q1", "Q2", "Q3", "Q4", "Year"]],
+    "body": [
+      ["Revenue", "2,350", "2,550", "2,800", "3,000", "10,700"],
+      ["Operating costs", "2,250", "2,400", "2,620", "2,770", "10,040"]
+    ],
+    "total": [["Operating profit", "100", "150", "180", "230", "660"]],
+    "rowHeaders": true
+  }
+}

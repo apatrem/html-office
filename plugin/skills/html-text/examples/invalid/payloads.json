@@ -1,0 +1,4 @@
+{
+  "fig-photo": { "kind": "image", "asset": "a1", "alt": "A photograph" },
+  "fig-margin": { "kind": "chart", "caption": "Margin by region, 2026" }
+}

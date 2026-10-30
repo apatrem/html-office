@@ -19,11 +19,8 @@ import { cellClasses } from "../model/formatting.mjs";
 import { recalculate } from "./engine-node.mjs";
 import { readModel, writeModel } from "../model/document.mjs";
 import { escapeHTML as esc, preview } from "../runtime/view.mjs";
-import {
-  renderPreviews,
-  embeddedECharts,
-  charteTokens,
-} from "./chart-previews.mjs";
+import { renderPreviews, embeddedECharts } from "./chart-previews.mjs";
+import { completeCharte } from "../../shared/charts/css-theme.mjs";
 import { xlsxLibrary, xlsxPackage } from "./xlsx-library.mjs";
 // Standard-mode embedded application code ceiling for HTML Data (ADR-010).
 export const STANDARD_CODE_CEILING = 750000;
@@ -181,37 +178,11 @@ async function defaultBrand() {
   throw new Error("The default brand stylesheet is missing.");
 }
 
-// The charte's core tokens: colours and font. The optional role tokens
-// (--header-bg…) fall back to these in the editor's own CSS.
-export const CHARTE_TOKENS = [
-  "ink",
-  "acc",
-  "mid",
-  "lig",
-  "alert",
-  "tint",
-  "callout",
-  "bd",
-  "t2",
-  "bg",
-  "font",
-];
-
-// A custom charte that leaves core tokens out takes the default charte's
-// value for each of them, in a cascade layer named first (an @layer
-// statement may precede @import): it ranks below every other declaration,
-// including those charteTokens() does not read (@import, @media).
-export function completeCharte(css, defaults) {
-  const own = charteTokens(css),
-    base = charteTokens(defaults),
-    missing = CHARTE_TOKENS.filter((name) => !(name in own));
-  if (!missing.length) return { css, missing };
-  const rule = missing.map((name) => `--${name}:${base[name]}`).join(";");
-  return {
-    css: `@layer charte-defaults;\n${css.replace(/\s*$/, "")}\n/* Tokens this charte leaves out, from the default charte. */\n@layer charte-defaults{:root{${rule}}}\n`,
-    missing,
-  };
-}
+// Moved to the shared chart module (T18 Text); exported here as before.
+export {
+  CHARTE_TOKENS,
+  completeCharte,
+} from "../../shared/charts/css-theme.mjs";
 
 export async function buildWorkbook(
   input,

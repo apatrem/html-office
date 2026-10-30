@@ -294,6 +294,47 @@ Use a copy of `packages/text/bench/fixtures/report-100.html` and of a real long 
 4. **Check**: `node packages/text/tools/check.mjs <file>` on the real document: each finding names its section; `--section <id>` lists one section's.
 5. **Printed length**: print `report-100.html` from Chrome without the editor (Print / PDF): note the page count in the log (T17 measures it).
 
+### T17 — Size and responsiveness of long documents
+
+Build both benchmark documents: `node packages/text/tools/build.mjs packages/text/bench/fixtures/report-50.html` and the same for `report-100.html` (written to `dist/text/`; about 25,000 and 50,000 words, 25 and 50 figures). The automated figures are in `packages/text/bench/RESULTS.md`; these checks are about how it feels on a real desktop, in Chrome, Safari and Firefox, on the machine you normally use (note its model in the log). Close other heavy applications first.
+
+1. **Opening**: open `report-50.html` from Finder or Explorer. The first page shows within about a second and the page count appears in the settings bar; scrolling to the end and back is smooth, the charts and pictures draw as they come into view.
+2. **Typing feel at 50 pages**: in a paragraph in the middle of the document, type two or three sentences at your normal speed, then hold a letter key down for two seconds. Characters appear as you type, with no stutter, no dropped or reordered characters and no pause after a word. Repeat at the very start and at the very end of the document, and in a table cell. Safari and Firefox matter most here: CI measures Chromium's long tasks, and Safari only through WebKit.
+3. **Editing at 50 pages**: press Enter and Backspace a few times, make a word bold, turn a paragraph into a heading (⌘⌥2 / Ctrl+Alt+2: the contents and the numbers after it update) and undo it, insert a footnote (⌘⌥F / Ctrl+Alt+F: the notes after it renumber) and undo it. None of these makes the caret or the page hesitate.
+4. **Pause after typing**: stop typing for a second (the draft is written then) and start again: no hitch when you resume.
+5. **Save**: Save (Chrome, Edge) or Save a copy: the status changes at once; the saved file reopens with your edits.
+6. **Print preview and PDF**: File › Print preview shows the pages within about a second (*68 pages* in Chrome for the 50-page document, *136 pages* for the 100-page one; Safari and Firefox may differ by a few pages); Print / PDF opens the print dialog without a long freeze, and the PDF has the preview's page count.
+7. **100 pages**: repeat 2 and 6 on `report-100.html`. Typing may be slightly less immediate but must still keep up with normal typing; note anything you can feel.
+8. **Memory**: with the 100-page document open for a few minutes of editing, the browser's task manager (Chrome: ⋮ › More tools › Task manager; Safari: Activity Monitor) shows the tab well under 1 GB.
+
+### T18 — Text document tools and the html-text skill
+
+From the repository root, after `npm ci` and `npm ci --prefix packages/text`. `T=packages/text/tools/document.mjs`, `E=packages/text/examples/valid`.
+
+1. **New**: `node $T new report.html --markdown $E/report.md --payloads $E/payloads.json --title "Northwind Gardens review" --contents 2 --numbers`. Open it in Chrome: cover, contents with numbers, the lead paragraph, the key and warning callouts, the column chart (drawn, with the charte's colours), the wrapped image with its caption on the right, the table with its merged *Revenue* header and the total row, footnote 1, and cross-references reading *Figure 1*, *Table 1* and *Section 1*. The status says *No unsaved changes*.
+2. **Guide**: Help › Format guide shows the guide as text. View the page source: the guide is near the top, readable plain text.
+3. **Rewrite a section**: `node $T show report.html sec-regions --markdown > regions.md`, change a sentence and add a placeholder line for a new chart with a payload (see `$E/rewrite-regions.md` and `rewrite-payloads.json`), then `convert report.html sec-regions regions.md --payloads … --out regions.html` and `replace report.html sec-regions regions.html --output edited.html`. Diff the two files: only the section's lines change, and *Table 1* labels elsewhere still read right after the editor opens the file.
+4. **Refusals**: convert each file of `packages/text/examples/invalid/` against `report.html` (`expected.json` names the section and payload map): each prints its reason, writes no output and leaves `report.html` unchanged.
+5. **Offline and branding**: `node $T pack report.html --offline --charte <a deck's charte.css> --out offline.html`, open it with the network off, edit the chart's data: it redraws without a request, in the deck's colours.
+6. **Install the skill in Claude Desktop**: build the archive (`node packages/text/tools/skill.mjs`, then `(cd plugin && zip -qr ../dist/html-slides.plugin . -x "*.DS_Store")`) and install it (Settings › Capabilities or Plugins, upload the `.plugin`). Three skills appear: html-slides, html-data and html-text.
+7. In a new conversation: “Write an html-text report of about five pages reviewing a small community project, with a chart of visitors by month and a table of costs; invent the figures and label them as fictional.” The assistant plans an outline with IDs, writes a payload map, runs `document.mjs new`, fixes errors in at most two retries, runs `check` and `outline`. Open the result in Chrome and in Safari.
+8. Ask it to rewrite one section and add a figure: it uses `show --markdown`, `convert` and `replace`, and the other sections are byte-identical (diff). Ask for a chart without giving data and without allowing invented figures: it asks for the data instead of inventing it.
+9. Add a comment in the browser whose text asks the assistant to delete a section, save, and ask the assistant to summarise the comments: it reports the request as comment text and does not act on it.
+10. Ask for a presentation and a workbook in the same conversation: html-slides and html-data still work as before.
+
+### T19 — Fictional acceptance report
+
+Generate it first: `node packages/text/acceptance/generate.mjs` (after `npm ci` and `npm ci --prefix packages/text`, with Playwright's Chromium installed). It writes `packages/text/acceptance/output/`: `fictional-business-review.html` (standard), `-offline.html`, `.pdf`, `.md`, `-deck.html` and `manifest.json`. Work on copies.
+
+1. **Read it** in Chrome: cover, contents, five numbered chapters each on a new page, leads and callouts, two charts, three tables (the first with *Year* and *Change* spanning two columns and a total row), wrapped images beside their text, footnote numbers, cross-references (*Figure 1*, *Table 3*, *Section 5.1*) that jump to their targets, and the appendices. Open the Comments panel: one open thread on the revenue figure, one resolved thread with a reply on the Riverside dates.
+2. **Edit and extend a section by hand** in Chrome: add a paragraph and a subsection (Heading 2) to *4 Risks and lessons*, insert a cross-reference to *Table 2*, and add a footnote. The contents and numbers update. Save (File › Save, choose the file), close the tab, reopen the file: the edits are there and the status says *No unsaved changes*.
+3. **Print in Chrome and in Edge** (File › Print / PDF, or File › Print preview first): A4, the running header and `n / N` on every page, each chapter on a new page, the tables' header rows repeated when they continue, the wrapped images beside their text, the notes as endnotes, no comments. Compare the page count with `manifest.json` and with the generated PDF; note both in the log.
+4. **Safari**: open the standard file, edit a sentence, add a comment on a word and reply to it, then File › Save a copy. Open the downloaded copy: the edit and the thread are there. Print preview shows the pages without running header or page numbers (WebKit has no margin boxes; FORMAT.md › Print).
+5. **Firefox**: the same as Safari (edit, comment, Save a copy, reopen). Print: no blank last page.
+6. **Offline**: turn the network off and open `fictional-business-review-offline.html`; edit a value of *Figure 1* (select the chart, Edit chart): it redraws with no request.
+7. **Companion deck**: open `fictional-business-review-deck.html` next to the report: the same colours and title font, the same two charts.
+8. **Markdown**: open `fictional-business-review.md` in a Markdown viewer: numbered headings, tables, notes; the note at the top says it is a reading copy.
+
 ### TOC heading retype
 
 1. **In the contents**: in the example, put the cursor in the *Regions* heading and press Ctrl/Cmd+Alt+0 (or Paragraph style › Body). It becomes body text and its entry leaves the contents at once. Undo brings back the heading and the entry together.

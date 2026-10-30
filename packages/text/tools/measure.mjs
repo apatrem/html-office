@@ -1,149 +1,149 @@
 #!/usr/bin/env node
-// Embedded code budget by component (T02): minified browser bundles, as a product build would embed them.
+// Embedded code budget by component (T02, T17): the built file's application code, split by what
+// it embeds. The editor is built exactly as tools/build.mjs builds it (one minified script) and
+// esbuild's metafile attributes each output byte to its source file; the rest of the script
+// (module scaffolding, licence notices, inline-script escaping) and of the file's code (theme
+// styles, HTML skeleton) are rows of their own, so the rows add up to the measured total.
 //   node tools/measure.mjs [--write]   (--write updates bench/code-size.json)
-// Each ProseMirror package is measured alone with its dependencies; our modules with ProseMirror external.
-// "Editor core" is everything together, the floor of the Text standard build before shell, CSS and UI
-// (with the T07 paste mapping and Markdown import, and the T15 Markdown projection).
-import { build } from "esbuild";
 import { gzipSync } from "node:zlib";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { inlineScript } from "../../../tools/inline-script.mjs";
-import { groupNotices, formatNotices } from "../../shared/notices.mjs";
-import { licenceEntries, escapeComments } from "./build.mjs";
+import { readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildEngine, buildDocument, measureFile } from "./build.mjs";
+import { parseFile } from "../model/parse.mjs";
 
 // Raised from 500,000 by the user on 28 October 2026 (T07–T13 together come to about 548 KB).
 export const STANDARD_CODE_CEILING = 600000;
-const root = new URL("../", import.meta.url);
-const PACKAGES = [
-  "prosemirror-model",
-  "prosemirror-transform",
-  "prosemirror-state",
-  "prosemirror-view",
-  "prosemirror-history",
-  "prosemirror-keymap",
-  "prosemirror-commands",
-  "commonmark",
-  "prosemirror-tables",
-];
-const OURS = {
-  "HTML tree and serialiser": "./model/html.mjs",
-  Validator: "./model/validate.mjs",
-  Schema: "./editor/schema/schema.mjs",
-  "Parser (tree to document)": "./editor/schema/parse.mjs",
-  "Serialiser (document to HTML)": "./editor/schema/serialize.mjs",
-  "File layout": "./model/file.mjs",
-  "Editing guard": "./editor/schema/guard.mjs",
-  "Editing commands": "./editor/commands.mjs",
-  "Paste mapping (HTML, tables)": "./editor/clipboard/html.mjs",
-  "Markdown import": "./editor/clipboard/markdown.mjs",
-  "Table editing": "./editor/tables.mjs",
-  "Markdown projection": "./editor/markdown.mjs",
-};
+const pkg = resolve(fileURLToPath(import.meta.url), "../..");
+const repo = resolve(pkg, "../..");
+// The document measured: the compact example, as T03 and later tasks reported it.
+const EXAMPLE = join(pkg, "fixtures/valid/example.html");
 
-async function bundle(contents, external = []) {
-  const result = await build({
-    metafile: true,
-    stdin: { contents, resolveDir: root.pathname, loader: "js" },
-    bundle: true,
-    write: false,
-    minify: true,
-    format: "esm",
-    platform: "browser",
-    target: "es2022",
-    legalComments: "none",
-    external,
-    // As the editor is built: the browser decodes Markdown character references.
-    alias: { entities: "./editor/clipboard/entities.mjs" },
-  });
-  const code = result.outputFiles[0].contents;
-  return {
-    text: result.outputFiles[0].text,
-    bytes: code.length,
-    gzip: gzipSync(code, { level: 9 }).length,
-    metafile: result.metafile,
-  };
+// ProseMirror's own small dependencies, and commonmark's, are counted with their parent.
+const WITH = {
+  orderedmap: "prosemirror-model",
+  "rope-sequence": "prosemirror-history",
+  "w3c-keyname": "prosemirror-keymap",
+  mdurl: "commonmark",
+};
+// Source paths (relative to the repository) to components, first match wins.
+const OURS = [
+  [/\.css$/, "CSS: shell, panels and editor styles"],
+  [/^src\/format\.js$/, "Slides format vocabulary (theme CSS checks)"],
+  [/^packages\/text\/model\//, "Text model: HTML tree, file layout, validator"],
+  [
+    /^packages\/text\/editor\/schema\//,
+    "Schema, parser, serialiser, editing guard",
+  ],
+  [/^packages\/text\/editor\/clipboard\//, "Paste mapping and Markdown import"],
+  [
+    /^packages\/text\/editor\//,
+    "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
+  ],
+  [
+    /^packages\/text\/runtime\//,
+    "Editor UI: shell, saving, print, figures, comments",
+  ],
+  [/^packages\/text\/theme\//, "Text theme"],
+  [/^packages\/shared\/([^/.]+)/, (m) => `Shared: ${m[1]}`],
+];
+
+async function componentOf(path, versions) {
+  const dep = /(?:^|\/)node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(path);
+  if (dep) {
+    const name = WITH[dep[1]] ?? dep[1];
+    const dir = path.slice(0, dep.index + dep[0].length - dep[1].length - 1);
+    versions[name] ??= JSON.parse(
+      await readFile(join(repo, dir, name, "package.json"), "utf8"),
+    ).version;
+    return `${name} ${versions[name]}`;
+  }
+  for (const [pattern, label] of OURS) {
+    const m = pattern.exec(path);
+    if (m) return typeof label === "function" ? label(m) : label;
+  }
+  throw new Error(`No component for ${path}`);
 }
 
+const bytes = (s) => Buffer.byteLength(s, "utf8");
+
 export async function measure() {
-  const versions = {};
-  for (const name of PACKAGES)
-    versions[name] = JSON.parse(
-      await readFile(new URL(`node_modules/${name}/package.json`, root)),
-    ).version;
-  const rows = [];
-  for (const name of PACKAGES)
-    rows.push({
-      component: `${name} ${versions[name]}`,
-      ...(await bundle(`export * from "${name}";`)),
-    });
-  for (const [label, path] of Object.entries(OURS))
-    rows.push({
-      component: label,
-      ...(await bundle(`export * from "${path}";`, PACKAGES)),
-    });
-  const core = await bundle(
+  const engine = await buildEngine();
+  const html = await buildDocument(await readFile(EXAMPLE, "utf8"), engine);
+  const file = measureFile(html);
+  const [output] = Object.values(engine.metafile.outputs);
+  const sums = new Map(),
+    versions = {};
+  let attributed = 0;
+  for (const [path, { bytesInOutput }] of Object.entries(output.inputs)) {
+    const name = await componentOf(path, versions);
+    sums.set(name, (sums.get(name) ?? 0) + bytesInOutput);
+    attributed += bytesInOutput;
+  }
+  const libraries = [...sums].filter(([name]) => /\d+\.\d+\.\d+$/.test(name));
+  const ours = [...sums].filter(([name]) => !/\d+\.\d+\.\d+$/.test(name));
+  // The script's text: a banner comment holding the notices, then the escaped bundle.
+  const comment = engine.code.slice(0, engine.code.indexOf("*/\n") + 3);
+  const head = parseFile(html).html.children.find((n) => n.name === "head");
+  const styles = head.children
+    .filter((n) => n.name === "style")
+    .reduce((sum, n) => sum + bytes(html.slice(n.loc.offset, n.loc.end)), 0);
+  const rows = [
+    ...libraries.sort((a, b) => b[1] - a[1]),
+    ...ours.sort((a, b) => b[1] - a[1]),
+    ["Bundle scaffolding (esbuild module wrappers)", output.bytes - attributed],
+    ["Licence notices and banner", bytes(comment)],
     [
-      ...PACKAGES.map(
-        (p) => `export * as ${p.replace(/\W/g, "_")} from "${p}";`,
-      ),
-      ...Object.values(OURS).map((p, i) => `export * as m${i} from "${p}";`),
-    ].join("\n"),
-  );
-  // The file must carry the licence notices of what it embeds (ADR-011 §9): count them too.
-  const notices = formatNotices(
-    groupNotices([
-      {
-        label: "html-text/LICENSE",
-        text: await readFile(new URL("../../LICENSE", root), "utf8"),
-      },
-      ...licenceEntries(core.metafile, root.pathname),
-    ]),
-    { title: "Licence notices" },
-  );
-  const noticeBytes = Buffer.byteLength(notices, "utf8");
-  rows.push(
-    {
-      component: "Editor core (all of the above, shared code once)",
-      bytes: core.bytes,
-      gzip: core.gzip,
-    },
-    {
-      component: "Licence notices of the editor core",
-      bytes: noticeBytes,
-      gzip: gzipSync(notices, { level: 9 }).length,
-    },
-  );
-  // As embedded: notices comment, then the code prepared for an inline <script>.
-  const total = Buffer.byteLength(
-    inlineScript(
-      `/*! html-text\n${notices}*/\n${escapeComments(core.text)}`,
-      "core",
-    ),
-    "utf8",
-  );
+      "Inline-script escaping and the script element",
+      file.engine - bytes(comment) - output.bytes,
+    ],
+    ["Document theme styles (style#charte, style#theme)", styles],
+    [
+      "HTML skeleton (head, metadata, zones)",
+      file.applicationCode - file.engine - styles,
+    ],
+  ].map(([component, n]) => ({
+    component,
+    bytes: n,
+    share: Math.round((n / STANDARD_CODE_CEILING) * 1000) / 10,
+  }));
+  const total = rows.reduce((sum, r) => sum + r.bytes, 0);
+  if (total !== file.applicationCode)
+    throw new Error(
+      `Components add up to ${total}, the file's code is ${file.applicationCode}`,
+    );
   return {
     ceiling: STANDARD_CODE_CEILING,
-    total,
-    headroom: STANDARD_CODE_CEILING - total,
-    rows: rows.map(({ metafile, text, ...row }) => row),
+    document: "fixtures/valid/example.html",
+    applicationCode: file.applicationCode,
+    headroom: STANDARD_CODE_CEILING - file.applicationCode,
+    engineGzip: gzipSync(engine.code, { level: 9 }).length,
+    file: {
+      total: file.total,
+      engine: file.engine,
+      content: file.content,
+      assets: file.assets,
+    },
+    rows,
   };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const result = await measure();
-  console.log("| Component | Bytes (minified) | gzip |\n| --- | ---: | ---: |");
+  console.log(
+    "| Component | Bytes | Share of the ceiling |\n| --- | ---: | ---: |",
+  );
   for (const r of result.rows)
     console.log(
-      `| ${r.component} | ${r.bytes.toLocaleString("en")} | ${r.gzip.toLocaleString("en")} |`,
+      `| ${r.component} | ${r.bytes.toLocaleString("en")} | ${r.share}% |`,
     );
   console.log(
-    `\nEditor core with notices: ${result.total.toLocaleString("en")} of ${result.ceiling.toLocaleString("en")} bytes; headroom ${result.headroom.toLocaleString("en")}. Bare minified bundles; tools/build.mjs (T03) measures the built file.`,
+    `\nApplication code of the built example: ${result.applicationCode.toLocaleString("en")} of ${result.ceiling.toLocaleString("en")} bytes; headroom ${result.headroom.toLocaleString("en")}. The editor script is ${result.engineGzip.toLocaleString("en")} bytes gzipped.`,
   );
-  if (process.argv.includes("--write")) {
-    await mkdir(new URL("bench/", root), { recursive: true });
+  if (process.argv.includes("--write"))
     await writeFile(
-      new URL("bench/code-size.json", root),
+      join(pkg, "bench/code-size.json"),
       JSON.stringify(result, null, 2) + "\n",
     );
-  }
+  if (result.applicationCode >= result.ceiling) process.exit(1);
 }

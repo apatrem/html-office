@@ -25,19 +25,23 @@ const main = () => {
     return false; // standard input, or no script at all
   }
 };
-if (main()) {
-  const [input, output] = process.argv.slice(2);
+// The command line, also run by document.mjs (T18). Returns the exit code.
+export async function run(argv) {
+  const [input, output] = argv;
   if (!input) {
     console.error("usage: markdown.mjs <document.html> [<output.md>]");
-    process.exit(2);
+    return 2;
   }
   let result;
   try {
     result = markdownSource(await readFile(input, "utf8"));
   } catch (error) {
     console.error(`${input}: ${error.message} (run check.mjs)`);
-    process.exit(1);
+    return 1;
   }
   if (output) await writeFile(output, result.markdown);
   else process.stdout.write(result.markdown);
+  return 0;
 }
+
+if (main()) process.exitCode = await run(process.argv.slice(2));

@@ -6,6 +6,8 @@ T=plugin/skills/html-slides/tools
 node tools/build.mjs
 # The html-data skill (T20): bundled tools, precompiled editor, engine, references, examples.
 node packages/data/tools/skill.mjs
+# The html-text skill (T18): bundled document tools, built editor, ECharts, references, examples.
+node packages/text/tools/skill.mjs
 SHOTS=decks/community-garden.shots tools/example.sh
 node $T/deck.mjs new decks/catalogue.html --title "html-slides — visual catalogue" --footer "html-slides · Fictional catalogue examples" --content decks/catalogue-content.html --force
 node $T/deck.mjs pack decks/catalogue.html --pdf decks/catalogue.pdf

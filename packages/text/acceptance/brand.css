@@ -1,0 +1,23 @@
+/* Larkfield Bakery Co-operative (fictional): the brand charte shared by the T19 report and its
+   companion Slides deck. Every core token of the html-office charte is set. */
+:root{
+  --ink:#2B2118;
+  --acc:#9C4A1A;
+  --mid:#C98A3D;
+  --lig:#E8CFA0;
+  --alert:#B3261E;
+  --tint:#F6EFE4;
+  --callout:#F3E6D2;
+  --bd:#E2D3BD;
+  --t2:#6B5B4B;
+  --bg:#FFFFFF;
+  --font:Georgia, "Times New Roman", serif;
+  --title-font:Arial, Helvetica, sans-serif;
+  --title-size:34px;
+  --title-track:-.02em;
+  --body-size:16px;
+  --header-bg:var(--acc);
+  --header-ink:var(--bg);
+  --row-label-bg:var(--tint);
+  --row-label-ink:var(--ink);
+}

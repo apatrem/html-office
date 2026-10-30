@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <title>Mill Lane bakery shopfront (fictional illustration)</title>
+  <rect width="400" height="300" fill="#F6EFE4"/>
+  <rect x="40" y="70" width="320" height="200" fill="#E8CFA0" stroke="#2B2118" stroke-width="3"/>
+  <rect x="40" y="40" width="320" height="36" fill="#9C4A1A"/>
+  <text x="200" y="65" font-family="Georgia, serif" font-size="20" fill="#FFFFFF" text-anchor="middle">LARKFIELD · MILL LANE</text>
+  <g stroke="#2B2118" stroke-width="2">
+    <path d="M40 76 h320 l-16 30 h-288 z" fill="#FFFFFF"/>
+    <path d="M72 76 l-8 30 M112 76 l-6 30 M152 76 l-4 30 M192 76 l-2 30 M232 76 l2 30 M272 76 l4 30 M312 76 l6 30" fill="none"/>
+  </g>
+  <g fill="#9C4A1A">
+    <path d="M56 76 h16 l-8 30 h-16 z"/><path d="M136 76 h16 l-4 30 h-16 z"/><path d="M216 76 h16 l2 30 h-16 z"/><path d="M296 76 h16 l6 30 h-16 z"/>
+  </g>
+  <rect x="64" y="126" width="170" height="110" fill="#FFFFFF" stroke="#2B2118" stroke-width="3"/>
+  <g fill="#C98A3D" stroke="#6B5B4B" stroke-width="2">
+    <ellipse cx="104" cy="210" rx="28" ry="14"/><ellipse cx="160" cy="212" rx="24" ry="12"/><ellipse cx="206" cy="208" rx="20" ry="16"/>
+    <path d="M86 176 q30 -24 60 0 z"/><path d="M160 178 q24 -20 48 0 z"/>
+  </g>
+  <rect x="64" y="236" width="170" height="8" fill="#2B2118"/>
+  <rect x="262" y="126" width="74" height="144" fill="#9C4A1A" stroke="#2B2118" stroke-width="3"/>
+  <circle cx="322" cy="200" r="5" fill="#E8CFA0"/>
+  <rect x="270" y="136" width="58" height="50" fill="#F6EFE4" stroke="#2B2118" stroke-width="2"/>
+  <rect x="0" y="270" width="400" height="30" fill="#6B5B4B"/>
+</svg>
