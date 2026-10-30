@@ -45,7 +45,10 @@ for (const [name] of DOCUMENTS) {
 
 // Firefox with its WebDriver BiDi server on a free port, in a profile of its own.
 const profile = await mkdtemp(join(tmpdir(), "text-firefox-"));
-await writeFile(join(profile, "user.js"), 'user_pref("remote.log.level", "Debug");\n');
+await writeFile(
+  join(profile, "user.js"),
+  process.env.PF_A11Y_OFF ? 'user_pref("accessibility.force_disabled", 1);\n' : "",
+);
 const firefox = spawn(
   FIREFOX,
   ["--headless", "--remote-debugging-port", "0", "--profile", profile],
