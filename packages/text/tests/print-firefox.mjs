@@ -8,7 +8,6 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
-import { appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -43,82 +42,113 @@ for (const [name] of DOCUMENTS) {
   }
 }
 
-// Firefox with its WebDriver BiDi server on a free port, in a profile of its own.
-const profile = await mkdtemp(join(tmpdir(), "text-firefox-"));
-await writeFile(
-  join(profile, "user.js"),
-  process.env.PF_A11Y_OFF ? 'user_pref("accessibility.force_disabled", 1);\n' : "",
-);
-const firefox = spawn(
-  FIREFOX,
-  ["--headless", "--remote-debugging-port", "0", "--profile", profile],
-  { stdio: ["ignore", "ignore", "pipe"] },
-);
-const address = await new Promise((resolve, reject) => {
-  let log = "";
-  firefox.on("error", reject);
-  firefox.on("exit", (code) =>
-    reject(new Error(`${FIREFOX} exited (${code}): ${log}`)),
-  );
-  firefox.stderr.on("data", (data) => {
-    log += data;
-    if (process.env.PF_DIAG) appendFileSync(process.env.PF_DIAG, data);
-    const found = log.match(/WebDriver BiDi listening on (ws:\/\/\S+)/);
-    if (found) resolve(found[1]);
-  });
-  setTimeout(() => {
-    firefox.kill();
-    reject(new Error(`${FIREFOX} did not start WebDriver BiDi: ${log}`));
-  }, 60_000).unref();
-});
-const socket = new WebSocket(`${address}/session`);
-await new Promise((resolve, reject) => {
-  socket.onopen = resolve;
-  socket.onerror = reject;
-});
-firefox.on("exit", (code, signal) => console.log(`DIAG firefox exit ${code} ${signal}`));
-socket.addEventListener("close", (e) => console.log(`DIAG socket close ${e.code} ${e.reason}`));
-let last = 0;
-const T0 = Date.now();
-const waiting = new Map();
-socket.onmessage = ({ data }) => {
-  const message = JSON.parse(data);
-  waiting.get(message.id)?.(message);
-  waiting.delete(message.id);
-};
-const send = (method, params = {}) =>
-  new Promise((resolve, reject) => {
-    const id = ++last;
-    waiting.set(id, (m) =>
-      m.type === "error"
-        ? reject(new Error(`${method}: ${m.error}: ${m.message}`))
-        : resolve(m.result),
-    );
-    const t0 = Date.now();
-    const inner = waiting.get(id);
-    const target = (params.url || "").split("/").pop();
-    waiting.set(id, (m) => {
-      console.log(`DIAG ${((Date.now() - T0) / 1000).toFixed(2)} ${method} ${target} ${Date.now() - t0}ms ${m.type}`);
-      inner(m);
-    });
-    socket.send(JSON.stringify({ id, method, params }));
-  });
+// Firefox died under the test: the transport failed, not the document, so the print is worth one
+// retry in a new Firefox. Anything else, a failed PDF assertion above all, is a real failure.
+class Lost extends Error {}
 
+// Firefox with its WebDriver BiDi server on a free port, in a profile of its own, and one tab.
+// Accessibility stays off: on GitHub's runners the parent process sometimes refuses a document's
+// accessibility actor (PDocAccessibleConstructor in Firefox's stderr) and kills the content process,
+// which browsingContext.print reports as NS_ERROR_UNEXPECTED.
+const launch = async () => {
+  const profile = await mkdtemp(join(tmpdir(), "text-firefox-"));
+  await writeFile(
+    join(profile, "user.js"),
+    'user_pref("accessibility.force_disabled", 1);\n',
+  );
+  const child = spawn(
+    FIREFOX,
+    ["--headless", "--remote-debugging-port", "0", "--profile", profile],
+    { stdio: ["ignore", "ignore", "pipe"] },
+  );
+  const exited = new Promise((resolve) => {
+    child.once("exit", resolve);
+    child.once("error", resolve);
+  });
+  let log = "";
+  let socket;
+  const close = async () => {
+    socket?.close();
+    child.kill("SIGKILL");
+    await exited;
+    await rm(profile, { recursive: true, force: true, maxRetries: 5 });
+  };
+  try {
+    const address = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error(`${FIREFOX} did not start WebDriver BiDi: ${log}`));
+      }, 60_000);
+      child.on("error", reject);
+      child.on("exit", (code) =>
+        reject(new Error(`${FIREFOX} exited (${code}): ${log}`)),
+      );
+      child.stderr.on("data", (data) => {
+        log += data;
+        const found = log.match(/WebDriver BiDi listening on (ws:\/\/\S+)/);
+        if (found) {
+          clearTimeout(timeout);
+          resolve(found[1]);
+        }
+      });
+    });
+    socket = new WebSocket(`${address}/session`);
+    await new Promise((resolve, reject) => {
+      socket.onopen = resolve;
+      socket.onerror = reject;
+    });
+    let last = 0;
+    const waiting = new Map();
+    socket.onmessage = ({ data }) => {
+      const message = JSON.parse(data);
+      waiting.get(message.id)?.(message);
+      waiting.delete(message.id);
+    };
+    socket.onclose = ({ code }) => {
+      for (const reply of waiting.values())
+        reply({ type: "error", lost: true, error: "socket", message: code });
+      waiting.clear();
+    };
+    const send = (method, params = {}) =>
+      new Promise((resolve, reject) => {
+        if (socket.readyState !== WebSocket.OPEN)
+          return reject(new Lost(`${method}: the socket is closed`));
+        const id = ++last;
+        waiting.set(id, (m) => {
+          if (m.type !== "error") return resolve(m.result);
+          const unexpected = String(m.message).includes("NS_ERROR_UNEXPECTED");
+          const Failure = m.lost || unexpected ? Lost : Error;
+          reject(new Failure(`${method}: ${m.error}: ${m.message}`));
+        });
+        socket.send(JSON.stringify({ id, method, params }));
+      });
+    const { capabilities } = await send("session.new", { capabilities: {} });
+    const { context } = await send("browsingContext.create", { type: "tab" });
+    const version = capabilities.browserVersion;
+    return { send, context, version, close, log: () => log };
+  } catch (error) {
+    await close();
+    throw error;
+  }
+};
+
+let firefox = await launch();
 try {
-  const { capabilities } = await send("session.new", { capabilities: {} });
-  const { context } = await send("browsingContext.create", { type: "tab" });
   const evaluate = async (expression) => {
-    const { result, exceptionDetails } = await send("script.evaluate", {
+    const { result, exceptionDetails } = await firefox.send("script.evaluate", {
       expression,
-      target: { context },
+      target: { context: firefox.context },
       awaitPromise: true,
     });
     if (exceptionDetails) throw new Error(exceptionDetails.text);
     return result.value;
   };
-  // The page texts of the file printed after `before` ran in it.
-  const printed = async (url, before = "") => {
-    await send("browsingContext.navigate", { context, url, wait: "complete" });
+  const print = async (url, before) => {
+    const { context } = firefox;
+    await firefox.send("browsingContext.navigate", {
+      context,
+      url,
+      wait: "complete",
+    });
     await evaluate(`(async () => {
       if (${url.includes("-editor")})
         while (!window.htmlText) await new Promise(requestAnimationFrame);
@@ -126,11 +156,25 @@ try {
       await document.fonts.ready;
       await new Promise(requestAnimationFrame);
     })()`);
-    const { data } = await send("browsingContext.print", { context });
+    const { data } = await firefox.send("browsingContext.print", { context });
     const buffer = Buffer.from(data, "base64");
     const name = new URL(url).pathname.split("/").pop();
     await writeFile(join(out, name.replace(/\.html$/, ".pdf")), buffer);
     return readPDF(buffer).pages.map((p) => p.text.replace(/\s+/g, " ").trim());
+  };
+  // The page texts of the file printed after `before` ran in it.
+  const printed = async (url, before = "") => {
+    try {
+      return await print(url, before);
+    } catch (error) {
+      if (!(error instanceof Lost)) throw error;
+      console.log(
+        `RETRY text print [firefox]: ${url}: ${error.message}\n${firefox.log()}`,
+      );
+      await firefox.close();
+      firefox = await launch();
+      return print(url, before);
+    }
   };
   const preview = `window.htmlText.commands.run("preview");
     while (!document.querySelector(".tx-preview-bar"))
@@ -152,11 +196,9 @@ try {
       assert.ok(pages.at(-1).includes(words), `${name} ${how}: last page`);
     }
     console.log(
-      `PASS text print [firefox ${capabilities.browserVersion}]: ${name} prints ${bare.length} pages from the editor and its preview, as the bare file, none blank`,
+      `PASS text print [firefox ${firefox.version}]: ${name} prints ${bare.length} pages from the editor and its preview, as the bare file, none blank`,
     );
   }
 } finally {
-  socket.close();
-  firefox.kill();
-  await rm(profile, { recursive: true, force: true });
+  await firefox.close();
 }
