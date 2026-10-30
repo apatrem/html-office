@@ -19,12 +19,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - run: npm ci --ignore-scripts
       - run: npm ci --prefix packages/text --ignore-scripts
       - name: Environment
         run: |
           lscpu | grep -E 'Model name|^CPU\(s\)'; free -m; df -h /tmp | tail -1; which firefox; readlink -f "$(which firefox)"; firefox --version; echo "TMPDIR=$TMPDIR"
       - name: Loop the test
         run: |
+          set +e
           mkdir -p diag
           fails=0
           for i in 1 2 3 4 5 6; do
