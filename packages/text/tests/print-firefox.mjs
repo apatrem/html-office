@@ -52,28 +52,28 @@ class Lost extends Error {}
 // which browsingContext.print reports as NS_ERROR_UNEXPECTED.
 const launch = async () => {
   const profile = await mkdtemp(join(tmpdir(), "text-firefox-"));
-  await writeFile(
-    join(profile, "user.js"),
-    'user_pref("accessibility.force_disabled", 1);\n',
-  );
-  const child = spawn(
-    FIREFOX,
-    ["--headless", "--remote-debugging-port", "0", "--profile", profile],
-    { stdio: ["ignore", "ignore", "pipe"] },
-  );
-  const exited = new Promise((resolve) => {
-    child.once("exit", resolve);
-    child.once("error", resolve);
-  });
   let log = "";
-  let socket;
+  let child, exited, socket;
   const close = async () => {
     socket?.close();
-    child.kill("SIGKILL");
+    child?.kill("SIGKILL");
     await exited;
     await rm(profile, { recursive: true, force: true, maxRetries: 5 });
   };
   try {
+    await writeFile(
+      join(profile, "user.js"),
+      'user_pref("accessibility.force_disabled", 1);\n',
+    );
+    child = spawn(
+      FIREFOX,
+      ["--headless", "--remote-debugging-port", "0", "--profile", profile],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+    exited = new Promise((resolve) => {
+      child.once("exit", resolve);
+      child.once("error", resolve);
+    });
     const address = await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`${FIREFOX} did not start WebDriver BiDi: ${log}`));
@@ -113,7 +113,13 @@ const launch = async () => {
         if (socket.readyState !== WebSocket.OPEN)
           return reject(new Lost(`${method}: the socket is closed`));
         const id = ++last;
+        // A page that never gets ready is a real failure: no retry.
+        const timeout = setTimeout(() => {
+          waiting.delete(id);
+          reject(new Error(`${method}: no answer in 120 s`));
+        }, 120_000);
         waiting.set(id, (m) => {
+          clearTimeout(timeout);
           if (m.type !== "error") return resolve(m.result);
           const unexpected = String(m.message).includes("NS_ERROR_UNEXPECTED");
           const Failure = m.lost || unexpected ? Lost : Error;
