@@ -93,8 +93,17 @@ const launch = async () => {
     });
     socket = new WebSocket(`${address}/session`);
     await new Promise((resolve, reject) => {
-      socket.onopen = resolve;
-      socket.onerror = reject;
+      const timeout = setTimeout(() => {
+        reject(new Error(`${FIREFOX}: no WebDriver BiDi handshake in 60 s`));
+      }, 60_000);
+      socket.onopen = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      socket.onerror = (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      };
     });
     let last = 0;
     const waiting = new Map();
