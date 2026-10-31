@@ -335,6 +335,14 @@ Generate it first: `node packages/text/acceptance/generate.mjs` (after `npm ci` 
 7. **Companion deck**: open `fictional-business-review-deck.html` next to the report: the same colours and title font, the same two charts.
 8. **Markdown**: open `fictional-business-review.md` in a Markdown viewer: numbered headings, tables, notes; the note at the top says it is a reading copy.
 
+### TOC heading retype
+
+1. **In the contents**: in the example, put the cursor in the *Regions* heading and press Ctrl/Cmd+Alt+0 (or Paragraph style › Body). It becomes body text and its entry leaves the contents at once. Undo brings back the heading and the entry together.
+2. **Other styles**: do the same with the *2027 plan* heading and Paragraph style › Note, then Undo. The heading leaves the contents, and comes back with its number.
+3. **Still protected by a cross-reference**: insert a cross-reference to *Regions*. Paragraph style › Body is now greyed out and Ctrl/Cmd+Alt+0 does nothing; Heading 3 still works. Delete the cross-reference: Body is available again.
+4. **Still protected by a comment**: *Executive summary* holds a comment thread, so Body is greyed out there too.
+5. **Safari and Firefox**: steps 1–4 behave the same.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

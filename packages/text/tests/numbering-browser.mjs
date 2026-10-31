@@ -297,6 +297,39 @@ async function run(name) {
       await other.close();
       pass("a draft restored with another theme numbers with that theme");
     } else console.log(`INFO text numbering [${name}]: no draft recovery`);
+
+    // ---- a heading the contents link to becomes body text, its entry going with it ----
+    const mod = process.platform === "darwin" ? "Meta" : "Control";
+    const retypePath = join(out, `numbering-retype-${name}.html`);
+    await writeFile(retypePath, built);
+    const retyped = await context.newPage();
+    await retyped.goto(pathToFileURL(retypePath).href);
+    await retyped.waitForFunction(() => window.htmlText);
+    const entries = () =>
+      retyped.locator("#doc nav.toc a[href='#sec-regions']").count();
+    const original = await retyped.evaluate(() => window.htmlText.serialize());
+    assert.equal(await entries(), 1);
+    await retyped.click("#doc #sec-regions", { position: { x: 40, y: 6 } });
+    await retyped.waitForFunction(
+      () =>
+        window.htmlText.view.state.selection.$from.parent.textContent ===
+        "Regions",
+    );
+    await retyped.keyboard.press(`${mod}+Alt+0`);
+    assert.equal(await retyped.locator("#sec-regions").count(), 0);
+    assert.equal(await entries(), 0);
+    assert.equal(
+      await retyped.locator(".tx-shell .tx-style").textContent(),
+      "Body",
+    );
+    await retyped.keyboard.press(`${mod}+z`);
+    assert.equal(await entries(), 1);
+    assert.equal(
+      await retyped.evaluate(() => window.htmlText.serialize()),
+      original,
+    );
+    await retyped.close();
+    pass("a heading in the contents becomes body text, and Undo restores it");
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

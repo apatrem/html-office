@@ -41,18 +41,13 @@ function treeTargets(tree, out) {
     else if (name === "data-section") out.add(value);
   for (const child of tree.children) treeTargets(child, out);
 }
-// IDs that other content points to: cross-references, contents entries, comment threads'
-// sections (protected blocks included). A heading they name keeps its ID: it cannot become text.
+// IDs that other content points to: cross-references, comment threads' sections (protected blocks
+// included). A heading they name keeps its ID: it cannot become text. Contents entries do not
+// count: they are regenerated, so a heading that leaves simply loses its entry.
 export function referencedIds(doc) {
   const out = new Set();
-  const toc = (entries) =>
-    entries.forEach((e) => {
-      out.add(e.target);
-      toc(e.children);
-    });
   doc.descendants((node) => {
     if (node.type === N.xref) out.add(node.attrs.target);
-    else if (node.type === N.toc) toc(node.attrs.entries);
     else if (node.type === N.comment_thread && node.attrs.section)
       out.add(node.attrs.section);
     else if (node.type === N.protected) treeTargets(node.attrs.node, out);
