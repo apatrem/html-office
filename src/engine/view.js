@@ -306,7 +306,6 @@ body.hs-editing .hs-float{left:calc(196px + (100% - 196px) / 2)}
 /* document settings: a side panel between the file bar and the settings bar */
 .hs-drawer{--sh-top:84px;--sh-bottom:56px;z-index:4050}
 .sh-finfo:empty{display:none}
-.sh-pop{z-index:4300}
 .sh-swrow .sh-sw-tint{background:var(--callout)}
 .hs-static .sh-root,.hs-present .sh-root,.hs-static .hs-side,.hs-present .hs-side,.hs-present .sh-pop{display:none !important}
 /* miniatures */

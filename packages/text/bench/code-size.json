@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 577311,
-  "headroom": 22689,
-  "engineGzip": 188480,
+  "applicationCode": 577284,
+  "headroom": 22716,
+  "engineGzip": 188471,
   "file": {
-    "total": 582791,
-    "engine": 568948,
+    "total": 582764,
+    "engine": 568921,
     "content": 5092,
     "assets": 186
   },
@@ -88,7 +88,7 @@
     },
     {
       "component": "CSS: shell, panels and editor styles",
-      "bytes": 20836,
+      "bytes": 20809,
       "share": 3.5
     },
     {

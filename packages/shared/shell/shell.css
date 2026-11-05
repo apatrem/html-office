@@ -42,11 +42,11 @@
 .sh-ovf{display:none;flex:none;width:22px;height:30px;border:0;background:var(--sh-bg2);font-size:18px;color:var(--sh-mute);cursor:pointer;border-radius:4px}
 .sh-tbar.over .sh-ovf{display:block}
 .sh-tbar.over.at-start .sh-ovl,.sh-tbar.over.at-end .sh-ovr{visibility:hidden}
-/* menubar and menus */
+/* menubar and menus; popovers sit above every product layer (Slides and Text chrome reach 4200) */
 .sh-menubar{display:flex;align-items:center;flex:none}
 .sh-mb{height:28px;padding:0 9px;border:0;background:none;border-radius:6px;cursor:pointer;font:inherit;color:inherit}
 .sh-mb:hover,.sh-mb[aria-expanded=true]{background:var(--sh-hover)}
-.sh-pop{position:fixed;z-index:1000;background:#fff;border:1px solid var(--sh-line);border-radius:8px;box-shadow:0 10px 28px rgba(16,24,40,.16);padding:4px;min-width:200px;overflow:auto}
+.sh-pop{position:fixed;z-index:5000;background:#fff;border:1px solid var(--sh-line);border-radius:8px;box-shadow:0 10px 28px rgba(16,24,40,.16);padding:4px;min-width:200px;overflow:auto}
 .sh-menu{list-style:none;margin:0;padding:0}
 .sh-menu [role^=menuitem]{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 4px;border-radius:5px;cursor:pointer;white-space:nowrap}
 .sh-menu [role^=menuitem]:hover,.sh-menu [role^=menuitem]:focus{background:var(--sh-sel);outline:0}
