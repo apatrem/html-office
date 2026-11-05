@@ -149,7 +149,10 @@ try {
         .filter((item) => {
           const r = item.getBoundingClientRect();
           if (!r.height || r.bottom > innerHeight) return false;
-          const hit = document.elementFromPoint(r.left + 8, r.top + r.height / 2);
+          const hit = document.elementFromPoint(
+            r.left + 8,
+            r.top + r.height / 2,
+          );
           return !pop.contains(hit);
         })
         .map((item) => item.textContent.trim());
