@@ -198,6 +198,29 @@ const listMenu = async (page, name) => {
   await ctx.close();
 }
 
+// 3a. Menus open above the chrome: every item in view is what the pointer hits (the thumbnails
+// panel and the file bar once covered the shared popovers' layer).
+{
+  const { ctx, page } = await open();
+  await page.keyboard.press('e');
+  const menus = await page.getByRole('menubar').getByRole('menuitem').allTextContents();
+  const covered = [];
+  for (const name of menus) {
+    await page.getByRole('menubar').getByRole('menuitem', { name: name.trim(), exact: true }).click();
+    covered.push(...await page.evaluate(m => {
+      const pop = document.querySelector('.sh-pop');
+      return [...pop.querySelectorAll('[role^=menuitem]')].filter(item => {
+        const r = item.getBoundingClientRect();
+        if (!r.height || r.bottom > innerHeight) return false;
+        return !pop.contains(document.elementFromPoint(r.left + 8, r.top + r.height / 2));
+      }).map(item => `${m} › ${item.textContent.trim()}`);
+    }, name.trim()));
+    await page.keyboard.press('Escape');
+  }
+  ok(menus.length >= 5 && covered.length === 0, 'menus open above the file bar and the thumbnails' + (covered.length ? ': covered ' + covered.join(', ') : ''));
+  await ctx.close();
+}
+
 // 3b. Review findings: menus keep the text being typed, tab stop after a context change,
 // table limits, and presentation Escape with a picker open.
 {
