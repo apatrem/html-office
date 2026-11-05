@@ -139,6 +139,31 @@ try {
   assert.equal(await page.evaluate(() => window.disk.text), saved);
   pass("Cmd/Ctrl+S saves again to the bound file");
 
+  // ---- menus open above the sticky toolbar ----
+  // Every item in view is what the pointer hits: the shell (z-index 4000)
+  // once covered the top of each menu and of the style list.
+  const coveredItems = () =>
+    page.evaluate(() => {
+      const pop = document.querySelector(".sh-pop");
+      return [...pop.querySelectorAll("[role^=menuitem], [role=option]")]
+        .filter((item) => {
+          const r = item.getBoundingClientRect();
+          if (!r.height || r.bottom > innerHeight) return false;
+          const hit = document.elementFromPoint(r.left + 8, r.top + r.height / 2);
+          return !pop.contains(hit);
+        })
+        .map((item) => item.textContent.trim());
+    });
+  for (const menu of ["File", "Edit", "Insert", "Format", "Table", "Help"]) {
+    await page.click(`.tx-shell [role=menubar] button:text('${menu}')`);
+    assert.deepEqual(await coveredItems(), [], `${menu} menu items covered`);
+    await page.keyboard.press("Escape");
+  }
+  await page.click(".tx-shell .sh-tbar [aria-haspopup]");
+  assert.deepEqual(await coveredItems(), [], "toolbar list items covered");
+  await page.keyboard.press("Escape");
+  pass("menus and the toolbar's lists open above the toolbar");
+
   // ---- Save a copy ----
   const download = page.waitForEvent("download");
   await page.click(".tx-shell [role=menubar] button:text('File')");
