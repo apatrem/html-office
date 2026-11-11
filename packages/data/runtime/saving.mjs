@@ -1,7 +1,9 @@
 import { readModel, writeModel } from "./document-model.mjs";
 import {
   DirtyState,
-  FileWriter,
+  FileBinding,
+  canSaveInPlace,
+  copyOnlyNotice,
   digestText,
 } from "../../shared/persistence.mjs";
 import { RecoveryClient } from "./recovery.mjs";
@@ -45,13 +47,14 @@ export function setupPersistence({
     rejectInitialSnapshot = reject;
   });
   const originalText = payload(document).textContent;
+  // The file's address identifies its draft and the file Save remembers for it.
+  const address = digestText(location.origin + location.pathname);
   const source = Promise.all([
     digestText(originalText),
     digestText(shell(document)),
   ]);
   let sourceHash,
     sourceShell,
-    writer,
     recovery,
     recoveryFailed = null,
     workerFailed = false,
@@ -223,7 +226,7 @@ export function setupPersistence({
   }
   void (async () => {
     [sourceHash, sourceShell] = await source;
-    const key = `${getBook().id}:${await digestText(location.origin + location.pathname)}`;
+    const key = `${getBook().id}:${await address}`;
     recovery = new RecoveryClient(
       $("recovery-worker-source").textContent,
       { key, baseHash: sourceHash, text: originalText },
@@ -241,7 +244,7 @@ export function setupPersistence({
       const book = readModel(draft.modelText);
       if (book.id !== getBook().id)
         throw new Error("Draft identity does not match this workbook");
-      writer = undefined;
+      file.reset();
       restore(book);
       dirty.change();
       onConditionalScales(null);
@@ -311,6 +314,8 @@ export function setupPersistence({
   }
   function saveCopy() {
     try {
+      // Where Save itself downloads a copy, once per session: how to save in place instead.
+      const once = canSaveInPlace() ? "" : copyOnlyNotice();
       const { html } = capture(),
         url = URL.createObjectURL(
           new Blob([html], { type: "text/html;charset=utf-8" }),
@@ -321,57 +326,52 @@ export function setupPersistence({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       saveFeedback(
-        getPending()
+        (getPending()
           ? "Draft copy requested with the attempted input and stale results. Verify the downloaded HTML."
-          : "Copy download requested. Open the downloaded HTML to verify it; the source file has not been saved.",
+          : "Copy download requested. Open the downloaded HTML to verify it; the source file has not been saved.") +
+          (once ? " " + once : ""),
       );
     } catch (error) {
       saveFeedback(`Copy failed: ${error.message}. Your work remains open.`);
     }
   }
+  // The file Save writes: the opened one (remembered between openings), or a new one.
+  const file = new FileBinding({
+    purpose: "html-data-save",
+    description: "HTML workbook",
+    fallbackName: `${getBook().id}.html`,
+    address,
+    async validate(text) {
+      if (!text.trim()) return;
+      if (protectedSource)
+        throw new Error(
+          "Recovered copy cannot overwrite an existing file. Use a new file or Save a copy",
+        );
+      await source;
+      const doc = new DOMParser().parseFromString(text, "text/html"),
+        node = payload(doc);
+      if (
+        readModel(node.textContent).id !== getBook().id ||
+        (await digestText(node.textContent)) !== sourceHash ||
+        (await digestText(shell(doc))) !== sourceShell
+      )
+        throw new Error(
+          "The selected file differs from the opened document or revision. Reopen it or use Save a copy",
+        );
+    },
+  });
   $("direct-save").disabled = true;
   async function saveDirect() {
-    if (writer?.busy || !recoveryReady) return;
+    // Safari and Firefox cannot write the opened file: Save downloads a copy.
+    if (!canSaveInPlace()) return saveCopy();
+    if (file.writer?.busy || saveInProgress || !recoveryReady) return;
     $("direct-save").disabled = true;
     saveInProgress = true;
     try {
-      if (!writer) {
-        if (typeof window.showSaveFilePicker !== "function")
-          throw new Error(
-            "Direct Save is unavailable in this browser. Use Save a copy",
-          );
-        const handle = await window.showSaveFilePicker({
-          suggestedName: `${getBook().id}.html`,
-          types: [
-            {
-              description: "HTML workbook",
-              accept: { "text/html": [".html"] },
-            },
-          ],
-        });
-        await source;
-        writer = await FileWriter.attach(handle, async (text) => {
-          if (!text.trim()) return;
-          if (protectedSource)
-            throw new Error(
-              "Recovered copy cannot overwrite an existing file. Use a new file or Save a copy",
-            );
-          const doc = new DOMParser().parseFromString(text, "text/html"),
-            node = payload(doc);
-          if (
-            readModel(node.textContent).id !== getBook().id ||
-            (await digestText(node.textContent)) !== sourceHash ||
-            (await digestText(shell(doc))) !== sourceShell
-          )
-            throw new Error(
-              "The selected file differs from the opened document or revision. Reopen it or use Save a copy",
-            );
-        });
-      }
       const version = dirty.revision,
         captured = capture(),
         pending = !!getPending();
-      await writer.save(captured.html);
+      const saved = await file.save(captured.html);
       dirty.saved(version);
       sourceHash = await digestText(captured.modelText);
       sourceShell = await digestText(
@@ -379,11 +379,18 @@ export function setupPersistence({
       );
       send({ kind: "rebase", baseHash: sourceHash, clean: !dirty.dirty });
       saveFeedback(
-        dirty.dirty
-          ? "Earlier revision saved. Later changes remain unsaved."
-          : pending
-            ? "Draft saved to the selected file. Results are stale until recalculated."
-            : `Saved to ${writer.handle.name}.`,
+        saved.first
+          ? file.message(saved) +
+              (dirty.dirty
+                ? " Later changes remain unsaved."
+                : pending
+                  ? " Results are stale until recalculated."
+                  : "")
+          : dirty.dirty
+            ? "Earlier revision saved. Later changes remain unsaved."
+            : pending
+              ? "Draft saved to the selected file. Results are stale until recalculated."
+              : file.message(saved),
       );
     } catch (error) {
       saveFeedback(
@@ -408,9 +415,10 @@ export function setupPersistence({
     changed,
     saveCopy,
     saveDirect,
-    // The file bar's Save button carries the direct-save state.
+    // The file bar's Save button carries the direct-save state; where the browser can only
+    // download copies, Save always can.
     get canSaveDirect() {
-      return !$("direct-save").disabled;
+      return !canSaveInPlace() || !$("direct-save").disabled;
     },
     refreshConditionalScales,
     reset() {
