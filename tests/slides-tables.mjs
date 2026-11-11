@@ -170,8 +170,8 @@ async function run(engine) {
         ok(got === '<colgroup><col data-width="40"><col><col data-width="100"></colgroup>', tag(`pasted widths are kept as given (${got})`));
         await undo();
       }
-      // The same envelope from a Text document keeps them; from a Data workbook (its grid's widths) not.
-      for (const [product, expected] of [['text', pasted], ['data', undefined]]) {
+      // The same envelope from a Text document or a Data workbook keeps them too.
+      for (const [product, expected] of [['text', pasted], ['data', pasted]]) {
         const from = Object.fromEntries(Object.entries(copied).map(([t, v]) =>
           [t, v.replaceAll('"product":"slides"', `"product":"${product}"`).replaceAll('&quot;product&quot;:&quot;slides&quot;', `&quot;product&quot;:&quot;${product}&quot;`)]));
         ok(Object.values(from).join('').includes(product), tag(`the ${product} envelope is built`));
@@ -181,7 +181,7 @@ async function run(engine) {
           document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
         }, from);
         const got = await page.evaluate(() => [...document.querySelectorAll('#s91 > table')].pop().querySelector('colgroup')?.outerHTML);
-        ok(got === expected, tag(`a table pasted from ${product} ${expected ? 'keeps' : 'drops'} its widths (${got})`));
+        ok(got === expected, tag(`a table pasted from ${product} keeps its widths (${got})`));
         await undo();
       }
 

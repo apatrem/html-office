@@ -236,10 +236,6 @@ export function readPaste(data, options = {}) {
     // A Data range above the text/html limit travels without its portable table.
     if (!envelope.table) throw tooLarge();
     table = envelope.table;
-    // A workbook's column widths are its grid's, not a layout for the slide: the table fits its
-    // content. Decks and Text documents bring theirs.
-    if (envelope.source.product === 'data' && table.columns)
-      table = { ...table, columns: table.columns.map(({ width, ...rest }) => rest) };
     if (envelope.source.stale) notices.push('The copied Data results were not recalculated in the source.');
   } else if (read.source === 'legacy') throw new ClipboardError('this Data copy is from an older version of Data; copy the range again');
   else if (read.source === 'table') { table = validateTable(read.table); dropped = read.dropped?.links ?? 0; }
