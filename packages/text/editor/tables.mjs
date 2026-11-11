@@ -655,12 +655,12 @@ export function resizedColumns(widths, c, delta, text) {
   next[c] = Math.max(1, widths[c] + table - total);
   const cols = wholePercents(next);
   // Rounding never takes the dragged column below its least width: the widest other gives.
-  while (
-    (cols[c] * table) / 100 < least - 0.5 &&
-    cols[c] < 100 - (cols.length - 1)
-  ) {
-    const others = cols.map((p, i) => (i === c ? -1 : p));
-    cols[others.indexOf(Math.max(...others))]--;
+  // When none can (a dense table), the drag cannot go that far: nothing moves.
+  while ((cols[c] * table) / 100 < least - 0.5) {
+    const others = cols.map((p, k) => (k === c ? -1 : p));
+    const widest = Math.max(...others);
+    if (widest <= 1) return { width, cols, moved: false };
+    cols[others.indexOf(widest)]--;
     cols[c]++;
   }
   return { width, cols, moved: Math.abs(table - total) >= 0.5 };

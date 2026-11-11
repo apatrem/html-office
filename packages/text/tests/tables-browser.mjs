@@ -761,6 +761,24 @@ async function run(engine) {
       tablesBefore,
       "losing focus cancels the drag",
     );
+    // Undo during the drag: the figure shows what the document now says.
+    for (const w of ["60", "80"]) {
+      await caretIn("tab-regions", "North");
+      await cmd("table-width");
+      await page.fill("dialog input[type=number]", w);
+      await page.click("dialog .sh-primary");
+    }
+    await interrupted(() => window.htmlText.commands.run("undo"));
+    assert.match(await opening(), /data-width="60"/);
+    assert.equal(
+      await page.evaluate(
+        () => document.querySelector("#doc figure#tab-regions").style.width,
+      ),
+      "60%",
+      "the figure shows the undone width",
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
     pass("blocked, edited-under and unfocused drags change nothing");
 
     // ---- print ----

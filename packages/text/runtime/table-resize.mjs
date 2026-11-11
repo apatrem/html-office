@@ -17,6 +17,9 @@ const EDGE = 4; // pixels either side of a border that grab it
 
 // The figure, rendered from its toDOM spec, with its attributes patched in place on update, so
 // the preview's inline width never makes ProseMirror redraw or reread the table.
+const figureViews = new WeakMap();
+const render = (node) =>
+  DOMSerializer.renderSpec(document, node.type.spec.toDOM(node));
 class FigureView {
   constructor(node) {
     this.node = node;
@@ -26,14 +29,12 @@ class FigureView {
     );
     this.dom = dom;
     this.contentDOM = contentDOM;
+    figureViews.set(dom, this);
   }
   update(node) {
     if (node.type !== this.node.type) return false;
     this.node = node;
-    const fresh = DOMSerializer.renderSpec(
-      document,
-      node.type.spec.toDOM(node),
-    );
+    const fresh = render(node);
     for (const { name } of [...this.dom.attributes])
       if (!fresh.dom.hasAttribute(name)) this.dom.removeAttribute(name);
     for (const { name, value } of [...fresh.dom.attributes])
@@ -108,16 +109,24 @@ function measure(view, figurePos) {
     }
   }
   edges[map.width] ??= dom.getBoundingClientRect().right;
-  const saved = table.attrs.cols?.map((c) => Number(c.width) || 0);
-  const share = (i) => (saved?.every(Boolean) ? saved[i] : 1);
+  // Between two borders that show, the columns with a saved percentage take it, the others
+  // share what is left evenly.
+  const saved = table.attrs.cols?.map((c) => Number(c.width) || 0) ?? [];
+  const tablePx = edges[map.width] - edges[0];
   for (let i = 1; i < map.width; i++)
     if (edges[i] === null) {
       let j = i;
       while (edges[j] === null) j++;
-      let all = 0;
-      for (let k = i - 1; k < j; k++) all += share(k);
-      edges[i] =
-        edges[i - 1] + ((edges[j] - edges[i - 1]) * share(i - 1)) / all;
+      const span = Array.from({ length: j - i + 1 }, (_, k) =>
+        saved[i - 1 + k] ? (saved[i - 1 + k] / 100) * tablePx : null,
+      );
+      const gap = edges[j] - edges[i - 1],
+        known = span.reduce((a, w) => a + (w ?? 0), 0),
+        unknown = span.filter((w) => w === null).length;
+      const first = unknown
+        ? (span[0] ?? Math.max(0, gap - known) / unknown)
+        : (span[0] * gap) / known;
+      edges[i] = edges[i - 1] + first;
     }
   return edges.slice(1).map((e, i) => Math.max(1, e - edges[i]));
 }
@@ -159,14 +168,15 @@ function startDrag(view, event, border) {
     figureDOM.style.width = `${r.width}%`;
     cols.forEach((col, i) => (col.style.width = `${r.cols[i]}%`));
   };
-  // The styles the figure had when the drag started.
-  const was = {
-    figure: figureDOM.style.width,
-    cols: cols.map((col) => col.style.width),
-  };
+  const was = { cols: cols.map((col) => col.style.width) };
+  // The figure's style as its node draws it now (an undo during the drag may have changed it);
+  // the cols as they were (a changed table is drawn afresh, without them).
   const restore = () => {
     added?.remove();
-    figureDOM.style.width = was.figure;
+    const now = figureViews.get(figureDOM)?.node;
+    const style = now ? render(now).dom.getAttribute("style") : null;
+    if (style) figureDOM.setAttribute("style", style);
+    else figureDOM.removeAttribute("style");
     cols.forEach((col, i) => (col.style.width = was.cols[i]));
   };
   const listeners = [
@@ -194,7 +204,8 @@ function startDrag(view, event, border) {
       (e.clientX - x0) * border.side * border.k,
       text,
     );
-    preview(result);
+    if (result.moved) preview(result);
+    else restore();
   };
   const end = (commit) => {
     if (active !== end) return;

@@ -361,6 +361,11 @@ test("dragging a border: whole percentages, the other columns keep their widths"
     moved: true,
   });
   assert.equal(T.resizedColumns([60, 60], 0, -500, 1000).width, 10);
+  // A dense table cannot keep a column at its least width in whole percentages: no move.
+  assert.equal(
+    T.resizedColumns([120, ...Array(98).fill(3480 / 98)], 0, 40, 4000).moved,
+    false,
+  );
   // Rounding keeps the least width: 3% of 930 px is under 30 px, so the column gets 4%.
   assert.deepEqual(T.resizedColumns([500, 400, 100], 2, -100, 1000), {
     width: 93,
