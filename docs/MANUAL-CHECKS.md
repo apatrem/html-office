@@ -41,7 +41,7 @@ Browsers: **Chrome** first, then **Safari** and **Firefox**. Edge behaves like C
 4. **Draft from another version**
    - Edit file A without saving, and close the tab.
    - Replace A on disk with a different saved version, for example a copy saved from another tab.
-   - Reopen A: the draft is offered *as a copy*, and Save asks for a new file instead of overwriting A.
+   - Reopen A: the draft is offered *as a copy*, and Save suggests a new name (`A-recovered.html`) instead of A.
 5. Do the same in a private window. Drafts may not survive closing the window; the editor must not show an error.
 
 ### 1.3 Editing (T06)
@@ -474,10 +474,11 @@ Run this in each product on a copy of its file (for example `report.html`, kept 
    - Choose **Don't allow** on another reopening: the save dialog opens instead, in the same folder, and nothing is written until a file is chosen.
 3. **Moved or renamed file**
    - Rename the file to `report-renamed.html` (or move it to another folder) and open it there. The first Save shows the save dialog again; the old file is never written.
-   - Edit `report.html` in another program while it is open in the browser, then save: the browser may ask for permission, then the save dialog opens; choosing `report.html` is refused and nothing is overwritten.
+   - Edit `report.html` in another program while it is open in the browser, then save: the browser may ask for permission, then the save dialog opens instead of writing. Choosing `report.html` there asks to replace it, like any Save As.
 4. **Another file, a new name**
-   - Choose an existing, different HTML file in the save dialog: the save is refused and that file is unchanged.
+   - The save dialog behaves as Save As: choosing an existing file asks to replace it, and Chrome empties the file as soon as the replacement is confirmed. Choose an existing, different HTML file: after confirming, it holds the saved document, and the message names it and says the opened file is unchanged.
    - Choose a new name, `report-v2.html`: the message says the opened file is unchanged and to open `report-v2.html` to keep working. The next save writes `report-v2.html` without asking. Reopen `report.html`: the first Save shows the save dialog again.
+   - Cancel the save dialog: the message says the save was cancelled and nothing is written.
 5. **Safari, Firefox (and Brave)**
    - ⌘S / Ctrl+S downloads a copy. The first time in the tab, the message adds "This browser can only download copies. To save in place, open the file in Chrome or Edge."; the next copy does not repeat it.
    - The opened file is unchanged; the copy holds the edits.

@@ -1,5 +1,5 @@
-// Save in place for Text (shared FileBinding): the opened file is remembered and reused, other
-// files are refused, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
+// Save in place for Text (shared FileBinding): the opened file is remembered and reused, the
+// picker behaves as Save As, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
 // browser cannot save in place.
 //   TEXT_ENGINES=chromium,firefox,webkit node tests/save-in-place-browser.mjs   (default: chromium)
 // Firefox and WebKit run only the copy scenario; Chromium runs both.
@@ -37,7 +37,6 @@ const product = {
     "Prepared by the planning team, October 2026",
     "Prepared by the planning team, November 2026",
   ),
-  refused: /Save failed: The selected file is not the document opened here/,
   statusSelector: ".tx-shell [role=status]",
   async open(page) {
     await page.waitForFunction(() => window.htmlText);

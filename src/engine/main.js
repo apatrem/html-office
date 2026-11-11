@@ -11,8 +11,8 @@ import { FileBinding, canSaveInPlace, copyOnlyNotice } from '../../packages/shar
 function boot() {
   const main = document.getElementById('deck');
   if (!main || window.deckEngine) return;
-  // The document as opened, before the engine adds anything: a file chosen for Save must hold
-  // exactly this (parsed the same way) or be empty.
+  // The document as opened, before the engine adds anything: the remembered file is reused only
+  // while it holds exactly this (parsed the same way).
   const opened = document.documentElement.outerHTML;
   M.state.main = main;
   M.state.bodyClass = document.body.getAttribute('class') || '';
@@ -56,11 +56,7 @@ function boot() {
     purpose: 'html-slides-save',
     description: 'Deck HTML',
     fallbackName: 'deck.html',
-    validate(text) {
-      if (!text.trim()) return;
-      if (new DOMParser().parseFromString(text, 'text/html').documentElement.outerHTML !== opened)
-        throw new Error('The selected file is not the deck opened here. Choose its file or a new name; nothing was overwritten');
-    }
+    matches: text => new DOMParser().parseFromString(text, 'text/html').documentElement.outerHTML === opened
   });
   let saveChain = Promise.resolve();
   function save() {

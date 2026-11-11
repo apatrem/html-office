@@ -1,5 +1,5 @@
-// Save in place for Slides (shared FileBinding): the opened file is remembered and reused, other
-// files are refused, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
+// Save in place for Slides (shared FileBinding): the opened file is remembered and reused, the
+// picker behaves as Save As, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
 // browser cannot save in place.
 //   SAVE_ENGINES=chromium,firefox,webkit node tests/save-in-place-slides.mjs   (default: chromium)
 // Firefox and WebKit run only the copy scenario; Chromium runs both.
@@ -25,7 +25,6 @@ const product = {
   dir,
   source,
   other: source.replace('data-footer="Original"', 'data-footer="Theirs"'),
-  refused: /Save failed: The selected file is not the deck opened here/,
   statusSelector: '.hs-banner',
   async open(page) {
     await page.waitForFunction(() => window.deckEngine);
@@ -48,23 +47,29 @@ try {
     try {
       if (engine === 'chromium') {
         await saveInPlaceScenarios(browser, product);
-        // A deck with charts (rendered after the engine records the opened document) is still
-        // recognised as the opened file.
+        // A deck with charts (rendered after the engine records the opened document): the saved
+        // file is recognised as the opened document on reopening, and reused without the picker.
         const garden = path.join(dir, 'garden.html');
         fs.writeFileSync(garden, setZone(fs.readFileSync(path.join(root, 'plugin/skills/html-slides/examples/community-garden.html'), 'utf8'), 'engine', asset('engine.js')));
         const context = await fakeFileContext(browser);
-        const page = await context.newPage();
-        await page.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/, r => r.fulfill({ path: path.join(ASSETS, 'echarts.min.js'), contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
-        await page.goto(pathToFileURL(garden).href);
-        await product.open(page);
-        await product.edit(page, 7);
-        await product.save(page);
-        await page.waitForFunction(() => /Saved to garden\.html\. Next saves write|Save failed/.test(document.querySelector('.hs-banner')?.textContent ?? ''));
-        const banner = await page.locator('.hs-banner').textContent();
-        if (!banner.startsWith('Saved to garden.html.')) throw new Error(banner);
-        if (!fs.readFileSync(garden, 'utf8').includes(product.marker(7))) throw new Error('garden.html not written');
+        for (const n of [7, 8]) {
+          const page = await context.newPage();
+          await page.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/, r => r.fulfill({ path: path.join(ASSETS, 'echarts.min.js'), contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
+          await page.goto(pathToFileURL(garden).href);
+          await product.open(page);
+          await page.waitForFunction(() => document.querySelector('figure[data-type] canvas, figure[data-type] svg'));
+          await product.edit(page, n);
+          await product.save(page);
+          await page.waitForFunction(() => /Saved to garden\.html\. Next saves write|Save failed/.test(document.querySelector('.hs-banner')?.textContent ?? ''));
+          const banner = await page.locator('.hs-banner').textContent();
+          if (!banner.startsWith('Saved to garden.html.')) throw new Error(banner);
+          if (!fs.readFileSync(garden, 'utf8').includes(product.marker(n))) throw new Error('garden.html not written');
+          const picks = await page.evaluate(() => window.fakeFiles.picks);
+          if (picks !== (n === 7 ? 1 : 0)) throw new Error(`picker opened ${picks} times on save ${n}`);
+          await page.close();
+        }
         await context.close();
-        console.log('PASS save in place [Slides]: a deck with charts is recognised as the opened file');
+        console.log('PASS save in place [Slides]: a saved deck with charts is recognised as the opened document on reopening');
       }
       await copyOnlyScenario(browser, { ...product, label: `Slides, ${engine}` });
     } finally {

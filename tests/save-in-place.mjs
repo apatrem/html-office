@@ -3,10 +3,10 @@
 //
 // Playwright cannot drive the native save picker or the permission prompt. The fake picker
 // returns a handle for a real file (fakeFiles.next, or the suggested name next to the opened
-// file); handles are plain objects, so they persist in IndexedDB like real ones, and their methods
+// file) and, like Chromium, creates or empties that file before returning; handles are plain objects, so they persist in IndexedDB like real ones, and their methods
 // live on Object.prototype (only for objects carrying fakePath). Write permission is granted to
 // handles chosen in this page; a handle restored from IndexedDB asks, and fakeFiles.answer
-// answers.
+// answers. window.__stallHandles (set by an init script) makes the remembered-handle database never answer.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,6 +25,8 @@ function installFakeFiles() {
     if (fake.next === 'cancel') throw new DOMException('The user aborted a request.', 'AbortError');
     const dir = decodeURIComponent(location.pathname).replace(/[^/]*$/, '');
     const chosen = fake.next ?? dir + options.suggestedName;
+    // Chromium creates or truncates the chosen file inside the picker (SELECT_SAVEAS_FILE).
+    await window.__fakeWrite(chosen, '');
     granted.add(chosen);
     return handle(chosen);
   };
@@ -41,6 +43,10 @@ function installFakeFiles() {
     const text = await window.__fakeRead(this.fakePath);
     return { text: async () => text };
   });
+  // Storage that never answers, for the remembered handles only.
+  const open = indexedDB.open.bind(indexedDB);
+  indexedDB.open = (name, ...rest) =>
+    window.__stallHandles && name === 'html-office-file-handles' ? {} : open(name, ...rest);
   method('createWritable', async function () {
     let next = '';
     const target = this.fakePath;
@@ -106,9 +112,10 @@ const remember = (page, fakePath) =>
 const escape = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // product: {
-//   label, purpose (the picker id), dir (a folder for the files), source (the file text),
-//   open(page) (after navigation: ready to edit and save), edit(page, n), marker(n) (text the
-//   saved file holds after edit n), status(page), save(page) (presses Cmd/Ctrl+S)
+//   label, prefix (for file names), purpose (the picker id), dir (a folder for the files),
+//   source (the file text), other (another document's text), statusSelector, open(page) (after
+//   navigation: ready to edit and save), edit(page, n), marker(n) (text the saved file holds
+//   after edit n), save(page) (presses Cmd/Ctrl+S)
 // }
 export async function saveInPlaceScenarios(browser, product, log = console.log) {
   const pass = what => log(`PASS save in place [${product.label}]: ${what}`);
@@ -178,7 +185,7 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     const b = file(`${product.prefix}-report-v2.html`, null);
     await page.evaluate(b => (window.fakeFiles.next = b), b);
     await product.edit(page, 4);
-    await save(page, new RegExp(`Saved to a new file, ${escape(path.basename(b))}\\. The opened file, ${escape(path.basename(a))}, is unchanged; open ${escape(path.basename(b))} to keep working on it\\.`));
+    await save(page, new RegExp(`Saved to ${escape(path.basename(b))}\\. The opened file, ${escape(path.basename(a))}, is unchanged; open ${escape(path.basename(b))} to keep working on it\\.`));
     disk = await fake(page);
     assert.deepEqual([disk.picks, disk.requests], [1, 1]);
     assert.equal(disk.options[0].startIn, path.basename(a));
@@ -196,18 +203,26 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     await page.close();
     pass('a refused permission falls back to the picker in the same folder; a new name is used from then on and is not remembered for the opened file');
 
-    // Changed on disk after opening: the remembered file is not reused, and the picker cannot
-    // overwrite it either.
+    // Changed on disk after opening: the remembered file is not reused; the picker opens, and
+    // cancelling it writes nothing. Choosing the file there replaces it, as Save As does.
     page = await open(context, a);
     const changed = read(a).replace('</body>', '<!-- changed elsewhere -->\n</body>');
     fs.writeFileSync(a, changed);
     await product.edit(page, 6);
-    await save(page, /Save failed/);
+    await page.evaluate(() => (window.fakeFiles.next = 'cancel'));
+    await product.save(page);
+    await page.waitForFunction(() => window.fakeFiles.picks === 1);
+    await page.waitForTimeout(200);
     disk = await fake(page);
     assert.deepEqual([disk.picks, disk.writes], [1, 0]);
+    assert.equal(disk.options[0].startIn, path.basename(a));
     assert.equal(read(a), changed, 'nothing was overwritten');
+    await page.evaluate(() => (window.fakeFiles.next = null));
+    await save(page, savedOpened(path.basename(a)));
+    assert.ok(read(a).includes(product.marker(6)), 'the file chosen in the picker is replaced');
+    assert.deepEqual(page.errors, []);
     await context.close();
-    pass('a remembered file whose content changed falls back to the picker, which refuses it; nothing is overwritten');
+    pass('a remembered file whose content changed falls back to the picker; cancelling writes nothing, choosing it replaces it');
   }
 
   // ---- a remembered handle with another name is not reused ----
@@ -232,7 +247,7 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     pass('a remembered handle whose name differs from the opened file is not reused');
   }
 
-  // ---- another existing file is refused; a new name is accepted and not remembered ----
+  // ---- another file is replaced as in Save As, and only the opened file's name is remembered ----
   {
     const context = await fakeFileContext(browser);
     const a = file(`${product.prefix}-mine.html`);
@@ -240,23 +255,54 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     let page = await open(context, a);
     await page.evaluate(p => (window.fakeFiles.next = p), theirs);
     await product.edit(page, 1);
-    await save(page, product.refused);
-    assert.equal(read(theirs), product.other, 'the other file is not overwritten');
-    assert.equal(read(a), product.source);
-    const fresh = file(`${product.prefix}-fresh.html`, null);
-    await page.evaluate(p => (window.fakeFiles.next = p), fresh);
-    await product.save(page);
-    await waitStatus(page, new RegExp(`Saved to a new file, ${escape(path.basename(fresh))}\\.`));
-    assert.ok(read(fresh).includes(product.marker(1)));
-    assert.equal(await rememberedName(page), null, 'a new name is not remembered for the opened file');
+    await save(page, new RegExp(`^Saved to ${escape(path.basename(theirs))}\\. The opened file, ${escape(path.basename(a))}, is unchanged; open ${escape(path.basename(theirs))} to keep working on it\\.`));
+    assert.ok(read(theirs).includes(product.marker(1)), 'the chosen file holds the document');
+    assert.equal(read(a), product.source, 'the opened file is unchanged');
+    assert.equal(await rememberedName(page), null, 'another name is not remembered for the opened file');
     assert.deepEqual(page.errors, []);
     await page.close();
+    // Same name in another folder: it counts as the opened file (nothing tells them apart).
     page = await open(context, a);
+    const elsewhere = path.join(product.dir, `${product.prefix}-sub`, path.basename(a));
+    fs.mkdirSync(path.dirname(elsewhere), { recursive: true });
+    await page.evaluate(p => (window.fakeFiles.next = p), elsewhere);
     await product.edit(page, 2);
     await save(page, savedOpened(path.basename(a)));
     assert.equal((await fake(page)).picks, 1, 'nothing was remembered: the picker asks');
+    assert.ok(read(elsewhere).includes(product.marker(2)));
+    assert.equal(read(a), product.source);
+    assert.equal(await rememberedName(page), path.basename(a));
+    await page.close();
+    // Reopened: that file no longer holds the document opened, so it is not reused.
+    page = await open(context, a);
+    await page.evaluate(() => (window.fakeFiles.next = 'cancel'));
+    await product.edit(page, 3);
+    await product.save(page);
+    await page.waitForFunction(() => window.fakeFiles.picks === 1);
+    await page.waitForTimeout(200);
+    assert.equal((await fake(page)).requests, 1);
+    assert.ok(!read(elsewhere).includes(product.marker(3)));
     await context.close();
-    pass('another existing file is refused, a new empty file is accepted, and neither is remembered');
+    pass('another file chosen in the picker is replaced and not remembered; a file with the opened name is remembered, and reused only while it holds the opened document');
+  }
+
+  // ---- storage that never answers does not hold up Save ----
+  {
+    const context = await fakeFileContext(browser);
+    await context.addInitScript(() => (window.__stallHandles = true));
+    const a = file(`${product.prefix}-stalled.html`);
+    const page = await open(context, a);
+    await product.edit(page, 1);
+    await save(page, savedOpened(path.basename(a)));
+    assert.equal((await fake(page)).picks, 1);
+    assert.ok(read(a).includes(product.marker(1)));
+    await product.edit(page, 2);
+    await product.save(page);
+    await page.waitForFunction(() => window.fakeFiles.writes === 2);
+    assert.ok(read(a).includes(product.marker(2)));
+    assert.deepEqual(page.errors, []);
+    await context.close();
+    pass('when the remembered-handle storage never answers, Save opens the picker and saves');
   }
 }
 

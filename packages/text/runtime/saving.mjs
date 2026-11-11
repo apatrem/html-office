@@ -2,8 +2,8 @@
 // Chrome and Edge save in place (File System Access API): the first Save asks for the opened file
 // once, then reuses it, even after reopening (shared FileBinding). Safari and Firefox save a
 // complete copy, and Save there downloads one. Every unsaved revision is kept as a draft in this browser's IndexedDB,
-// offered again when the file is reopened. A save never normalises silently: the file chosen for
-// Save must be empty or hold exactly the document as opened, in canonical form.
+// offered again when the file is reopened. The remembered file is reused only while it holds
+// exactly the document as opened, in canonical form: a save never normalises silently.
 import {
   DirtyState,
   FileBinding,
@@ -40,22 +40,15 @@ export function setupSaving({
     purpose: "html-text-save",
     description: "HTML document",
     fallbackName: name(),
-    validate(text) {
-      if (text && asCopy)
-        throw new Error(
-          "This draft was made from an older version of the file, so it can only be saved to a new, empty file or as a copy; nothing was overwritten",
-        );
-      if (text && text !== opened)
-        throw new Error(
-          "The selected file is not the document opened here, or it is not in canonical form (pack.mjs). Choose its file or a new name, or use Save a copy; nothing was overwritten",
-        );
-    },
+    matches: (text) => text === opened,
+    // A draft of an older revision: the picker suggests a new name, never the newer file.
+    recovered: () => asCopy,
   });
   let busy = false,
     message = "",
     copied = -1,
     kept = -1,
-    // A draft of an older revision of the file: Save may only write a new, empty file.
+    // A draft of an older revision of the file: Save does not reuse the opened file.
     asCopy = false,
     // "opening" until the draft store answers, "unresolved" while a found draft awaits a choice
     // (saving waits for it: a save would make the draft's base stale).
@@ -274,7 +267,7 @@ export function setupSaving({
       storeDraft();
       say(
         copy
-          ? "Draft restored as a copy: the file changed since it was made. Save asks for a new file; Save a copy downloads it."
+          ? "Draft restored as a copy: the file changed since it was made. Save asks where to save it, under a new name; Save a copy downloads it."
           : "Draft restored. Unsaved changes.",
       );
     },

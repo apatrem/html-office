@@ -70,11 +70,13 @@ export class FileWriter {
 
 // ---- Save in place (Chrome, Edge) ----
 // A page opened from disk has no handle to its own file: the first Save asks for one with the
-// save picker. The handle chosen for the opened file is remembered in IndexedDB, keyed by the
-// file's address, and reused when the file is opened again, but only while it still has the
-// opened file's name and holds exactly the document opened (the browser asks for write
-// permission inside the Save gesture). Anything else falls back to the picker, with nothing
-// overwritten. A file chosen in the picker must be empty or hold the opened document.
+// save picker, which behaves as Save As everywhere (the system asks before replacing a file).
+// Chromium empties the chosen file before the page sees it, so nothing can be checked there: a
+// chosen file with the opened file's name counts as the opened file. Its handle is remembered in
+// IndexedDB, keyed by the file's address, and reused when the file is opened again, but only
+// while it still has the opened file's name and holds exactly the document opened (the browser
+// asks for write permission inside the Save gesture). Anything else falls back to the picker,
+// with nothing written.
 
 export const canSaveInPlace = () =>
   typeof globalThis.showSaveFilePicker === "function";
@@ -122,31 +124,48 @@ async function writable(handle) {
   return (await handle.requestPermission(mode)) === "granted";
 }
 
+// The name suggested for a recovered draft of another revision: Save As should not default to
+// replacing the newer file.
+export function recoveredName(name) {
+  const dot = name.lastIndexOf(".");
+  return dot > 0
+    ? `${name.slice(0, dot)}-recovered${name.slice(dot)}`
+    : `${name}-recovered`;
+}
+
 // purpose: the picker id, so that Chromium reopens the folder last used for it. description,
 // fallbackName: the picker's file type and the name suggested when the address has none.
-// validate(text): throws when the chosen file's text may not be overwritten (an empty text is a
-// new file). It must accept only the document as opened for a remembered handle to be reused.
-// address: the digest of the file's address, when the product already computes it.
+// matches(text): whether a remembered file's text is exactly the document opened here (it may
+// throw on text it cannot read); only then is the remembered file reused. recovered(): the
+// document is a draft of another revision of the file; Save never reuses the remembered file
+// and the picker suggests recoveredName(name). address: the digest of the file's address, when
+// the product already computes it.
 export class FileBinding {
   constructor({
     purpose,
     description,
     fallbackName,
-    validate,
+    matches,
+    recovered = () => false,
     address = digestText(location.origin + location.pathname),
   }) {
     this.purpose = purpose;
     this.description = description;
     this.name = openedFileName(fallbackName);
-    this.validate = validate;
+    this.matches = matches;
+    this.recovered = recovered;
     this.writer = null;
     this.chosen = null;
     this.key = address;
-    // Loaded on open, so that Save finds it at once (the gesture must not wait on storage).
-    this.remembered = this.key
+    // Loaded on open. Save uses it only once loaded: the gesture never waits on storage, and
+    // storage that does not answer leaves Save with the picker.
+    this.remembered = null;
+    this.key
       .then((key) => handles().get(key))
-      .then((handle) => (handle?.kind === "file" ? handle : null))
-      .catch(() => null);
+      .then((handle) => {
+        if (handle?.kind === "file") this.remembered = handle;
+      })
+      .catch(() => {});
   }
   // A restored draft replaces the document: the next Save binds a file again.
   reset() {
@@ -155,23 +174,22 @@ export class FileBinding {
   }
   // The remembered handle, when it is still the opened file: its name and its content.
   async reuse() {
-    const handle = await this.remembered;
-    if (!handle || handle.name !== this.name) return null;
+    const handle = this.remembered;
+    if (!handle || handle.name !== this.name || this.recovered()) return null;
     try {
       if (!(await writable(handle))) return null;
       const text = await (await handle.getFile()).text();
-      if (!text.trim()) return null;
-      await this.validate(text);
+      if (!text.trim() || !(await this.matches(text))) return null;
       return { handle, text };
     } catch {
-      // Moved, deleted, changed or refused: the picker decides, nothing is written.
+      // Moved, deleted, unreadable or refused: the picker decides, nothing is written.
       return null;
     }
   }
   async choose() {
-    const remembered = await this.remembered;
+    const remembered = this.remembered;
     const handle = await globalThis.showSaveFilePicker({
-      suggestedName: this.name,
+      suggestedName: this.recovered() ? recoveredName(this.name) : this.name,
       id: this.purpose,
       // The folder of the file saved last time from this address.
       ...(remembered ? { startIn: remembered } : {}),
@@ -179,13 +197,13 @@ export class FileBinding {
         { description: this.description, accept: { "text/html": [".html"] } },
       ],
     });
-    const text = await (await handle.getFile()).text();
-    await this.validate(text);
-    return { handle, text };
+    // What the file holds now (Chromium has already emptied it): later saves check that nothing
+    // else wrote it in between.
+    return { handle, text: await (await handle.getFile()).text() };
   }
-  // Writes text to the bound file, binding one first. Returns {name, first, opened, fresh}: the
-  // file's name, whether this is the first successful save to it, whether it is the opened file
-  // (same name, same document) and whether it was a new, empty file.
+  // Writes text to the bound file, binding one first. Returns {name, first, opened}: the file's
+  // name, whether this is the first successful save to it and whether it is the opened file
+  // (reused, or chosen with the opened file's name).
   async save(text) {
     if (!this.writer) {
       let found = await this.reuse();
@@ -204,16 +222,14 @@ export class FileBinding {
           throw error;
         }
       }
-      const fresh = !found.text.trim();
       this.writer = new FileWriter(found.handle, await digestText(found.text));
       this.chosen = {
-        fresh,
-        opened: !fresh && found.handle.name === this.name,
+        opened: found.handle.name === this.name,
         announced: false,
       };
     }
     await this.writer.save(text);
-    const { opened, fresh, announced } = this.chosen;
+    const { opened, announced } = this.chosen;
     this.chosen.announced = true;
     // Only the opened file itself is remembered for its address (never a new name). Storage
     // that does not answer must not hold up the save.
@@ -224,15 +240,13 @@ export class FileBinding {
           .catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
-    return { name: this.writer.handle.name, first: !announced, opened, fresh };
+    return { name: this.writer.handle.name, first: !announced, opened };
   }
   // The message after a successful save.
-  message({ name, first, opened, fresh }) {
+  message({ name, first, opened }) {
     if (!first) return `Saved to ${name}.`;
     if (opened) return `Saved to ${name}. Next saves write to it directly.`;
-    if (name === this.name)
-      return `Saved to a new file, ${name}, in another folder. The opened file is unchanged; open the new one to keep working on it.`;
-    return `Saved to ${fresh ? "a new file, " : ""}${name}. The opened file, ${this.name}, is unchanged; open ${name} to keep working on it.`;
+    return `Saved to ${name}. The opened file, ${this.name}, is unchanged; open ${name} to keep working on it.`;
   }
 }
 

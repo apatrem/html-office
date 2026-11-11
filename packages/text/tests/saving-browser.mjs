@@ -36,16 +36,18 @@ const mod = process.platform === "darwin" ? "Meta" : "Control";
 const LEAD = '<p class="lead"><mark class="comment"';
 
 // An in-page disk for showSaveFilePicker. disk.hold (a promise) delays the commit, disk.fail
-// refuses the write, disk.cancel cancels the picker.
+// refuses the write, disk.cancel cancels the picker. Like Chromium, the picker empties the file
+// chosen; it chooses the name it suggests (disk.suggested).
 function stubDisk(text) {
   const disk = (globalThis.disk = { text, writes: 0, picks: 0, fail: false });
-  globalThis.showSaveFilePicker = async () => {
+  globalThis.showSaveFilePicker = async (options) => {
     disk.picks++;
+    disk.suggested = options.suggestedName;
     if (disk.cancel)
       throw new DOMException("The user aborted a request.", "AbortError");
+    disk.text = "";
     return {
-      // The opened file, as the picker suggests it.
-      name: decodeURIComponent(location.pathname.split("/").pop()),
+      name: options.suggestedName,
       getFile: async () => {
         const value = disk.text;
         return { text: async () => value };
@@ -287,18 +289,19 @@ async function run(engine) {
         await page.click("dialog.sh-dialog button:text('Restore as a copy')");
         assert.match(await lead(page), /^Draft: Revenue grew/);
         if (engine === "chromium") {
-          await page.click(".tx-shell .sh-primary");
-          await page.waitForFunction(() =>
-            /Save failed/.test(
-              document.querySelector(".tx-shell [role=status]").textContent,
-            ),
-          );
-          assert.match(await status(page), /older version of the file/);
-          assert.equal(await page.evaluate(() => window.disk.writes), 0);
-          // A new, empty file is accepted.
-          await page.evaluate(() => (window.disk.text = ""));
+          // Save suggests a new name for the draft, never the newer file.
           await page.click(".tx-shell .sh-primary");
           await page.waitForFunction(() => window.disk.writes === 1);
+          assert.equal(
+            await page.evaluate(() => window.disk.suggested),
+            `recover-${engine}-recovered.html`,
+          );
+          assert.match(
+            await status(page),
+            new RegExp(
+              `^Saved to recover-${engine}-recovered\\.html\\. The opened file, recover-${engine}\\.html, is unchanged`,
+            ),
+          );
           const saved = await page.evaluate(() => window.disk.text);
           assert.match(saved, /<p class="lead">Draft: <mark/);
           // The draft replaces the article: the other file's change is not merged into it.
@@ -324,7 +327,7 @@ async function run(engine) {
       }
     }
 
-    // ---- direct Save: cancelled, refused, delayed and externally changed (Chromium, Edge) ----
+    // ---- direct Save: cancelled, failed, delayed and externally changed (Chromium, Edge) ----
     if (engine === "chromium") {
       const { ctx, errors, open } = await context();
       const url = await write("direct.html", built);
@@ -366,10 +369,11 @@ async function run(engine) {
         /The disk is full\. Your work remains open/,
       );
       assert.equal((await disk()).writes, 0);
-      assert.equal((await disk()).text, built);
+      // The picker had already emptied the chosen file (Chromium); the failed write commits nothing.
+      assert.equal((await disk()).text, "");
       assert.ok(await page.evaluate(() => window.htmlText.saving.dirty));
       pass(
-        "a cancelled or failed save keeps the work, unsaved, and writes nothing",
+        "a cancelled or failed save keeps the work, unsaved, and commits nothing",
       );
 
       // Delayed: an edit made while the write is pending stays unsaved.

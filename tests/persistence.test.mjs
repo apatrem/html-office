@@ -176,11 +176,11 @@ for(const mode of ['in-place','during-write','save-as']){
   await p.exposeFunction('__readFile',()=>fs.existsSync(target)?fs.readFileSync(target,'utf8'):'');
   await p.evaluate(({name,pause})=>{
    window.__written=false;window.__closed=false;
-   // In place, the chosen file is the opened deck itself: it must be accepted as such.
-   window.showSaveFilePicker=async()=>({name,getFile:async()=>({text:()=>window.__readFile()}),createWritable:async()=>{let next;return {
+   // Like Chromium, the picker empties the chosen file; in place, its name is the opened deck's.
+   window.showSaveFilePicker=async()=>{await window.__writeFile('');return {name,getFile:async()=>({text:()=>window.__readFile()}),createWritable:async()=>{let next;return {
     write:async html=>{next=html;},
     close:async()=>{await window.__writeFile(next);window.__written=true;if(pause)await new Promise(r=>window.__finishWrite=r);window.__closed=true;}
-   };}});
+   };}};};
   },{name:path.basename(target),pause:mode==='during-write'});
   await footer(p,'Saved edit A');await p.keyboard.press('Control+s');
   await p.waitForFunction(()=>window.__written);

@@ -1,5 +1,5 @@
-// Save in place for Data (shared FileBinding): the opened file is remembered and reused, other
-// files are refused, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
+// Save in place for Data (shared FileBinding): the opened file is remembered and reused, the
+// picker behaves as Save As, a new name is used from then on; Cmd/Ctrl+S downloads a copy where the
 // browser cannot save in place.
 //   SAVE_ENGINES=chromium,firefox,webkit node tests/save-in-place-browser.mjs   (default: chromium)
 // Firefox and WebKit run only the copy scenario; Chromium runs both.
@@ -34,8 +34,6 @@ const product = {
     /<title>([^<]*)<\/title>/,
     "<title>$1 (theirs)</title>",
   ),
-  refused:
-    /Save failed: The selected file differs from the opened document or revision/,
   statusSelector: "#save-status",
   async open(page) {
     await page

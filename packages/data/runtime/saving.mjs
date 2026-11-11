@@ -213,7 +213,7 @@ export function setupPersistence({
         !compatible || !!draft.protectedSource || draft.baseHash !== sourceHash;
       $("recovery-message").textContent = compatible
         ? protectedSource
-          ? "A draft belongs to a different file revision. You can open it as a copy; direct overwrite of this file will be blocked."
+          ? "A draft belongs to a different file revision. You can open it as a copy; Save then suggests a new file name instead of this file."
           : "A recoverable draft exists for this file. Restoring replaces any current unsaved changes. Nothing is written to disk automatically."
         : "A recovery record cannot be read by this version. Keep this file open or discard that record.";
       $("discard-draft").disabled = false;
@@ -260,7 +260,7 @@ export function setupPersistence({
       $("recovery-dialog").close();
       saveStatus(
         protectedSource
-          ? "Recovered as a copy. Choose a new empty file or use Save a copy."
+          ? "Recovered as a copy. Save suggests a new file name; Save a copy downloads it."
           : "Recovered draft. Unsaved changes.",
       );
     } catch (error) {
@@ -341,24 +341,18 @@ export function setupPersistence({
     description: "HTML workbook",
     fallbackName: `${getBook().id}.html`,
     address,
-    async validate(text) {
-      if (!text.trim()) return;
-      if (protectedSource)
-        throw new Error(
-          "Recovered copy cannot overwrite an existing file. Use a new file or Save a copy",
-        );
+    async matches(text) {
       await source;
       const doc = new DOMParser().parseFromString(text, "text/html"),
         node = payload(doc);
-      if (
-        readModel(node.textContent).id !== getBook().id ||
-        (await digestText(node.textContent)) !== sourceHash ||
-        (await digestText(shell(doc))) !== sourceShell
-      )
-        throw new Error(
-          "The selected file differs from the opened document or revision. Reopen it or use Save a copy",
-        );
+      return (
+        readModel(node.textContent).id === getBook().id &&
+        (await digestText(node.textContent)) === sourceHash &&
+        (await digestText(shell(doc))) === sourceShell
+      );
     },
+    // A recovered draft of another revision: the picker suggests a new name, never the newer file.
+    recovered: () => protectedSource,
   });
   $("direct-save").disabled = true;
   async function saveDirect() {

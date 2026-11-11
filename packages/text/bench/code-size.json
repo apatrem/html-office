@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 579964,
-  "headroom": 20036,
-  "engineGzip": 189411,
+  "applicationCode": 579613,
+  "headroom": 20387,
+  "engineGzip": 189330,
   "file": {
-    "total": 585444,
-    "engine": 571601,
+    "total": 585093,
+    "engine": 571250,
     "content": 5092,
     "assets": 186
   },
@@ -63,8 +63,8 @@
     },
     {
       "component": "Editor UI: shell, saving, print, figures, comments",
-      "bytes": 71187,
-      "share": 11.9
+      "bytes": 70877,
+      "share": 11.8
     },
     {
       "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
@@ -108,7 +108,7 @@
     },
     {
       "component": "Shared: persistence",
-      "bytes": 4636,
+      "bytes": 4595,
       "share": 0.8
     },
     {
