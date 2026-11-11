@@ -38,6 +38,7 @@ import { regenerate, fileFormat } from "../editor/numbering.mjs";
 import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import * as T from "../editor/tables.mjs";
+import { tableResizing } from "./table-resize.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { setupClipboard } from "./clipboard.mjs";
@@ -281,6 +282,7 @@ function start() {
       T.cellKeys(),
       T.tableEditing(),
       T.tableGuard(),
+      tableResizing(),
       subsetGuard(),
       imagePlugin(assets, () => commands.run("image")),
       chartsPlugin,

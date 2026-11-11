@@ -616,6 +616,74 @@ export const tableWidthAt = (state) => {
       }
     : null;
 };
+// ---------- dragging a column border (runtime/table-resize.mjs) ----------
+// Whole percentages adding up to 100, each at least 1, from any positive shares.
+export function wholePercents(shares) {
+  const total = shares.reduce((a, b) => a + b, 0);
+  const exact = shares.map((s) => (s / total) * 100);
+  const out = exact.map((x) => Math.max(1, Math.floor(x)));
+  // Largest remainders first, then take back from the widest while over 100.
+  const order = exact
+    .map((x, i) => [x - Math.floor(x), i])
+    .sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  let left = 100 - out.reduce((a, b) => a + b, 0);
+  for (let k = 0; left > 0; k = (k + 1) % out.length, left--)
+    out[order[k][1]]++;
+  while (left < 0) {
+    out[out.indexOf(Math.max(...out))]--;
+    left++;
+  }
+  return out;
+}
+// The narrowest a dragged column gets, as a share of the text column.
+const MIN_COLUMN = 0.03;
+// Column `c` of a table whose columns measure `widths` (pixels) grows by `delta` pixels in a text
+// column `text` pixels wide; the other columns keep their widths, so the table grows or shrinks
+// by as much, from 10% of the text column to all of it. Returns {width: the table's whole
+// percentage of the text column, cols: whole percentages of the table}.
+export function resizedColumns(widths, c, delta, text) {
+  const total = widths.reduce((a, b) => a + b, 0);
+  const least = Math.min(widths[c], MIN_COLUMN * text) - widths[c];
+  let width = Math.round(((total + Math.max(delta, least)) / text) * 100);
+  width = Math.min(100, Math.max(10, width));
+  const grown = (width * text) / 100 - total;
+  if (widths[c] + grown < Math.min(widths[c], MIN_COLUMN * text) && width < 100)
+    width++;
+  const next = widths.slice();
+  next[c] = Math.max(1, widths[c] + (width * text) / 100 - total);
+  return { width, cols: wholePercents(next) };
+}
+// Sets the table's width (whole percent of the text column) and its columns' (whole percents of
+// the table), keeping emphasis and, on a narrower table, its place. `pos`: the figure's position.
+export const setColumnWidths =
+  (pos, { width, cols }) =>
+  (state, dispatch) => {
+    const figure = state.doc.nodeAt(pos);
+    if (figure?.type !== N.table_figure) return false;
+    const table = figure.lastChild,
+      tablePos = pos + figure.nodeSize - 1 - table.nodeSize;
+    const old = colsOf(table, TableMap.get(table).width);
+    const full = width === 100;
+    const attrs = {
+      ...figure.attrs,
+      width: full ? null : String(width),
+      align: full ? null : figure.attrs.align,
+    };
+    const next = old.map((c, i) => ({ ...c, width: String(cols[i]) }));
+    // Nothing changes (a drag stopped at the edge, or a click): no undo step.
+    if (
+      cols.length !== old.length ||
+      (attrs.width === figure.attrs.width &&
+        next.every((c, i) => c.width === old[i].width))
+    )
+      return false;
+    if (dispatch) {
+      const tr = state.tr.setNodeMarkup(pos, null, attrs);
+      setCols(tr, tablePos, next);
+      dispatch(tr);
+    }
+    return true;
+  };
 export const emphasisAt = (state) => {
   const t = around(state);
   if (!t?.table.attrs.cols) return false;
