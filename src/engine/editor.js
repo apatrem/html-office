@@ -173,7 +173,9 @@ export function resumeText(t) {
   startText(t.el);
   if (t.range) try { const s = getSelection(); s.removeAllRanges(); s.addRange(t.range); } catch (e) { /* range no longer valid */ }
 }
-export function stopText() {
+// select: false leaves the selection alone (a column drag starting: Moveable must not get a target
+// in the middle of the press).
+export function stopText(select = true) {
   if (!editing) return;
   const { el, tok } = editing;
   editing = null;
@@ -182,7 +184,7 @@ export function stopText() {
   el.removeAttribute('spellcheck');
   sanitize(el);
   commit(tok);
-  if (editingMode() && el.isConnected) setTargets([el]); else notify();
+  if (select !== false && editingMode() && el.isConnected) setTargets([el]); else notify();
 }
 
 // Non-empty text selection in the element being edited
@@ -912,6 +914,7 @@ export function init(handlers) {
   initSelecto();
   initTableResize({
     editing: () => editingMode() && !document.body.classList.contains('hs-present'),
+    before: () => { if (editing) stopText(false); },
     refresh,
     done: host => { if (host?.isConnected) setTargets([host]); refresh(); }
   });

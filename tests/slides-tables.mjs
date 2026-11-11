@@ -23,7 +23,8 @@ const TABLE = '<table class="t"><tbody><tr><th>Plot</th><th class="n">Spring</th
   '<tr class="tot"><td>Total</td><td class="n">120</td><td class="n">45</td></tr></tbody></table>';
 const example = fs.readFileSync(path.join(ROOT, 'plugin/skills/html-slides/examples/community-garden.html'), 'utf8');
 const deck = theme => upgrade(example, { theme }).replace('</main>', `<section class="slide" id="s90" data-layout="default"><h1>Widths</h1>${TABLE}<p class="source">Source: fictional</p></section>
-<section class="slide" id="s91" data-layout="default"><h1>Paste here</h1><p class="source">Source: fictional</p></section></main>`);
+<section class="slide" id="s91" data-layout="default"><h1>Paste here</h1><p class="source">Source: fictional</p></section>
+<section class="slide" id="s92" data-layout="default"><h1>Wrapped</h1><div class="box w-6">${TABLE.replace('Raised beds', 'Raised beds along the north fence of the garden')}</div><p class="source">Source: fictional</p></section></main>`);
 const FILE = path.join(DIR, 'deck.html');
 fs.writeFileSync(FILE, deck(true));
 // The example's own theme zone, as an older deck has it: widths come from the engine alone.
@@ -255,6 +256,51 @@ async function drag(engine) {
     await page.mouse.up();
     s1 = await state();
     ok(!s1.detached && s1.group === null, tag('a click on a border changes nothing'));
+    // Typing in a cell, then dragging: the typing is an undo step of its own, before the drag's.
+    const text = () => page.evaluate(() => document.querySelector('#s90 > table').textContent);
+    const plain = await text();
+    await page.locator('#s90 > table td').first().dblclick();
+    await page.keyboard.type('X');
+    const typed = await text();
+    ok(typed !== plain, tag('typing in a cell'));
+    await dragBy(40 * s0.k);
+    ok((await state()).detached, tag('a drag while typing applies'));
+    await page.keyboard.press('ControlOrMeta+z');
+    s1 = await state();
+    ok(!s1.detached && s1.group === null && await text() === typed, tag('one undo reverts the drag, the typing stays'));
+    await page.keyboard.press('ControlOrMeta+z');
+    ok(await text() === plain, tag('the next undo reverts the typing'));
+    // Shrinking stops at the content's width: the table never overflows its frame.
+    {
+      const b = await state();
+      await page.mouse.move(b.x[1] - 2, b.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x[1] - 2 - 500 * b.k, b.y, { steps: 6 });
+      await page.mouse.up();
+      const fit = await page.evaluate(() => {
+        const t = document.querySelector('#s90 > table'), k = t.closest('section').getBoundingClientRect().width / 1280;
+        return { table: Math.round(t.getBoundingClientRect().width / k), frame: Number(t.style.getPropertyValue('--w')) };
+      });
+      ok(fit.table <= fit.frame + 1, tag(`the table stays within its frame (${fit.table} ≤ ${fit.frame})`));
+      await page.keyboard.press('ControlOrMeta+z');
+    }
+    // A wrapped table: the wrapper's frame grows with rows that wrap taller.
+    {
+      await page.locator('#s92 .box').scrollIntoViewIfNeeded();
+      const b = await page.evaluate(() => {
+        const t = document.querySelector('#s92 table'), c = t.rows[1].cells[0].getBoundingClientRect();
+        return { x: c.right, y: c.top + c.height / 2, k: t.closest('section').getBoundingClientRect().width / 1280 };
+      });
+      await page.mouse.move(b.x - 2, b.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x - 2 - 200 * b.k, b.y, { steps: 6 });
+      await page.mouse.up();
+      const box = await page.evaluate(() => {
+        const host = document.querySelector('#s92 .box'), t = host.querySelector('table');
+        return { host: host.getBoundingClientRect().bottom, table: t.getBoundingClientRect().bottom, detached: host.closest('section').hasAttribute('data-detached') };
+      });
+      ok(box.detached && box.host >= box.table - 1, tag(`the wrapper's frame holds its taller table (${Math.round(box.table)} ≤ ${Math.round(box.host)})`));
+    }
     ok(!errors.length, tag(`no JavaScript error (${errors})`));
   } finally {
     await browser.close();
