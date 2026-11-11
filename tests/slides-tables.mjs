@@ -68,7 +68,11 @@ async function run(engine) {
         await page.locator('#s90 > table').scrollIntoViewIfNeeded();
         await page.locator('#s90 > table').click({ position: { x: 20, y: 8 } });
       };
-      const undo = () => page.keyboard.press('ControlOrMeta+z');
+      // Once the dialog has gone (it closes, then returns focus to the page).
+      const undo = async () => {
+        await page.waitForSelector('dialog', { state: 'detached' });
+        await page.keyboard.press('ControlOrMeta+z');
+      };
 
       await select();
       await menu('Column width…');
@@ -103,6 +107,36 @@ async function run(engine) {
       await page.click('dialog .sh-primary');
       ok(await table() === '<colgroup><col><col data-width="33"><col data-width="33"></colgroup>', tag('an empty width makes the column automatic'));
 
+      // Keyboard in the dialog: Enter saves; Delete on its buttons never reaches the canvas.
+      await select();
+      await menu('Column width…');
+      await page.fill('dialog input[type=number]', '40');
+      await page.press('dialog input[type=number]', 'Enter');
+      ok(await table() === '<colgroup><col><col data-width="33"><col data-width="40"></colgroup>', tag(`Enter in the field saves (${await table()})`));
+      await undo();
+      await select();
+      await menu('Column width…');
+      await page.focus('dialog .sh-ghost');
+      await page.keyboard.press('Delete'); // (Backspace would go back in WebKit's test build)
+      ok(await page.evaluate(() => !!document.querySelector('#s90 > table')), tag('Delete on a dialog button keeps the table'));
+      await page.keyboard.press('Escape');
+
+      // Distribute while typing in a cell: an undo step of its own, after the typing's.
+      const text = () => page.evaluate(() => document.querySelector('#s90 > table').textContent);
+      const before = await text();
+      await page.locator('#s90 > table td').nth(1).dblclick();
+      await page.keyboard.type('7');
+      const typed = await text();
+      ok(typed !== before, tag('typing in a cell'));
+      await menu('Distribute columns evenly');
+      ok(await table() === '<colgroup><col data-width="34"><col data-width="33"><col data-width="33"></colgroup>', tag('Distribute while typing'));
+      await page.keyboard.press('Escape');
+      await undo();
+      ok(await table() === '<colgroup><col><col data-width="33"><col data-width="33"></colgroup>' && await text() === typed, tag(`one undo reverts Distribute only, the typing stays (${await table()})`));
+      await undo();
+      ok(await text() === before, tag('the next undo reverts the typing'));
+      await page.keyboard.press('ControlOrMeta+Shift+z');
+
       // Copy, then paste on another slide: the widths come with the table.
       await select();
       await page.keyboard.press('ControlOrMeta+c');
@@ -122,6 +156,20 @@ async function run(engine) {
       }, copied);
       const pasted = await page.evaluate(() => document.querySelector('#s91 > table colgroup')?.outerHTML);
       ok(pasted === '<colgroup><col><col data-width="33"><col data-width="33"></colgroup>', tag(`the pasted table keeps them (${pasted})`));
+      // Widths kept as given, even adding up to more than 100 (the checker accepts them).
+      {
+        const wide = Object.fromEntries(Object.entries(copied).map(([t, v]) =>
+          [t, v.replaceAll('"columns":[{},{"width":33},{"width":33}]', '"columns":[{"width":40},{},{"width":100}]')
+            .replaceAll('&quot;columns&quot;:[{},{&quot;width&quot;:33},{&quot;width&quot;:33}]', '&quot;columns&quot;:[{&quot;width&quot;:40},{},{&quot;width&quot;:100}]')]));
+        await page.evaluate(f => {
+          const data = new DataTransfer();
+          for (const [t, v] of Object.entries(f)) data.setData(t, v);
+          document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+        }, wide);
+        const got = await page.evaluate(() => [...document.querySelectorAll('#s91 > table')].pop().querySelector('colgroup')?.outerHTML);
+        ok(got === '<colgroup><col data-width="40"><col><col data-width="100"></colgroup>', tag(`pasted widths are kept as given (${got})`));
+        await undo();
+      }
       // The same envelope from a Text document keeps them; from a Data workbook (its grid's widths) not.
       for (const [product, expected] of [['text', pasted], ['data', undefined]]) {
         const from = Object.fromEntries(Object.entries(copied).map(([t, v]) =>

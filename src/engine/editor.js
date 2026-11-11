@@ -413,6 +413,8 @@ export function tableCan(kind) {
   return true;
 }
 export function tableOp(kind) {
+  // Distributing is an undo step of its own, apart from the text being typed.
+  if (kind === 'distribute' && editing) stopText();
   const t = tableAt();
   if (!t) return banner('Select a table.', [], 2500);
   const { host, table, sel, g, at, r, c } = t;
@@ -858,7 +860,8 @@ function onKey(e) {
     if (k === 'Escape') editing.el.blur();
     return; // native Cmd+B / Cmd+I in text
   }
-  if (e.target.closest && e.target.closest('input, textarea, .hs-panel')) return;
+  // Keys in a field, a panel or a dialog (its buttons too) are never canvas shortcuts.
+  if (e.target.closest && e.target.closest('input, textarea, .hs-panel, dialog[open]')) return;
   if (document.body.classList.contains('hs-present')) {
     if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); go(1); }
     if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(-1); }

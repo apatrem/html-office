@@ -209,12 +209,10 @@ export function tableElement(table) {
   });
   return { html: `<table class="t">${colgroup(table.columns)}${rows.join('')}</table>`, dropped };
 }
-// Column widths as whole percentages of the table (FORMAT.md › Tables), scaled down when they add
-// up to more than 100; a width under half a percent is automatic.
+// Column widths as whole percentages of the table (FORMAT.md › Tables), kept as given (rounded,
+// at most 100 each, as the checker accepts them); a width under half a percent is automatic.
 function colgroup(columns) {
-  const widths = (columns ?? []).map(c => c.width);
-  const total = widths.reduce((sum, w) => sum + (w ?? 0), 0), k = total > 100 ? 100 / total : 1;
-  const whole = widths.map(w => (w === undefined || w * k < 0.5 ? null : Math.max(1, Math.floor(w * k + 0.5))));
+  const whole = (columns ?? []).map(c => (c.width === undefined || c.width < 0.5 ? null : Math.min(100, Math.round(c.width))));
   return whole.some(w => w) ? `<colgroup>${whole.map(w => (w ? `<col data-width="${w}">` : '<col>')).join('')}</colgroup>` : '';
 }
 

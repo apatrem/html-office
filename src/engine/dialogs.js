@@ -13,7 +13,7 @@ export function columnWidthDialog(current, onSave) {
     h('button', { type: 'button', class: 'sh-b sh-t sh-ghost', onclick: () => dialog.close('cancel') }, 'Cancel'),
     ok
   ]);
-  ok.addEventListener('click', () => {
+  const save = () => {
     const text = input.value.trim(), n = text ? Number(text) : null;
     if (n !== null && !(Number.isInteger(n) && n >= 1 && n <= 100)) {
       box.querySelector('.sh-err').textContent = 'Enter a whole number from 1 to 100, or leave it empty.';
@@ -21,6 +21,9 @@ export function columnWidthDialog(current, onSave) {
     }
     dialog.close('save');
     onSave(n);
-  });
+  };
+  ok.addEventListener('click', save);
+  // Enter in the field submits the form: it saves too, never closes without saving.
+  dialog.querySelector('form').addEventListener('submit', e => { e.preventDefault(); save(); });
   input.focus();
 }
