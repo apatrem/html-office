@@ -465,4 +465,5 @@ Generate the files first (`node packages/data/acceptance/generate.mjs`, after `n
 
 | Date | Check | Browser / app | Result | Notes |
 | --- | --- | --- | --- | --- |
+| 2026-11-10 | 1.1 Look and page (T04), on `text-example.html` and `text-report-t19.html` | Not noted | Pass, with two notes | Menus opened under the toolbar (fixed by PR #107). Tables always take the full text width: Table › Column width… sets column widths, but the table's own width cannot be set (follow-up). The first Save asking for a file is expected (1.2) |
 | | | | | |
