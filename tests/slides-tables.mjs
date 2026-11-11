@@ -275,13 +275,15 @@ async function drag(engine) {
       const b = await state();
       await page.mouse.move(b.x[1] - 2, b.y);
       await page.mouse.down();
-      await page.mouse.move(b.x[1] - 2 - 500 * b.k, b.y, { steps: 6 });
+      await page.mouse.move(b.x[1] - 2 - 500 * b.k, b.y, { steps: 1 });
       await page.mouse.up();
       const fit = await page.evaluate(() => {
         const t = document.querySelector('#s90 > table'), k = t.closest('section').getBoundingClientRect().width / 1280;
         return { table: Math.round(t.getBoundingClientRect().width / k), frame: Number(t.style.getPropertyValue('--w')) };
       });
       ok(fit.table <= fit.frame + 1, tag(`the table stays within its frame (${fit.table} ≤ ${fit.frame})`));
+      // One big jump past the content's minimum still shrinks as far as the content allows.
+      ok(fit.frame < b.right - 64 - 100, tag(`the frame shrinks to the content's width (${fit.frame})`));
       await page.keyboard.press('ControlOrMeta+z');
     }
     // A wrapped table: the wrapper's frame grows with rows that wrap taller.

@@ -5,10 +5,10 @@
 // the slide, as moving or resizing an element does. Releasing the pointer is one undo step;
 // Escape, another pointer's release, the window losing focus or a cancelled pointer undo it.
 import { state, begin, commit, detach, getPos, setPos, replaceSlide } from './model.js';
-import { tableGrid, columnWidths, setColumnWidths } from './tables.js';
+import { tableGrid, columnWidths, setColumnWidths, wholePercents } from './tables.js';
 
 const EDGE = 4, SLIDE_W = 1280, MIN_COL = 24;
-let active = null;
+let active = null, ended = 0;
 
 // The slide's child that holds the table: its frame.
 const hostOf = table => { let el = table; while (el.parentElement && !el.parentElement.matches('section.slide')) el = el.parentElement; return el; };
@@ -56,13 +56,14 @@ function start(e, b, hooks) {
   const cs = getComputedStyle(host), pad = host === table ? 0
     : ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth'].reduce((sum, p) => sum + parseFloat(cs[p]), 0);
   const least = Math.min(widths[c], MIN_COL);
-  // The frame and the columns for a change of `delta` pixels. Untouched columns take their whole
-  // percentages of the new width; the dragged one takes the rest, at least `least` pixels.
+  // The frame and the columns for a change of `delta` pixels: whole percentages by largest
+  // remainders (each column off by under 1%), the dragged one at least `least` pixels.
   const apply = delta => {
-    const w = p0.w + delta, table_ = widths.reduce((a, b) => a + b, 0) + delta;
-    const cols = widths.map((x, i) => (i === c ? 0 : Math.max(1, Math.round((x / table_) * 100))));
-    cols[c] = 100 - cols.reduce((a, b) => a + b, 0);
-    while ((cols[c] / 100) * table_ < least - 0.5 || cols[c] < 1) {
+    const w = p0.w + delta, total = widths.reduce((a, b) => a + b, 0) + delta;
+    const next = widths.slice();
+    next[c] = Math.max(1, widths[c] + delta);
+    const cols = wholePercents(next);
+    while ((cols[c] / 100) * total < least - 0.5) {
       const others = cols.map((p, i) => (i === c ? -1 : p)), widest = Math.max(...others);
       if (widest <= 1) return false;
       cols[others.indexOf(widest)]--;
@@ -70,8 +71,21 @@ function start(e, b, hooks) {
     }
     setPos(host, { ...p0, w });
     setColumnWidths(table, cols);
-    // The table cannot be narrower than its content: shrinking stops there.
-    return delta >= good || table.getBoundingClientRect().width / k <= w - pad + 1;
+    // The table cannot be narrower than its content.
+    return table.getBoundingClientRect().width / k <= w - pad + 1;
+  };
+  // The widest change towards `delta` that the content allows: growing always fits; shrinking
+  // stops at the narrowest width that does, found by halving between it and the last that fitted.
+  const fit = delta => {
+    if (apply(delta)) return delta;
+    if (delta >= good) { apply(good); return good; }
+    let lo = delta, hi = good; // lo does not fit, hi does
+    while (hi - lo > 1) {
+      const mid = Math.round((lo + hi) / 2);
+      if (apply(mid)) hi = mid; else lo = mid;
+    }
+    apply(hi);
+    return hi;
   };
   const move = ev => {
     if (ev.pointerId !== pointer) return;
@@ -83,8 +97,7 @@ function start(e, b, hooks) {
       p0 = getPos(host);
     }
     const delta = Math.round(Math.min(Math.max(dx, least - widths[c]), SLIDE_W - (p0.x + p0.w)));
-    if (apply(delta)) good = delta;
-    else apply(good);
+    good = fit(delta);
     // a table that wraps taller gets a taller frame (its content may overflow a wrapper's height)
     const below = host === table ? 0 : parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
     const h = Math.ceil((table.getBoundingClientRect().bottom - host.getBoundingClientRect().top) / k + below);
@@ -102,6 +115,7 @@ function start(e, b, hooks) {
   const end = keep => {
     if (active !== end) return;
     active = null;
+    if (p0) ended = Date.now();
     for (const [type, f] of listeners) removeEventListener(type, f, true);
     document.body.classList.remove('hs-col-dragging');
     if (!p0 || !table.isConnected) return;
@@ -123,8 +137,11 @@ export function initTableResize(hooks) {
   });
   state.main.addEventListener('pointerleave', () => document.body.classList.remove('hs-col-resize'));
   // Before Selecto and Moveable, which would select or move the table: a press on a border is ours.
+  // During a drag no other pointer starts anything (a selection, a move, a command), nor does the
+  // click that ends it.
+  const block = e => { if (active || Date.now() - ended < 400) { e.preventDefault(); e.stopPropagation(); } };
+  for (const type of ['click', 'touchstart']) addEventListener(type, block, { capture: true, passive: false });
   addEventListener('pointerdown', e => {
-    // During a drag no other pointer starts anything (a selection, a move, a command).
     if (active) { e.preventDefault(); e.stopPropagation(); return; }
     if (e.button !== 0 || e.pointerType === 'touch' || !hooks.editing()) return;
     const b = borderAt(e);
