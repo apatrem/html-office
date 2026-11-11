@@ -23,6 +23,8 @@ function installFakeFiles() {
     fake.picks++;
     fake.options.push({ suggestedName: options.suggestedName, id: options.id, startIn: options.startIn?.name ?? null });
     if (fake.next === 'cancel') throw new DOMException('The user aborted a request.', 'AbortError');
+    // The check before the picker outlasted the user activation the picker needs.
+    if (fake.next === 'expired') throw new DOMException('Must be handling a user gesture to show a file picker.', 'SecurityError');
     const dir = decodeURIComponent(location.pathname).replace(/[^/]*$/, '');
     const chosen = fake.next ?? dir + options.suggestedName;
     // Chromium creates or truncates the chosen file inside the picker (SELECT_SAVEAS_FILE).
@@ -204,17 +206,20 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     pass('a refused permission falls back to the picker in the same folder; a new name is used from then on and is not remembered for the opened file');
 
     // Changed on disk after opening: the remembered file is not reused; the picker opens, and
-    // cancelling it writes nothing. Choosing the file there replaces it, as Save As does.
+    // cancelling it writes nothing. Choosing the file there replaces it, as Save As does. When
+    // the check outlasted the activation the picker needs, the next Save goes straight to it.
     page = await open(context, a);
     const changed = read(a).replace('</body>', '<!-- changed elsewhere -->\n</body>');
     fs.writeFileSync(a, changed);
     await product.edit(page, 6);
+    await page.evaluate(() => (window.fakeFiles.next = 'expired'));
+    await save(page, /did not open the file picker, so nothing was written/);
     await page.evaluate(() => (window.fakeFiles.next = 'cancel'));
     await product.save(page);
-    await page.waitForFunction(() => window.fakeFiles.picks === 1);
+    await page.waitForFunction(() => window.fakeFiles.picks === 2);
     await page.waitForTimeout(200);
     disk = await fake(page);
-    assert.deepEqual([disk.picks, disk.writes], [1, 0]);
+    assert.deepEqual([disk.picks, disk.requests, disk.writes], [2, 1, 0], 'the remembered file is checked once');
     assert.equal(disk.options[0].startIn, path.basename(a));
     assert.equal(read(a), changed, 'nothing was overwritten');
     await page.evaluate(() => (window.fakeFiles.next = null));
@@ -222,7 +227,7 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     assert.ok(read(a).includes(product.marker(6)), 'the file chosen in the picker is replaced');
     assert.deepEqual(page.errors, []);
     await context.close();
-    pass('a remembered file whose content changed falls back to the picker; cancelling writes nothing, choosing it replaces it');
+    pass('a remembered file whose content changed falls back to the picker, checked once; cancelling writes nothing, choosing it replaces it');
   }
 
   // ---- a remembered handle with another name is not reused ----

@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 579613,
-  "headroom": 20387,
-  "engineGzip": 189330,
+  "applicationCode": 579659,
+  "headroom": 20341,
+  "engineGzip": 189345,
   "file": {
-    "total": 585093,
-    "engine": 571250,
+    "total": 585139,
+    "engine": 571296,
     "content": 5092,
     "assets": 186
   },
@@ -108,7 +108,7 @@
     },
     {
       "component": "Shared: persistence",
-      "bytes": 4595,
+      "bytes": 4641,
       "share": 0.8
     },
     {

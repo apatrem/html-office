@@ -160,6 +160,9 @@ export class FileBinding {
     // Loaded on open. Save uses it only once loaded: the gesture never waits on storage, and
     // storage that does not answer leaves Save with the picker.
     this.remembered = null;
+    // A remembered handle is checked once: a later Save goes straight to the picker (the check
+    // may have outlasted the activation the picker needs).
+    this.checked = false;
     this.key
       .then((key) => handles().get(key))
       .then((handle) => {
@@ -176,6 +179,8 @@ export class FileBinding {
   async reuse() {
     const handle = this.remembered;
     if (!handle || handle.name !== this.name || this.recovered()) return null;
+    if (this.checked) return null;
+    this.checked = true;
     try {
       if (!(await writable(handle))) return null;
       const text = await (await handle.getFile()).text();
