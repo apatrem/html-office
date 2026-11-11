@@ -11,6 +11,7 @@ import { chartPicture } from '../../packages/shared/charts/picture.mjs';
 import { banner, present, go, ui } from './view.js';
 import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge, columnWidths, setColumnWidths, evenWidths } from './tables.js';
 import { columnWidthDialog } from './dialogs.js';
+import { initTableResize } from './table-resize.js';
 import { copyTable, copyChart, readPaste } from './clipboard.js';
 
 const GRID = 8;
@@ -909,6 +910,11 @@ export function init(handlers) {
   H = handlers;
   initMoveable();
   initSelecto();
+  initTableResize({
+    editing: () => editingMode() && !document.body.classList.contains('hs-present'),
+    refresh,
+    done: host => { if (host?.isConnected) setTargets([host]); refresh(); }
+  });
   state.main.addEventListener('dblclick', e => {
     if (!editingMode()) return;
     const slide = e.target.closest('section.slide');

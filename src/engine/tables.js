@@ -107,6 +107,16 @@ function relayout(table) {
   table.style.removeProperty('table-layout');
   if (!had && !table.getAttribute('style')) table.removeAttribute('style');
 }
+// Whole percentages adding up to 100, each at least 1, from positive shares (largest remainders).
+export function wholePercents(shares) {
+  const total = shares.reduce((a, b) => a + b, 0), exact = shares.map(x => (x / total) * 100);
+  const out = exact.map(x => Math.max(1, Math.floor(x)));
+  const order = exact.map((x, i) => [x - Math.floor(x), i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  let left = 100 - out.reduce((a, b) => a + b, 0);
+  for (let i = 0; left > 0; i = (i + 1) % out.length, left--) out[order[i][1]]++;
+  for (; left < 0; left++) out[out.indexOf(Math.max(...out))]--;
+  return out;
+}
 // Every column the same width, adding up to 100%.
 export const evenWidths = n => Array.from({ length: n }, (_, i) => Math.floor(100 / n) + (i < 100 % n ? 1 : 0));
 // After a column is inserted (width null) or deleted at grid column `at`.

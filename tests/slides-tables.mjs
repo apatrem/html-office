@@ -199,7 +199,70 @@ async function run(engine) {
   }
 }
 
+// Dragging the border between two columns: that column and the frame change by as much.
+async function drag(engine) {
+  const browser = await playwright[engine].launch();
+  const tag = m => `[${engine}] drag: ${m}`;
+  try {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } }), errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
+    await page.goto(pathToFileURL(FILE).href);
+    await page.waitForFunction(() => window.deckEngine);
+    await page.evaluate(() => window.deckEngine.ready);
+    await page.keyboard.press('e');
+    await page.locator('#s90 > table').scrollIntoViewIfNeeded();
+    // Column borders and the frame, in slide pixels.
+    const state = () => page.evaluate(() => {
+      const t = document.querySelector('#s90 > table'), s = t.closest('section'), sb = s.getBoundingClientRect(), k = sb.width / 1280;
+      const cells = [...t.rows[t.rows.length - 1].cells].map(c => c.getBoundingClientRect());
+      return { k, detached: s.hasAttribute('data-detached'), style: t.getAttribute('style'),
+        cols: cells.map(c => Math.round(c.width / k)), right: Math.round((cells[cells.length - 1].right - sb.left) / k),
+        group: t.querySelector('colgroup')?.outerHTML ?? null, y: cells[0].top + cells[0].height / 2, x: cells.map(c => c.right) };
+    });
+    const dragBy = async (dx, { escape = false } = {}) => {
+      const s0 = await state();
+      await page.mouse.move(s0.x[0] - 2, s0.y);
+      const hover = await page.evaluate(() => document.body.classList.contains('hs-col-resize'));
+      await page.mouse.down();
+      await page.mouse.move(s0.x[0] - 2 + dx / 2, s0.y, { steps: 3 });
+      await page.mouse.move(s0.x[0] - 2 + dx, s0.y, { steps: 3 });
+      if (escape) await page.keyboard.press('Escape');
+      await page.mouse.up();
+      return hover;
+    };
+    const s0 = await state();
+    ok(await dragBy(60 * s0.k), tag('a border shows the resize cursor'));
+    let s1 = await state();
+    ok(s1.detached, tag('the first move detaches the slide, as resizing does'));
+    ok(Math.abs(s1.cols[0] - s0.cols[0] - 60) <= 4, tag(`the first column grows by the drag (${s0.cols} → ${s1.cols})`));
+    ok(Math.abs(s1.cols[1] - s0.cols[1]) <= 4 && Math.abs(s1.cols[2] - s0.cols[2]) <= 4, tag('the other columns keep their widths'));
+    ok(Math.abs(s1.right - s0.right - 60) <= 4, tag(`the table's frame widens by as much (${s0.right} → ${s1.right})`));
+    ok(/^<colgroup>(<col data-width="\d+">){3}<\/colgroup>$/.test(s1.group), tag(`every column gets a width (${s1.group})`));
+    await page.keyboard.press('ControlOrMeta+z');
+    s1 = await state();
+    ok(!s1.detached && s1.group === null && s1.cols.join() === s0.cols.join(), tag('one undo restores the table and the layout'));
+    // Escape cancels; the slide's right edge stops the frame.
+    await dragBy(80 * s0.k, { escape: true });
+    s1 = await state();
+    ok(!s1.detached && s1.group === null, tag('Escape cancels the drag'));
+    await dragBy(900 * s0.k);
+    s1 = await state();
+    ok(s1.right <= 1281 && s1.right >= 1270, tag(`the frame stops at the slide's edge (right ${s1.right})`));
+    await page.keyboard.press('ControlOrMeta+z');
+    // A click on a border changes nothing.
+    await page.mouse.move(s0.x[0] - 2, s0.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    s1 = await state();
+    ok(!s1.detached && s1.group === null, tag('a click on a border changes nothing'));
+    ok(!errors.length, tag(`no JavaScript error (${errors})`));
+  } finally {
+    await browser.close();
+  }
+}
+
 for (const engine of ENGINES) await run(engine);
+for (const engine of ENGINES) await drag(engine);
 
 // The checker: one colgroup first, one col per column, whole percentages, no other attribute.
 const cols = c => TABLE.replace('<tbody>', `${c}<tbody>`);
