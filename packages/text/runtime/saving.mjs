@@ -1,11 +1,14 @@
 // Save, Save a copy and draft recovery through the shared persistence module (T03, T05).
-// Chrome and Edge save directly to the chosen file (File System Access API); Safari and Firefox
-// save a complete copy. Every unsaved revision is kept as a draft in this browser's IndexedDB,
-// offered again when the file is reopened. A save never normalises silently: the file chosen for
-// Save must be empty or hold exactly the document as opened, in canonical form.
+// Chrome and Edge save in place (File System Access API): the first Save asks for the opened file
+// once, then reuses it, even after reopening (shared FileBinding). Safari and Firefox save a
+// complete copy, and Save there downloads one. Every unsaved revision is kept as a draft in this browser's IndexedDB,
+// offered again when the file is reopened. The remembered file is reused only while it holds
+// exactly the document as opened, in canonical form: a save never normalises silently.
 import {
   DirtyState,
-  FileWriter,
+  FileBinding,
+  canSaveInPlace,
+  copyOnlyNotice,
   digestText,
   draftDatabase,
 } from "../../shared/persistence.mjs";
@@ -27,14 +30,25 @@ export function setupSaving({
   zones,
   onDraft,
 }) {
-  const direct = typeof window.showSaveFilePicker === "function";
+  const direct = canSaveInPlace();
   const dirty = new DirtyState();
-  let writer = null,
-    busy = false,
+  // The file's address identifies its draft and the file Save remembers for it.
+  const address = digestText(location.origin + location.pathname);
+  // The file Save writes: the opened one (remembered between openings), or a new one.
+  const file = new FileBinding({
+    address,
+    purpose: "html-text-save",
+    description: "HTML document",
+    fallbackName: name(),
+    matches: (text) => text === opened,
+    // A draft of an older revision: the picker suggests a new name, never the newer file.
+    recovered: () => asCopy,
+  });
+  let busy = false,
     message = "",
     copied = -1,
     kept = -1,
-    // A draft of an older revision of the file: Save may only write a new, empty file.
+    // A draft of an older revision of the file: Save does not reuse the opened file.
     asCopy = false,
     // "opening" until the draft store answers, "unresolved" while a found draft awaits a choice
     // (saving waits for it: a save would make the draft's base stale).
@@ -109,10 +123,7 @@ export function setupSaving({
     changed();
   }, 5000);
   void (async () => {
-    [baseHash, key] = await Promise.all([
-      digestText(opened),
-      digestText(location.origin + location.pathname),
-    ]);
+    [baseHash, key] = await Promise.all([digestText(opened), address]);
     key = `text:${key}`;
     store = draftDatabase("html-office-text-recovery");
     const [record, stored] = await Promise.all([
@@ -169,30 +180,10 @@ export function setupSaving({
     busy = true;
     changed();
     try {
-      if (!writer) {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: name(),
-          types: [
-            {
-              description: "HTML document",
-              accept: { "text/html": [".html"] },
-            },
-          ],
-        });
-        writer = await FileWriter.attach(handle, (text) => {
-          if (text && asCopy)
-            throw new Error(
-              "This draft was made from an older version of the file, so it can only be saved to a new, empty file or as a copy; nothing was overwritten",
-            );
-          if (text && text !== opened)
-            throw new Error(
-              "The selected file is not the document opened here, or it is not in canonical form (pack.mjs). Choose its file or a new name, or use Save a copy; nothing was overwritten",
-            );
-        });
-      }
+      // The text is checked before any file is chosen: a problem stops the save first.
       const revision = dirty.revision;
       const text = output();
-      await writer.save(text);
+      const saved = await file.save(text);
       dirty.saved(revision);
       // The file now holds this text: a later draft belongs to it, and a clean file needs none.
       baseHash = await digestText(text);
@@ -200,9 +191,12 @@ export function setupSaving({
       if (dirty.dirty) storeDraft();
       else if (recovery === "ready") dropDraft();
       say(
-        dirty.dirty
-          ? "Earlier revision saved. Later changes remain unsaved."
-          : `Saved to ${writer.handle.name}.`,
+        saved.first
+          ? file.message(saved) +
+              (dirty.dirty ? " Later changes remain unsaved." : "")
+          : dirty.dirty
+            ? "Earlier revision saved. Later changes remain unsaved."
+            : file.message(saved),
       );
     } catch (error) {
       say(
@@ -228,10 +222,13 @@ export function setupSaving({
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       copied = revision;
+      // Where Save itself downloads a copy, once per session: how to save in place instead.
+      const once = direct ? "" : copyOnlyNotice();
       say(
-        direct
+        (direct
           ? "Copy download requested. This file is not saved; open the copy to check it."
-          : "Copy download requested: open it from your downloads to check it, and keep editing that copy. This file is not changed.",
+          : "Copy download requested: open it from your downloads to check it, and keep editing that copy. This file is not changed.") +
+          (once ? " " + once : ""),
       );
     } catch (error) {
       say(`Copy failed: ${error.message}. Your work remains open.`);
@@ -265,12 +262,12 @@ export function setupSaving({
     restored({ asCopy: copy }) {
       asCopy = copy;
       // A file bound before the choice belongs to the document replaced; Save asks again.
-      writer = null;
+      file.reset();
       recovery = "ready";
       storeDraft();
       say(
         copy
-          ? "Draft restored as a copy: the file changed since it was made. Save asks for a new file; Save a copy downloads it."
+          ? "Draft restored as a copy: the file changed since it was made. Save asks where to save it, under a new name; Save a copy downloads it."
           : "Draft restored. Unsaved changes.",
       );
     },

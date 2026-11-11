@@ -55,26 +55,30 @@ async function open(target, disk = built) {
   });
   await page.addInitScript((text) => {
     const disk = (globalThis.disk = { text, writes: 0 });
-    globalThis.showSaveFilePicker = async () => ({
-      name: "example.html",
-      async getFile() {
-        const value = disk.text;
-        return { text: async () => value };
-      },
-      async createWritable() {
-        let next;
-        return {
-          async write(value) {
-            next = value;
-          },
-          async close() {
-            disk.text = next;
-            disk.writes++;
-          },
-          async abort() {},
-        };
-      },
-    });
+    // Like Chromium, the picker empties the file chosen.
+    globalThis.showSaveFilePicker = async () => {
+      disk.text = "";
+      return {
+        name: "example.html",
+        async getFile() {
+          const value = disk.text;
+          return { text: async () => value };
+        },
+        async createWritable() {
+          let next;
+          return {
+            async write(value) {
+              next = value;
+            },
+            async close() {
+              disk.text = next;
+              disk.writes++;
+            },
+            async abort() {},
+          };
+        },
+      };
+    };
   }, disk);
   await page.goto(target);
   return { page, context, errors, requests };
@@ -117,7 +121,10 @@ try {
   // ---- save through the shared persistence module ----
   await page.click(".tx-shell .sh-primary");
   await page.waitForFunction(() => window.disk.writes === 1);
-  assert.equal(await status(page), "Saved to example.html.");
+  assert.equal(
+    await status(page),
+    "Saved to example.html. Next saves write to it directly.",
+  );
   const saved = await page.evaluate(() => window.disk.text);
   const diff = changed(built, saved);
   assert.equal(diff.length, 2, diff.join("\n"));
@@ -197,22 +204,6 @@ try {
   assert.deepEqual(reopened.errors, []);
   pass("the saved file reopens with the edit and is canonical");
   await reopened.context.close();
-
-  // ---- a different file is never overwritten ----
-  const other = await open(url, "<!doctype html><title>Another file</title>");
-  await other.page.waitForFunction(() => window.htmlText);
-  await other.page.click("#doc h1#sec-summary");
-  await other.page.keyboard.type("!");
-  await other.page.click(".tx-shell .sh-primary");
-  await other.page.waitForFunction(() =>
-    /Save failed/.test(
-      document.querySelector(".tx-shell [role=status]").textContent,
-    ),
-  );
-  assert.equal(await other.page.evaluate(() => window.disk.writes), 0);
-  assert.match(await status(other.page), /not the document opened here/);
-  pass("Save refuses a file that is not the opened document");
-  await other.context.close();
 
   // ---- protected blocks and refusal ----
   const kept = await buildDocument(
