@@ -565,6 +565,13 @@ test("convert: a table payload sets the table's width and place", async () => {
     [{ width: 5 }, "width is a whole percentage of the text column, 10–100"],
     [{ width: 50.5 }, "width is a whole percentage of the text column, 10–100"],
     [{ align: "middle" }, 'align is "left", "center" or "right"'],
+    // Values that would only coerce to an alignment.
+    [{ width: 60, align: ["right"] }, 'align is "left", "center" or "right"'],
+    [
+      { columns: [{ align: ["right"] }] },
+      "columns is a list of {width: 1–100, emphasis: true, align: left|center|right}",
+    ],
+    [{ body: [[{ text: "a", align: ["right"] }]] }, "body is a list of rows"],
   ])
     assert.throws(
       () => readPayloads({ "tab-plain": { kind: "table", ...p } }),

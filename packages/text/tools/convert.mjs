@@ -51,6 +51,8 @@ const FIELDS = {
 };
 const ALIGN = { left: "ta-l", center: "ta-c", right: "ta-r" };
 const IMAGE_WIDTHS = ["text", "full", "25", "33", "40", "50"];
+// A string naming an alignment ("left", "center", "right"), never a value that only coerces to one.
+const alignOk = (v) => typeof v === "string" && Object.hasOwn(ALIGN, v);
 const plain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // Every problem of one payload, as messages naming it.
@@ -101,7 +103,7 @@ function payloadProblems(id, p) {
       !(Number.isInteger(p.width) && p.width >= 10 && p.width <= 100)
     )
       say("width is a whole percentage of the text column, 10–100");
-    if (p.align !== undefined && !Object.hasOwn(ALIGN, p.align))
+    if (p.align !== undefined && !alignOk(p.align))
       say('align is "left", "center" or "right"');
     if (p.compact !== undefined && typeof p.compact !== "boolean")
       say("compact is true or false");
@@ -130,7 +132,7 @@ function payloadProblems(id, p) {
             (c.width === undefined ||
               (Number.isInteger(c.width) && c.width >= 1 && c.width <= 100)) &&
             (c.emphasis === undefined || typeof c.emphasis === "boolean") &&
-            (c.align === undefined || Object.hasOwn(ALIGN, c.align)),
+            (c.align === undefined || alignOk(c.align)),
         ))
     )
       say(
@@ -151,7 +153,7 @@ function cellOk(c) {
     [c.colspan, c.rowspan].every(
       (n) => n === undefined || (Number.isInteger(n) && n >= 1 && n <= 1000),
     ) &&
-    (c.align === undefined || Object.hasOwn(ALIGN, c.align))
+    (c.align === undefined || alignOk(c.align))
   );
 }
 

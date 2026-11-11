@@ -501,6 +501,52 @@ async function run(engine) {
     assert.equal(await saved(), initialTables);
     pass("cells copied with a note and pasted in this document keep the note");
 
+    // ---- a narrower table copied whole keeps its width and place; some columns do not ----
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    const copyPaste = async (from, to) => {
+      await drag("tab-regions", from, to);
+      const flavours = await page.evaluate(() => {
+        const data = new DataTransfer();
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("copy", data));
+        return Object.fromEntries(
+          [...data.types].map((t) => [t, data.getData(t)]),
+        );
+      });
+      // The caret at the start of the document's first paragraph, outside any table.
+      await page.evaluate(() => {
+        const { view, TextSelection } = window.htmlText;
+        let at = null;
+        view.state.doc.forEach((node, offset) => {
+          if (at === null && node.type.name === "paragraph") at = offset + 1;
+        });
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, at)),
+        );
+      });
+      await page.evaluate((flavours) => {
+        const data = new DataTransfer();
+        for (const [t, v] of Object.entries(flavours)) data.setData(t, v);
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("paste", data));
+      }, flavours);
+      return check(await saved());
+    };
+    const placed = (text) =>
+      text.split('data-width="60" data-align="right"').length - 1;
+    // Every cell, from the first column: the whole table.
+    assert.equal(placed(await copyPaste("Region", "4.2")), 2);
+    await cmd("undo");
+    assert.equal(placed(await copyPaste("1.6", "1.4")), 1);
+    await cmd("undo");
+    await cmd("undo");
+    assert.equal(await saved(), initialTables);
+    pass(
+      "a whole narrower table pastes with its width and place, some of its columns at full width",
+    );
+
     // ---- numbering (T08): a caption added to a table numbers it among the tables ----
     const labels = () =>
       page.evaluate(() =>
