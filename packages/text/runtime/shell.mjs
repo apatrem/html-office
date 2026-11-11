@@ -848,6 +848,12 @@ export function mountShell(
     });
     source.focus();
   }
+  // Enter in a dialog's field submits its form, which would close it without saving: it saves.
+  const submits = (dialog, save) =>
+    dialog.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      save();
+    });
   // Table › Table width: a whole percentage of the text column (10–100) and, when narrower, its
   // place. onSave(width, align): align is null (left), "center" or "right".
   function tableWidth(current, onSave) {
@@ -890,7 +896,7 @@ export function mountShell(
         ok,
       ],
     );
-    ok.addEventListener("click", () => {
+    const save = () => {
       const n = Number(input.value.trim());
       if (!Number.isInteger(n) || n < 10 || n > 100) {
         box.querySelector(".sh-err").textContent =
@@ -899,7 +905,9 @@ export function mountShell(
       }
       dialog.close("save");
       onSave(n, place.value || null);
-    });
+    };
+    ok.addEventListener("click", save);
+    submits(dialog, save);
     input.focus();
   }
   // Table › Column width: a whole percentage of the table's width, or automatic (empty).
@@ -941,7 +949,7 @@ export function mountShell(
       const n = Number(text);
       return Number.isInteger(n) && n >= 1 && n <= 100 ? n : undefined;
     };
-    ok.addEventListener("click", () => {
+    const save = () => {
       const n = value();
       if (n === undefined) {
         box.querySelector(".sh-err").textContent =
@@ -950,7 +958,9 @@ export function mountShell(
       }
       dialog.close("save");
       onSave(n);
-    });
+    };
+    ok.addEventListener("click", save);
+    submits(dialog, save);
     input.focus();
   }
   // The cross-reference dialog: headings and figures in document order, with their labels.

@@ -351,6 +351,26 @@ async function run(engine) {
     );
     await cmd("undo");
     assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    // Enter in a width field saves, as the button does.
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "50");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="50">',
+    );
+    await cmd("undo");
+    await caretIn("tab-regions", "North");
+    await cmd("column-width");
+    await page.fill("dialog input[type=number]", "45");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.match(
+      figure(check(await saved()), "tab-regions"),
+      /<colgroup><col data-width="45">/,
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
     pass("Table › Table width: width and place on screen and in print, undo");
 
     // ---- clipboard ----
