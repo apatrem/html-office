@@ -8,7 +8,7 @@ import { SCHEMA, LIMITS, ClipboardError, readClipboard, writeClipboard, figureHT
 import { registry, readData, previewOf } from '../../packages/shared/charts/index.mjs';
 import { readChart, chartTable, chartText, CHART_LIMITS } from '../../packages/shared/charts/clipboard.mjs';
 import { FORMAT_VERSION } from '../format.js';
-import { tableGrid } from './tables.js';
+import { tableGrid, columnWidths } from './tables.js';
 
 // Largest table pasted into a slide (ADR-013 §3); density stays a checker matter.
 export const LIMIT = { rows: 50, columns: 12 };
@@ -116,6 +116,8 @@ export function tableModel(table) {
   if (headerRows) model.headerRows = headerRows;
   const totals = g.rows.flatMap((tr, r) => (tr.classList.contains('tot') ? [r] : []));
   if (totals.length) model.totalRows = totals;
+  const widths = columnWidths(table);
+  if (widths.some(w => w)) model.columns = widths.map(w => (w ? { width: w } : {}));
   return validateTable(model);
 }
 
@@ -205,7 +207,15 @@ export function tableElement(table) {
     });
     return `<tr${tot ? ' class="tot"' : ''}>${cells.join('')}</tr>`;
   });
-  return { html: `<table class="t">${rows.join('')}</table>`, dropped };
+  return { html: `<table class="t">${colgroup(table.columns)}${rows.join('')}</table>`, dropped };
+}
+// Column widths as whole percentages of the table (FORMAT.md › Tables), scaled down when they add
+// up to more than 100; a width under half a percent is automatic.
+function colgroup(columns) {
+  const widths = (columns ?? []).map(c => c.width);
+  const total = widths.reduce((sum, w) => sum + (w ?? 0), 0), k = total > 100 ? 100 / total : 1;
+  const whole = widths.map(w => (w === undefined || w * k < 0.5 ? null : Math.max(1, Math.floor(w * k + 0.5))));
+  return whole.some(w => w) ? `<colgroup>${whole.map(w => (w ? `<col data-width="${w}">` : '<col>')).join('')}</colgroup>` : '';
 }
 
 // ---------- reading a paste ----------
@@ -228,6 +238,10 @@ export function readPaste(data, options = {}) {
     // A Data range above the text/html limit travels without its portable table.
     if (!envelope.table) throw tooLarge();
     table = envelope.table;
+    // A workbook's column widths are its grid's, not a layout for the slide: the table fits its
+    // content. Decks and Text documents bring theirs.
+    if (envelope.source.product === 'data' && table.columns)
+      table = { ...table, columns: table.columns.map(({ width, ...rest }) => rest) };
     if (envelope.source.stale) notices.push('The copied Data results were not recalculated in the source.');
   } else if (read.source === 'legacy') throw new ClipboardError('this Data copy is from an older version of Data; copy the range again');
   else if (read.source === 'table') { table = validateTable(read.table); dropped = read.dropped?.links ?? 0; }

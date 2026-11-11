@@ -9,7 +9,8 @@ import { registry, readData, renderChart, echartsReady, loadECharts, refreshCach
 import { sanitizeSVG } from '../../packages/shared/charts/clipboard.mjs';
 import { chartPicture } from '../../packages/shared/charts/picture.mjs';
 import { banner, present, go, ui } from './view.js';
-import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge } from './tables.js';
+import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge, columnWidths, setColumnWidths, evenWidths } from './tables.js';
+import { columnWidthDialog } from './dialogs.js';
 import { copyTable, copyChart, readPaste } from './clipboard.js';
 
 const GRID = 8;
@@ -441,6 +442,9 @@ export function tableOp(kind) {
     } else if (kind === 'unmerge') {
       unmerge(table, at ? [at.cell] : undefined);
       focus = at ? at.cell : null;
+    } else if (kind === 'distribute') {
+      setColumnWidths(table, evenWidths(g.width));
+      focus = at ? at.cell : null;
     }
     // detached slide: enlarge the frame if the table overflows
     if (host.hasAttribute('style')) {
@@ -456,6 +460,24 @@ export function tableOp(kind) {
     apply({ type: 'mutate', slide: slideOf(host), els: [host], fn });
     refresh();
   }
+}
+
+// Table › Column width…: the caret's column (all the columns of a merged cell), or the last one,
+// as a whole percentage of the table; empty for automatic. One undo step.
+export function columnWidth() {
+  const t = tableAt();
+  if (!t) return banner('Select a table.', [], 2500);
+  if (editing) stopText();
+  const { host, table, c } = t, span = t.at ? t.at.cs : 1;
+  columnWidthDialog(columnWidths(table)[c], n => {
+    if (!table.isConnected) return;
+    apply({ type: 'mutate', slide: slideOf(host), els: [host], fn: () => {
+      const w = columnWidths(table);
+      for (let i = c; i < c + span; i++) w[i] = n;
+      setColumnWidths(table, w);
+    } });
+    refresh();
+  });
 }
 
 export async function insertChart(type) {

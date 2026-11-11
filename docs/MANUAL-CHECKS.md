@@ -125,6 +125,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
    - A font change affects body text only, not titles.
    - Undo reverts each change. Save and reopen keeps them.
 3. **Present and PDF**: Present runs full screen; PDF output matches the slides.
+4. **Table column widths**: Insert › Table, then Table › Column width… with the caret in the first column: 50. The column takes half the table's width at once (Chrome, Safari and Firefox). Undo removes it. Distribute columns evenly gives equal columns; Insert column right and Delete column keep the others' widths. Resize the table's frame: the columns keep their proportions. Copy the table and paste it on another slide, and into `text-example.html`: the widths come with it. Save and reopen: the widths are kept.
 
 ## 4. All three products
 
