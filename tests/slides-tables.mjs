@@ -46,6 +46,14 @@ async function run(engine) {
     for (const [file, label] of [[FILE, 'current theme'], [OLD, 'old theme']]) {
       const page = await browser.newPage({ viewport: { width: 1400, height: 900 } }), errors = [];
       page.on('pageerror', e => errors.push(String(e)));
+      // Firefox's ClipboardEvent constructor ignores clipboardData: it is attached as an own property.
+      await page.addInitScript(() => {
+        globalThis.clipEvent = (type, data) => {
+          const event = new ClipboardEvent(type, { clipboardData: data, bubbles: true, cancelable: true });
+          if (event.clipboardData !== data) Object.defineProperty(event, 'clipboardData', { value: data });
+          return event;
+        };
+      });
       await page.goto(pathToFileURL(file).href);
       await page.waitForFunction(() => window.deckEngine);
       await page.evaluate(() => window.deckEngine.ready);
@@ -142,7 +150,7 @@ async function run(engine) {
       await page.keyboard.press('ControlOrMeta+c');
       const copied = await page.evaluate(() => new Promise(done => {
         const data = new DataTransfer();
-        document.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+        document.dispatchEvent(clipEvent('copy', data));
         done(Object.fromEntries([...data.types].map(t => [t, data.getData(t)])));
       }));
       ok(/"columns":\[\{\},\{"width":33\},\{"width":33\}\]/.test(Object.values(copied).join('')), tag('the copied table carries its widths'));
@@ -152,7 +160,7 @@ async function run(engine) {
       await page.evaluate(f => {
         const data = new DataTransfer();
         for (const [t, v] of Object.entries(f)) data.setData(t, v);
-        document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+        document.activeElement.dispatchEvent(clipEvent('paste', data));
       }, copied);
       const pasted = await page.evaluate(() => document.querySelector('#s91 > table colgroup')?.outerHTML);
       ok(pasted === '<colgroup><col><col data-width="33"><col data-width="33"></colgroup>', tag(`the pasted table keeps them (${pasted})`));
@@ -164,7 +172,7 @@ async function run(engine) {
         await page.evaluate(f => {
           const data = new DataTransfer();
           for (const [t, v] of Object.entries(f)) data.setData(t, v);
-          document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+          document.activeElement.dispatchEvent(clipEvent('paste', data));
         }, wide);
         const got = await page.evaluate(() => [...document.querySelectorAll('#s91 > table')].pop().querySelector('colgroup')?.outerHTML);
         ok(got === '<colgroup><col data-width="40"><col><col data-width="100"></colgroup>', tag(`pasted widths are kept as given (${got})`));
@@ -178,7 +186,7 @@ async function run(engine) {
         await page.evaluate(f => {
           const data = new DataTransfer();
           for (const [t, v] of Object.entries(f)) data.setData(t, v);
-          document.activeElement.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+          document.activeElement.dispatchEvent(clipEvent('paste', data));
         }, from);
         const got = await page.evaluate(() => [...document.querySelectorAll('#s91 > table')].pop().querySelector('colgroup')?.outerHTML);
         ok(got === expected, tag(`a table pasted from ${product} keeps its widths (${got})`));
