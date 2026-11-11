@@ -44,7 +44,8 @@ function stubDisk(text) {
     if (disk.cancel)
       throw new DOMException("The user aborted a request.", "AbortError");
     return {
-      name: "example.html",
+      // The opened file, as the picker suggests it.
+      name: decodeURIComponent(location.pathname.split("/").pop()),
       getFile: async () => {
         const value = disk.text;
         return { text: async () => value };
@@ -389,7 +390,7 @@ async function run(engine) {
       await page.waitForFunction(() => !window.htmlText.saving.busy);
       assert.equal(
         await status(page),
-        "Earlier revision saved. Later changes remain unsaved.",
+        "Saved to direct.html. Next saves write to it directly. Later changes remain unsaved.",
       );
       assert.match((await disk()).text, /<p class="lead">Overall, <mark/);
       await waitState(page, "draft");

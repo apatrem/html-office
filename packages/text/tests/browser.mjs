@@ -117,7 +117,10 @@ try {
   // ---- save through the shared persistence module ----
   await page.click(".tx-shell .sh-primary");
   await page.waitForFunction(() => window.disk.writes === 1);
-  assert.equal(await status(page), "Saved to example.html.");
+  assert.equal(
+    await status(page),
+    "Saved to example.html. Next saves write to it directly.",
+  );
   const saved = await page.evaluate(() => window.disk.text);
   const diff = changed(built, saved);
   assert.equal(diff.length, 2, diff.join("\n"));
