@@ -285,6 +285,7 @@ export function mountShell(
           item("Row headers", "row-headers", { checked: !!t.rowHeaders }),
           item("Emphasis column", "emphasis", { checked: !!t.emphasis }),
           item("Compact", "compact", { checked: !!t.compact }),
+          item("Table width…", "table-width"),
           item("Column width…", "column-width"),
           item("Distribute columns evenly", "distribute-columns"),
           item("Caption", "caption", { checked: !!t.caption }),
@@ -847,6 +848,60 @@ export function mountShell(
     });
     source.focus();
   }
+  // Table › Table width: a whole percentage of the text column (10–100) and, when narrower, its
+  // place. onSave(width, align): align is null (left), "center" or "right".
+  function tableWidth(current, onSave) {
+    const input = h("input", {
+      type: "number",
+      min: "10",
+      max: "100",
+      step: "1",
+      value: String(current.width),
+      inputmode: "numeric",
+    });
+    const place = h(
+      "select",
+      {},
+      h("option", { value: "" }, "Left"),
+      h("option", { value: "center" }, "Centre"),
+      h("option", { value: "right" }, "Right"),
+    );
+    place.value = current.align ?? "";
+    const ok = h(
+      "button",
+      { type: "button", class: "sh-b sh-t sh-primary" },
+      "Set width",
+    );
+    const box = field("Width in % of the text column", input);
+    const dialog = modal(
+      "Table width",
+      [box, field("Position on the page", place)],
+      [
+        h("span", { class: "sh-spacer" }),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "sh-b sh-t sh-ghost",
+            onclick: () => dialog.close("cancel"),
+          },
+          "Cancel",
+        ),
+        ok,
+      ],
+    );
+    ok.addEventListener("click", () => {
+      const n = Number(input.value.trim());
+      if (!Number.isInteger(n) || n < 10 || n > 100) {
+        box.querySelector(".sh-err").textContent =
+          "Enter a whole number from 10 to 100.";
+        return;
+      }
+      dialog.close("save");
+      onSave(n, place.value || null);
+    });
+    input.focus();
+  }
   // Table › Column width: a whole percentage of the table's width, or automatic (empty).
   function columnWidth(current, onSave) {
     const input = h("input", {
@@ -963,7 +1018,15 @@ export function mountShell(
     });
     list.focus();
   }
-  return { recover, link, markdown, xref, openComments, columnWidth };
+  return {
+    recover,
+    link,
+    markdown,
+    xref,
+    openComments,
+    tableWidth,
+    columnWidth,
+  };
 }
 
 // The state line when no action has just reported: saved, unsaved, draft kept, or copied.

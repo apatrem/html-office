@@ -314,7 +314,16 @@ try {
     javaScriptEnabled: false,
     viewport: { width: 1280, height: 900 },
   });
-  await plain.goto(url);
+  // tab-regions as a narrower table placed at the right (FORMAT.md › Table).
+  await plain.goto(
+    await write(
+      "look-alone.html",
+      built.replace(
+        '<figure class="table" id="tab-regions">',
+        '<figure class="table" id="tab-regions" data-width="70" data-align="right">',
+      ),
+    ),
+  );
   const alone = await plain.evaluate(() => {
     const a = document.getElementById("doc"),
       cs = getComputedStyle(a);
@@ -332,15 +341,30 @@ try {
         parseFloat(cs.paddingRight),
       acc: getComputedStyle(document.getElementById("sec-summary")).color,
       cols: cols.map((w) => Math.round((w / table) * 100)),
+      // The table's width and right margin as percentages of the text column.
+      table: Math.round(
+        (table /
+          (a.clientWidth -
+            parseFloat(cs.paddingLeft) -
+            parseFloat(cs.paddingRight))) *
+          100,
+      ),
+      right: Math.round(
+        a.getBoundingClientRect().right -
+          parseFloat(cs.paddingRight) -
+          document.querySelector("#tab-regions").getBoundingClientRect().right,
+      ),
     };
   });
   assert.equal(alone.editing, false);
   assert.ok(Math.abs(alone.width - 160 * MM) < 1);
   assert.equal(alone.acc, rgb(CHARTES.blue.acc));
   assert.deepEqual(alone.cols, [40, 30, 30]);
+  assert.equal(alone.table, 70);
+  assert.equal(Math.abs(alone.right), 0);
   await plain.close();
   pass(
-    "without the editor, the saved document keeps its page width, charte and column widths",
+    "without the editor, the saved document keeps its page width, charte, table and column widths",
   );
 
   // ---- semantic styles and alignment render; no per-selection look controls ----

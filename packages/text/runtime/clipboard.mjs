@@ -354,7 +354,11 @@ function copiedFigure(state, { table, pos, rect }) {
           },
           content,
         );
-  return figure.type.create(figure.attrs, [cells]);
+  // Some of the columns only: a table as wide as the text column.
+  const whole = rect.left === 0 && rect.right === rect.map.width;
+  return figure.type.create(whole ? figure.attrs : { id: figure.attrs.id }, [
+    cells,
+  ]);
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.

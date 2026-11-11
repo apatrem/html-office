@@ -39,7 +39,7 @@ function check(text) {
 }
 // The figure with this ID, as saved.
 const figure = (text, id) => {
-  const at = text.indexOf(`<figure class="table" id="${id}">`);
+  const at = text.search(new RegExp(`<figure class="table" id="${id}"[ >]`));
   assert.ok(at >= 0, id);
   return text.slice(at, text.indexOf("</figure>", at) + 9);
 };
@@ -265,6 +265,93 @@ async function run(engine) {
     pass(
       "rows, columns, total rows, row headers, density, width, header rows, caption, delete",
     );
+
+    // ---- table width and place ----
+    // The figure's width and margins as fractions of the text column.
+    const place = () =>
+      page.evaluate(() => {
+        const doc = document.querySelector("#doc");
+        const css = getComputedStyle(doc);
+        const box = doc.getBoundingClientRect();
+        const left = box.left + parseFloat(css.paddingLeft),
+          width =
+            box.width -
+            parseFloat(css.paddingLeft) -
+            parseFloat(css.paddingRight);
+        const f = document
+          .querySelector("#doc figure#tab-regions")
+          .getBoundingClientRect();
+        const t = document
+          .querySelector("#doc figure#tab-regions table")
+          .getBoundingClientRect();
+        const r = (n) => Math.round((n / width) * 100) + 0;
+        return {
+          width: r(f.width),
+          table: r(t.width),
+          before: r(f.left - left),
+          after: r(left + width - f.right),
+        };
+      });
+    const opening = async () =>
+      figure(check(await saved()), "tab-regions").split("\n")[0];
+    assert.deepEqual(await place(), {
+      width: 100,
+      table: 100,
+      before: 0,
+      after: 0,
+    });
+    await caretIn("tab-regions", "North");
+    assert.ok(await enabled("table-width"));
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "100");
+    await page.fill("dialog input[type=number]", "5");
+    await page.click("dialog .sh-primary");
+    assert.match(
+      await page.textContent("dialog .sh-err"),
+      /whole number from 10 to 100/,
+    );
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "center");
+    await page.click("dialog .sh-primary");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "print" });
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "screen" });
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "60");
+    assert.equal(await page.inputValue("dialog select"), "center");
+    await page.fill("dialog input[type=number]", "35");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    assert.deepEqual(await place(), {
+      width: 35,
+      table: 35,
+      before: 65,
+      after: 0,
+    });
+    await cmd("undo");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    pass("Table › Table width: width and place on screen and in print, undo");
 
     // ---- clipboard ----
     await drag("tab-regions", "1.6", "1.4");
