@@ -318,10 +318,16 @@ try {
   await plain.goto(
     await write(
       "look-alone.html",
-      built.replace(
-        '<figure class="table" id="tab-regions">',
-        '<figure class="table" id="tab-regions" data-width="70" data-align="right">',
-      ),
+      built
+        .replace(
+          '<figure class="table" id="tab-regions">',
+          '<figure class="table" id="tab-regions" data-width="70" data-align="right">',
+        )
+        // Protected content with its own data-width keeps the text column's width.
+        .replace(
+          "</article>",
+          '<figure id="legacy" data-width="60"><p>Legacy</p></figure>\n</article>',
+        ),
     ),
   );
   const alone = await plain.evaluate(() => {
@@ -341,6 +347,13 @@ try {
         parseFloat(cs.paddingRight),
       acc: getComputedStyle(document.getElementById("sec-summary")).color,
       cols: cols.map((w) => Math.round((w / table) * 100)),
+      legacy: Math.round(
+        (document.getElementById("legacy").getBoundingClientRect().width /
+          (a.clientWidth -
+            parseFloat(cs.paddingLeft) -
+            parseFloat(cs.paddingRight))) *
+          100,
+      ),
       // The table's width and right margin as percentages of the text column.
       table: Math.round(
         (table /
@@ -361,6 +374,7 @@ try {
   assert.equal(alone.acc, rgb(CHARTES.blue.acc));
   assert.deepEqual(alone.cols, [40, 30, 30]);
   assert.equal(alone.table, 70);
+  assert.equal(alone.legacy, 100);
   assert.equal(Math.abs(alone.right), 0);
   await plain.close();
   pass(
