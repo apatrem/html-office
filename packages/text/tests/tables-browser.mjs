@@ -718,6 +718,51 @@ async function run(engine) {
     assert.equal(await colgroup(), false);
     pass("dragging a border of a table without widths sets every column's");
 
+    // ---- drags that change nothing, and drags interrupted ----
+    // A full-width table without widths, dragged outwards: nothing to apply, no undo step.
+    await dragBorder((await borders("tab-1")).length - 1, 120, { id: "tab-1" });
+    assert.equal(await saved(), plain, "a blocked drag changes nothing");
+    assert.equal(await colgroup(), false);
+    // The document changes during the drag: the drag is cancelled, nothing is applied.
+    const interrupted = async (interrupt) => {
+      const x = (await borders())[1],
+        row = await page
+          .locator("#doc figure#tab-regions tbody tr:last-child > *")
+          .first()
+          .boundingBox();
+      const y = row.y + row.height / 2;
+      await page.mouse.move(x - 2, y);
+      await page.mouse.down();
+      await page.mouse.move(x - 40, y, { steps: 3 });
+      await page.evaluate(interrupt);
+      await page.mouse.move(x - 80, y, { steps: 3 });
+      await page.mouse.up();
+    };
+    const tablesBefore = figure(await saved(), "tab-regions");
+    await interrupted(() => {
+      const { view } = window.htmlText;
+      let at = null;
+      view.state.doc.forEach((node, offset) => {
+        if (at === null && node.type.name === "paragraph") at = offset + 1;
+      });
+      view.dispatch(view.state.tr.insertText("Edited ", at));
+    });
+    assert.match(await saved(), /Edited /);
+    assert.equal(
+      figure(check(await saved()), "tab-regions"),
+      tablesBefore,
+      "an edit during the drag cancels it",
+    );
+    await cmd("undo");
+    // The window loses focus during the drag (a release outside it): cancelled.
+    await interrupted(() => window.dispatchEvent(new FocusEvent("blur")));
+    assert.equal(
+      figure(check(await saved()), "tab-regions"),
+      tablesBefore,
+      "losing focus cancels the drag",
+    );
+    pass("blocked, edited-under and unfocused drags change nothing");
+
     // ---- print ----
     await page.emulateMedia({ media: "print" });
     const shown = await page.evaluate(() => {

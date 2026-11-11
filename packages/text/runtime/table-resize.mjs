@@ -51,30 +51,30 @@ class FigureView {
 }
 // The border near the pointer: {figure (position), c (column that changes), side (+1: the column
 // left of the border, -1: right of it), k (2 for a centred table, which grows on both sides)}.
+// Only the editor's own cells (not a protected block's) and tables of at most 100 columns, whose
+// widths can all be whole percentages.
 function borderAt(view, event) {
   const cell = event.target.closest?.("td, th");
   if (!cell || !view.dom.contains(cell)) return null;
   const pos = view.posAtDOM(cell, 0) - 1;
+  if (pos < 0 || view.nodeDOM(pos) !== cell) return null;
   const $cell = view.state.doc.resolve(pos);
-  if ($cell.nodeAfter?.type.spec.tableRole?.includes("cell") !== true)
-    return null;
+  const depth = $cell.depth;
+  if (depth < 3 || $cell.node(depth - 2).type !== N.table_figure) return null;
   // The cell's row, table and figure are its three ancestors.
-  const depth = $cell.depth,
-    table = $cell.node(depth - 1),
+  const table = $cell.node(depth - 1),
     tableStart = $cell.start(depth - 1),
     figurePos = $cell.before(depth - 2);
-  if ($cell.node(depth - 2).type !== N.table_figure) return null;
   const map = TableMap.get(table),
     rect = map.findCell(pos - tableStart),
     width = map.width;
+  if (width > 100) return null;
   const box = cell.getBoundingClientRect(),
     x = event.clientX;
   const align = $cell.node(depth - 2).attrs.align;
-  const nearRight = Math.abs(x - box.right) <= EDGE,
-    nearLeft = Math.abs(x - box.left) <= EDGE;
   let border = null; // the border's column boundary, 1..width (1: after the first column)
-  if (nearRight) border = rect.right;
-  else if (nearLeft) border = rect.left;
+  if (Math.abs(x - box.right) <= EDGE) border = rect.right;
+  else if (Math.abs(x - box.left) <= EDGE) border = rect.left;
   if (border === null) return null;
   if (align === "right") {
     if (border === width) return null; // the right edge is the anchor
@@ -89,8 +89,8 @@ function borderAt(view, event) {
   };
 }
 
-// Column widths in pixels, from the borders that cells show (a border no cell ends on is
-// placed evenly between its neighbours).
+// Column widths in pixels, from the borders that cells show. A border no cell ends on (behind a
+// merged cell) is placed by the columns' saved percentages, or evenly when they have none.
 function measure(view, figurePos) {
   const figure = view.state.doc.nodeAt(figurePos);
   const table = figure.lastChild,
@@ -108,11 +108,16 @@ function measure(view, figurePos) {
     }
   }
   edges[map.width] ??= dom.getBoundingClientRect().right;
+  const saved = table.attrs.cols?.map((c) => Number(c.width) || 0);
+  const share = (i) => (saved?.every(Boolean) ? saved[i] : 1);
   for (let i = 1; i < map.width; i++)
     if (edges[i] === null) {
       let j = i;
       while (edges[j] === null) j++;
-      edges[i] = edges[i - 1] + (edges[j] - edges[i - 1]) / (j - i + 1);
+      let all = 0;
+      for (let k = i - 1; k < j; k++) all += share(k);
+      edges[i] =
+        edges[i - 1] + ((edges[j] - edges[i - 1]) * share(i - 1)) / all;
     }
   return edges.slice(1).map((e, i) => Math.max(1, e - edges[i]));
 }
@@ -125,10 +130,17 @@ const textWidth = (view) => {
   );
 };
 
+// The drag under way: its cancel function, so a second pointer, the window losing focus or the
+// editor going away ends it.
+let active = null;
+
 function startDrag(view, event, border) {
   const widths = measure(view, border.figure),
     text = textWidth(view),
-    x0 = event.clientX;
+    x0 = event.clientX,
+    pointer = event.pointerId,
+    doc = view.state.doc,
+    figure = doc.nodeAt(border.figure);
   const figureDOM = view.nodeDOM(border.figure),
     tableDOM = figureDOM.querySelector(":scope > table");
   // A table without widths has no colgroup: one for the preview, removed afterwards.
@@ -147,17 +159,35 @@ function startDrag(view, event, border) {
     figureDOM.style.width = `${r.width}%`;
     cols.forEach((col, i) => (col.style.width = `${r.cols[i]}%`));
   };
+  // The styles the figure had when the drag started.
+  const was = {
+    figure: figureDOM.style.width,
+    cols: cols.map((col) => col.style.width),
+  };
   const restore = () => {
     added?.remove();
-    const figure = view.state.doc.nodeAt(border.figure);
-    figureDOM.style.width = figure.attrs.width ? `${figure.attrs.width}%` : "";
-    const model = figure.lastChild.attrs.cols;
-    cols.forEach(
-      (col, i) =>
-        (col.style.width = model?.[i]?.width ? `${model[i].width}%` : ""),
-    );
+    figureDOM.style.width = was.figure;
+    cols.forEach((col, i) => (col.style.width = was.cols[i]));
   };
+  const listeners = [
+    ["pointermove", (e) => e.pointerId === pointer && move(e)],
+    ["pointerup", (e) => e.pointerId === pointer && end(true)],
+    ["pointercancel", (e) => e.pointerId === pointer && end(false)],
+    // The window losing focus (a release outside it may never reach the page).
+    ["blur", (e) => e.target === window && end(false)],
+    [
+      "keydown",
+      (e) => {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        e.stopPropagation();
+        end(false);
+      },
+    ],
+  ];
+  // The document changed under the drag (the figure moved, changed or went): it is cancelled.
   const move = (e) => {
+    if (view.state.doc !== doc || !(e.buttons & 1)) return end(false);
     result = resizedColumns(
       widths,
       border.c,
@@ -166,44 +196,39 @@ function startDrag(view, event, border) {
     );
     preview(result);
   };
-  const end = (e, commit) => {
-    removeEventListener("pointermove", move);
-    removeEventListener("pointerup", up);
-    removeEventListener("pointercancel", cancel);
-    removeEventListener("keydown", key, true);
+  const end = (commit) => {
+    if (active !== end) return;
+    active = null;
+    for (const [type, f] of listeners) removeEventListener(type, f, true);
     document.documentElement.classList.remove("tx-col-dragging");
     restore();
-    if (commit && result)
+    if (
+      commit &&
+      result?.moved &&
+      view.state.doc === doc &&
+      doc.nodeAt(border.figure) === figure
+    )
       own(setColumnWidths(border.figure, result))(
         view.state,
         view.dispatch,
         view,
       );
   };
-  const up = (e) => end(e, true);
-  const cancel = (e) => end(e, false);
-  const key = (e) => {
-    if (e.key !== "Escape") return;
-    e.preventDefault();
-    e.stopPropagation();
-    end(e, false);
-  };
-  addEventListener("pointermove", move);
-  addEventListener("pointerup", up);
-  addEventListener("pointercancel", cancel);
-  addEventListener("keydown", key, true);
+  active = end;
+  for (const [type, f] of listeners) addEventListener(type, f, true);
   document.documentElement.classList.add("tx-col-dragging");
 }
 
 export const tableResizing = () =>
   new Plugin({
+    view: () => ({ destroy: () => active?.(false) }),
     props: {
       nodeViews: {
         table_figure: (node) => new FigureView(node),
       },
       handleDOMEvents: {
         pointermove(view, event) {
-          if (event.buttons) return false;
+          if (event.buttons || event.pointerType === "touch") return false;
           view.dom.classList.toggle(
             "tx-col-resize",
             view.editable && !!borderAt(view, event),
@@ -214,8 +239,16 @@ export const tableResizing = () =>
           view.dom.classList.remove("tx-col-resize");
           return false;
         },
+        // Mouse and pen only: on a touch screen a swipe scrolls, and the Table menu's dialogs
+        // set widths.
         pointerdown(view, event) {
-          if (event.button !== 0 || !view.editable) return false;
+          if (
+            active ||
+            event.button !== 0 ||
+            event.pointerType === "touch" ||
+            !view.editable
+          )
+            return false;
           const border = borderAt(view, event);
           if (!border) return false;
           // No compatibility mouse events: ProseMirror starts no text or cell selection.

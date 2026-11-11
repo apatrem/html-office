@@ -346,18 +346,27 @@ test("dragging a border: whole percentages, the other columns keep their widths"
   assert.deepEqual(T.resizedColumns([200, 150, 150], 0, 50, 1000), {
     width: 55,
     cols: [46, 27, 27],
+    moved: true,
   });
-  // The table stops at the text column: nothing grows.
+  // The table stops at the text column: nothing grows, nothing to apply.
   assert.deepEqual(T.resizedColumns([400, 300, 300], 2, 200, 1000), {
     width: 100,
     cols: [40, 30, 30],
+    moved: false,
   });
   // A column shrinks to 3% of the text column at the least, the table to 10%.
   assert.deepEqual(T.resizedColumns([200, 150, 150], 1, -400, 1000), {
     width: 38,
     cols: [53, 8, 39],
+    moved: true,
   });
   assert.equal(T.resizedColumns([60, 60], 0, -500, 1000).width, 10);
+  // Rounding keeps the least width: 3% of 930 px is under 30 px, so the column gets 4%.
+  assert.deepEqual(T.resizedColumns([500, 400, 100], 2, -100, 1000), {
+    width: 93,
+    cols: [53, 43, 4],
+    moved: true,
+  });
 
   const e = editor();
   const pos = (() => {
@@ -382,6 +391,12 @@ test("dragging a border: whole percentages, the other columns keep their widths"
   // The same widths: no step. The text column: no width and no place.
   assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [50, 25, 25] })));
   assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [50, 50] })));
+  // Only whole percentages in range are applied.
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [0, 50, 50] })));
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 5, cols: [50, 25, 25] })));
+  assert.ok(
+    !e.can(T.setColumnWidths(pos, { width: 80, cols: [50.5, 25, 24.5] })),
+  );
   e.run(T.own(T.setColumnWidths(pos, { width: 100, cols: [40, 30, 30] })));
   e.table();
   assert.match(html(), /<figure class="table" id="tab-a">/);

@@ -640,18 +640,30 @@ const MIN_COLUMN = 0.03;
 // Column `c` of a table whose columns measure `widths` (pixels) grows by `delta` pixels in a text
 // column `text` pixels wide; the other columns keep their widths, so the table grows or shrinks
 // by as much, from 10% of the text column to all of it. Returns {width: the table's whole
-// percentage of the text column, cols: whole percentages of the table}.
+// percentage of the text column, cols: whole percentages of the table, moved: whether the column
+// changed at all}.
 export function resizedColumns(widths, c, delta, text) {
   const total = widths.reduce((a, b) => a + b, 0);
-  const least = Math.min(widths[c], MIN_COLUMN * text) - widths[c];
-  let width = Math.round(((total + Math.max(delta, least)) / text) * 100);
+  const least = Math.min(widths[c], MIN_COLUMN * text);
+  let width = Math.round(
+    ((total + Math.max(delta, least - widths[c])) / text) * 100,
+  );
   width = Math.min(100, Math.max(10, width));
-  const grown = (width * text) / 100 - total;
-  if (widths[c] + grown < Math.min(widths[c], MIN_COLUMN * text) && width < 100)
-    width++;
+  if (widths[c] + (width * text) / 100 - total < least && width < 100) width++;
+  const table = (width * text) / 100;
   const next = widths.slice();
-  next[c] = Math.max(1, widths[c] + (width * text) / 100 - total);
-  return { width, cols: wholePercents(next) };
+  next[c] = Math.max(1, widths[c] + table - total);
+  const cols = wholePercents(next);
+  // Rounding never takes the dragged column below its least width: the widest other gives.
+  while (
+    (cols[c] * table) / 100 < least - 0.5 &&
+    cols[c] < 100 - (cols.length - 1)
+  ) {
+    const others = cols.map((p, i) => (i === c ? -1 : p));
+    cols[others.indexOf(Math.max(...others))]--;
+    cols[c]++;
+  }
+  return { width, cols, moved: Math.abs(table - total) >= 0.5 };
 }
 // Sets the table's width (whole percent of the text column) and its columns' (whole percents of
 // the table), keeping emphasis and, on a narrower table, its place. `pos`: the figure's position.
@@ -669,6 +681,11 @@ export const setColumnWidths =
       width: full ? null : String(width),
       align: full ? null : figure.attrs.align,
     };
+    if (
+      !(Number.isInteger(width) && width >= 10 && width <= 100) ||
+      !cols.every((p) => Number.isInteger(p) && p >= 1 && p <= 100)
+    )
+      return false;
     const next = old.map((c, i) => ({ ...c, width: String(cols[i]) }));
     // Nothing changes (a drag stopped at the edge, or a click): no undo step.
     if (
