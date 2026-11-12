@@ -8,6 +8,14 @@ const attrs = (pairs) =>
   Object.fromEntries(pairs.filter(([, value]) => value !== null));
 
 // Builds DOM from a plain tree (html.mjs) for protected blocks and chart previews; browser only.
+// A narrower table's width and place, as layout.css gives them (figure.table data-width, data-align).
+const tableStyle = ({ width, align }) =>
+  width
+    ? `width:${width}%` +
+      (align
+        ? `;margin-left:auto${align === "center" ? ";margin-right:auto" : ""}`
+        : "")
+    : null;
 const NS = {
   html: "http://www.w3.org/1999/xhtml",
   svg: "http://www.w3.org/2000/svg",
@@ -224,8 +232,20 @@ export const schema = new Schema({
       group: "block",
       content: "caption? table",
       defining: true,
-      attrs: { id: {} },
-      toDOM: (n) => ["figure", { class: "table", id: n.attrs.id }, 0],
+      // width: null (the text column) or a percentage "10"–"99"; align: null (left), "center", "right".
+      attrs: { id: {}, width: { default: null }, align: { default: null } },
+      toDOM: (n) => [
+        "figure",
+        attrs([
+          ["class", "table"],
+          ["id", n.attrs.id],
+          ["data-width", n.attrs.width],
+          ["data-align", n.attrs.align],
+          // The editing view only, for files whose theme predates table widths.
+          ["style", tableStyle(n.attrs)],
+        ]),
+        0,
+      ],
     },
     // cols: null, or one {width, emphasis} per column (the colgroup).
     table: {

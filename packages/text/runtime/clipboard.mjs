@@ -354,7 +354,11 @@ function copiedFigure(state, { table, pos, rect }) {
           },
           content,
         );
-  return figure.type.create(figure.attrs, [cells]);
+  // Some of the columns only: a table as wide as the text column.
+  const whole = rect.left === 0 && rect.width === TableMap.get(table).width;
+  return figure.type.create(whole ? figure.attrs : { id: figure.attrs.id }, [
+    cells,
+  ]);
 }
 
 // Writes the envelope, a semantic table and TSV; throws a ClipboardError when it cannot.
@@ -789,9 +793,11 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
     ).content.firstChild;
     return {
       blocks: [
-        N.table_figure.create({ id: freshId("tab", usedIds(view.state.doc)) }, [
-          table,
-        ]),
+        // The copy's width and place (copiedFigure drops them when only some columns were copied).
+        N.table_figure.create(
+          { ...figure.attrs, id: freshId("tab", usedIds(view.state.doc)) },
+          [table],
+        ),
       ],
       lost: new Map(),
       notices: [],
