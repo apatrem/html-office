@@ -203,23 +203,22 @@ try {
       await page
         .getByText("Saved results are current.", { exact: true })
         .waitFor();
-      await page.evaluate((text) => {
-        globalThis.discardWrites = 0;
-        globalThis.showSaveFilePicker = async () => ({
-          name: "newer.html",
-          getFile: async () => ({ text: async () => text }),
-          createWritable: async () => {
-            globalThis.discardWrites++;
-            throw new Error("Must not write");
-          },
-        });
-      }, newerHTML);
+      await page.evaluate(() => {
+        // The picker is cancelled: what matters is the name it suggests.
+        globalThis.showSaveFilePicker = async (options) => {
+          globalThis.discardSuggested = options.suggestedName;
+          throw new DOMException("Cancelled", "AbortError");
+        };
+      });
       await page.getByRole("button", { name: "Save", exact: true }).click();
       await page
         .locator("#save-status")
-        .filter({ hasText: "Recovered copy cannot overwrite an existing file" })
+        .filter({ hasText: "Save cancelled. Your work remains open." })
         .waitFor();
-      assert.equal(await page.evaluate(() => globalThis.discardWrites), 0);
+      assert.match(
+        await page.evaluate(() => globalThis.discardSuggested),
+        /-recovered\.html$/,
+      );
       const waiting = page.waitForEvent("download");
       await command(page, "Save a copy");
       const saved = resolve(out, "recovery-failed-discard-protected-copy.html");
@@ -230,7 +229,7 @@ try {
         400,
       );
       console.log(
-        "PASS recovery discard: failed deletion retains the record/dialog/protection; restored copy cannot overwrite the newer source",
+        "PASS recovery discard: failed deletion retains the record/dialog/protection; Save suggests a new name for the restored copy",
       );
     } else {
       await page.waitForFunction(() => globalThis.discardAckWaiting);

@@ -55,10 +55,10 @@ test('draft restores metadata, images and slide navigation after reload', async 
 test('save uses the selected file and keeps later edits dirty, including a second queued save', async t => {
   const p=await open(t);
   await p.evaluate(()=>{
-    window.__writes=[];window.__pickers=0;
-    window.showSaveFilePicker=async()=>{window.__pickers++;return {name:'chosen.html',createWritable:async()=>({
-      write:async html=>{window.__writes.push(html);await new Promise(r=>window.__release=r);}, close:async()=>{}
-    })};};
+    window.__writes=[];window.__pickers=0;window.__disk='';
+    window.showSaveFilePicker=async()=>{window.__pickers++;return {name:'chosen.html',getFile:async()=>({text:async()=>window.__disk}),createWritable:async()=>{let next;return {
+      write:async html=>{next=html;window.__writes.push(html);await new Promise(r=>window.__release=r);}, close:async()=>{window.__disk=next;}
+    };}};};
   });
   await p.keyboard.press('Control+s');await p.waitForFunction(()=>window.__writes.length===1);
   await footer(p,'During the save');
@@ -79,7 +79,7 @@ test('cancelled picker and failed write preserve edits and draft', async t => {
   await p.evaluate(()=>{window.showSaveFilePicker=async()=>{throw new DOMException('cancel','AbortError');};});
   await p.keyboard.press('Control+s');
   assert.ok(await p.evaluate(()=>localStorage.getItem('html-slides:'+location.pathname)));
-  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({createWritable:async()=>{throw new Error('disk full');}});});
+  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({name:'chosen.html',getFile:async()=>({text:async()=>''}),createWritable:async()=>{throw new Error('disk full');}});});
   await p.keyboard.press('Control+s');
   await p.waitForFunction(()=>document.querySelector('.hs-banner')?.textContent.includes('Save failed'));
   assert.equal(await p.locator('.hs-save.dirty').count()>0,true);
@@ -173,12 +173,14 @@ for(const mode of ['in-place','during-write','save-as']){
   const file=path.join(dir,`identity-${mode}.html`),target=mode==='save-as'?path.join(dir,'separate-copy.html'):file;
   fs.copyFileSync(plain,file);const p=await open(t,file);
   await p.exposeFunction('__writeFile',html=>fs.writeFileSync(target,html));
+  await p.exposeFunction('__readFile',()=>fs.existsSync(target)?fs.readFileSync(target,'utf8'):'');
   await p.evaluate(({name,pause})=>{
    window.__written=false;window.__closed=false;
-   window.showSaveFilePicker=async()=>({name,createWritable:async()=>({
-    write:async html=>{await window.__writeFile(html);window.__written=true;if(pause)await new Promise(r=>window.__finishWrite=r);},
-    close:async()=>{window.__closed=true;}
-   })});
+   // Like Chromium, the picker empties the chosen file; in place, its name is the opened deck's.
+   window.showSaveFilePicker=async()=>{await window.__writeFile('');return {name,getFile:async()=>({text:()=>window.__readFile()}),createWritable:async()=>{let next;return {
+    write:async html=>{next=html;},
+    close:async()=>{await window.__writeFile(next);window.__written=true;if(pause)await new Promise(r=>window.__finishWrite=r);window.__closed=true;}
+   };}};};
   },{name:path.basename(target),pause:mode==='during-write'});
   await footer(p,'Saved edit A');await p.keyboard.press('Control+s');
   await p.waitForFunction(()=>window.__written);
@@ -212,7 +214,7 @@ test('a successful save is reported as saved when the deck has no assets zone', 
   const file=path.join(dir,'no-assets.html');
   fs.writeFileSync(file,fs.readFileSync(plain,'utf8').replace(/<script id="assets"[^>]*>[\s\S]*?<\/script>\n?/,''));
   const p=await open(t,file);
-  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({name:'no-assets.html',createWritable:async()=>({write:async()=>{},close:async()=>{}})});});
+  await p.evaluate(()=>{window.showSaveFilePicker=async()=>({name:'no-assets.html',getFile:async()=>({text:async()=>''}),createWritable:async()=>({write:async()=>{},close:async()=>{}})});});
   await footer(p,'Saved without assets');await p.keyboard.press('Control+s');
   await p.waitForFunction(()=>/Saved to|Save failed/.test(document.querySelector('.hs-banner')?.textContent||''));
   assert.match(await p.locator('.hs-banner').textContent(),/Saved to/);

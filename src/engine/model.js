@@ -12,7 +12,6 @@ export const state = {
   redo: [],
   dirty: false,
   revision: 0,
-  handle: null,
   bodyClass: '',
   current: null,
   base: '',

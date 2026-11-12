@@ -6,10 +6,14 @@ import * as V from './view.js';
 import * as E from './editor.js';
 import { slideCommands } from './commands.js';
 import { mountShell } from './shell.js';
+import { FileBinding, canSaveInPlace, copyOnlyNotice } from '../../packages/shared/persistence.mjs';
 
 function boot() {
   const main = document.getElementById('deck');
   if (!main || window.deckEngine) return;
+  // The document as opened, before the engine adds anything: the remembered file is reused only
+  // while it holds exactly this (parsed the same way).
+  const opened = document.documentElement.outerHTML;
   M.state.main = main;
   M.state.bodyClass = document.body.getAttribute('class') || '';
   M.captureShell(); // before any injection: only these nodes are saved
@@ -47,6 +51,13 @@ function boot() {
 
   const serialize = written => M.serialize(() => C.refreshCaches(main), written);
 
+  // The file Save writes: the opened one (remembered between openings), or a new one.
+  const file = new FileBinding({
+    purpose: 'html-slides-save',
+    description: 'Deck HTML',
+    fallbackName: 'deck.html',
+    matches: text => new DOMParser().parseFromString(text, 'text/html').documentElement.outerHTML === opened
+  });
   let saveChain = Promise.resolve();
   function save() {
     saveChain = saveChain.then(saveOnce).catch(e => V.banner('Save failed: ' + e.message, [], 8000));
@@ -57,16 +68,12 @@ function boot() {
     const written = {};
     const html = serialize(written);
     const revision = M.state.revision;
-    const name = decodeURIComponent(location.pathname.split('/').pop() || '') || 'deck.html';
-    if (window.showSaveFilePicker) {
+    const name = file.name;
+    if (canSaveInPlace()) {
       try {
-        if (!M.state.handle) M.state.handle = await window.showSaveFilePicker({
-          suggestedName: name, types: [{ description: 'Deck HTML', accept: { 'text/html': ['.html'] } }] });
-        const w = await M.state.handle.createWritable();
-        await w.write(html);
-        await w.close();
+        const saved = await file.save(html);
         const current = M.markSaved(revision, written);
-        V.banner('Saved to ' + (M.state.handle.name || name) + '.' + (current ? '' : ' Newer changes still need saving.'), [], 4000);
+        V.banner(file.message(saved) + (current ? '' : ' Newer changes still need saving.'), [], saved.first ? 8000 : 4000);
         return;
       } catch (e) {
         if (e && e.name === 'AbortError') return;
@@ -80,8 +87,11 @@ function boot() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     // The browser may still cancel the download, and this file is not overwritten: keep the draft.
-    if (M.markDownloaded(revision)) V.banner('Copy downloaded; this file is unchanged and its draft is kept. Use Chrome or Edge to save directly to a file.', [], 8000);
-    else V.banner('Copy downloaded; this file is unchanged and the browser could not store a draft, so changes remain unsaved here. Use Chrome or Edge to save directly to a file.', [], 10000);
+    // Once per session: how to save in place instead.
+    const once = copyOnlyNotice();
+    const notice = once ? ' ' + once : '';
+    if (M.markDownloaded(revision)) V.banner('Copy downloaded; this file is unchanged and its draft is kept.' + notice, [], 8000);
+    else V.banner('Copy downloaded; this file is unchanged and the browser could not store a draft, so changes remain unsaved here.' + notice, [], 10000);
   }
 
   if (!V.isStatic()) {

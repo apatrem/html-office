@@ -743,7 +743,7 @@ export function mountShell(
           "p",
           {},
           asCopy
-            ? "The file has changed since the draft was made. Restored, the draft can only be saved to a new file or as a copy."
+            ? "The file has changed since the draft was made. Restored, Save suggests a new file name for the draft; Save a copy downloads it."
             : "Restoring replaces the document shown with the draft. Nothing is written to the file until you save.",
         ),
         error,
