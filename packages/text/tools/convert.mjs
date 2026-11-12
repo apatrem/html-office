@@ -45,10 +45,14 @@ const FIELDS = {
     "body",
     "total",
     "rowHeaders",
+    "width",
+    "align",
   ],
 };
 const ALIGN = { left: "ta-l", center: "ta-c", right: "ta-r" };
 const IMAGE_WIDTHS = ["text", "full", "25", "33", "40", "50"];
+// A string naming an alignment ("left", "center", "right"), never a value that only coerces to one.
+const alignOk = (v) => typeof v === "string" && Object.hasOwn(ALIGN, v);
 const plain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // Every problem of one payload, as messages naming it.
@@ -94,6 +98,13 @@ function payloadProblems(id, p) {
     if (p.asset !== undefined && !/^[a-zA-Z][\w-]*$/.test(p.asset))
       say("asset is a key of script#assets, such as a2");
   } else {
+    if (
+      p.width !== undefined &&
+      !(Number.isInteger(p.width) && p.width >= 10 && p.width <= 100)
+    )
+      say("width is a whole percentage of the text column, 10–100");
+    if (p.align !== undefined && !alignOk(p.align))
+      say('align is "left", "center" or "right"');
     if (p.compact !== undefined && typeof p.compact !== "boolean")
       say("compact is true or false");
     if (p.rowHeaders !== undefined && typeof p.rowHeaders !== "boolean")
@@ -121,7 +132,7 @@ function payloadProblems(id, p) {
             (c.width === undefined ||
               (Number.isInteger(c.width) && c.width >= 1 && c.width <= 100)) &&
             (c.emphasis === undefined || typeof c.emphasis === "boolean") &&
-            (c.align === undefined || Object.hasOwn(ALIGN, c.align)),
+            (c.align === undefined || alignOk(c.align)),
         ))
     )
       say(
@@ -142,7 +153,7 @@ function cellOk(c) {
     [c.colspan, c.rowspan].every(
       (n) => n === undefined || (Number.isInteger(n) && n >= 1 && n <= 1000),
     ) &&
-    (c.align === undefined || Object.hasOwn(ALIGN, c.align))
+    (c.align === undefined || alignOk(c.align))
   );
 }
 
@@ -477,8 +488,27 @@ function tableNode(id, p, old, ctx, problems) {
         ? [old.firstChild]
         : [];
   const compact = p.compact ?? table?.attrs.compact ?? false;
+  // The table's width (100: the text column) and place, kept from the old figure unless given.
+  const width =
+    p.width !== undefined
+      ? p.width === 100
+        ? null
+        : String(p.width)
+      : (old?.attrs.width ?? null);
+  const figure = {
+    id,
+    width,
+    align:
+      width === null
+        ? null
+        : p.align !== undefined
+          ? p.align === "left"
+            ? null
+            : p.align
+          : (old?.attrs.align ?? null),
+  };
   if (table && !GRID.some((k) => p[k] !== undefined))
-    return N.table_figure.create({ id }, [
+    return N.table_figure.create(figure, [
       ...caption,
       table.type.create({ ...table.attrs, compact }, table.content),
     ]);
@@ -576,7 +606,7 @@ function tableNode(id, p, old, ctx, problems) {
       );
   }
   try {
-    return N.table_figure.create({ id }, [
+    return N.table_figure.create(figure, [
       ...caption,
       N.table.create({ compact, cols }, rows),
     ]);

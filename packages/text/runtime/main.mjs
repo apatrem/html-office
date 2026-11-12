@@ -38,6 +38,7 @@ import { regenerate, fileFormat } from "../editor/numbering.mjs";
 import { internalClipboard } from "../editor/internal-clipboard.mjs";
 import * as E from "../editor/commands.mjs";
 import * as T from "../editor/tables.mjs";
+import { tableResizing } from "./table-resize.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { setupSaving } from "./saving.mjs";
 import { setupClipboard } from "./clipboard.mjs";
@@ -281,6 +282,7 @@ function start() {
       T.cellKeys(),
       T.tableEditing(),
       T.tableGuard(),
+      tableResizing(),
       subsetGuard(),
       imagePlugin(assets, () => commands.run("image")),
       chartsPlugin,
@@ -429,6 +431,15 @@ function start() {
   );
   // Tables (T10): each command is enabled where it applies.
   for (const [id, command] of TABLE_COMMANDS) edit(id, T.own(command));
+  commands.register(
+    "table-width",
+    () =>
+      shell.tableWidth(T.tableWidthAt(view.state), (width, align) => {
+        T.own(T.setTableWidth(width, align))(view.state, view.dispatch, view);
+        view.focus();
+      }),
+    () => T.isInTable(view.state),
+  );
   commands.register(
     "column-width",
     () =>

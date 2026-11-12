@@ -63,7 +63,21 @@ test("the layout theme sizes every page format and margin preset, on screen and 
     /width:calc\(var\(--page-w\) - 2\*var\(--margin\)\)/,
   );
   assert.doesNotMatch(LAYOUT_CSS, /@import|url\(/);
-  // Column widths render without the editor: every permitted percentage has a rule.
+  // Column, table and wrapped-image widths render without the editor: every permitted
+  // percentage has a rule, and a narrower table its place.
   for (let n = 1; n <= 100; n++)
-    assert.ok(LAYOUT_CSS.includes(`col[data-width="${n}"]{width:${n}%}`), n);
+    assert.ok(
+      LAYOUT_CSS.includes(
+        `:is(col,figure.table,figure.image)[data-width="${n}"]{width:${n}%}`,
+      ),
+      n,
+    );
+  // Only columns, tables and images: a protected block's own data-width (on a div, or a
+  // figure of no format class) keeps its width.
+  assert.doesNotMatch(LAYOUT_CSS, /(^|[^)\w])\[data-width=/);
+  assert.doesNotMatch(LAYOUT_CSS, /figure\)\[data-width=/);
+  assert.ok(LAYOUT_CSS.includes("figure.table[data-align]{margin-left:auto}"));
+  assert.ok(
+    LAYOUT_CSS.includes("figure.table[data-align=center]{margin-right:auto}"),
+  );
 });

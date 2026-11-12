@@ -762,7 +762,34 @@ function rows(section, ctx, path, head, budget) {
 }
 
 function tableFigure(node, ctx, path) {
-  figureAttributes(node, ctx, path, ["class", "id"]);
+  figureAttributes(
+    node,
+    ctx,
+    path,
+    ["class", "id"],
+    ["data-width", "data-align"],
+  );
+  const tableWidth = attr(node, "data-width"),
+    align = attr(node, "data-align");
+  if (tableWidth !== null && !F.TABLE_WIDTH.test(tableWidth))
+    ctx.error(
+      "malformed-figure",
+      `Table data-width is a whole percentage 10–99 of the text column (none: all of it), not "${tableWidth}"`,
+      node,
+      path,
+      "data-width",
+    );
+  if (
+    align !== null &&
+    (tableWidth === null || !F.TABLE_ALIGNS.includes(align))
+  )
+    ctx.error(
+      "malformed-figure",
+      `Table data-align is ${F.TABLE_ALIGNS.join(" or ")}, on a table with data-width`,
+      node,
+      path,
+      "data-align",
+    );
   const kids = nonBlank(node);
   if (isElement(kids[0], "figcaption")) caption(kids.shift(), ctx, path);
   const table = kids.shift();

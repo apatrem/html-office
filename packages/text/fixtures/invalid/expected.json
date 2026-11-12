@@ -134,6 +134,11 @@
   "table-span-size.html": [
     "malformed-table 13:9"
   ],
+  "table-width.html": [
+    "malformed-figure 10:34",
+    "malformed-figure 17:50",
+    "malformed-figure 24:34"
+  ],
   "thread-date-range.html": [
     "malformed-thread 13:39"
   ],

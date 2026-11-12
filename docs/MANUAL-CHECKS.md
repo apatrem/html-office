@@ -343,6 +343,21 @@ Generate it first: `node packages/text/acceptance/generate.mjs` (after `npm ci` 
 4. **Still protected by a comment**: *Executive summary* holds a comment thread, so Body is greyed out there too.
 5. **Safari and Firefox**: steps 1–4 behave the same.
 
+### Table width
+
+Use `text-example.html`, in Chrome, then Safari and Firefox. Put the caret in the *Revenue by region* table.
+
+1. **Width and place**: Table › Table width… shows 100 and Left. Enter 5: the dialog says 10 to 100 and stays open. Enter 60 and Centre: the table and its caption narrow to 60 % of the text column, centred. One Undo brings back the full width.
+2. **Right, then full**: set 35 and Right: the table sits against the right margin. Set 100: it spans the text column again, and reopening the dialog shows Left.
+3. **Columns stay proportional**: with the table at 60 %, Column width… 55 on the first column: the column takes 55 % of the narrower table.
+4. **Save and reopen**: set 70 and Right, save, reopen: the table keeps its width and place. Open the saved file with JavaScript disabled: the same width and place.
+5. **Print**: print preview shows the narrower table at the same width and place as on screen, its header rows still repeated across pages.
+6. **Copy**: select the whole table (click its border, or select every cell) and copy, then paste into another place of the document: the copy keeps the width and place. Copy only two of its columns and paste: the new table spans the text column.
+7. **Markdown**: File › Export Markdown (.md): the table is there without its width (GitHub tables have none).
+8. **Drag a column border** (mouse, then a trackpad): hovering a border between two columns shows the resize cursor. Drag the border between *Region* and *2025* to the left: only *Region* narrows, the other columns keep their widths, and the table narrows by as much. Drag it back to the right: the table widens until it reaches the text column, then the border stops. One Undo reverts each drag; Escape during a drag cancels it.
+9. **Centred and right-aligned**: set 60 % and Centre, drag a border: it follows the pointer and the table stays centred. Set Right: borders change the column to their right, and the table's left edge can be dragged.
+10. **Then save and reopen**: the widths after dragging are kept; Table › Column width… shows the dragged column's new percentage.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.

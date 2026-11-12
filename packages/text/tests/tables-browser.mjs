@@ -39,7 +39,7 @@ function check(text) {
 }
 // The figure with this ID, as saved.
 const figure = (text, id) => {
-  const at = text.indexOf(`<figure class="table" id="${id}">`);
+  const at = text.search(new RegExp(`<figure class="table" id="${id}"[ >]`));
   assert.ok(at >= 0, id);
   return text.slice(at, text.indexOf("</figure>", at) + 9);
 };
@@ -266,6 +266,213 @@ async function run(engine) {
       "rows, columns, total rows, row headers, density, width, header rows, caption, delete",
     );
 
+    // ---- table width and place ----
+    // The figure's width and margins as fractions of the text column.
+    const place = () =>
+      page.evaluate(() => {
+        const doc = document.querySelector("#doc");
+        const css = getComputedStyle(doc);
+        const box = doc.getBoundingClientRect();
+        const left = box.left + parseFloat(css.paddingLeft),
+          width =
+            box.width -
+            parseFloat(css.paddingLeft) -
+            parseFloat(css.paddingRight);
+        const f = document
+          .querySelector("#doc figure#tab-regions")
+          .getBoundingClientRect();
+        const t = document
+          .querySelector("#doc figure#tab-regions table")
+          .getBoundingClientRect();
+        const r = (n) => Math.round((n / width) * 100) + 0;
+        return {
+          width: r(f.width),
+          table: r(t.width),
+          before: r(f.left - left),
+          after: r(left + width - f.right),
+        };
+      });
+    const opening = async () =>
+      figure(check(await saved()), "tab-regions").split("\n")[0];
+    assert.deepEqual(await place(), {
+      width: 100,
+      table: 100,
+      before: 0,
+      after: 0,
+    });
+    await caretIn("tab-regions", "North");
+    assert.ok(await enabled("table-width"));
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "100");
+    await page.fill("dialog input[type=number]", "5");
+    await page.click("dialog .sh-primary");
+    assert.match(
+      await page.textContent("dialog .sh-err"),
+      /whole number from 10 to 100/,
+    );
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "center");
+    await page.click("dialog .sh-primary");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "print" });
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "screen" });
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "60");
+    assert.equal(await page.inputValue("dialog select"), "center");
+    await page.fill("dialog input[type=number]", "35");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    assert.deepEqual(await place(), {
+      width: 35,
+      table: 35,
+      before: 65,
+      after: 0,
+    });
+    await cmd("undo");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    // Enter in a width field saves, as the button does.
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "50");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="50">',
+    );
+    await cmd("undo");
+    await caretIn("tab-regions", "North");
+    await cmd("column-width");
+    await page.fill("dialog input[type=number]", "45");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.match(
+      figure(check(await saved()), "tab-regions"),
+      /<colgroup><col data-width="45">/,
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    pass("Table › Table width: width and place on screen and in print, undo");
+
+    // ---- dragging column borders ----
+    // Borders of the last body row's cells, in page pixels: [left of the first, right of each].
+    const borders = (id = "tab-regions") =>
+      page.evaluate((id) => {
+        const cells = [
+          ...document.querySelectorAll(
+            `#doc figure#${id} tbody tr:last-child > *`,
+          ),
+        ].map((c) => c.getBoundingClientRect());
+        return [cells[0].left, ...cells.map((c) => c.right)].map(Math.round);
+      }, id);
+    const dragBorder = async (
+      i,
+      dx,
+      { escape = false, id = "tab-regions" } = {},
+    ) => {
+      const x = (await borders(id))[i],
+        row = await page
+          .locator(`#doc figure#${id} tbody tr:last-child > *`)
+          .first()
+          .boundingBox();
+      const y = row.y + row.height / 2,
+        from = i === 0 ? x + 2 : x - 2;
+      await page.mouse.move(from, y);
+      const hover = await page.evaluate(() =>
+        document.querySelector("#doc").classList.contains("tx-col-resize"),
+      );
+      await page.mouse.down();
+      await page.mouse.move(from + dx, y, { steps: 6 });
+      if (escape) await page.keyboard.press("Escape");
+      await page.mouse.up();
+      return hover;
+    };
+    // Widths are whole percentages: within 1% of the text column (about 6 px).
+    const near = (a, b, what) =>
+      assert.ok(Math.abs(a - b) <= 6, `${what}: ${a} ≠ ${b}`);
+    await page.locator("#doc figure#tab-regions").scrollIntoViewIfNeeded();
+    let b0 = await borders();
+    // Left-aligned, full width: the first column narrows, the others keep their widths.
+    assert.ok(await dragBorder(1, -100), "a border shows the resize cursor");
+    let b1 = await borders();
+    near(b1[1], b0[1] - 100, "the border follows the pointer");
+    near(b1[2] - b1[1], b0[2] - b0[1], "the next column keeps its width");
+    near(b1[3] - b1[2], b0[3] - b0[2], "the last column keeps its width");
+    assert.match(await opening(), /data-width="8\d"/);
+    assert.match(
+      figure(check(await saved()), "tab-regions"),
+      /<colgroup><col data-width="\d+"><col class="emphasis" data-width="\d+"><col data-width="\d+"><\/colgroup>/,
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    // At the text column's width the right edge does not move.
+    const full = await saved();
+    await dragBorder(3, 150);
+    assert.equal(await saved(), full, "blocked at the text column");
+    // Escape cancels a drag.
+    await dragBorder(1, -80, { escape: true });
+    assert.equal(await saved(), full, "Escape cancels");
+    assert.deepEqual(await borders(), b0);
+    // Centred at 60%: the column grows on both sides of the table, the border follows.
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "center");
+    await page.click("dialog .sh-primary");
+    b0 = await borders();
+    await dragBorder(1, 30);
+    b1 = await borders();
+    near(b1[1], b0[1] + 30, "centred: the border follows the pointer");
+    near(
+      b1[2] - b1[1],
+      b0[2] - b0[1],
+      "centred: the next column keeps its width",
+    );
+    assert.match(
+      await opening(),
+      /data-width="(69|70|71)" data-align="center"/,
+    );
+    await cmd("undo");
+    // Right-aligned: the left edge moves, the right edge stays at the margin.
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    b0 = await borders();
+    await dragBorder(0, -50);
+    b1 = await borders();
+    near(b1[0], b0[0] - 50, "right-aligned: the left edge follows the pointer");
+    near(b1[3], b0[3], "right-aligned: the right edge stays");
+    near(
+      b1[2] - b1[1],
+      b0[2] - b0[1],
+      "right-aligned: the other columns keep their widths",
+    );
+    for (let i = 0; i < 3; i++) await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    pass(
+      "dragging column borders: one column and the table change, blocked at the margin, Escape, undo",
+    );
+
     // ---- clipboard ----
     await drag("tab-regions", "1.6", "1.4");
     const flavours = await page.evaluate(() => {
@@ -414,6 +621,52 @@ async function run(engine) {
     assert.equal(await saved(), initialTables);
     pass("cells copied with a note and pasted in this document keep the note");
 
+    // ---- a narrower table copied whole keeps its width and place; some columns do not ----
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    const copyPaste = async (from, to) => {
+      await drag("tab-regions", from, to);
+      const flavours = await page.evaluate(() => {
+        const data = new DataTransfer();
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("copy", data));
+        return Object.fromEntries(
+          [...data.types].map((t) => [t, data.getData(t)]),
+        );
+      });
+      // The caret at the start of the document's first paragraph, outside any table.
+      await page.evaluate(() => {
+        const { view, TextSelection } = window.htmlText;
+        let at = null;
+        view.state.doc.forEach((node, offset) => {
+          if (at === null && node.type.name === "paragraph") at = offset + 1;
+        });
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, at)),
+        );
+      });
+      await page.evaluate((flavours) => {
+        const data = new DataTransfer();
+        for (const [t, v] of Object.entries(flavours)) data.setData(t, v);
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("paste", data));
+      }, flavours);
+      return check(await saved());
+    };
+    const placed = (text) =>
+      text.split('data-width="60" data-align="right"').length - 1;
+    // Every cell, from the first column: the whole table.
+    assert.equal(placed(await copyPaste("Region", "4.2")), 2);
+    await cmd("undo");
+    assert.equal(placed(await copyPaste("1.6", "1.4")), 1);
+    await cmd("undo");
+    await cmd("undo");
+    assert.equal(await saved(), initialTables);
+    pass(
+      "a whole narrower table pastes with its width and place, some of its columns at full width",
+    );
+
     // ---- numbering (T08): a caption added to a table numbers it among the tables ----
     const labels = () =>
       page.evaluate(() =>
@@ -437,6 +690,96 @@ async function run(engine) {
     await cmd("undo");
     assert.deepEqual(await labels(), labelled);
     pass("a caption added to a table numbers it, and the others follow");
+
+    // ---- dragging a border of a table without widths: all its columns get theirs ----
+    const colgroup = () =>
+      page.evaluate(
+        () => !!document.querySelector("#doc figure#tab-1 colgroup"),
+      );
+    assert.equal(await colgroup(), false);
+    const plain = await saved();
+    await dragBorder(1, -40, { id: "tab-1", escape: true });
+    assert.equal(
+      await colgroup(),
+      false,
+      "Escape removes the preview's colgroup",
+    );
+    const w0 = await borders("tab-1");
+    await dragBorder(1, -40, { id: "tab-1" });
+    const w1 = await borders("tab-1");
+    near(w1[1], w0[1] - 40, "the border follows the pointer");
+    near(w1[2] - w1[1], w0[2] - w0[1], "the next column keeps its width");
+    assert.match(
+      figure(check(await saved()), "tab-1"),
+      /^<figure class="table" id="tab-1" data-width="\d+">[^]*<colgroup>(<col data-width="\d+">)+<\/colgroup>/,
+    );
+    await cmd("undo");
+    assert.equal(await saved(), plain);
+    assert.equal(await colgroup(), false);
+    pass("dragging a border of a table without widths sets every column's");
+
+    // ---- drags that change nothing, and drags interrupted ----
+    // A full-width table without widths, dragged outwards: nothing to apply, no undo step.
+    await dragBorder((await borders("tab-1")).length - 1, 120, { id: "tab-1" });
+    assert.equal(await saved(), plain, "a blocked drag changes nothing");
+    assert.equal(await colgroup(), false);
+    // The document changes during the drag: the drag is cancelled, nothing is applied.
+    const interrupted = async (interrupt) => {
+      const x = (await borders())[1],
+        row = await page
+          .locator("#doc figure#tab-regions tbody tr:last-child > *")
+          .first()
+          .boundingBox();
+      const y = row.y + row.height / 2;
+      await page.mouse.move(x - 2, y);
+      await page.mouse.down();
+      await page.mouse.move(x - 40, y, { steps: 3 });
+      await page.evaluate(interrupt);
+      await page.mouse.move(x - 80, y, { steps: 3 });
+      await page.mouse.up();
+    };
+    const tablesBefore = figure(await saved(), "tab-regions");
+    await interrupted(() => {
+      const { view } = window.htmlText;
+      let at = null;
+      view.state.doc.forEach((node, offset) => {
+        if (at === null && node.type.name === "paragraph") at = offset + 1;
+      });
+      view.dispatch(view.state.tr.insertText("Edited ", at));
+    });
+    assert.match(await saved(), /Edited /);
+    assert.equal(
+      figure(check(await saved()), "tab-regions"),
+      tablesBefore,
+      "an edit during the drag cancels it",
+    );
+    await cmd("undo");
+    // The window loses focus during the drag (a release outside it): cancelled.
+    await interrupted(() => window.dispatchEvent(new FocusEvent("blur")));
+    assert.equal(
+      figure(check(await saved()), "tab-regions"),
+      tablesBefore,
+      "losing focus cancels the drag",
+    );
+    // Undo during the drag: the figure shows what the document now says.
+    for (const w of ["60", "80"]) {
+      await caretIn("tab-regions", "North");
+      await cmd("table-width");
+      await page.fill("dialog input[type=number]", w);
+      await page.click("dialog .sh-primary");
+    }
+    await interrupted(() => window.htmlText.commands.run("undo"));
+    assert.match(await opening(), /data-width="60"/);
+    assert.equal(
+      await page.evaluate(
+        () => document.querySelector("#doc figure#tab-regions").style.width,
+      ),
+      "60%",
+      "the figure shows the undone width",
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    pass("blocked, edited-under and unfocused drags change nothing");
 
     // ---- print ----
     await page.emulateMedia({ media: "print" });
