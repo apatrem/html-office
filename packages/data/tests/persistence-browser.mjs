@@ -29,10 +29,13 @@ async function setup(mode, html = original) {
         release: null,
         cancel: false,
       });
-      globalThis.showSaveFilePicker = async () => {
+      // Like Chromium, the picker empties the file chosen: the name it suggests.
+      globalThis.showSaveFilePicker = async (options) => {
+        disk.suggested = options.suggestedName;
         if (disk.cancel) throw new DOMException("Cancelled", "AbortError");
+        disk.text = "";
         return {
-          name: "workbook.html",
+          name: options.suggestedName,
           async getFile() {
             const text = disk.text;
             return { text: async () => text };
@@ -83,7 +86,13 @@ try {
     const { page, context, errors } = await setup("durable");
     await edit(page, 140);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByText("Saved to workbook.html.", { exact: true }).waitFor();
+    await page
+      .locator("#save-status")
+      .filter({
+        hasText:
+          /^Saved to persistence-[\w-]+\.html\. Next saves write to it directly\.$/,
+      })
+      .waitFor();
     let disk = readHTML(await page.evaluate(() => diskProbe.text)).book;
     assert.equal(disk.sheets[1].cells.B2.result.value, 3500);
     await edit(page, 180);
@@ -117,7 +126,13 @@ try {
     );
     const { page, context } = await setup("late-ack", html);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await page.getByText("Saved to workbook.html.", { exact: true }).waitFor();
+    await page
+      .locator("#save-status")
+      .filter({
+        hasText:
+          /^Saved to persistence-[\w-]+\.html\. Next saves write to it directly\.$/,
+      })
+      .waitFor();
     await page.evaluate(() => {
       const post = Worker.prototype.postMessage;
       Worker.prototype.postMessage = function (message) {
@@ -246,11 +261,19 @@ try {
     await page
       .getByRole("button", { name: "Open draft as a copy", exact: true })
       .click();
+    // Save suggests a new name for the draft, never the newer file.
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await page
       .locator("#save-status")
-      .filter({ hasText: "cannot overwrite" })
+      .filter({
+        hasText:
+          "Saved to persistence-newer-recovered.html. The opened file, persistence-newer.html, is unchanged",
+      })
       .waitFor();
+    assert.equal(
+      await page.evaluate(() => globalThis.diskProbe.suggested),
+      "persistence-newer-recovered.html",
+    );
     assert.equal(
       readHTML(await readFile(file, "utf8")).book.sheets[0].cells.B2.input
         .value,
@@ -264,7 +287,7 @@ try {
     assert.deepEqual(errors, []);
     await context.close();
     console.log(
-      "PASS persistence: a draft from another disk revision cannot overwrite newer work",
+      "PASS persistence: a draft from another disk revision is saved under a new name, not over newer work",
     );
   }
   {

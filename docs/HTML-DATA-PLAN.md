@@ -228,6 +228,21 @@ Dependencies: T21. Scope: M. Paths: validation report, CI checks and release not
 - Acceptance: full Chrome/Edge workflows, Safari/Firefox viewing, file saving/recovery, integrity failures, offline operation, code budget, large-data benchmark and dependency-notice checks pass. Document remaining limitations and reproducible measurements.
 - Verification: repeat from a clean checkout and extracted plugin; attach evidence and human review to the release PR. A passed local suite alone does not establish browser parity, Excel conformance, or blind-test success.
 
+## Later candidates: power-user formulas
+
+Recorded on 11 November 2026, after weighing a Python formula engine for power users. Decision: no second engine (weight, running code from a received file, two engines to keep equal, lost on Excel export). Readable complex formulas come instead from named steps and array functions in IronCalc. These are candidates to check, **not approved scope**.
+
+A probe of the pinned engine (ironcalc/0.9.0+html-office.4, engine only, not the Data editor) returned correct results for `LET`, `LAMBDA` (including a named `LAMBDA` defined name), `FILTER`, `UNIQUE`, `SORT`, `SEQUENCE`, `TAKE`, `CHOOSECOLS`, `HSTACK`, `MAP`, `REDUCE`, `XLOOKUP`, `INDEX`/`MATCH`, `SUMIFS` and `SUMPRODUCT`, and a formula such as `=C2:C6*2` spilled into the cells below.
+
+| ID | Item to check | Notes |
+| --- | --- | --- |
+| F-01 | The Data grid shows, saves and reloads spilled array results; `#SPILL!` appears when the target cells are occupied | Engine spills; the editor, canonical model and saved results are not yet checked |
+| F-02 | The Data skill documents `LET`, `LAMBDA` and `FILTER` for readable multi-step formulas, with named ranges for columns | Guide examples and the blind LLM test should use them |
+| F-03 | `BYROW` returned `#VALUE!` in the probe | Confirm whether this is an engine limit or a wrong test |
+| F-04 | `GROUPBY` and `PIVOTBY` are missing (`#NAME?`) | Built-in pivots stay the only way to build a pivot; follow IronCalc releases |
+| F-05 | Structured table references such as `Sales[Amount]` are not supported | Named ranges are the workaround; consider later |
+| F-06 | A declarative query step, in the style of Power Query, for cleaning and joins | Only if a real need exceeds formulas |
+
 ## Risks and stop conditions
 
 | Risk | Required response |
