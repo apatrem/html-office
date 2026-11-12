@@ -23,7 +23,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
 4. Build: `node <skill>/tools/workbook.mjs new out.html --model model.json` (add `--offline` for a file that also calculates without the network, `--charte theme.css` for branding; core tokens it leaves out take the default charte's values, and `new` names them). `new` calculates results and draws chart previews but does not refresh pivot tables: when the model has `pivots`, run `recalculate out.html --in-place --refresh-pivots` next.
 5. Validate the model output **with at most two corrective retries**: if `new` lists errors, fix exactly those in the JSON and run it again. After two failed corrections, stop and report the remaining errors; deliver nothing unverified.
 6. Check: `node <skill>/tools/workbook.mjs validate out.html` must say `Valid.` Then `inspect out.html --range "Summary!A1:F20"` and read the displayed values (one line per cell: formula or input, result, displayed text): check totals and signs against what the user expects.
-7. Deliver the HTML. Explain: open it in Chrome or Edge; edit cells in the grid or formula bar; File › Save (first save asks for the file); File › Export sheet as CSV… and File › Print / PDF… for outputs. Identify invented figures as illustrative.
+7. Deliver the HTML. Explain: open it in Chrome or Edge; edit cells in the grid or formula bar; File › Save (the first Save asks for the file; when the file is reopened in the same browser, Save writes it directly after a permission prompt); File › Export sheet as CSV… and File › Print / PDF… for outputs. Identify invented figures as illustrative.
 
 ## Edit an existing workbook
 
