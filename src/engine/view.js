@@ -284,7 +284,12 @@ export function formatPanel() {
 const LOOK_CSS = charteCSS() + FONTS.map(([id, , stack]) => `:root[data-font="${id}"]{--body-font:${stack}}`).join('') +
   ':root[data-font] .slide{font-family:var(--body-font)}.slide h1{font-family:var(--title-font,var(--font))}';
 
-export const UI_CSS = SHELL_CSS + DRAWER_CSS + LOOK_CSS + `
+// Column widths (FORMAT.md › Tables), also in theme.css: a deck whose theme predates them shows them.
+const COL_CSS = Array.from({ length: 100 }, (_, i) => `.slide table.t>colgroup>col[data-width="${i + 1}"]{width:${i + 1}%}`).join('');
+// Dragging a column border (table-resize.js).
+const COL_DRAG_CSS = 'body.hs-col-resize main#deck table.t :is(td,th){cursor:col-resize}body.hs-col-dragging,body.hs-col-dragging *{cursor:col-resize!important;user-select:none}';
+
+export const UI_CSS = SHELL_CSS + DRAWER_CSS + LOOK_CSS + COL_CSS + COL_DRAG_CSS + `
 .hs-static main#deck{gap:0;padding:0}
 html:has(body.hs-editing){scroll-padding-top:100px;scroll-padding-left:196px}
 /* variant A shell (U04-Slides): file bar and toolbar while editing, floating settings bar */

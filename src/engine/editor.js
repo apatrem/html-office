@@ -9,7 +9,9 @@ import { registry, readData, renderChart, echartsReady, loadECharts, refreshCach
 import { sanitizeSVG } from '../../packages/shared/charts/clipboard.mjs';
 import { chartPicture } from '../../packages/shared/charts/picture.mjs';
 import { banner, present, go, ui } from './view.js';
-import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge } from './tables.js';
+import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, unmerge, columnWidths, setColumnWidths, evenWidths } from './tables.js';
+import { columnWidthDialog } from './dialogs.js';
+import { initTableResize } from './table-resize.js';
 import { copyTable, copyChart, readPaste } from './clipboard.js';
 
 const GRID = 8;
@@ -171,7 +173,9 @@ export function resumeText(t) {
   startText(t.el);
   if (t.range) try { const s = getSelection(); s.removeAllRanges(); s.addRange(t.range); } catch (e) { /* range no longer valid */ }
 }
-export function stopText() {
+// select: false leaves the selection alone (a column drag starting: Moveable must not get a target
+// in the middle of the press).
+export function stopText(select = true) {
   if (!editing) return;
   const { el, tok } = editing;
   editing = null;
@@ -180,7 +184,7 @@ export function stopText() {
   el.removeAttribute('spellcheck');
   sanitize(el);
   commit(tok);
-  if (editingMode() && el.isConnected) setTargets([el]); else notify();
+  if (select !== false && editingMode() && el.isConnected) setTargets([el]); else notify();
 }
 
 // Non-empty text selection in the element being edited
@@ -412,6 +416,8 @@ export function tableCan(kind) {
   return true;
 }
 export function tableOp(kind) {
+  // Distributing is an undo step of its own, apart from the text being typed.
+  if (kind === 'distribute' && editing) stopText();
   const t = tableAt();
   if (!t) return banner('Select a table.', [], 2500);
   const { host, table, sel, g, at, r, c } = t;
@@ -441,6 +447,9 @@ export function tableOp(kind) {
     } else if (kind === 'unmerge') {
       unmerge(table, at ? [at.cell] : undefined);
       focus = at ? at.cell : null;
+    } else if (kind === 'distribute') {
+      setColumnWidths(table, evenWidths(g.width));
+      focus = at ? at.cell : null;
     }
     // detached slide: enlarge the frame if the table overflows
     if (host.hasAttribute('style')) {
@@ -456,6 +465,24 @@ export function tableOp(kind) {
     apply({ type: 'mutate', slide: slideOf(host), els: [host], fn });
     refresh();
   }
+}
+
+// Table › Column width…: the caret's column (all the columns of a merged cell), or the last one,
+// as a whole percentage of the table; empty for automatic. One undo step.
+export function columnWidth() {
+  const t = tableAt();
+  if (!t) return banner('Select a table.', [], 2500);
+  if (editing) stopText();
+  const { host, table, c } = t, span = t.at ? t.at.cs : 1;
+  columnWidthDialog(columnWidths(table)[c], n => {
+    if (!table.isConnected) return;
+    apply({ type: 'mutate', slide: slideOf(host), els: [host], fn: () => {
+      const w = columnWidths(table);
+      for (let i = c; i < c + span; i++) w[i] = n;
+      setColumnWidths(table, w);
+    } });
+    refresh();
+  });
 }
 
 export async function insertChart(type) {
@@ -836,7 +863,8 @@ function onKey(e) {
     if (k === 'Escape') editing.el.blur();
     return; // native Cmd+B / Cmd+I in text
   }
-  if (e.target.closest && e.target.closest('input, textarea, .hs-panel')) return;
+  // Keys in a field, a panel or a dialog (its buttons too) are never canvas shortcuts.
+  if (e.target.closest && e.target.closest('input, textarea, .hs-panel, dialog[open]')) return;
   if (document.body.classList.contains('hs-present')) {
     if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) { e.preventDefault(); go(1); }
     if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); go(-1); }
@@ -884,6 +912,12 @@ export function init(handlers) {
   H = handlers;
   initMoveable();
   initSelecto();
+  initTableResize({
+    editing: () => editingMode() && !document.body.classList.contains('hs-present'),
+    before: () => { if (editing) stopText(false); },
+    refresh,
+    done: host => { if (host?.isConnected) setTargets([host]); refresh(); }
+  });
   state.main.addEventListener('dblclick', e => {
     if (!editingMode()) return;
     const slide = e.target.closest('section.slide');
