@@ -297,6 +297,48 @@ test("column widths, emphasis, density, caption", () => {
   e.table();
 });
 
+test("table width and place: one undo step, 100 is the text column", () => {
+  const e = editor();
+  const figure = () => {
+    e.table(); // saves valid and reopens identically
+    const html = articleHTML(e.state.doc);
+    return html.match(/<figure class="table"[^>]*>/)[0];
+  };
+  assert.deepEqual(T.tableWidthAt(e.at("North").state), {
+    width: 100,
+    align: null,
+  });
+  e.run(T.own(T.setTableWidth(60, "center")));
+  assert.equal(
+    figure(),
+    '<figure class="table" id="tab-a" data-width="60" data-align="center">',
+  );
+  assert.deepEqual(T.tableWidthAt(e.state), { width: 60, align: "center" });
+  e.run(T.own(T.setTableWidth(45)));
+  assert.equal(figure(), '<figure class="table" id="tab-a" data-width="45">');
+  // The text column again: no width, and no place.
+  e.run(T.own(T.setTableWidth(100, "right")));
+  assert.equal(figure(), '<figure class="table" id="tab-a">');
+  e.undo();
+  assert.equal(figure(), '<figure class="table" id="tab-a" data-width="45">');
+  e.undo();
+  assert.equal(
+    figure(),
+    '<figure class="table" id="tab-a" data-width="60" data-align="center">',
+  );
+  for (const bad of [
+    T.setTableWidth(9),
+    T.setTableWidth(101),
+    T.setTableWidth(50.5),
+    T.setTableWidth(50, "left"),
+  ])
+    assert.ok(!e.can(bad));
+  // Outside a table: nothing to size.
+  const outside = editor(); // the caret starts in "Intro"
+  assert.equal(T.tableWidthAt(outside.state), null);
+  assert.ok(!outside.can(T.setTableWidth(50)));
+});
+
 test("alignment applies to each selected cell, never justify", () => {
   const e = editor();
   e.cells("1.6", "1.4").run(setAlign("ta-r"));

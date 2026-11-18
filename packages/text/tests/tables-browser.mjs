@@ -39,7 +39,7 @@ function check(text) {
 }
 // The figure with this ID, as saved.
 const figure = (text, id) => {
-  const at = text.indexOf(`<figure class="table" id="${id}">`);
+  const at = text.search(new RegExp(`<figure class="table" id="${id}"[ >]`));
   assert.ok(at >= 0, id);
   return text.slice(at, text.indexOf("</figure>", at) + 9);
 };
@@ -266,6 +266,113 @@ async function run(engine) {
       "rows, columns, total rows, row headers, density, width, header rows, caption, delete",
     );
 
+    // ---- table width and place ----
+    // The figure's width and margins as fractions of the text column.
+    const place = () =>
+      page.evaluate(() => {
+        const doc = document.querySelector("#doc");
+        const css = getComputedStyle(doc);
+        const box = doc.getBoundingClientRect();
+        const left = box.left + parseFloat(css.paddingLeft),
+          width =
+            box.width -
+            parseFloat(css.paddingLeft) -
+            parseFloat(css.paddingRight);
+        const f = document
+          .querySelector("#doc figure#tab-regions")
+          .getBoundingClientRect();
+        const t = document
+          .querySelector("#doc figure#tab-regions table")
+          .getBoundingClientRect();
+        const r = (n) => Math.round((n / width) * 100) + 0;
+        return {
+          width: r(f.width),
+          table: r(t.width),
+          before: r(f.left - left),
+          after: r(left + width - f.right),
+        };
+      });
+    const opening = async () =>
+      figure(check(await saved()), "tab-regions").split("\n")[0];
+    assert.deepEqual(await place(), {
+      width: 100,
+      table: 100,
+      before: 0,
+      after: 0,
+    });
+    await caretIn("tab-regions", "North");
+    assert.ok(await enabled("table-width"));
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "100");
+    await page.fill("dialog input[type=number]", "5");
+    await page.click("dialog .sh-primary");
+    assert.match(
+      await page.textContent("dialog .sh-err"),
+      /whole number from 10 to 100/,
+    );
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "center");
+    await page.click("dialog .sh-primary");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "print" });
+    assert.deepEqual(await place(), {
+      width: 60,
+      table: 60,
+      before: 20,
+      after: 20,
+    });
+    await page.emulateMedia({ media: "screen" });
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    assert.equal(await page.inputValue("dialog input[type=number]"), "60");
+    assert.equal(await page.inputValue("dialog select"), "center");
+    await page.fill("dialog input[type=number]", "35");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    assert.deepEqual(await place(), {
+      width: 35,
+      table: 35,
+      before: 65,
+      after: 0,
+    });
+    await cmd("undo");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="60" data-align="center">',
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    // Enter in a width field saves, as the button does.
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "50");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.equal(
+      await opening(),
+      '<figure class="table" id="tab-regions" data-width="50">',
+    );
+    await cmd("undo");
+    await caretIn("tab-regions", "North");
+    await cmd("column-width");
+    await page.fill("dialog input[type=number]", "45");
+    await page.press("dialog input[type=number]", "Enter");
+    assert.match(
+      figure(check(await saved()), "tab-regions"),
+      /<colgroup><col data-width="45">/,
+    );
+    await cmd("undo");
+    assert.equal(await opening(), '<figure class="table" id="tab-regions">');
+    pass("Table › Table width: width and place on screen and in print, undo");
+
     // ---- clipboard ----
     await drag("tab-regions", "1.6", "1.4");
     const flavours = await page.evaluate(() => {
@@ -413,6 +520,52 @@ async function run(engine) {
     await cmd("undo");
     assert.equal(await saved(), initialTables);
     pass("cells copied with a note and pasted in this document keep the note");
+
+    // ---- a narrower table copied whole keeps its width and place; some columns do not ----
+    await caretIn("tab-regions", "North");
+    await cmd("table-width");
+    await page.fill("dialog input[type=number]", "60");
+    await page.selectOption("dialog select", "right");
+    await page.click("dialog .sh-primary");
+    const copyPaste = async (from, to) => {
+      await drag("tab-regions", from, to);
+      const flavours = await page.evaluate(() => {
+        const data = new DataTransfer();
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("copy", data));
+        return Object.fromEntries(
+          [...data.types].map((t) => [t, data.getData(t)]),
+        );
+      });
+      // The caret at the start of the document's first paragraph, outside any table.
+      await page.evaluate(() => {
+        const { view, TextSelection } = window.htmlText;
+        let at = null;
+        view.state.doc.forEach((node, offset) => {
+          if (at === null && node.type.name === "paragraph") at = offset + 1;
+        });
+        view.dispatch(
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, at)),
+        );
+      });
+      await page.evaluate((flavours) => {
+        const data = new DataTransfer();
+        for (const [t, v] of Object.entries(flavours)) data.setData(t, v);
+        window.htmlText.view.dom.dispatchEvent(clipboardEvent("paste", data));
+      }, flavours);
+      return check(await saved());
+    };
+    const placed = (text) =>
+      text.split('data-width="60" data-align="right"').length - 1;
+    // Every cell, from the first column: the whole table.
+    assert.equal(placed(await copyPaste("Region", "4.2")), 2);
+    await cmd("undo");
+    assert.equal(placed(await copyPaste("1.6", "1.4")), 1);
+    await cmd("undo");
+    await cmd("undo");
+    assert.equal(await saved(), initialTables);
+    pass(
+      "a whole narrower table pastes with its width and place, some of its columns at full width",
+    );
 
     // ---- numbering (T08): a caption added to a table numbers it among the tables ----
     const labels = () =>

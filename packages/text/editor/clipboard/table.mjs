@@ -127,11 +127,16 @@ export function tableNode(model, extras = {}) {
 }
 
 // A new figure.table around a portable table, with an optional caption node.
+// extras.width and extras.align: a narrower table's width and place (Text's own markup).
 export const tableFigure = (model, used, caption = null, extras) =>
-  N.table_figure.create({ id: freshId("tab", used) }, [
-    ...(caption ? [caption] : []),
-    tableNode(model, extras),
-  ]);
+  N.table_figure.create(
+    {
+      id: freshId("tab", used),
+      width: extras?.width ?? null,
+      align: extras?.align ?? null,
+    },
+    [...(caption ? [caption] : []), tableNode(model, extras)],
+  );
 
 // Runs of a cell's inline content: bold, italic and links travel (ADR-013 §3); other marks are
 // Text's own. A cross-reference gives its label; a footnote stays in the document.

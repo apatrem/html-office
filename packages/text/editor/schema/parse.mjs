@@ -168,7 +168,12 @@ function tableFigure(node) {
   const sections = kids(table);
   const colgroup = sections[0].name === "colgroup" ? sections.shift() : null;
   const thead = sections[0].name === "thead" ? sections.shift() : null;
-  return N.table_figure.create({ id: attr(node, "id") }, [
+  const figure = {
+    id: attr(node, "id"),
+    width: attr(node, "data-width"),
+    align: attr(node, "data-align"),
+  };
+  return N.table_figure.create(figure, [
     ...(cap ? [caption(cap)] : []),
     N.table.create(
       {

@@ -581,6 +581,41 @@ export function distributeColumns(state, dispatch) {
   }
   return true;
 }
+// ---------- the table's width and place ----------
+// width: a whole percentage of the text column, 10–100 (100: all of it, the default); align:
+// null (left), "center" or "right", kept only on a narrower table.
+export const setTableWidth =
+  (width, align = null) =>
+  (state, dispatch) => {
+    const t = around(state);
+    if (
+      !t ||
+      !(Number.isInteger(width) && width >= 10 && width <= 100) ||
+      ![null, "center", "right"].includes(align)
+    )
+      return false;
+    if (dispatch) {
+      const full = width === 100;
+      dispatch(
+        state.tr.setNodeMarkup(t.figurePos, null, {
+          ...t.figure.attrs,
+          width: full ? null : String(width),
+          align: full ? null : align,
+        }),
+      );
+    }
+    return true;
+  };
+// {width (10–100), align} of the table around the selection, or null.
+export const tableWidthAt = (state) => {
+  const t = around(state);
+  return t
+    ? {
+        width: Number(t.figure.attrs.width ?? 100),
+        align: t.figure.attrs.align,
+      }
+    : null;
+};
 export const emphasisAt = (state) => {
   const t = around(state);
   if (!t?.table.attrs.cols) return false;

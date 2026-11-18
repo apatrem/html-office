@@ -306,6 +306,32 @@ test("portable tables: spans, header and total rows, alignment, widths and runs 
   );
 });
 
+test("a narrower table's width and place paste only as Text writes them", () => {
+  const table = "<table><tbody><tr><td>a</td></tr></tbody></table>";
+  const figure = (attributes) =>
+    body(
+      saved(
+        map(`<figure class="table" ${attributes}>${table}</figure>`).blocks,
+      ),
+    ).split("\n")[0];
+  assert.equal(
+    figure('data-width="40" data-align="right"'),
+    '<figure class="table" id="tab-1" data-width="40" data-align="right">',
+  );
+  assert.equal(
+    figure('data-width="100" data-align="center"'),
+    '<figure class="table" id="tab-1">',
+  );
+  assert.equal(
+    figure('data-width="40" data-align="middle"'),
+    '<figure class="table" id="tab-1" data-width="40">',
+  );
+  assert.equal(
+    figure('style="width:40%"'),
+    '<figure class="table" id="tab-1">',
+  );
+});
+
 test("tables over 1,000 rows or 30 columns are refused whole", () => {
   const rows = (r, c) =>
     Array.from({ length: r }, () =>
