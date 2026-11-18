@@ -23,7 +23,9 @@ const TABLE = '<table class="t"><tbody><tr><th>Plot</th><th class="n">Spring</th
   '<tr class="tot"><td>Total</td><td class="n">120</td><td class="n">45</td></tr></tbody></table>';
 const example = fs.readFileSync(path.join(ROOT, 'plugin/skills/html-slides/examples/community-garden.html'), 'utf8');
 const deck = theme => upgrade(example, { theme }).replace('</main>', `<section class="slide" id="s90" data-layout="default"><h1>Widths</h1>${TABLE}<p class="source">Source: fictional</p></section>
-<section class="slide" id="s91" data-layout="default"><h1>Paste here</h1><p class="source">Source: fictional</p></section></main>`);
+<section class="slide" id="s91" data-layout="default"><h1>Paste here</h1><p class="source">Source: fictional</p></section>
+<section class="slide" id="s93" data-layout="default"><h1>Many columns</h1><table class="t"><colgroup><col data-width="20">${'<col data-width="4">'.repeat(20)}</colgroup><tbody><tr>${'<td>x</td>'.repeat(21)}</tr><tr>${'<td>y</td>'.repeat(21)}</tr></tbody></table><p class="source">Source: fictional</p></section>
+<section class="slide" id="s92" data-layout="default"><h1>Wrapped</h1><div class="box w-6">${TABLE.replace('Raised beds', 'Raised beds along the north fence of the garden')}</div><p class="source">Source: fictional</p></section></main>`);
 const FILE = path.join(DIR, 'deck.html');
 fs.writeFileSync(FILE, deck(true));
 // The example's own theme zone, as an older deck has it: widths come from the engine alone.
@@ -207,7 +209,148 @@ async function run(engine) {
   }
 }
 
+// Dragging the border between two columns: that column and the frame change by as much.
+async function drag(engine) {
+  const browser = await playwright[engine].launch();
+  const tag = m => `[${engine}] drag: ${m}`;
+  try {
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } }), errors = [];
+    page.on('pageerror', e => errors.push(String(e)));
+    await page.goto(pathToFileURL(FILE).href);
+    await page.waitForFunction(() => window.deckEngine);
+    await page.evaluate(() => window.deckEngine.ready);
+    await page.keyboard.press('e');
+    await page.locator('#s90 > table').scrollIntoViewIfNeeded();
+    // Column borders and the frame, in slide pixels.
+    const state = () => page.evaluate(() => {
+      const t = document.querySelector('#s90 > table'), s = t.closest('section'), sb = s.getBoundingClientRect(), k = sb.width / 1280;
+      const cells = [...t.rows[t.rows.length - 1].cells].map(c => c.getBoundingClientRect());
+      return { k, detached: s.hasAttribute('data-detached'), style: t.getAttribute('style'),
+        cols: cells.map(c => Math.round(c.width / k)), right: Math.round((cells[cells.length - 1].right - sb.left) / k),
+        group: t.querySelector('colgroup')?.outerHTML ?? null, y: cells[0].top + cells[0].height / 2, x: cells.map(c => c.right) };
+    });
+    const dragBy = async (dx, { escape = false } = {}) => {
+      const s0 = await state();
+      await page.mouse.move(s0.x[0] - 2, s0.y);
+      const hover = await page.evaluate(() => document.body.classList.contains('hs-col-resize'));
+      await page.mouse.down();
+      await page.mouse.move(s0.x[0] - 2 + dx / 2, s0.y, { steps: 3 });
+      await page.mouse.move(s0.x[0] - 2 + dx, s0.y, { steps: 3 });
+      if (escape) await page.keyboard.press('Escape');
+      await page.mouse.up();
+      return hover;
+    };
+    const s0 = await state();
+    ok(await dragBy(60 * s0.k), tag('a border shows the resize cursor'));
+    let s1 = await state();
+    ok(s1.detached, tag('the first move detaches the slide, as resizing does'));
+    ok(Math.abs(s1.cols[0] - s0.cols[0] - 60) <= 4, tag(`the first column grows by the drag (${s0.cols} → ${s1.cols})`));
+    ok(Math.abs(s1.cols[1] - s0.cols[1]) <= 4 && Math.abs(s1.cols[2] - s0.cols[2]) <= 4, tag('the other columns keep their widths'));
+    ok(Math.abs(s1.right - s0.right - 60) <= 4, tag(`the table's frame widens by as much (${s0.right} → ${s1.right})`));
+    ok(/^<colgroup>(<col data-width="\d+">){3}<\/colgroup>$/.test(s1.group), tag(`every column gets a width (${s1.group})`));
+    await page.keyboard.press('ControlOrMeta+z');
+    s1 = await state();
+    ok(!s1.detached && s1.group === null && s1.cols.join() === s0.cols.join(), tag('one undo restores the table and the layout'));
+    // Escape cancels; the slide's right edge stops the frame.
+    await dragBy(80 * s0.k, { escape: true });
+    s1 = await state();
+    ok(!s1.detached && s1.group === null, tag('Escape cancels the drag'));
+    await dragBy(900 * s0.k);
+    s1 = await state();
+    ok(s1.right <= 1281 && s1.right >= 1270, tag(`the frame stops at the slide's edge (right ${s1.right})`));
+    await page.keyboard.press('ControlOrMeta+z');
+    // A click on a border changes nothing.
+    await page.mouse.move(s0.x[0] - 2, s0.y);
+    await page.mouse.down();
+    await page.mouse.up();
+    s1 = await state();
+    ok(!s1.detached && s1.group === null, tag('a click on a border changes nothing'));
+    // Typing in a cell, then dragging: the typing is an undo step of its own, before the drag's.
+    const text = () => page.evaluate(() => document.querySelector('#s90 > table').textContent);
+    const plain = await text();
+    await page.locator('#s90 > table td').first().dblclick();
+    await page.keyboard.type('X');
+    const typed = await text();
+    ok(typed !== plain, tag('typing in a cell'));
+    await dragBy(40 * s0.k);
+    ok((await state()).detached, tag('a drag while typing applies'));
+    await page.keyboard.press('ControlOrMeta+z');
+    s1 = await state();
+    ok(!s1.detached && s1.group === null && await text() === typed, tag('one undo reverts the drag, the typing stays'));
+    await page.keyboard.press('ControlOrMeta+z');
+    ok(await text() === plain, tag('the next undo reverts the typing'));
+    // Shrinking stops at the content's width: the table never overflows its frame.
+    {
+      const b = await state();
+      await page.mouse.move(b.x[1] - 2, b.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x[1] - 2 - 500 * b.k, b.y, { steps: 1 });
+      await page.mouse.up();
+      const fit = await page.evaluate(() => {
+        const t = document.querySelector('#s90 > table'), k = t.closest('section').getBoundingClientRect().width / 1280;
+        return { table: Math.round(t.getBoundingClientRect().width / k), frame: Number(t.style.getPropertyValue('--w')) };
+      });
+      ok(fit.table <= fit.frame + 1, tag(`the table stays within its frame (${fit.table} ≤ ${fit.frame})`));
+      // One big jump past the content's minimum still shrinks as far as the content allows.
+      ok(fit.frame < b.right - 64 - 100, tag(`the frame shrinks to the content's width (${fit.frame})`));
+      await page.keyboard.press('ControlOrMeta+z');
+    }
+    // A wrapped table: the wrapper's frame grows with rows that wrap taller.
+    {
+      await page.locator('#s92 .box').scrollIntoViewIfNeeded();
+      const b = await page.evaluate(() => {
+        const t = document.querySelector('#s92 table'), c = t.rows[1].cells[0].getBoundingClientRect();
+        return { x: c.right, y: c.top + c.height / 2, k: t.closest('section').getBoundingClientRect().width / 1280 };
+      });
+      await page.mouse.move(b.x - 2, b.y);
+      await page.mouse.down();
+      await page.mouse.move(b.x - 2 - 200 * b.k, b.y, { steps: 6 });
+      await page.mouse.up();
+      const box = await page.evaluate(() => {
+        const host = document.querySelector('#s92 .box'), t = host.querySelector('table');
+        return { host: host.getBoundingClientRect().bottom, table: t.getBoundingClientRect().bottom, detached: host.closest('section').hasAttribute('data-detached') };
+      });
+      ok(box.detached && box.host >= box.table - 1, tag(`the wrapper's frame holds its taller table (${Math.round(box.table)} ≤ ${Math.round(box.host)})`));
+    }
+    // Review regressions (Codex, 12 Nov): rounding never piles onto the dragged column. A first
+    // column of 20% and twenty of 4%: the first grows by the drag, within 1% of the table.
+    {
+      await page.locator('#s93 > table').scrollIntoViewIfNeeded();
+      const cols = () => page.evaluate(() => {
+        const t = document.querySelector('#s93 > table'), k = t.closest('section').getBoundingClientRect().width / 1280;
+        return { k, w: [...t.rows[0].cells].map(c => c.getBoundingClientRect().width / k), table: t.getBoundingClientRect().width / k,
+          x: t.rows[0].cells[0].getBoundingClientRect().right, y: t.rows[0].cells[0].getBoundingClientRect().top + 8 };
+      });
+      const a = await cols();
+      await page.mouse.move(a.x - 2, a.y);
+      await page.mouse.down();
+      await page.mouse.move(a.x - 2 + 60 * a.k, a.y, { steps: 4 });
+      await page.mouse.up();
+      const b = await cols();
+      ok(Math.abs(b.w[0] - (a.w[0] + 60)) <= b.table / 100 + 1, tag(`many columns: the first grows by the drag (${Math.round(a.w[0])} → ${Math.round(b.w[0])} px)`));
+      await page.keyboard.press('ControlOrMeta+z');
+    }
+    // The click that ends a drag activates nothing; a click right after it works.
+    {
+      await page.locator('#s90 > table').scrollIntoViewIfNeeded();
+      await page.evaluate(() => { globalThis.clicks = 0; document.addEventListener('click', () => globalThis.clicks++); });
+      const before = await state();
+      await dragBy(40 * before.k);
+      ok(await page.evaluate(() => globalThis.clicks) === 0, tag('the click ending a drag reaches nothing'));
+      ok((await state()).detached, tag('the drag applied'));
+      await page.getByRole('button', { name: 'Undo', exact: true }).click();
+      const after = await state();
+      ok(await page.evaluate(() => globalThis.clicks) === 1 && !after.detached && after.group === null,
+        tag('a click on Undo right after the drag works'));
+    }
+    ok(!errors.length, tag(`no JavaScript error (${errors})`));
+  } finally {
+    await browser.close();
+  }
+}
+
 for (const engine of ENGINES) await run(engine);
+for (const engine of ENGINES) await drag(engine);
 
 // The checker: one colgroup first, one col per column, whole percentages, no other attribute.
 const cols = c => TABLE.replace('<tbody>', `${c}<tbody>`);
