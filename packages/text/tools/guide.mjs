@@ -43,7 +43,7 @@ EDITING BY SECTION
 A section runs from its heading to the next heading of the same or a higher level. Find it by its heading ID, change only what was asked inside it, and keep every ID (headings, figures, comment threads) and every comment anchor you do not mean to remove. Leave generated labels, contents and chart previews to the tools. A chart's or table's data comes from the existing figure or from data the user supplied, never from a description: report missing data, never invent it. With the html-text skill: document.mjs outline FILE lists sections with IDs and word counts; show FILE ID prints one; convert FILE ID section.md writes a section from Markdown, with [[block: chart|image|table | intent: "…" | id: …]] placeholders for figures; replace FILE ID section.html swaps it, leaving the rest byte for byte; check FILE validates.
 
 SKILL AND SOURCE
-The html-text skill (SKILL.md, tools/document.mjs, references/FORMAT.md, examples) ships in the html-office plugin, archive html-slides.plugin, from the first release after 0.7.1: ${RELEASES} . It reads and writes format 1. Source and format reference: ${SOURCE} . Do not use the html-slides or html-data skills on this file.`;
+The html-text skill (SKILL.md, tools/document.mjs, references/FORMAT.md, examples) joins the html-office plugin, archive html-slides.plugin, in a later release (after its blind test): ${RELEASES} . It reads and writes format 1. Source and format reference: ${SOURCE} . Do not use the html-slides or html-data skills on this file.`;
 
 // The guide zone as a tree, for model/file.mjs.
 export const guideZone = (version) =>

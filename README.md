@@ -4,27 +4,27 @@ Create presentations, analytical workbooks and written documents with an AI assi
 
 ## Development status
 
-Status as of 22 October 2026. Only Slides is included in the downloadable plugin.
+Status as of 18 November 2026. Only Slides is included in the downloadable plugin; Data and Text will join it after their blind tests.
 
 | App | Status | Available / next steps |
 | --- | --- | --- |
-| **html-slides** — presentations | Available · [v0.7.1](https://github.com/apatrem/html-office/releases/tag/v0.7.1) | Browser editor, seven chart types, themes, presentation mode and PDF export. Cross-device and full desktop-assistant workflows still need validation. [Validation log](docs/VALIDATION-V1.md). |
-| **html-data** — analytical workbooks | Skill packaged in the plugin (next release) | Readable JSON workbook with IronCalc formulas in a worker, grid editing, formatting, scenarios and dropdowns, conditional formatting and data bars, pivot tables, charts, CSV export and print/PDF, drafts and saving. The `html-data` skill creates, patches, recalculates and validates workbooks with one self-contained Node tool. Next: import and source refresh (T15–T16), the acceptance workbook and blind test (T21–T22). [Format](packages/data/model/FORMAT.md) · [Plan](docs/HTML-DATA-PLAN.md) · [Progress](docs/HTML-DATA-PROGRESS.md). |
-| **html-text** — reports, memos and proposals | Skill packaged in the plugin (next release) | Restricted semantic-HTML documents edited in the browser with ProseMirror: numbered headings and generated contents, footnotes, cross-references, charts, wrapped images, tables with merged cells, comments, print and PDF, Markdown export, drafts and saving. The `html-text` skill writes long documents in passes (outline, Markdown sections with figure placeholders, conversion, validation) and rewrites one section at a time with one self-contained Node tool. Next: measurements (T17), the acceptance report (T19) and the blind test (T20). [Format](packages/text/FORMAT.md) · [Specification](docs/HTML-TEXT-V1.md) · [Plan](docs/HTML-TEXT-PLAN.md). |
+| **html-slides** — presentations | Available · [v0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2) | Browser editor, seven chart types, themes, presentation mode and PDF export. Cross-device and full desktop-assistant workflows still need validation. [Validation log](docs/VALIDATION-V1.md). |
+| **html-data** — analytical workbooks | Skill in the repository; joins the plugin after its blind test | Readable JSON workbook with IronCalc formulas in a worker, grid editing, formatting, scenarios and dropdowns, conditional formatting and data bars, pivot tables, charts, CSV export and print/PDF, drafts and saving. The `html-data` skill creates, patches, recalculates and validates workbooks with one self-contained Node tool. Next: import and source refresh (T15–T16), the acceptance workbook and blind test (T21–T22). [Format](packages/data/model/FORMAT.md) · [Plan](docs/HTML-DATA-PLAN.md) · [Progress](docs/HTML-DATA-PROGRESS.md). |
+| **html-text** — reports, memos and proposals | Skill in the repository; joins the plugin after its blind test | Restricted semantic-HTML documents edited in the browser with ProseMirror: numbered headings and generated contents, footnotes, cross-references, charts, wrapped images, tables with merged cells, comments, print and PDF, Markdown export, drafts and saving. The `html-text` skill writes long documents in passes (outline, Markdown sections with figure placeholders, conversion, validation) and rewrites one section at a time with one self-contained Node tool. Next: measurements (T17), the acceptance report (T19) and the blind test (T20). [Format](packages/text/FORMAT.md) · [Specification](docs/HTML-TEXT-V1.md) · [Plan](docs/HTML-TEXT-PLAN.md). |
 
 ## Try Slides
 
-Download the [community garden presentation](https://github.com/apatrem/html-office/releases/download/v0.7.1/community-garden.html) or the [visual catalogue](https://github.com/apatrem/html-office/releases/download/v0.7.1/catalogue.html), then open the HTML in Chrome or Edge.
+Download the [community garden presentation](https://github.com/apatrem/html-office/releases/download/v0.7.2/community-garden.html) or the [visual catalogue](https://github.com/apatrem/html-office/releases/download/v0.7.2/catalogue.html), then open the HTML in Chrome or Edge.
 
 - Click **Edit**; double-click text to change it, or drag elements to move them.
 - Add slides, text, images, shapes, tables and charts from the toolbar.
 - Press **Cmd/Ctrl+S** to save, present full screen, or export a PDF.
 
-**No skill, Node.js, npm or Playwright installation is needed to open and edit a finished HTML file.** Chrome/Edge support saving to a chosen file; Safari/Firefox download a copy.
+**No skill, Node.js, npm or Playwright installation is needed to open and edit a finished HTML file.** Chrome/Edge save to the file you choose and remember it for the next Save; Safari/Firefox download a copy.
 
 ## Create with an AI assistant
 
-Download the [html-slides plugin](https://github.com/apatrem/html-office/releases/download/v0.7.1/html-slides.plugin) and follow the [skill setup guide](plugin/README.md). Then ask, for example:
+Download the [html-slides plugin](https://github.com/apatrem/html-office/releases/download/v0.7.2/html-slides.plugin) and follow the [skill setup guide](plugin/README.md). Then ask, for example:
 
 > Create a 6-slide presentation about organising a community garden, with a timeline and an illustrative budget.
 
