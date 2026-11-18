@@ -16,16 +16,22 @@ export function engineInput(cell) {
 }
 // Formulas that cannot return an array: single-cell references, constants,
 // operators and these functions, with no range, name, spill reference or
-// array constant. They never spill, so they never need measuring.
+// array constant. They never spill, so they never need measuring. `names`
+// holds the workbook's defined names in lower case: a name such as A0 or
+// TAX2 that looks like a cell may hold a range.
 const SCALAR_FUNCTIONS=new Set('ABS AND AVERAGE CONCAT CONCATENATE COUNT COUNTA DATE DAY EDATE EOMONTH EXP IF IFERROR IFNA IFS INT ISBLANK ISERROR ISNUMBER ISTEXT LEFT LEN LN LOG LOWER MAX MID MIN MOD MONTH N NOT OR POWER PROPER RIGHT ROUND ROUNDDOWN ROUNDUP SQRT SUM TEXT TRIM UPPER VALUE YEAR'.split(' '));
-export function scalarFormula(formula){
+export function scalarFormula(formula,names=new Set()){
   const text=formula.slice(1).replace(/"(?:[^"]|"")*"/g,'""').replace(/'(?:[^']|'')*'!/g,'S!');
   if(/[:#{\[]/.test(text))return false;
   for(const m of text.matchAll(/(\$?[A-Za-z_][\w.$]*)(\s*[(!])?/g)){
     const [,word,next]=m;
     if(next?.includes('!'))continue;
     if(next?.includes('(')){if(!SCALAR_FUNCTIONS.has(word.toUpperCase()))return false;continue;}
-    if(!/^\$?[A-Za-z]{1,3}\$?\d+$/.test(word)&&!/^(TRUE|FALSE)$/i.test(word))return false;
+    if(/^(TRUE|FALSE)$/i.test(word))continue;
+    const cell=/^\$?([A-Za-z]{1,3})\$?(\d+)$/.exec(word);
+    if(!cell||names.has(word.replaceAll('$','').toLowerCase()))return false;
+    const column=[...cell[1].toUpperCase()].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0),row=Number(cell[2]);
+    if(row<1||row>1048576||column>16384)return false;
   }
   return true;
 }
@@ -151,20 +157,20 @@ export class EngineSession {
   // happens when another spill passes along the anchor's row or column; the
   // engine then measures those anchors with ROWS(A1#) and COLUMNS(A1#).
   spills(){
-    const found=new Map(),ambiguous=[];
+    const found=new Map(),ambiguous=[],names=new Set(this.book.names.map(n=>n.name.toLowerCase()));
     this.book.sheets.forEach((sheet,i)=>{
       const free=(row,column)=>row<=1048576&&column<=16384&&!occupied(sheet.cells[address(row,column)])&&this.engine.getCellValue(i,row,column)[0]!=='blank';
       const rects=[],owner=new Map();
-      for(const [ref,cell] of Object.entries(sheet.cells))if(cell.formula&&!scalarFormula(cell.formula)){
+      for(const [ref,cell] of Object.entries(sheet.cells))if(cell.formula&&!scalarFormula(cell.formula,names)){
         const {row,column}=parseAddress(ref);let height=1,width=1;
         while(free(row+height,column))height++;
         while(free(row,column+width))width++;
         if(height*width>1)rects.push({ref,row,column,height,width});
       }
-      for(const rect of rects)for(let y=0;y<rect.height;y++)for(let x=0;x<rect.width;x++){
-        const key=(rect.row+y)*16385+rect.column+x,other=owner.get(key);
-        if(other){other.ambiguous=rect.ambiguous=true;}else owner.set(key,rect);
-      }
+      // Two runs that are wrong always cross on a run cell, so only the runs
+      // (not whole rectangles, which may be huge and mostly empty) are kept.
+      const mark=(rect,row,column)=>{const key=row*16385+column,other=owner.get(key);if(other&&other!==rect)other.ambiguous=rect.ambiguous=true;else owner.set(key,rect);};
+      for(const rect of rects){for(let y=0;y<rect.height;y++)mark(rect,rect.row+y,rect.column);for(let x=1;x<rect.width;x++)mark(rect,rect.row,rect.column+x);}
       for(const rect of rects)if(rect.ambiguous)ambiguous.push({sheet,index:i,...rect});else found.set(`${sheet.id}!${rect.ref}`,this.spillOf(i,rect));
     });
     if(ambiguous.length)this.measure(ambiguous).forEach((rect)=>{if(rect.height*rect.width>1)found.set(`${rect.sheet.id}!${rect.ref}`,this.spillOf(rect.index,rect));});
@@ -177,9 +183,10 @@ export class EngineSession {
   }
   // Measures anchors in a separate engine holding the workbook and one extra
   // sheet of ROWS/COLUMNS probes, so this session's sheets and results stay
-  // untouched. A measured size is kept only where it matches the values (an
-  // extra sheet changes SHEETS()); otherwise anchors keep, in reading order,
-  // the cells nobody claimed before them.
+  // untouched. Measured sizes are kept only when they match the values and
+  // leave no spilled cell of the runs unclaimed (the extra sheet changes
+  // SHEETS()); otherwise anchors claim, in reading order, the longest runs
+  // nobody claimed before them, so every spilled value is still saved.
   measure(rects){
     const probe=new EngineSession(this.module),sizes=[];
     try{
@@ -203,18 +210,30 @@ export class EngineSession {
       }
       return true;
     };
-    const measured=rects.map((rect,k)=>({...rect,spillCell:(row,column)=>!occupied(rect.sheet.cells[address(row,column)])&&this.engine.getCellValue(rect.index,row,column)[0]!=='blank',size:sizes[k]}));
+    const measured=rects.map((rect,k)=>({...rect,runHeight:rect.height,runWidth:rect.width,spillCell:(row,column)=>!occupied(rect.sheet.cells[address(row,column)])&&this.engine.getCellValue(rect.index,row,column)[0]!=='blank',size:sizes[k]}));
     measured.sort((a,b)=>a.index-b.index||a.row-b.row||a.column-b.column);
-    for(const rect of measured){
-      let [height,width]=rect.size;
-      if(!fits(rect,height,width)){
-        height=1;width=1;
-        while(height<rect.height&&fits(rect,height+1,1))height++;
-        while(width<rect.width&&fits(rect,height,width+1))width++;
+    const assign=(trust)=>{
+      claimed.clear();
+      for(const rect of measured){
+        let [height,width]=trust?rect.size:[0,0];
+        if(!fits(rect,height,width)){
+          height=1;width=1;
+          while(height<rect.runHeight&&fits(rect,height+1,1))height++;
+          while(width<rect.runWidth&&fits(rect,height,width+1))width++;
+        }
+        rect.height=height;rect.width=width;
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++)claimed.add(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`);
       }
-      rect.height=height;rect.width=width;
-      for(let y=0;y<height;y++)for(let x=0;x<width;x++)claimed.add(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`);
-    }
+      // Every spill cell on the anchors' runs must be claimed: a measured
+      // size that leaves one out (SHEETS() differs in the probe engine) is
+      // not trusted, and the runs are claimed in reading order instead.
+      return measured.every(rect=>{
+        for(let y=1;y<rect.runHeight;y++)if(!claimed.has(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column}`))return false;
+        for(let x=1;x<rect.runWidth;x++)if(!claimed.has(`${rect.sheet.id}!${rect.row*16385+rect.column+x}`))return false;
+        return true;
+      });
+    };
+    if(!assign(true))assign(false);
     return measured;
   }
   async calculate(){await this.calculateDelta();return structuredClone(this.book);}

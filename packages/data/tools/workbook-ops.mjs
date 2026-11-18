@@ -421,9 +421,10 @@ const canonical = (value) =>
     ? "undefined"
     : jsonStringify(value, { pretty: false, sortKeys: true });
 const same = (a, b) => canonical(a) === canonical(b);
+// Results and spills are caches that recalculation rewrites.
 const withoutResult = (cell) => {
   if (!cell) return null;
-  const { result: _, ...rest } = cell;
+  const { result: _, spill: __, ...rest } = cell;
   return rest;
 };
 

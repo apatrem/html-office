@@ -486,3 +486,158 @@ test("plain formulas beside a spill are never measured again", async () => {
     session.dispose();
   }
 });
+
+// Review findings (Codex, first round), one regression each.
+test("review: a name that looks like a cell is not a single-cell reference", async () => {
+  const { scalarFormula } = await import("../engine/adapter.mjs");
+  assert.equal(scalarFormula("=A0*2"), false);
+  assert.equal(scalarFormula("=TAX2*2", new Set(["tax2"])), false);
+  assert.equal(scalarFormula("=XFE1*2"), false);
+  const session = new EngineSession(await loadEngine());
+  try {
+    const book = workbook({
+      D1: { input: { type: "number", value: 10 } },
+      D2: { input: { type: "number", value: 20 } },
+      A1: { formula: "=A0*2" },
+    });
+    book.names = [{ name: "A0", sheetId: "s", ref: "D1:D2" }];
+    session.load(book);
+    const { results } = await session.calculateDelta();
+    assert.equal(results.find((r) => r.ref === "A1").spill.ref, "A1:A2");
+  } finally {
+    session.dispose();
+  }
+});
+
+test("review: a probe size that leaves spilled cells out is not trusted", async () => {
+  assert.deepEqual(
+    await spills(formulas({ B1: "=SEQUENCE(4-SHEETS())", A2: "=SUM(D1:D1)" })),
+    { B1: ["B1:B3", [[1], [2], [3]]], A2: 0 },
+  );
+});
+
+test("review: long crossing runs are compared without their whole area", async () => {
+  const started = performance.now();
+  assert.deepEqual(
+    Object.keys(
+      await spills(
+        formulas({
+          C3: "=ROWS(A1:A1)",
+          B4: "=SEQUENCE(3000,2)",
+          D2: "=SEQUENCE(2,3000)",
+        }),
+      ),
+    ),
+    ["C3", "B4", "D2"],
+  );
+  assert.ok(performance.now() - started < 20000);
+});
+
+test("review: preservation ignores recalculated spills", async () => {
+  const { preservation } = await import("../tools/workbook-ops.mjs");
+  const before = await recalculate(
+      workbook({
+        B1: { input: { type: "number", value: 2 } },
+        A1: { formula: "=SEQUENCE(B1)" },
+      }),
+    ),
+    after = structuredClone(before);
+  after.sheets[0].cells.B1.input.value = 3;
+  const recalculated = await recalculate(after);
+  assert.equal(recalculated.sheets[0].cells.A1.spill.ref, "A1:A3");
+  const report = preservation(before, recalculated, { allow: ["Sales!B1"] });
+  assert.equal(
+    JSON.stringify(report).includes("A1"),
+    false,
+    JSON.stringify(report),
+  );
+});
+
+test("review: readers built afresh see spills added without forgetSpills", async () => {
+  const { conditionalScales } = await import("../model/conditional.mjs");
+  const book = workbook(
+    { A1: { input: { type: "number", value: 1 } } },
+    {
+      conditionalFormats: [
+        {
+          id: "bars",
+          sheetId: "s",
+          ref: "A1:A3",
+          kind: "dataBar",
+          scale: { kind: "auto" },
+          positive: "acc",
+          negative: "alert",
+        },
+      ],
+    },
+  );
+  assert.equal(conditionalScales(book).bars.max, 1);
+  // A worker replaces the record in place, as recovery does.
+  const calculated = await recalculate(
+    workbook({ A1: { formula: "=SEQUENCE(3)" } }),
+  );
+  book.sheets[0].cells.A1 = calculated.sheets[0].cells.A1;
+  assert.equal(conditionalScales(book).bars.max, 3);
+  // A pending replacement without its own value keeps the spilled value.
+  assert.equal(
+    conditionalScales(book, {
+      overrides: [{ sheetId: "s", ref: "A3", cell: null }],
+    }).bars.max,
+    3,
+  );
+});
+
+test("review: a pivot output may not cover spilled values", async () => {
+  const { pivotEdits, computePivot } = await import("../model/pivot.mjs");
+  const book = await recalculate(
+    workbook(
+      {
+        A1: { input: { type: "text", value: "K" } },
+        B1: { input: { type: "text", value: "V" } },
+        A2: { input: { type: "text", value: "x" } },
+        B2: { input: { type: "number", value: 1 } },
+        D1: { formula: "=SEQUENCE(4,2)" },
+      },
+      {
+        pivots: [
+          {
+            id: "p",
+            source: { sheetId: "s", ref: "A1:B2" },
+            output: { sheetId: "s", ref: "D2" },
+            rows: ["K"],
+            columns: [],
+            filters: [],
+            values: [{ field: "V", aggregate: "sum" }],
+          },
+        ],
+      },
+    ),
+  );
+  const pivot = book.pivots[0];
+  assert.throws(
+    () => pivotEdits(book, pivot, computePivot(book, pivot), {}),
+    /D2, E2, D3 and other cells already hold data/,
+  );
+});
+
+test("review: a spill view of many anchors is built in linear time", () => {
+  const cells = {};
+  for (let row = 1; row <= 10000; row++)
+    cells[`A${row}`] = {
+      formula: "=SEQUENCE(1,2)",
+      result: { type: "number", value: 1 },
+      spill: {
+        ref: `A${row}:B${row}`,
+        results: [
+          [
+            { type: "number", value: 1 },
+            { type: "number", value: 2 },
+          ],
+        ],
+      },
+    };
+  const started = performance.now(),
+    view = readView({ id: "s", name: "S", cells });
+  assert.equal(view.cells.B10000.result.value, 2);
+  assert.ok(performance.now() - started < 500);
+});

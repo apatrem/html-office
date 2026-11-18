@@ -50,6 +50,26 @@ function index(cells) {
 export function forgetSpills(cells) {
   indexes.delete(cells);
 }
+// The covered cells of a sheet, built afresh: for readers that run where
+// cells may change without forgetSpills (workers, one-off scans).
+export function spillsOf(sheet) {
+  return build(sheet.cells).covered;
+}
+function view(sheet, cell, spill) {
+  const { input, ...rest } = cell ?? {};
+  return {
+    ...rest,
+    formula: sheet.cells[spill.anchor].formula,
+    result: spill.value,
+    spilledFrom: spill.anchor,
+  };
+}
+// The spilled view of a cell from a covered map, whatever record the cell
+// has; undefined when no spill covers it.
+export function spilledCell(sheet, covered, ref, cell = sheet.cells[ref]) {
+  const spill = covered.get(ref);
+  return spill && view(sheet, cell, spill);
+}
 // {anchor, value} for a cell covered by a spill, or undefined.
 export function spillAt(sheet, ref) {
   return index(sheet.cells).covered.get(ref);
@@ -66,14 +86,7 @@ export function cellAt(sheet, ref) {
   const cell = sheet.cells[ref];
   if (occupied(cell)) return cell;
   const spill = index(sheet.cells).covered.get(ref);
-  if (!spill) return cell;
-  const { input, ...rest } = cell ?? {};
-  return {
-    ...rest,
-    formula: sheet.cells[spill.anchor].formula,
-    result: spill.value,
-    spilledFrom: spill.anchor,
-  };
+  return spill ? view(sheet, cell, spill) : cell;
 }
 // A spilled cell as a plain value record (copying it copies the value, as in
 // Excel); other cells unchanged.
@@ -83,13 +96,13 @@ export function asValue(cell) {
   return { ...rest, input: result };
 }
 // The sheet as readers see it, for code that reads `sheet.cells[ref]`:
-// covered cells appear with their spilled value. Never write through it.
-export function readView(sheet) {
-  const { covered } = index(sheet.cells);
+// covered cells appear with their spilled value. Built afresh, in one pass
+// over the cells and one over the covered cells. Never write through it.
+export function readView(sheet, covered = spillsOf(sheet)) {
   if (!covered.size) return sheet;
   const cells = { ...sheet.cells };
-  for (const ref of covered.keys())
-    if (!occupied(cells[ref])) cells[ref] = cellAt(sheet, ref);
+  for (const [ref, spill] of covered)
+    if (!occupied(cells[ref])) cells[ref] = view(sheet, cells[ref], spill);
   return { ...sheet, cells };
 }
 // Applies a calculation's result delta ({sheetId, ref, result, spill?}) to

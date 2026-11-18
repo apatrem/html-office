@@ -7,7 +7,7 @@ import {
   validateValue,
   ERRORS,
 } from "./workbook.mjs";
-import { readView } from "./spills.mjs";
+import { readView, spillsOf } from "./spills.mjs";
 import { jsonStringify } from "./json.mjs";
 
 export const MAX_PIVOTS = 50;
@@ -813,12 +813,17 @@ export function pivotEdits(
     if (overlaps(source, rect))
       fail(`The pivot output ${rangeRef(rect)} would overlap its own source.`);
   }
-  const conflicts = [];
+  const conflicts = [],
+    // Spilled values hold data too: an output there would block the spill.
+    covered = spillsOf(sheet);
   for (let row = rect.top; row <= rect.bottom; row++)
     for (let column = rect.left; column <= rect.right; column++) {
       if (released && inside(released, row, column)) continue;
       const cell = cells[at(row, column)];
-      if (cell && (cell.input || cell.formula)) {
+      if (
+        (cell && (cell.input || cell.formula)) ||
+        covered.has(at(row, column))
+      ) {
         conflicts.push(at(row, column));
         if (conflicts.length > 3) break;
       }

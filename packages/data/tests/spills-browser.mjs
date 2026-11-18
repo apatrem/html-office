@@ -204,6 +204,20 @@ try {
   assert.equal(cells.J1.result.value, "#SPILL!");
   assert.equal(cells.J1.spill, undefined);
 
+  // Auto-fit measures spilled values too (review finding).
+  await enter(
+    page,
+    "K1",
+    "formula",
+    '=VSTACK("x","a much longer spilled value")',
+  );
+  await page.locator('#grid [data-column="11"]').click();
+  await openMenu(page, "Format");
+  await menuItem(page, "Format", "Auto-fit column width").click();
+  await page.waitForFunction(
+    () => document.querySelector('[data-cell="K2"]')?.offsetWidth > 150,
+  );
+
   // CSV export writes spilled values like any value.
   await openMenu(page, "File");
   await menuItem(page, "File", "Export sheet as CSV…").click();
