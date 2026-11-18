@@ -357,6 +357,43 @@ const shiftArrow = (axis, dir) => (state, dispatch, view) => {
     );
   return true;
 };
+// A cell selection dragged with the pointer outlasts the gesture. prosemirror-tables stops
+// keeping it from the DOM selection on mouseup, but WebKit's own release handling, which runs
+// after mouseup, may then put a caret where the button was released; its selectionchange
+// arrives later and ProseMirror read the caret in place of the cells (one drag in ~25 in CI's
+// WebKit). Until the next pointer press or key, only that caret is ignored: collapsed, in the
+// same document, inside the cell where the drag ended. Any other selection (Select All, an edit
+// read from the DOM, a caret elsewhere) replaces the cells as usual. Before tableEditing().
+export const keepDraggedCells = () => {
+  let kept = false;
+  const reset = () => (kept = false);
+  return new Plugin({
+    props: {
+      handleDOMEvents: {
+        pointerdown: reset,
+        keydown: reset,
+        mouseup: (view) => {
+          kept = view.state.selection instanceof CellSelection;
+        },
+      },
+      createSelectionBetween: (view, $anchor, $head) => {
+        const sel = view.state.selection;
+        if (
+          !kept ||
+          !(sel instanceof CellSelection) ||
+          $anchor.doc !== sel.$headCell.doc ||
+          $anchor.pos !== $head.pos
+        )
+          return null;
+        const cell = sel.$headCell;
+        return $anchor.pos > cell.pos &&
+          $anchor.pos < cell.pos + cell.nodeAfter.nodeSize
+          ? sel
+          : null;
+      },
+    },
+  });
+};
 // Before tableEditing() in the plugins.
 export const cellKeys = () =>
   keymap({

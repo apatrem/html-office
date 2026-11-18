@@ -1,6 +1,6 @@
 # V1 plan — standalone, editable HTML presentations
 
-Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 18 October 2026. The delivered baseline below describes releases 0.7.0 and 0.7.1.
+Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 18 October 2026. The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since, each item with its pull request.
 
 This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The seven approved Slides additions below remain planned; an [ideas backlog](#ideas-backlog-not-approved) records candidates that are not approved.
 
@@ -18,7 +18,6 @@ The DOM is the current model; undo uses HTML snapshots. Stable identifiers suppo
 
 - Slide insertion, duplication, deletion, and reordering; text, shapes, images, tables, and seven chart types.
 - Snapping, resize, alignment, distribution, theme-based formatting, chart/table data editing, footer controls, presentation, and PDF.
-- Deck theme and body font (TH02): `main#deck[data-theme]` overlays one of four built-in chartes and `data-font` picks one of six body fonts, set from the document-settings panel and undoable; `style#charte` is never rewritten.
 - Complete drafts with deck attributes and assets; queued saves preserve subsequent edits; errors and cancelled writes keep drafts.
 - Inert preflight before execution, recognised script digests, network-limited rendering, and preservation comparison against stable references.
 - Explicit migrations: `pack` preserves engine/theme/guide; `upgrade` replaces engine/guide with a backup; theme replacement is opt-in.
@@ -26,6 +25,14 @@ The DOM is the current model; undo uses HTML snapshots. Stable identifiers suppo
 - A versioned, inert guide embedded before technical blocks; complete chart examples and compatible distribution links. See [ADR-002](decisions/002-embedded-guide.md).
 - Pinned ECharts 6.1.0 with SHA-384 SRI/anonymous CORS, SVG fallback, and offline embedding.
 - English documentation, UI, templates, and fictional examples. Public MIT repository, release archive, and CI.
+
+Merged since 0.7.1:
+
+- The shared editor shell, variant A (U04-Slides): file bar with menus, one toolbar and side panels, merged in PR #58 (24 October 2026).
+- Deck theme and body font (TH02): `main#deck[data-theme]` overlays one of four built-in chartes and `data-font` picks one of six body fonts, set from the document-settings panel and undoable; `style#charte` is never rewritten. Merged in PR #64 (27 October 2026).
+- Copy and paste of tables, with merged cells, between Slides, Data and other applications (X02b, PR #70) and of charts between decks and to other applications (X02c, PR #71), both 27 October 2026 ([ADR-013](decisions/013-cross-product-clipboard.md)).
+- Save in place in Chrome and Edge: the opened file is chosen once in the save picker, remembered and reused on reopening; other browsers download copies. Merged in PR #108 (11 November 2026) for Slides, Data and Text.
+- Table column widths: `<colgroup><col data-width="N">` (whole % of the table), Table › Column width… and Distribute columns evenly, carried by copy and paste (PR #111), and dragging the border between two columns, which changes that column and the frame's width (PR #112), both 18 November 2026.
 
 ## Approved V1 backlog
 
@@ -36,7 +43,7 @@ The following features were approved for later V1 development: V1-01 to V1-05 on
 | V1-01 | Copy/paste complete slides between documents in separate browser tabs | Planned |
 | V1-02 | Create reusable themes from reference files | Planned |
 | V1-03 | Confirm a short generation brief and default settings | Planned |
-| V1-04 | Copy/paste individual elements and selections | Started: tables and charts (ADR-013 X02b, X02c) |
+| V1-04 | Copy/paste individual elements and selections | Started: tables and charts (ADR-013 X02b, X02c), merged in PRs #70 and #71 (27 October 2026) |
 | V1-05 | Crop and replace images while preserving their frame | Planned |
 | V1-06 | Check text density per layout region: a comfortable range and a maximum | Planned |
 | V1-07 | Annotate the layout catalogue so an LLM picks layouts well | Planned |

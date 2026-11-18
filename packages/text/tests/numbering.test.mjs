@@ -27,7 +27,7 @@ import {
   setHeadingNumbers,
   referenceTargets,
 } from "../editor/generated.mjs";
-import { setStyle } from "../editor/commands.mjs";
+import { setStyle, whyHeld } from "../editor/commands.mjs";
 import { envelope } from "./generate.mjs";
 
 const N = schema.nodes;
@@ -474,9 +474,11 @@ test("a heading a cross-reference or a thread names keeps its ID, contents or no
   const toc = '<nav class="toc" data-depth="1"></nav>';
   const thread =
     '<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="x" data-section="a">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>';
-  for (const rest of [
-    '<p>See <a class="xref" href="#a">Section 1</a>.</p>',
-    `<p>End.</p>\n${thread}`,
+  // Refused, and the status line says what holds the heading (whyHeld).
+  for (const [rest, why] of [
+    ['<p>See <a class="xref" href="#a">Section 1</a>.</p>', /cross-reference/],
+    [`<p>End.</p>\n${thread}`, /comment thread/],
+    ['<div><p><a href="#a">Kept</a></p></div>', /protected block/],
   ]) {
     const e = editor(`${toc}\n<h1 id="a">Alpha</h1>\n${rest}`);
     e.dispatch(
@@ -485,8 +487,14 @@ test("a heading a cross-reference or a thread names keeps its ID, contents or no
       ),
     );
     assert.equal(setStyle("body")(e.state), false);
+    assert.match(whyHeld(setStyle("body"), e.state), why);
+    assert.match(whyHeld(setStyle("quote"), e.state), why);
     assert.ok(setStyle("h2")(e.state));
+    assert.equal(whyHeld(setStyle("h2"), e.state), null);
   }
+  // A refusal for another reason gives none: without a cover there is no subtitle.
+  const plain = editor("<p>Alpha</p>\n<p>Beta</p>");
+  assert.equal(whyHeld(setStyle("subtitle"), plain.state), null);
 });
 
 test("heading numbers and format are document settings; contents and cross-references insert", () => {

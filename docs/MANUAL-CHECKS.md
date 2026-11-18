@@ -341,8 +341,8 @@ Generate it first: `node packages/text/acceptance/generate.mjs` (after `npm ci` 
 
 1. **In the contents**: in the example, put the cursor in the *Regions* heading and press Ctrl/Cmd+Alt+0 (or Paragraph style › Body). It becomes body text and its entry leaves the contents at once. Undo brings back the heading and the entry together.
 2. **Other styles**: do the same with the *2027 plan* heading and Paragraph style › Note, then Undo. The heading leaves the contents, and comes back with its number.
-3. **Still protected by a cross-reference**: insert a cross-reference to *Regions*. Paragraph style › Body is now greyed out and Ctrl/Cmd+Alt+0 does nothing; Heading 3 still works. Delete the cross-reference: Body is available again.
-4. **Still protected by a comment**: *Executive summary* holds a comment thread, so Body is greyed out there too.
+3. **Still protected by a cross-reference**: insert a cross-reference to *Regions*. Ctrl/Cmd+Alt+0 and Paragraph style › Body leave it a heading, and the status line says "This heading is the target of a cross-reference, so it stays a heading. Remove the reference first."; Heading 3 still works. Delete the cross-reference: Body works again.
+4. **Still protected by a comment**: *Executive summary* holds a comment thread, so Body is refused there too, and the status line says a comment thread belongs to its section.
 5. **Safari and Firefox**: steps 1–4 behave the same.
 
 ### Table width

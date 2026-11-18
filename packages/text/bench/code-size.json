@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 579659,
-  "headroom": 20341,
-  "engineGzip": 189345,
+  "applicationCode": 591563,
+  "headroom": 8437,
+  "engineGzip": 192586,
   "file": {
-    "total": 585139,
-    "engine": 571296,
+    "total": 597043,
+    "engine": 580168,
     "content": 5092,
     "assets": 186
   },
@@ -63,23 +63,23 @@
     },
     {
       "component": "Editor UI: shell, saving, print, figures, comments",
-      "bytes": 70877,
-      "share": 11.8
+      "bytes": 76102,
+      "share": 12.7
     },
     {
       "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
-      "bytes": 52582,
-      "share": 8.8
+      "bytes": 55103,
+      "share": 9.2
     },
     {
       "component": "Text model: HTML tree, file layout, validator",
-      "bytes": 27598,
-      "share": 4.6
+      "bytes": 28032,
+      "share": 4.7
     },
     {
       "component": "Paste mapping and Markdown import",
-      "bytes": 22950,
-      "share": 3.8
+      "bytes": 23156,
+      "share": 3.9
     },
     {
       "component": "Shared: charts",
@@ -88,7 +88,7 @@
     },
     {
       "component": "CSS: shell, panels and editor styles",
-      "bytes": 20809,
+      "bytes": 20952,
       "share": 3.5
     },
     {
@@ -98,12 +98,12 @@
     },
     {
       "component": "Schema, parser, serialiser, editing guard",
-      "bytes": 17982,
-      "share": 3
+      "bytes": 18329,
+      "share": 3.1
     },
     {
       "component": "Shared: clipboard",
-      "bytes": 16594,
+      "bytes": 16590,
       "share": 2.8
     },
     {
@@ -138,8 +138,8 @@
     },
     {
       "component": "Document theme styles (style#charte, style#theme)",
-      "bytes": 8046,
-      "share": 1.3
+      "bytes": 11078,
+      "share": 1.8
     },
     {
       "component": "HTML skeleton (head, metadata, zones)",

@@ -54,8 +54,33 @@ export function referencedIds(doc) {
   });
   return out;
 }
-const keepsId = (doc, node) =>
-  node.type === N.heading && referencedIds(doc).has(node.attrs.id);
+// What held a heading in the last refused change: "xref", "thread" or "protected" (see whyHeld).
+let held = null;
+const keepsId = (doc, node) => {
+  const id = node.attrs.id;
+  if (node.type !== N.heading || !referencedIds(doc).has(id)) return false;
+  doc.descendants((n) => {
+    held ??=
+      n.type === N.xref && n.attrs.target === id
+        ? "xref"
+        : n.type === N.comment_thread && n.attrs.section === id
+          ? "thread"
+          : null;
+  });
+  held ??= "protected";
+  return true;
+};
+const HELD = {
+  xref: "This heading is the target of a cross-reference, so it stays a heading. Remove the reference first.",
+  thread:
+    "A comment thread belongs to this heading's section, so it stays a heading. Delete the thread first.",
+  protected: "A protected block refers to this heading, so it stays a heading.",
+};
+// Why `command` is refused because a heading must keep its ID, or null (for the status line).
+export const whyHeld = (command, state) => {
+  held = null;
+  return command(state) ? null : held && HELD[held];
+};
 
 // A new heading's ID, from its text when it is created; later edits never change it.
 export function headingId(text, taken) {
