@@ -3,6 +3,7 @@ import {
   parseRange,
   validateConditionalFormats,
 } from "./workbook.mjs";
+import { readView, spillsOf, spilledCell, occupied } from "./spills.mjs";
 export function setConditionalFormat(book, rule) {
   const rules = [...(book.conditionalFormats ?? [])],
     index = rules.findIndex((r) => r.id === rule.id);
@@ -106,13 +107,20 @@ export function conditionalScales(
           scale.count++;
         }
     }
-    for (const ref in sheet.cells)
-      inspect(
-        ref,
-        replacements?.has(ref) ? replacements.get(ref) : sheet.cells[ref],
-      );
-    for (const [ref, cell] of replacements ?? [])
-      if (!Object.hasOwn(sheet.cells, ref)) inspect(ref, cell);
+    // Spilled values count too (F-01); a replacement without its own value
+    // shows the spilled value, as the grid does.
+    const covered = spillsOf(sheet),
+      view = readView(sheet, covered),
+      replaced = (ref) => {
+        const cell = replacements.get(ref);
+        return occupied(cell)
+          ? cell
+          : (spilledCell(sheet, covered, ref, cell) ?? cell);
+      };
+    for (const ref in view.cells)
+      inspect(ref, replacements?.has(ref) ? replaced(ref) : view.cells[ref]);
+    for (const ref of replacements?.keys() ?? [])
+      if (!Object.hasOwn(view.cells, ref)) inspect(ref, replaced(ref));
   }
   return scales;
 }

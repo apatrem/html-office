@@ -197,6 +197,44 @@ async function run(engine) {
       await page.locator("#doc figure#tab-regions .selectedCell").count(),
       6,
     );
+    // WebKit may put a caret where the drag was released, after mouseup (one CI run in ~25
+    // lost its cells this way): a caret arriving after the drag leaves the cells selected.
+    // The DOM selection in the cell holding `text` is set to [from, to] (a caret when equal);
+    // resolves with the editor's selection once ProseMirror has read it. After a pointer
+    // gesture ProseMirror puts its own selection back into the DOM one task later
+    // (delayedSelectionSync), so this waits one task first: a timer set later fires later.
+    const domSelect = (text, from, to = from) =>
+      page.evaluate(
+        async ([text, from, to]) => {
+          await new Promise((next) => setTimeout(next));
+          const td = [
+            ...document.querySelectorAll("#doc figure#tab-regions :is(td, th)"),
+          ].find((td) => td.textContent === text);
+          const node = document
+            .createTreeWalker(td, NodeFilter.SHOW_TEXT)
+            .nextNode();
+          return new Promise((done) => {
+            document.addEventListener(
+              "selectionchange",
+              () =>
+                setTimeout(() =>
+                  done(window.htmlText.view.state.selection.constructor.name),
+                ),
+              { once: true },
+            );
+            getSelection().setBaseAndExtent(node, from, node, to);
+          });
+        },
+        [text, from, to],
+      );
+    const cells = () =>
+      page.evaluate(
+        () =>
+          window.htmlText.view.state.selection instanceof
+          window.htmlText.CellSelection,
+      );
+    await domSelect("1.4", 1);
+    assert.equal(await cells(), true);
     assert.ok(await enabled("merge-cells"));
     await cmd("merge-cells");
     text = check(await saved());
@@ -212,6 +250,21 @@ async function run(engine) {
     // Across the header's boundary: unavailable.
     await drag("tab-regions", "2025", "1.6");
     assert.equal(await enabled("merge-cells"), false);
+    // Only that caret is ignored: a caret in another cell, a range (Select All) or text the
+    // browser inserts replaces the cells as usual (review cases).
+    await domSelect("North", 1);
+    assert.equal(await cells(), false);
+    await drag("tab-regions", "North", "1.4");
+    // (0 to 3 is how ProseMirror itself draws this cell selection in the DOM.)
+    await domSelect("1.4", 1, 3);
+    assert.equal(await cells(), false);
+    await drag("tab-regions", "North", "1.4");
+    await domSelect("1.4", 1);
+    assert.equal(await cells(), true);
+    await page.evaluate(() => document.execCommand("insertText", false, "X"));
+    assert.match(figure(await saved(), "tab-regions"), /X/);
+    await cmd("undo");
+    assert.equal(await saved(), before);
     pass(
       "pointer cell selection; merge joins lines; split; undo; no merge across the header",
     );

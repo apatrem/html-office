@@ -5,6 +5,7 @@ import {
   validateValidations,
   MAX_DROPDOWN_VALUES,
 } from "./workbook.mjs";
+import { cellAt } from "./spills.mjs";
 export const MAX_DROPDOWN_SOURCE_CELLS = 10000;
 export function setValidation(book, definition) {
   const rules = [...(book.validations ?? [])],
@@ -73,7 +74,7 @@ export function validationChoices(
       );
     for (let row = rect.top; row <= rect.bottom; row++)
       for (let column = rect.left; column <= rect.right; column++) {
-        const cell = sheet.cells[address(row, column)];
+        const cell = cellAt(sheet, address(row, column));
         if (cell?.formula && (!snapshotCurrent || !cell.result))
           return unavailable(
             "unresolved",
@@ -129,7 +130,10 @@ export function validationStatus(book, rule, ref, options = {}) {
     p.column > r.right
   )
     throw new Error("Cell is outside the validation target");
-  const cell = book.sheets.find((s) => s.id === rule.sheetId).cells[ref];
+  const cell = cellAt(
+    book.sheets.find((s) => s.id === rule.sheetId),
+    ref,
+  );
   if (cell?.formula && (!options.snapshotCurrent || !cell.result))
     return unavailable(
       "unresolved",

@@ -4,6 +4,7 @@
 // adapter's fromRows over the block's typed values; it is derived, never
 // saved. A saved SVG preview shows the chart without ECharts.
 import { address, parseAddress, parseRange } from "./workbook.mjs";
+import { cellAt } from "./spills.mjs";
 import { jsonStringify } from "./json.mjs";
 import { registry } from "../../shared/charts/index.mjs";
 import { checkOptions } from "../../shared/charts/schema.mjs";
@@ -174,7 +175,7 @@ export function chartTable(book, chart, label) {
     layout.series ? (c === 0 ? "text" : "number") : layout.roles[c];
   const read = (row, column) => {
     const ref = address(row, column),
-      cell = sheet.cells[ref];
+      cell = cellAt(sheet, ref);
     if (cell?.formula) formulas = true;
     const v = typedValue(cell),
       kind = role(column - r.left);
@@ -206,7 +207,7 @@ export function chartTable(book, chart, label) {
     rows = [];
   // Series names come from the header row, formulas included.
   for (let c = 0; c < columns; c++) {
-    const cell = c < width ? sheet.cells[address(r.top, r.left + c)] : null;
+    const cell = c < width ? cellAt(sheet, address(r.top, r.left + c)) : null;
     if (cell?.formula) formulas = true;
     headers.push(cell ? label(cell) : "");
   }

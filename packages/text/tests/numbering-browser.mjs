@@ -330,6 +330,62 @@ async function run(name) {
     );
     await retyped.close();
     pass("a heading in the contents becomes body text, and Undo restores it");
+
+    // ---- a heading a cross-reference or a comment thread holds stays one, and says why ----
+    // The example's second reference to Table 1 is pointed at the Regions heading instead.
+    const heldPath = join(out, `numbering-held-${name}.html`);
+    await writeFile(
+      heldPath,
+      built.replace(
+        '<a class="xref" href="#tab-regions">Table 1</a> compares',
+        '<a class="xref" href="#sec-regions">Table 1</a> compares',
+      ),
+    );
+    const held = await context.newPage();
+    await held.goto(pathToFileURL(heldPath).href);
+    await held.waitForFunction(() => window.htmlText);
+    const status = () => held.locator(".tx-shell [role=status]").textContent();
+    const kept = await held.evaluate(() => window.htmlText.serialize());
+    assert.match(kept, /<a class="xref" href="#sec-regions">/);
+    const xref =
+      /^This heading is the target of a cross-reference, so it stays a heading\. Remove the reference first\.$/;
+    const thread =
+      /^A comment thread belongs to this heading's section, so it stays a heading\. Delete the thread first\.$/;
+    // Each refusal follows the other kind's message, so each one is seen to replace it.
+    for (const [id, text, why, menu] of [
+      ["sec-regions", "Regions", xref, false],
+      ["sec-summary", "Executive summary", thread, true],
+      ["sec-regions", "Regions", xref, true],
+      ["sec-summary", "Executive summary", thread, false],
+    ]) {
+      await held.click(`#doc #${id}`, { position: { x: 40, y: 6 } });
+      await held.waitForFunction(
+        (text) =>
+          window.htmlText.view.state.selection.$from.parent.textContent ===
+          text,
+        text,
+      );
+      if (menu) {
+        // Format › Body stays available, so that choosing it explains the refusal.
+        await held.click(".tx-shell [role=menubar] button:text-is('Format')");
+        const body = held.locator(
+          "[role=menu] [role^=menuitem]:has-text('Body')",
+        );
+        assert.equal(await body.getAttribute("aria-disabled"), null);
+        await body.click();
+      } else await held.keyboard.press(`${mod}+Alt+0`);
+      assert.equal(await held.locator(`#doc #${id}`).count(), 1);
+      assert.match(await status(), why);
+      // Another heading level is still allowed.
+      await held.keyboard.press(`${mod}+Alt+3`);
+      assert.equal(await held.locator(`#doc h3#${id}`).count(), 1);
+      await held.keyboard.press(`${mod}+z`);
+    }
+    assert.equal(await held.evaluate(() => window.htmlText.serialize()), kept);
+    await held.close();
+    pass(
+      "a heading held by a cross-reference or a comment thread says why it stays one",
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

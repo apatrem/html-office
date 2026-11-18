@@ -7,6 +7,7 @@ import {
   validateValue,
   ERRORS,
 } from "./workbook.mjs";
+import { readView, spillsOf } from "./spills.mjs";
 import { jsonStringify } from "./json.mjs";
 
 export const MAX_PIVOTS = 50;
@@ -276,8 +277,10 @@ export function resolveSource(
   pivot,
   { bounds, formulaResultsCurrent } = {},
 ) {
-  const sheet = book.sheets.find((s) => s.id === pivot.source.sheetId);
-  if (!sheet) fail("The pivot's source sheet no longer exists.");
+  const found = book.sheets.find((s) => s.id === pivot.source.sheetId);
+  if (!found) fail("The pivot's source sheet no longer exists.");
+  // Spilled values are part of the source (F-01).
+  const sheet = readView(found);
   if (pivot.source.ref === "#REF!")
     fail("The pivot's source range was deleted. Choose a new source.");
   // A whole-sheet source leaves out pivot outputs on its sheet; the cached
@@ -810,12 +813,17 @@ export function pivotEdits(
     if (overlaps(source, rect))
       fail(`The pivot output ${rangeRef(rect)} would overlap its own source.`);
   }
-  const conflicts = [];
+  const conflicts = [],
+    // Spilled values hold data too: an output there would block the spill.
+    covered = spillsOf(sheet);
   for (let row = rect.top; row <= rect.bottom; row++)
     for (let column = rect.left; column <= rect.right; column++) {
       if (released && inside(released, row, column)) continue;
       const cell = cells[at(row, column)];
-      if (cell && (cell.input || cell.formula)) {
+      if (
+        (cell && (cell.input || cell.formula)) ||
+        covered.has(at(row, column))
+      ) {
         conflicts.push(at(row, column));
         if (conflicts.length > 3) break;
       }

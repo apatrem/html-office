@@ -157,13 +157,16 @@ export function shiftWorkbook(book, command) {
       for (const [ref, cell] of Object.entries(sheet.cells)) {
         const p = parseAddress(ref),
           n = moved(command.axis === "row" ? p.row : p.column, command);
-        if (n !== null)
-          cells[
-            address(
-              command.axis === "row" ? n : p.row,
-              command.axis === "column" ? n : p.column,
-            )
-          ] = cell;
+        if (n === null) continue;
+        const at = address(
+          command.axis === "row" ? n : p.row,
+          command.axis === "column" ? n : p.column,
+        );
+        // A spill is a result: recalculation measures it again.
+        if (cell.spill) {
+          const { spill, ...rest } = cell;
+          cells[at] = rest;
+        } else cells[at] = cell;
       }
       const shifted = { ...sheet, cells };
       if (sheet[axisKey]) {
