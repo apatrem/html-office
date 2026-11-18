@@ -79,7 +79,7 @@ npm test
 npm run release
 ```
 
-`npm run release` rebuilds assets, regenerates both HTML/PDF examples, checks their geometry, runs the regression suite and browser editor tests, and creates `dist/html-slides.plugin`.
+`npm run release` rebuilds assets, regenerates both HTML/PDF examples, checks their geometry, runs the regression suite and browser editor tests, and creates `dist/html-slides.plugin`. The archive holds the `html-slides` skill only; it also regenerates the `html-data` and `html-text` skills in `plugin/skills/`, which join the archive after their blind tests, and fails if the archive holds any other skill.
 
 The checker trusts the engines listed in `src/released-engines.json` plus the engine of the current build. After publishing a version, run `npm run record-release` and commit `src/released-engines.json` so that later versions keep accepting decks made with it. Recording refuses a version that was already published with a different engine.
 

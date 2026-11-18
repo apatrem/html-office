@@ -63,7 +63,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## html-data skill
 
-`skills/html-data/` ships, for the html-data workbooks it creates:
+Not in the 0.7.2 archive: `skills/html-data/` is kept in the repository and joins the plugin in a later release. It ships, for the html-data workbooks it creates:
 
 - IronCalc 0.9.0 (MIT OR Apache-2.0) compiled to WebAssembly with its Rust dependencies (`engine/vendor/`), pinned by SHA-256 in `engine/manifest.json`;
 - the editor runtime embedded in each workbook (`assets/runtime.json`), built from this repository (MIT);
