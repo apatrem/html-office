@@ -20,6 +20,7 @@ import {
 } from "../model/navigation.mjs";
 import { sheetAxes } from "../model/axis.mjs";
 import { display, usedBounds } from "./view.mjs";
+import { readView } from "../model/spills.mjs";
 import { paint, generalAlign, spill, LINE } from "./grid.mjs";
 
 export const MAX_PICTURE_CELLS = 5000,
@@ -235,7 +236,8 @@ export function setupPicture({
 
   async function download() {
     const book = getBook(),
-      sheet = getSheet(),
+      // Spilled values are drawn like any value (F-01).
+      sheet = readView(getSheet()),
       selection = getSelection(),
       axes = sheetAxes(sheet, SIZES),
       { rows, columns } = axes,

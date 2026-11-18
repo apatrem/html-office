@@ -30,6 +30,7 @@ import {
   captureHead,
 } from "../model/structure.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
+import { applyResults, cellAt } from "../model/spills.mjs";
 import {
   ownerRects,
   pivotOwner,
@@ -195,6 +196,7 @@ const grid = createGrid($("grid"), {
     }
   },
   onEdit: (initial) => {
+    if (spillNotice()) return;
     if (initial !== undefined) {
       $("cell-type").value = inferType(initial);
       $("cell-value").value = initial;
@@ -232,11 +234,17 @@ function choose(ref, updateGrid = true) {
   if (updateGrid) grid.select(ref, { notify: false });
   selected = ref;
   $("cell-address").value = ref;
-  const cell = book.sheets.find((s) => s.id === sheetId).cells[ref] ?? {},
+  const cell =
+      cellAt(
+        book.sheets.find((s) => s.id === sheetId),
+        ref,
+      ) ?? {},
     value = cell.input ?? { type: "blank" };
   $("cell-type").value = cell.formula ? "formula" : value.type;
   $("cell-value").value =
     cell.formula ?? (value.type === "blank" ? "" : String(value.value));
+  // A spilled cell shows its anchor's formula, read-only.
+  $("cell-value").readOnly = !!cell.spilledFrom;
   dropdowns.draw();
   commands.changed();
 }
@@ -290,6 +298,7 @@ function enteredCell() {
   delete cell.input;
   delete cell.formula;
   delete cell.result;
+  delete cell.spill;
   if (type === "formula") cell.formula = text;
   else if (type === "blank") {
     if (text)
@@ -410,9 +419,7 @@ async function apply({
           edits.filter((edit) => edit.sheetId === sheet.id),
         ),
       );
-    for (const r of result.results)
-      book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
-        r.result;
+    applyResults(book, result.results);
     if (sources !== undefined) book.sources = sources;
     if (pivots !== undefined) {
       if (pivots.length) book.pivots = pivots;
@@ -479,7 +486,22 @@ async function apply({
     }
   }
 }
-$("apply").onclick = apply;
+// A spilled cell belongs to its anchor's array result (F-01): it is changed
+// through the anchor's formula, not edited on its own.
+function spillNotice(ref = selected) {
+  const cell = cellAt(
+    book.sheets.find((s) => s.id === sheetId),
+    ref,
+  );
+  if (!cell?.spilledFrom) return false;
+  status(
+    `${ref} shows part of the array that ${cell.spilledFrom} spills. Edit the formula in ${cell.spilledFrom}.`,
+  );
+  return true;
+}
+$("apply").onclick = () => {
+  if (!spillNotice($("cell-address").value)) void apply();
+};
 $("retry-range").onclick = () => {
   if (!pendingEdits.length || loading) return;
   const edits = structuredClone(pendingEdits),
@@ -497,6 +519,7 @@ $("retry-range").onclick = () => {
 $("cell-value").addEventListener("keydown", async (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
+    if (spillNotice($("cell-address").value)) return;
     const applied = await apply();
     if (!loading) $(applied ? "grid" : "cell-value").focus();
   }
@@ -615,9 +638,7 @@ async function applyLayout(command, structural = false) {
       const cells = next.sheets.find((s) => s.id === f.sheetId).cells;
       cells[f.ref] = { ...cells[f.ref], formula: f.formula };
     }
-    for (const r of result.results)
-      next.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
-        r.result;
+    applyResults(next, result.results);
     next.snapshot = result.snapshot;
     book = next;
     if (structural) pivots.structure(command, "do");
@@ -723,9 +744,7 @@ async function moveHistory(direction) {
     await session.load(book);
     const result = await session.calculate();
     if (!revisions.current(epoch)) return;
-    for (const r of result.results)
-      book.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
-        r.result;
+    applyResults(book, result.results);
     book.snapshot = result.snapshot;
     trustSnapshot();
     persistence.changed(cellEdits(result.results));
@@ -1214,9 +1233,7 @@ async function applyImport({
         result.results,
         Object.fromEntries(next.sheets.map((s) => [s.id, s.name])),
       );
-    for (const r of result.results)
-      next.sheets.find((s) => s.id === r.sheetId).cells[r.ref].result =
-        r.result;
+    applyResults(next, result.results);
     next.snapshot = result.snapshot;
     book = next;
     trustSnapshot();

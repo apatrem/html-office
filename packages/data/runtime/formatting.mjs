@@ -17,6 +17,7 @@ import {
   COLUMN_WIDTH,
 } from "../model/navigation.mjs";
 import { display } from "./view.mjs";
+import { readView } from "../model/spills.mjs";
 
 const columnName = (col) => address(1, col).replace(/\d+$/, "");
 const MAX_ROW_HEIGHT = 600,
@@ -401,7 +402,8 @@ export function setupFormatting({
   // One pass over the sheet collects every selected column.
   function autoFit(column) {
     const columns = new Set(columnsFor(column)),
-      sheet = getSheet(),
+      // Spilled values are measured like any displayed value (F-01).
+      sheet = readView(getSheet()),
       widest = new Map();
     for (const [ref, cell] of Object.entries(sheet.cells)) {
       const col = parseAddress(ref).column;

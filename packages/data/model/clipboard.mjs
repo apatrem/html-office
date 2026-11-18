@@ -6,6 +6,7 @@ import {
   validateFormat,
 } from "./workbook.mjs";
 import { effectiveStyle, BUILTIN_CELL_STYLES } from "./formatting.mjs";
+import { cellAt, asValue } from "./spills.mjs";
 import { COLUMN_WIDTH } from "./navigation.mjs";
 export const LIMIT = 2000000;
 const qualifier = "(?:(?:'(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_.]*)!)?";
@@ -259,7 +260,11 @@ export function copyRange(sheet, ref) {
     const line = [];
     for (let col = r.left; col <= r.right; col++) {
       const ref = address(row, col);
-      line.push(structuredClone(sheet.cells[ref] ?? null));
+      // A spilled value is copied as a value, as in Excel; an anchor copies
+      // its formula without its saved spill.
+      const cell = structuredClone(asValue(cellAt(sheet, ref)) ?? null);
+      if (cell) delete cell.spill;
+      line.push(cell);
       // Sheet-level links travel with their cells (as in Excel).
       const link = sheet.links?.[ref];
       if (link) {
@@ -295,6 +300,7 @@ export function rangePatches(sheetId, start, cells, { origin } = {}) {
           );
           delete cell.result;
         }
+        delete cell.spill;
       }
       patches.push({ sheetId, ref: address(p.row + r, p.column + c), cell });
     }),
@@ -425,7 +431,7 @@ export function rangeTable(sheet, ref, { text, red }) {
     const line = [];
     for (let col = r.left; col <= r.right; col++) {
       const at = address(row, col),
-        cell = sheet.cells[at],
+        cell = cellAt(sheet, at),
         style = effectiveStyle(
           cell?.cellStyle,
           sheet.columns?.[columnName(col)]?.style,

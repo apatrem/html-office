@@ -45,6 +45,7 @@
 .csv-warning{color:var(--alert);font-weight:600}
 .grid-row-head.in-selection,.grid-column-head.in-selection{background:var(--head-sel);color:var(--select);font-weight:600}
 .grid-cell:disabled{opacity:1;cursor:wait}
+.grid-cell.spill-cell{color:var(--t2);font-style:italic}
 #grid.no-grid-lines .grid-cell{border-color:transparent}
 .header{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}.rowHeader{background:var(--light);color:var(--row-label-ink,var(--acc))}.assumption{background:var(--yellow);color:var(--orange)}.calculation{background:var(--calculation-bg,var(--tint))}
 #grid table{border-collapse:collapse}#grid th,#grid td{border:1px solid var(--grid-line);padding:0}#grid td button{border:0;background:none;height:22px;padding:0 6px;font:inherit}

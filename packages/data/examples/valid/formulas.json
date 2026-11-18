@@ -1,0 +1,422 @@
+{
+  "version": "html-data/0.1",
+  "id": "fictional-formulas",
+  "title": "Fictional orders: readable formulas",
+  "dateSystem": "excel1900",
+  "locale": "en-US",
+  "groups": [
+    {
+      "id": "summary",
+      "name": "Summary",
+      "kind": "summary",
+      "sheetIds": [
+        "summary"
+      ]
+    },
+    {
+      "id": "raw",
+      "name": "Raw data",
+      "kind": "raw",
+      "sheetIds": [
+        "orders"
+      ]
+    }
+  ],
+  "names": [
+    {
+      "name": "Region",
+      "sheetId": "orders",
+      "ref": "A2:A7"
+    },
+    {
+      "name": "Product",
+      "sheetId": "orders",
+      "ref": "B2:B7"
+    },
+    {
+      "name": "Amount",
+      "sheetId": "orders",
+      "ref": "C2:C7"
+    },
+    {
+      "name": "Units",
+      "sheetId": "orders",
+      "ref": "D2:D7"
+    }
+  ],
+  "metadata": {
+    "fictional": true,
+    "note": "Invented orders showing LET, LAMBDA, array functions and named column ranges."
+  },
+  "sheets": [
+    {
+      "id": "summary",
+      "name": "Summary",
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Region"
+          },
+          "cellStyle": "header"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Amount"
+          },
+          "cellStyle": "header"
+        },
+        "C1": {
+          "input": {
+            "type": "text",
+            "value": "Units"
+          },
+          "cellStyle": "header"
+        },
+        "D1": {
+          "input": {
+            "type": "text",
+            "value": "Share"
+          },
+          "cellStyle": "header"
+        },
+        "A2": {
+          "formula": "=SORT(UNIQUE(Region))"
+        },
+        "B2": {
+          "formula": "=MAP(A2#,LAMBDA(r,SUMIFS(Amount,Region,r)))",
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "B3": {
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "B4": {
+          "format": {
+            "kind": "currency",
+            "currency": "EUR",
+            "digits": 0
+          }
+        },
+        "C2": {
+          "formula": "=MAP(A2#,LAMBDA(r,SUMIFS(Units,Region,r)))"
+        },
+        "D2": {
+          "formula": "=LET(total,SUM(Amount),MAP(B2#,LAMBDA(x,ROUND(x/total,3))))",
+          "format": {
+            "kind": "percent",
+            "digits": 1
+          }
+        },
+        "D3": {
+          "format": {
+            "kind": "percent",
+            "digits": 1
+          }
+        },
+        "D4": {
+          "format": {
+            "kind": "percent",
+            "digits": 1
+          }
+        },
+        "F1": {
+          "input": {
+            "type": "text",
+            "value": "Large orders"
+          },
+          "cellStyle": "header"
+        },
+        "F2": {
+          "formula": "=FILTER(Product,Amount>=95)"
+        },
+        "G1": {
+          "input": {
+            "type": "text",
+            "value": "North, largest first"
+          },
+          "cellStyle": "header"
+        },
+        "G2": {
+          "formula": "=SORT(FILTER(Amount,Region=\"North\"),1,-1)"
+        },
+        "F6": {
+          "input": {
+            "type": "text",
+            "value": "Two largest orders"
+          },
+          "cellStyle": "header"
+        },
+        "F7": {
+          "formula": "=TAKE(SORTBY(Orders!A2:C7,Amount,-1),2)"
+        },
+        "A6": {
+          "input": {
+            "type": "text",
+            "value": "Lookups"
+          },
+          "cellStyle": "header"
+        },
+        "A7": {
+          "input": {
+            "type": "text",
+            "value": "East, first order"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B7": {
+          "formula": "=XLOOKUP(\"East\",Region,Amount)"
+        },
+        "A8": {
+          "input": {
+            "type": "text",
+            "value": "West, first order"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B8": {
+          "formula": "=XLOOKUP(\"West\",Region,Amount,\"none\")"
+        },
+        "A9": {
+          "input": {
+            "type": "text",
+            "value": "Coffee, last order"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B9": {
+          "formula": "=XLOOKUP(\"Coffee\",Product,Amount,,0,-1)"
+        },
+        "A10": {
+          "input": {
+            "type": "text",
+            "value": "Average price"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B10": {
+          "formula": "=LET(perUnit,LAMBDA(a,u,a/u),ROUND(perUnit(SUM(Amount),SUM(Units)),2))"
+        },
+        "A11": {
+          "input": {
+            "type": "text",
+            "value": "North amount"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B11": {
+          "formula": "=SUMPRODUCT((Region=\"North\")*Amount)"
+        },
+        "A12": {
+          "input": {
+            "type": "text",
+            "value": "Orders"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B12": {
+          "formula": "=ROWS(Amount)"
+        },
+        "A14": {
+          "input": {
+            "type": "text",
+            "value": "Price per unit"
+          },
+          "cellStyle": "rowHeader"
+        },
+        "B14": {
+          "formula": "=BYROW(Orders!C2:D7,LAMBDA(r,INDEX(r,1,1)/INDEX(r,1,2)))"
+        }
+      }
+    },
+    {
+      "id": "orders",
+      "name": "Orders",
+      "metadata": {
+        "layout": "table"
+      },
+      "cells": {
+        "A1": {
+          "input": {
+            "type": "text",
+            "value": "Region"
+          },
+          "cellStyle": "header"
+        },
+        "B1": {
+          "input": {
+            "type": "text",
+            "value": "Product"
+          },
+          "cellStyle": "header"
+        },
+        "C1": {
+          "input": {
+            "type": "text",
+            "value": "Amount"
+          },
+          "cellStyle": "header"
+        },
+        "D1": {
+          "input": {
+            "type": "text",
+            "value": "Units"
+          },
+          "cellStyle": "header"
+        },
+        "A2": {
+          "input": {
+            "type": "text",
+            "value": "North"
+          }
+        },
+        "B2": {
+          "input": {
+            "type": "text",
+            "value": "Tea"
+          }
+        },
+        "C2": {
+          "input": {
+            "type": "number",
+            "value": 120
+          }
+        },
+        "D2": {
+          "input": {
+            "type": "number",
+            "value": 4
+          }
+        },
+        "A3": {
+          "input": {
+            "type": "text",
+            "value": "South"
+          }
+        },
+        "B3": {
+          "input": {
+            "type": "text",
+            "value": "Coffee"
+          }
+        },
+        "C3": {
+          "input": {
+            "type": "number",
+            "value": 80
+          }
+        },
+        "D3": {
+          "input": {
+            "type": "number",
+            "value": 2
+          }
+        },
+        "A4": {
+          "input": {
+            "type": "text",
+            "value": "North"
+          }
+        },
+        "B4": {
+          "input": {
+            "type": "text",
+            "value": "Coffee"
+          }
+        },
+        "C4": {
+          "input": {
+            "type": "number",
+            "value": 45
+          }
+        },
+        "D4": {
+          "input": {
+            "type": "number",
+            "value": 3
+          }
+        },
+        "A5": {
+          "input": {
+            "type": "text",
+            "value": "East"
+          }
+        },
+        "B5": {
+          "input": {
+            "type": "text",
+            "value": "Tea"
+          }
+        },
+        "C5": {
+          "input": {
+            "type": "number",
+            "value": 200
+          }
+        },
+        "D5": {
+          "input": {
+            "type": "number",
+            "value": 5
+          }
+        },
+        "A6": {
+          "input": {
+            "type": "text",
+            "value": "South"
+          }
+        },
+        "B6": {
+          "input": {
+            "type": "text",
+            "value": "Tea"
+          }
+        },
+        "C6": {
+          "input": {
+            "type": "number",
+            "value": 60
+          }
+        },
+        "D6": {
+          "input": {
+            "type": "number",
+            "value": 1
+          }
+        },
+        "A7": {
+          "input": {
+            "type": "text",
+            "value": "East"
+          }
+        },
+        "B7": {
+          "input": {
+            "type": "text",
+            "value": "Coffee"
+          }
+        },
+        "C7": {
+          "input": {
+            "type": "number",
+            "value": 95
+          }
+        },
+        "D7": {
+          "input": {
+            "type": "number",
+            "value": 2
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { shiftWorkbook, inverseStructure, restoreHead } from "./structure.mjs";
+import { forgetSpills } from "./spills.mjs";
 export function captureCells(book, refs) {
   const seen = new Set();
   return refs
@@ -55,6 +56,7 @@ export class EditHistory {
       if (!cells) continue;
       if (cell === null) delete cells[ref];
       else cells[ref] = structuredClone(cell);
+      forgetSpills(cells);
     }
     const snapshot = redo ? entry.snapshotAfter : entry.snapshotBefore;
     if (snapshot === undefined) delete book.snapshot;

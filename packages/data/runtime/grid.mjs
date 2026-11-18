@@ -19,6 +19,7 @@ import {
 } from "../model/navigation.mjs";
 import { sheetAxes } from "../model/axis.mjs";
 import { display, negativeRed, usedBounds } from "./view.mjs";
+import { cellAt } from "../model/spills.mjs";
 const SIZES = { rows: ROWS, columns: COLUMNS, height: H, width: W };
 // Unwrapped text overflows into at most this many empty neighbours (ADR-010).
 const OVERFLOW = 20;
@@ -194,7 +195,7 @@ export function createGrid(
     const filled = (row, col) =>
       col >= 1 &&
       col <= COLUMNS &&
-      !!display(sheet.cells[address(row, col)], locale);
+      !!display(cellAt(sheet, address(row, col)), locale);
     const x = (col) => L + columns.start(col),
       y = (row) => H + rows.start(row);
     for (let row = v.top; row <= v.bottom; row++) {
@@ -205,7 +206,7 @@ export function createGrid(
       const cells = [];
       for (let col = v.left; col <= v.right; col++) {
         const ref = address(row, col),
-          cell = sheet.cells[ref] ?? {},
+          cell = cellAt(sheet, ref) ?? {},
           text = display(cell, locale);
         cells.push({ col, ref, cell, text, style: styleAt(row, col) });
       }
@@ -250,6 +251,15 @@ export function createGrid(
         b.setAttribute("aria-selected", selected);
         b.setAttribute("aria-pressed", ref === focus);
         b.title = `${ref}${cell.formula ? ` · ${cell.formula}` : ""}`;
+        // Spilled values are part of their anchor's array result (F-01).
+        if (cell.spilledFrom) {
+          b.classList.add("spill-cell");
+          b.title = `${ref} · spilled from ${cell.spilledFrom}`;
+          b.setAttribute(
+            "aria-label",
+            `${ref}: ${text || "Empty"}, spilled from ${cell.spilledFrom}`,
+          );
+        }
         decorateCell?.(b, sheet.id, ref, cell);
       });
       const head = node(

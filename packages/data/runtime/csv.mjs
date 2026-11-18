@@ -8,6 +8,7 @@
 // need an explicit choice, recalculating first or exporting saved values.
 import { address, parseAddress } from "../model/workbook.mjs";
 import { display } from "./view.mjs";
+import { cellAt, spillBounds } from "../model/spills.mjs";
 
 // Fields a CSV may hold (rows × columns from A1): about 100 MB of text.
 export const MAX_CSV_FIELDS = 10000000;
@@ -40,7 +41,12 @@ export function csvBounds(sheet) {
       rows = Math.max(rows, p.row);
       columns = Math.max(columns, p.column);
     }
-  return { rows, columns };
+  // Spilled values are exported like any value (F-01).
+  const spill = spillBounds(sheet);
+  return {
+    rows: Math.max(rows, spill.rows),
+    columns: Math.max(columns, spill.columns),
+  };
 }
 
 // Excel 1900 serial to an ISO date, with a time when it has one (to the
@@ -130,7 +136,7 @@ export function sheetCSV(
     for (let col = 1; col <= columns; col++)
       fields.push(
         quote(
-          cellText(sheet.cells[address(row, col)], options, counts),
+          cellText(cellAt(sheet, address(row, col)), options, counts),
           separator,
         ),
       );
