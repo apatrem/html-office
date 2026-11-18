@@ -289,6 +289,7 @@ function start() {
       clipboard.plugin,
       // Cell selections, arrow keys and fixing table shapes, then Text's own table shape (T10).
       T.cellKeys(),
+      T.keepDraggedCells(),
       T.tableEditing(),
       T.tableGuard(),
       tableResizing(),

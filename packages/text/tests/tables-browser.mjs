@@ -197,6 +197,34 @@ async function run(engine) {
       await page.locator("#doc figure#tab-regions .selectedCell").count(),
       6,
     );
+    // WebKit may put a caret where the drag was released, after mouseup (one CI run in ~25
+    // lost its cells this way): a caret arriving after the drag leaves the cells selected.
+    const lateCaret = await page.evaluate(
+      () =>
+        new Promise((done) => {
+          const td = [
+            ...document.querySelectorAll("#doc figure#tab-regions td"),
+          ].find((td) => td.textContent === "1.4");
+          document.addEventListener(
+            "selectionchange",
+            () => setTimeout(() => done(getSelection().anchorNode?.data)),
+            { once: true },
+          );
+          getSelection().collapse(
+            document.createTreeWalker(td, NodeFilter.SHOW_TEXT).nextNode(),
+            1,
+          );
+        }),
+    );
+    assert.equal(lateCaret, "1.4");
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.htmlText.view.state.selection instanceof
+          window.htmlText.CellSelection,
+      ),
+      true,
+    );
     assert.ok(await enabled("merge-cells"));
     await cmd("merge-cells");
     text = check(await saved());
