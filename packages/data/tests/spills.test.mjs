@@ -523,14 +523,40 @@ test("review: long crossing runs are compared without their whole area", async (
       await spills(
         formulas({
           C3: "=ROWS(A1:A1)",
-          B4: "=SEQUENCE(3000,2)",
-          D2: "=SEQUENCE(2,3000)",
+          B4: "=SEQUENCE(20000,2)",
+          D2: "=SEQUENCE(2,16000)",
         }),
       ),
     ),
     ["C3", "B4", "D2"],
   );
+  // A 20,001 × 16,001 inferred rectangle would exceed a Map's capacity.
   assert.ok(performance.now() - started < 20000);
+});
+
+test("review (round 2): one wrong probe size does not discard the others", async () => {
+  assert.deepEqual(
+    await spills(
+      formulas({
+        B1: "=SUM(Z1:Z1)",
+        A2: "=SEQUENCE(2,3)",
+        H1: "=SEQUENCE(4-SHEETS())",
+        G2: "=SUM(Z1:Z1)",
+      }),
+    ),
+    {
+      B1: 0,
+      A2: [
+        "A2:C3",
+        [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+      ],
+      H1: ["H1:H3", [[1], [2], [3]]],
+      G2: 0,
+    },
+  );
 });
 
 test("review: preservation ignores recalculated spills", async () => {

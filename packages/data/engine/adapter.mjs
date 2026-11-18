@@ -183,10 +183,8 @@ export class EngineSession {
   }
   // Measures anchors in a separate engine holding the workbook and one extra
   // sheet of ROWS/COLUMNS probes, so this session's sheets and results stay
-  // untouched. Measured sizes are kept only when they match the values and
-  // leave no spilled cell of the runs unclaimed (the extra sheet changes
-  // SHEETS()); otherwise anchors claim, in reading order, the longest runs
-  // nobody claimed before them, so every spilled value is still saved.
+  // untouched. Sizes that match the values are kept; spilled cells left
+  // unclaimed then extend the anchors whose runs reach them.
   measure(rects){
     const probe=new EngineSession(this.module),sizes=[];
     try{
@@ -212,28 +210,21 @@ export class EngineSession {
     };
     const measured=rects.map((rect,k)=>({...rect,runHeight:rect.height,runWidth:rect.width,spillCell:(row,column)=>!occupied(rect.sheet.cells[address(row,column)])&&this.engine.getCellValue(rect.index,row,column)[0]!=='blank',size:sizes[k]}));
     measured.sort((a,b)=>a.index-b.index||a.row-b.row||a.column-b.column);
-    const assign=(trust)=>{
-      claimed.clear();
-      for(const rect of measured){
-        let [height,width]=trust?rect.size:[0,0];
-        if(!fits(rect,height,width)){
-          height=1;width=1;
-          while(height<rect.runHeight&&fits(rect,height+1,1))height++;
-          while(width<rect.runWidth&&fits(rect,height,width+1))width++;
-        }
-        rect.height=height;rect.width=width;
-        for(let y=0;y<height;y++)for(let x=0;x<width;x++)claimed.add(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`);
-      }
-      // Every spill cell on the anchors' runs must be claimed: a measured
-      // size that leaves one out (SHEETS() differs in the probe engine) is
-      // not trusted, and the runs are claimed in reading order instead.
-      return measured.every(rect=>{
-        for(let y=1;y<rect.runHeight;y++)if(!claimed.has(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column}`))return false;
-        for(let x=1;x<rect.runWidth;x++)if(!claimed.has(`${rect.sheet.id}!${rect.row*16385+rect.column+x}`))return false;
-        return true;
-      });
-    };
-    if(!assign(true))assign(false);
+    const key=(rect,y,x)=>`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`,claim=(rect)=>{for(let y=0;y<rect.height;y++)for(let x=0;x<rect.width;x++)claimed.add(key(rect,y,x));};
+    // Measured sizes that match the values are kept (the extra sheet changes
+    // SHEETS(), so one may not); the others start as their anchor alone.
+    for(const rect of measured){
+      const [height,width]=rect.size,ok=fits(rect,height,width);
+      rect.height=ok?height:1;rect.width=ok?width:1;claim(rect);
+    }
+    // A spilled cell of a run that nobody claimed goes to the anchor whose
+    // run reaches it, growing in reading order by whole free rows, then
+    // columns. Exact measurements leave nothing to grow, so they stay.
+    const free=(rect,y,x)=>!claimed.has(key(rect,y,x))&&rect.spillCell(rect.row+y,rect.column+x);
+    for(const rect of measured){
+      while(rect.height<rect.runHeight&&Array.from({length:rect.width},(_,x)=>x).every(x=>free(rect,rect.height,x))){for(let x=0;x<rect.width;x++)claimed.add(key(rect,rect.height,x));rect.height++;}
+      while(rect.width<rect.runWidth&&Array.from({length:rect.height},(_,y)=>y).every(y=>free(rect,y,rect.width))){for(let y=0;y<rect.height;y++)claimed.add(key(rect,y,rect.width));rect.width++;}
+    }
     return measured;
   }
   async calculate(){await this.calculateDelta();return structuredClone(this.book);}
