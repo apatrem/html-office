@@ -28,9 +28,11 @@ const deck = theme => upgrade(example, { theme }).replace('</main>', `<section c
 <section class="slide" id="s92" data-layout="default"><h1>Wrapped</h1><div class="box w-6">${TABLE.replace('Raised beds', 'Raised beds along the north fence of the garden')}</div><p class="source">Source: fictional</p></section></main>`);
 const FILE = path.join(DIR, 'deck.html');
 fs.writeFileSync(FILE, deck(true));
-// The example's own theme zone, as an older deck has it: widths come from the engine alone.
+// A theme zone without the column rules, as a deck made before them has it: widths come from the
+// engine alone. Built from the current theme rather than the committed example's, which a release
+// regenerates with the current theme (the fixture must not depend on how stale the example is).
 const OLD = path.join(DIR, 'old-theme.html');
-fs.writeFileSync(OLD, deck(false));
+fs.writeFileSync(OLD, deck(true).replace(/col\[data-width="\d+"\]\{width:\d+%\}/g, ''));
 ok(!fs.readFileSync(OLD, 'utf8').includes('col[data-width="1"]'), 'the old-theme deck has no column rules in its theme');
 
 // The checker on a deck with these tables in slide s90.
