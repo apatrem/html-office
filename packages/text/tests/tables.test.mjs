@@ -297,6 +297,125 @@ test("column widths, emphasis, density, caption", () => {
   e.table();
 });
 
+test("table width and place: one undo step, 100 is the text column", () => {
+  const e = editor();
+  const figure = () => {
+    e.table(); // saves valid and reopens identically
+    const html = articleHTML(e.state.doc);
+    return html.match(/<figure class="table"[^>]*>/)[0];
+  };
+  assert.deepEqual(T.tableWidthAt(e.at("North").state), {
+    width: 100,
+    align: null,
+  });
+  e.run(T.own(T.setTableWidth(60, "center")));
+  assert.equal(
+    figure(),
+    '<figure class="table" id="tab-a" data-width="60" data-align="center">',
+  );
+  assert.deepEqual(T.tableWidthAt(e.state), { width: 60, align: "center" });
+  e.run(T.own(T.setTableWidth(45)));
+  assert.equal(figure(), '<figure class="table" id="tab-a" data-width="45">');
+  // The text column again: no width, and no place.
+  e.run(T.own(T.setTableWidth(100, "right")));
+  assert.equal(figure(), '<figure class="table" id="tab-a">');
+  e.undo();
+  assert.equal(figure(), '<figure class="table" id="tab-a" data-width="45">');
+  e.undo();
+  assert.equal(
+    figure(),
+    '<figure class="table" id="tab-a" data-width="60" data-align="center">',
+  );
+  for (const bad of [
+    T.setTableWidth(9),
+    T.setTableWidth(101),
+    T.setTableWidth(50.5),
+    T.setTableWidth(50, "left"),
+  ])
+    assert.ok(!e.can(bad));
+  // Outside a table: nothing to size.
+  const outside = editor(); // the caret starts in "Intro"
+  assert.equal(T.tableWidthAt(outside.state), null);
+  assert.ok(!outside.can(T.setTableWidth(50)));
+});
+
+test("dragging a border: whole percentages, the other columns keep their widths", () => {
+  assert.deepEqual(T.wholePercents([1, 1, 1]), [34, 33, 33]);
+  assert.deepEqual(T.wholePercents([0.1, 50, 49.9]), [1, 50, 49]);
+  // 1,000 px of text column, a 500 px table (50%): the first column grows by 50 px.
+  assert.deepEqual(T.resizedColumns([200, 150, 150], 0, 50, 1000), {
+    width: 55,
+    cols: [46, 27, 27],
+    moved: true,
+  });
+  // The table stops at the text column: nothing grows, nothing to apply.
+  assert.deepEqual(T.resizedColumns([400, 300, 300], 2, 200, 1000), {
+    width: 100,
+    cols: [40, 30, 30],
+    moved: false,
+  });
+  // A column shrinks to 3% of the text column at the least, the table to 10%.
+  assert.deepEqual(T.resizedColumns([200, 150, 150], 1, -400, 1000), {
+    width: 38,
+    cols: [53, 8, 39],
+    moved: true,
+  });
+  assert.equal(T.resizedColumns([60, 60], 0, -500, 1000).width, 10);
+  // A dense table cannot keep a column at its least width in whole percentages: no move.
+  assert.equal(
+    T.resizedColumns([120, ...Array(98).fill(3480 / 98)], 0, 40, 4000).moved,
+    false,
+  );
+  // Rounding keeps the least width: 3% of 930 px is under 30 px, so the column gets 4%.
+  assert.deepEqual(T.resizedColumns([500, 400, 100], 2, -100, 1000), {
+    width: 93,
+    cols: [53, 43, 4],
+    moved: true,
+  });
+
+  const e = editor();
+  const pos = (() => {
+    let at = null;
+    e.state.doc.forEach((node, offset) => {
+      if (node.type.name === "table_figure") at = offset;
+    });
+    return at;
+  })();
+  e.at("North").run(T.own(T.setTableWidth(60, "center")));
+  e.run(T.own(T.setColumnWidths(pos, { width: 80, cols: [50, 25, 25] })));
+  const html = () => articleHTML(e.state.doc);
+  e.table();
+  assert.match(
+    html(),
+    /<figure class="table" id="tab-a" data-width="80" data-align="center">/,
+  );
+  assert.match(
+    html(),
+    /<colgroup><col data-width="50"><col data-width="25"><col data-width="25"><\/colgroup>/,
+  );
+  // The same widths: no step. The text column: no width and no place.
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [50, 25, 25] })));
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [50, 50] })));
+  // Only whole percentages in range are applied.
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 80, cols: [0, 50, 50] })));
+  assert.ok(!e.can(T.setColumnWidths(pos, { width: 5, cols: [50, 25, 25] })));
+  assert.ok(
+    !e.can(T.setColumnWidths(pos, { width: 80, cols: [50.5, 25, 24.5] })),
+  );
+  e.run(T.own(T.setColumnWidths(pos, { width: 100, cols: [40, 30, 30] })));
+  e.table();
+  assert.match(html(), /<figure class="table" id="tab-a">/);
+  e.undo();
+  assert.match(html(), /data-width="80" data-align="center"/);
+  // Emphasis is kept.
+  e.at("1.6").run(T.toggleEmphasis);
+  e.run(T.own(T.setColumnWidths(pos, { width: 70, cols: [20, 40, 40] })));
+  assert.match(
+    html(),
+    /<colgroup><col data-width="20"><col class="emphasis" data-width="40"><col data-width="40"><\/colgroup>/,
+  );
+});
+
 test("alignment applies to each selected cell, never justify", () => {
   const e = editor();
   e.cells("1.6", "1.4").run(setAlign("ta-r"));

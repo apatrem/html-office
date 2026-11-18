@@ -23,6 +23,8 @@ import {
   RESERVED_ID_PREFIXES,
   ALIGN,
   CALLOUTS,
+  TABLE_WIDTH,
+  TABLE_ALIGNS,
 } from "../../model/format.mjs";
 import { tableFigure } from "./table.mjs";
 import { dataImage, PASTE_IMAGES } from "./images.mjs";
@@ -637,7 +639,7 @@ export class Mapper {
           const caption = kids(node).find(
             (k) => k.nodeType === ELEMENT && k.localName === "figcaption",
           );
-          if (table) return this.table(table, caption, flow, depth);
+          if (table) return this.table(table, caption, flow, depth, node);
         }
         break;
       case "header":
@@ -838,7 +840,7 @@ export class Mapper {
 
   // A table: the shared reader gives the portable table (spans, header rows, bold, italic,
   // alignment, links), then Text's own markup adds widths, emphasis, density and total rows.
-  table(node, caption, flow, depth) {
+  table(node, caption, flow, depth, figure = null) {
     caption ??= kids(node).find(
       (k) => k.nodeType === ELEMENT && k.localName === "caption",
     );
@@ -885,6 +887,7 @@ export class Mapper {
     }
     const extras = {
       ...ownTable(node, read.table),
+      ...ownFigure(figure),
       content: (r, c) => content.get(`${r},${c}`),
     };
     let cap = null;
@@ -894,6 +897,14 @@ export class Mapper {
     }
     flow.blocks.push(tableFigure(read.table, this.used, cap, extras));
   }
+}
+
+// A narrower table's width and place, written as Text writes them on figure.table.
+function ownFigure(figure) {
+  const width = figure?.getAttribute("data-width"),
+    align = figure?.getAttribute("data-align");
+  if (!TABLE_WIDTH.test(width ?? "")) return {};
+  return { width, align: TABLE_ALIGNS.includes(align) ? align : null };
 }
 
 // Widths, emphasis, density and total rows written as Text writes them (FORMAT.md › Table).

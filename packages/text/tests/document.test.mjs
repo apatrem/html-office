@@ -504,8 +504,9 @@ test("convert: a partial table payload keeps the parts it leaves out", async () 
   const { html } = await convertSection(source, "sec-t", md, {
     payloads: new Map(Object.entries(body)),
   });
+  // The table's width and place are kept with the rest.
   const t = html.match(
-    /<figure class="table" id="tab-compact">[^]*?<\/figure>/,
+    /<figure class="table" id="tab-compact" data-width="60" data-align="center">[^]*?<\/figure>/,
   )[0];
   assert.match(t, /<table class="compact">/);
   assert.match(
@@ -531,6 +532,51 @@ test("convert: a partial table payload keeps the parts it leaves out", async () 
     h2,
     /<tr><th>North<\/th><td class="ta-r"><strong>1\.2<\/strong><\/td><\/tr>/,
   );
+});
+
+test("convert: a table payload sets the table's width and place", async () => {
+  const source = await readFile(at("../fixtures/valid/tables.html"), "utf8");
+  const md = sectionMarkdown(source, "sec-t");
+  const figure = async (id, p) =>
+    (
+      await convertSection(source, "sec-t", md, {
+        payloads: new Map([[id, { kind: "table", ...p }]]),
+      })
+    ).html.match(new RegExp(`<figure class="table" id="${id}"[^>]*>`))[0];
+  assert.equal(
+    await figure("tab-plain", { width: 45, align: "right" }),
+    '<figure class="table" id="tab-plain" data-width="45" data-align="right">',
+  );
+  // 100 is the text column: no attribute, and no place.
+  assert.equal(
+    await figure("tab-compact", { width: 100 }),
+    '<figure class="table" id="tab-compact">',
+  );
+  assert.equal(
+    await figure("tab-compact", { align: "left" }),
+    '<figure class="table" id="tab-compact" data-width="60">',
+  );
+  // A place alone on a full-width table has nothing to place.
+  assert.equal(
+    await figure("tab-plain", { align: "center" }),
+    '<figure class="table" id="tab-plain">',
+  );
+  for (const [p, text] of [
+    [{ width: 5 }, "width is a whole percentage of the text column, 10–100"],
+    [{ width: 50.5 }, "width is a whole percentage of the text column, 10–100"],
+    [{ align: "middle" }, 'align is "left", "center" or "right"'],
+    // Values that would only coerce to an alignment.
+    [{ width: 60, align: ["right"] }, 'align is "left", "center" or "right"'],
+    [
+      { columns: [{ align: ["right"] }] },
+      "columns is a list of {width: 1–100, emphasis: true, align: left|center|right}",
+    ],
+    [{ body: [[{ text: "a", align: ["right"] }]] }, "body is a list of rows"],
+  ])
+    assert.throws(
+      () => readPayloads({ "tab-plain": { kind: "table", ...p } }),
+      (e) => e.problems.some((m) => m.includes(text)),
+    );
 });
 
 test("convert: partial chart payloads, and references in payload text", async () => {

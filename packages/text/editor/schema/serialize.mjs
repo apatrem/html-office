@@ -304,10 +304,12 @@ function block(node) {
     case "table_figure":
       return element(
         "figure",
-        [
+        pairs([
           ["class", "table"],
           ["id", a.id],
-        ],
+          ["data-width", a.width],
+          ["data-align", a.align],
+        ]),
         lines(children(node)),
       );
     case "table":

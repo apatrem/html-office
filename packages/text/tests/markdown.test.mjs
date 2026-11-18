@@ -95,7 +95,7 @@ const LOSS = [
   [/^(image_figure|image_figure\..*)$/, "Images"],
   [/^caption$/, "Captions"],
   [
-    /^(table\.|table_row\.total|table_(cell|header)\.(colspan|rowspan|align))/,
+    /^(table\.|table_figure\.|table_row\.total|table_(cell|header)\.(colspan|rowspan|align))/,
     "Tables",
   ],
   [/^protected$/, "Protected blocks"],

@@ -59,6 +59,10 @@ export const CHART_WIDTHS = ["text", "full"];
 export const IMAGE_WIDTHS = ["text", "full"];
 export const WRAP_WIDTHS = ["25", "33", "40", "50"];
 export const WRAPS = ["left", "right"];
+// A table narrower than the text column: a whole percentage of it, 10–99 (no attribute: 100),
+// placed at the left (no attribute), centre or right.
+export const TABLE_WIDTH = /^[1-9][0-9]$/;
+export const TABLE_ALIGNS = ["center", "right"];
 export const THREAD_STATUS = ["open", "resolved"];
 export const COMMENT_DATE =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?Z$/;
