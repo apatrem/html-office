@@ -273,6 +273,15 @@ function start() {
     chart: chartsPlugin.props.handlePaste,
     assets,
   });
+  // A paragraph style refused because a heading must keep its ID says why, from the keyboard and
+  // from the menus alike (the entry stays available so that choosing it explains the refusal).
+  const styled = (style) => (state, dispatch) => {
+    const command = E.setStyle(style);
+    if (command(state, dispatch)) return true;
+    const why = E.whyHeld(command, state);
+    if (why && dispatch) saving.say(why);
+    return !!why;
+  };
   const state = EditorState.create({
     doc,
     plugins: [
@@ -297,9 +306,9 @@ function start() {
         ...Object.fromEntries(
           MARKS.map(([, type, , k]) => [k, toggleMark(type)]),
         ),
-        "Mod-Alt-0": E.setStyle("body"),
+        "Mod-Alt-0": styled("body"),
         ...Object.fromEntries(
-          [1, 2, 3, 4].map((n) => [`Mod-Alt-${n}`, E.setStyle(`h${n}`)]),
+          [1, 2, 3, 4].map((n) => [`Mod-Alt-${n}`, styled(`h${n}`)]),
         ),
         "Mod-Shift-8": E.toggleList(N.bullet_list),
         "Mod-Shift-7": E.toggleList(N.ordered_list),
@@ -383,7 +392,7 @@ function start() {
       },
       () => command(view.state),
     );
-  for (const [style] of E.STYLES) edit(`style-${style}`, E.setStyle(style));
+  for (const [style] of E.STYLES) edit(`style-${style}`, styled(style));
   for (const [id, type] of MARKS) edit(id, toggleMark(type));
   for (const [id, value] of ALIGNS) edit(id, E.setAlign(value));
   edit("bullets", E.toggleList(N.bullet_list));
