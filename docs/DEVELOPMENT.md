@@ -104,7 +104,7 @@ Distribution links are versioned in `src/distribution.json`; documentation and d
 
 ## V1 limits
 
-- Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file.
+- Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file; choosing the opened file remembers it, and later saves (also after reopening it) reuse it only while it still holds the opened document.
 - Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft recognises the opened file and the content actually written by a successful save, including Save As and edits made during writing. After an unrelated version replaces the file at the same path, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
 - The V1 model uses DOM operations and HTML snapshots. Collaboration requires a new mutation model in V2.
 - No attached connectors, rotation, merged table cells, arbitrary fonts/colours, or PPTX export. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.

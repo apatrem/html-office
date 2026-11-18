@@ -67,7 +67,7 @@ Do not save `data-ui` nodes, thumbnails, Moveable/Selecto controls, `contentedit
 
 Canvas: 1,280 × 720 px. Examples below are templates; replace any `…` with deck data. JSON examples in the final section are complete and valid. Their figures are illustrative, not evidence for a real project.
 
-Format 1 · Documentation 0.7.1 · Skill 0.7.1.
+Format 1 · Documentation 0.7.2 · Skill 0.7.2.
 
 Layouts : `default`, `top-left`, `mid-left`, `section`, `quote`, `panel-14`, `panel-13`, `panel-12`, `panel-23`, `three-lines`, `cover`, `end`.
 Shapes: `rect`, `round`, `ellipse`, `triangle`, `diamond`, `hexagon`, `parallelogram`, `pentagon`, `chevron`, `arrow-r`, `arrow-l`, `arrow-u`, `arrow-d`.
