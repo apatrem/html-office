@@ -77,6 +77,8 @@
 #doc tr.tx-head>th{background:var(--header-bg,var(--ink));color:var(--header-ink,var(--bg));font-weight:bold}
 /* Selected cells (T10). */
 #doc .selectedCell{background:rgba(47,93,138,.18)}
+/* Dragging a column border (runtime/table-resize.mjs). */
+#doc.tx-col-resize td,#doc.tx-col-resize th{cursor:col-resize}.tx-col-dragging,.tx-col-dragging *{cursor:col-resize!important;user-select:none}
 @media screen{body.tx-editing{padding-bottom:64px}}
 @media print{.tx-shell,.tx-refusal{display:none!important}#doc .footnote.tx-open{font-size:0;background:none;outline:none}#doc .tx-protected{outline:none}#doc .tx-protected::after{content:none}}
 /* Print (T14): the running header (print.mjs) and page numbers in the page margins; the theme's colours print as shown; header rows repeated on every page from a print-only copy; editing aids never print. A page break before a new-page heading breaks once (Firefox breaks twice with no text between them, as the editor renders them). */
