@@ -19,14 +19,6 @@ rm -f dist/html-slides.plugin
 # The archive ships the html-slides skill only. html-data and html-text stay packaged in plugin/skills
 # (their tests use them there) and join the archive after their blind tests (Data T22, Text T20).
 (cd plugin && zip -qr ../dist/html-slides.plugin .claude-plugin LICENSE README.md THIRD_PARTY_NOTICES.md skills/html-slides -x "*.DS_Store")
-# Refuse an archive holding another skill or missing the Slides skill.
-ENTRIES=$(unzip -Z1 dist/html-slides.plugin)
-OTHER=$(printf '%s\n' "$ENTRIES" | grep '^skills/' | grep -v '^skills/html-slides/' || true)
-if [ -n "$OTHER" ] || ! printf '%s\n' "$ENTRIES" | grep -qx 'skills/html-slides/SKILL.md' \
-  || ! printf '%s\n' "$ENTRIES" | grep -qx '.claude-plugin/plugin.json'; then
-  echo "dist/html-slides.plugin must hold .claude-plugin/plugin.json and skills/html-slides only; other skill entries:" >&2
-  printf '%s\n' "$OTHER" | head -5 >&2
-  rm -f dist/html-slides.plugin
-  exit 1
-fi
+# Refuse (and delete) an archive holding another skill or missing the Slides skill.
+bash tools/check-plugin-archive.sh dist/html-slides.plugin || { rm -f dist/html-slides.plugin; exit 1; }
 echo "Plugin : dist/html-slides.plugin ($(du -h dist/html-slides.plugin | cut -f1))"

@@ -153,3 +153,32 @@ test('inline scripts escape closing tags and refuse a raw comment opener',async(
   assert.equal(inlineScript('a="</script>";b="<!--"','x'),'a="<\\/script>";b="\\x3c!--"');
   assert.throws(()=>inlineScript('a=`<!--${b}-->`','engine'),/engine: a raw "<!--"/);
 });
+
+// Release 0.7.2 ships the html-slides skill only (review of PR #115): the archive check refuses
+// another skill and a missing manifest or SKILL.md (exact names, not patterns), and the skills
+// kept out of the archive promise no release number.
+test('the plugin archive check accepts the Slides skill only', () => {
+  const work = fs.mkdtempSync(path.join(dir, 'archive-')), src = path.join(work, 'plugin');
+  const put = (rel, text = 'x') => { fs.mkdirSync(path.dirname(path.join(src, rel)), { recursive: true }); fs.writeFileSync(path.join(src, rel), text); };
+  const check = (...entries) => {
+    const zip = path.join(work, `p${Math.random().toString(36).slice(2)}.plugin`);
+    assert.equal(spawnSync('zip', ['-qr', zip, ...entries], { cwd: src }).status, 0, 'zip');
+    return spawnSync('bash', [path.join(root, 'tools/check-plugin-archive.sh'), zip], { encoding: 'utf8' });
+  };
+  put('.claude-plugin/plugin.json', '{}'); put('README.md'); put('skills/html-slides/SKILL.md'); put('skills/html-data/SKILL.md');
+  put('.claude-plugin/pluginXjson'); put('skills/html-slides/SKILLxmd');
+  assert.equal(check('.claude-plugin/plugin.json', 'README.md', 'skills/html-slides').status, 0);
+  const other = check('.claude-plugin/plugin.json', 'skills');
+  assert.notEqual(other.status, 0); assert.match(other.stderr, /skills\/html-data\//);
+  for (const entries of [['.claude-plugin/pluginXjson', 'skills/html-slides/SKILL.md'], ['.claude-plugin/plugin.json', 'skills/html-slides/SKILLxmd']]) {
+    const r = check(...entries);
+    assert.notEqual(r.status, 0, entries.join(' ')); assert.match(r.stderr, /Missing:/);
+  }
+  const release = fs.readFileSync(path.join(root, 'tools/release.sh'), 'utf8');
+  assert.ok(release.indexOf('tools/check-plugin-archive.sh dist/html-slides.plugin') > release.indexOf('zip -qr ../dist/html-slides.plugin'));
+  for (const file of ['html-data/tools/workbook.mjs', 'html-text/tools/document.mjs']) {
+    const text = fs.readFileSync(path.join(root, 'plugin/skills', file), 'utf8');
+    assert.match(text, /archive html-slides\.plugin, in a later release/, file);
+    assert.doesNotMatch(text, /from the first release after/, file);
+  }
+});
