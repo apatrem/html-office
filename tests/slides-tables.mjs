@@ -24,6 +24,7 @@ const TABLE = '<table class="t"><tbody><tr><th>Plot</th><th class="n">Spring</th
 const example = fs.readFileSync(path.join(ROOT, 'plugin/skills/html-slides/examples/community-garden.html'), 'utf8');
 const deck = theme => upgrade(example, { theme }).replace('</main>', `<section class="slide" id="s90" data-layout="default"><h1>Widths</h1>${TABLE}<p class="source">Source: fictional</p></section>
 <section class="slide" id="s91" data-layout="default"><h1>Paste here</h1><p class="source">Source: fictional</p></section>
+<section class="slide" id="s93" data-layout="default"><h1>Many columns</h1><table class="t"><colgroup><col data-width="20">${'<col data-width="4">'.repeat(20)}</colgroup><tbody><tr>${'<td>x</td>'.repeat(21)}</tr><tr>${'<td>y</td>'.repeat(21)}</tr></tbody></table><p class="source">Source: fictional</p></section>
 <section class="slide" id="s92" data-layout="default"><h1>Wrapped</h1><div class="box w-6">${TABLE.replace('Raised beds', 'Raised beds along the north fence of the garden')}</div><p class="source">Source: fictional</p></section></main>`);
 const FILE = path.join(DIR, 'deck.html');
 fs.writeFileSync(FILE, deck(true));
@@ -310,6 +311,37 @@ async function drag(engine) {
         return { host: host.getBoundingClientRect().bottom, table: t.getBoundingClientRect().bottom, detached: host.closest('section').hasAttribute('data-detached') };
       });
       ok(box.detached && box.host >= box.table - 1, tag(`the wrapper's frame holds its taller table (${Math.round(box.table)} ≤ ${Math.round(box.host)})`));
+    }
+    // Review regressions (Codex, 12 Nov): rounding never piles onto the dragged column. A first
+    // column of 20% and twenty of 4%: the first grows by the drag, within 1% of the table.
+    {
+      await page.locator('#s93 > table').scrollIntoViewIfNeeded();
+      const cols = () => page.evaluate(() => {
+        const t = document.querySelector('#s93 > table'), k = t.closest('section').getBoundingClientRect().width / 1280;
+        return { k, w: [...t.rows[0].cells].map(c => c.getBoundingClientRect().width / k), table: t.getBoundingClientRect().width / k,
+          x: t.rows[0].cells[0].getBoundingClientRect().right, y: t.rows[0].cells[0].getBoundingClientRect().top + 8 };
+      });
+      const a = await cols();
+      await page.mouse.move(a.x - 2, a.y);
+      await page.mouse.down();
+      await page.mouse.move(a.x - 2 + 60 * a.k, a.y, { steps: 4 });
+      await page.mouse.up();
+      const b = await cols();
+      ok(Math.abs(b.w[0] - (a.w[0] + 60)) <= b.table / 100 + 1, tag(`many columns: the first grows by the drag (${Math.round(a.w[0])} → ${Math.round(b.w[0])} px)`));
+      await page.keyboard.press('ControlOrMeta+z');
+    }
+    // The click that ends a drag activates nothing; a click right after it works.
+    {
+      await page.locator('#s90 > table').scrollIntoViewIfNeeded();
+      await page.evaluate(() => { globalThis.clicks = 0; document.addEventListener('click', () => globalThis.clicks++); });
+      const before = await state();
+      await dragBy(40 * before.k);
+      ok(await page.evaluate(() => globalThis.clicks) === 0, tag('the click ending a drag reaches nothing'));
+      ok((await state()).detached, tag('the drag applied'));
+      await page.getByRole('button', { name: 'Undo', exact: true }).click();
+      const after = await state();
+      ok(await page.evaluate(() => globalThis.clicks) === 1 && !after.detached && after.group === null,
+        tag('a click on Undo right after the drag works'));
     }
     ok(!errors.length, tag(`no JavaScript error (${errors})`));
   } finally {

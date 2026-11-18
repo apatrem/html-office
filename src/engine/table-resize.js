@@ -8,7 +8,7 @@ import { state, begin, commit, detach, getPos, setPos, replaceSlide } from './mo
 import { tableGrid, columnWidths, setColumnWidths, wholePercents } from './tables.js';
 
 const EDGE = 4, SLIDE_W = 1280, MIN_COL = 24;
-let active = null, ended = 0;
+let active = null, finishing = false;
 
 // The slide's child that holds the table: its frame.
 const hostOf = table => { let el = table; while (el.parentElement && !el.parentElement.matches('section.slide')) el = el.parentElement; return el; };
@@ -115,7 +115,8 @@ function start(e, b, hooks) {
   const end = keep => {
     if (active !== end) return;
     active = null;
-    if (p0) ended = Date.now();
+    // The click the release produces comes in the same input task: only it is swallowed.
+    if (p0) { finishing = true; setTimeout(() => { finishing = false; }); }
     for (const [type, f] of listeners) removeEventListener(type, f, true);
     document.body.classList.remove('hs-col-dragging');
     if (!p0 || !table.isConnected) return;
@@ -138,8 +139,13 @@ export function initTableResize(hooks) {
   state.main.addEventListener('pointerleave', () => document.body.classList.remove('hs-col-resize'));
   // Before Selecto and Moveable, which would select or move the table: a press on a border is ours.
   // During a drag no other pointer starts anything (a selection, a move, a command), nor does the
-  // click that ends it.
-  const block = e => { if (active || Date.now() - ended < 400) { e.preventDefault(); e.stopPropagation(); } };
+  // click that ends it; a click after that works as usual.
+  const block = e => {
+    if (!active && !(finishing && e.type === 'click')) return;
+    if (!active) finishing = false;
+    e.preventDefault();
+    e.stopPropagation();
+  };
   for (const type of ['click', 'touchstart']) addEventListener(type, block, { capture: true, passive: false });
   addEventListener('pointerdown', e => {
     if (active) { e.preventDefault(); e.stopPropagation(); return; }
