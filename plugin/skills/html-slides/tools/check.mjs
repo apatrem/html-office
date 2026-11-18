@@ -99,8 +99,22 @@ const report = await page.evaluate(({ LAYOUTS, CLASSES, RUNTIME, SHAPES, THEMES,
           c += cell.colSpan;
         }
       });
-      problems.forEach(m => add('error', sid, el.dataset.id, m));
       const widths = taken.map(row => row.length);
+      // column widths: one colgroup first, one col per column, data-width a whole percentage
+      const groups = [...t.children].filter(k => k.localName === 'colgroup'), group = groups[0];
+      if (groups.length > 1 || (group && t.firstElementChild !== group)) problems.add('A table holds at most one colgroup, before its rows');
+      if (group) {
+        if (group.attributes.length) problems.add('Attributes on <colgroup>');
+        for (const col of group.children) {
+          if (col.localName !== 'col') { problems.add(`<${col.localName}> in <colgroup>`); continue; }
+          for (const a of col.attributes)
+            if (a.name !== 'data-width') problems.add(`Attribute ${a.name} on <col> (only data-width)`);
+            else if (!/^([1-9]\d?|100)$/.test(a.value)) problems.add(`Column data-width is a whole percentage 1–100, not "${a.value}"`);
+        }
+        const n = Math.max(0, ...widths);
+        if (group.children.length !== n) problems.add(`${group.children.length} <col> for a table of ${n} columns`);
+      }
+      problems.forEach(m => add('error', sid, el.dataset.id, m));
       if (new Set(widths).size > 1) add('warning', sid, el.dataset.id, `Table rows cover different numbers of columns (${widths.join(', ')}): add cells or adjust colspan`);
     }));
     // safety: content must never be able to run code when the file is opened

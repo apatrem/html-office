@@ -8,7 +8,7 @@ import { SCHEMA, LIMITS, ClipboardError, readClipboard, writeClipboard, figureHT
 import { registry, readData, previewOf } from '../../packages/shared/charts/index.mjs';
 import { readChart, chartTable, chartText, CHART_LIMITS } from '../../packages/shared/charts/clipboard.mjs';
 import { FORMAT_VERSION } from '../format.js';
-import { tableGrid } from './tables.js';
+import { tableGrid, columnWidths } from './tables.js';
 
 // Largest table pasted into a slide (ADR-013 §3); density stays a checker matter.
 export const LIMIT = { rows: 50, columns: 12 };
@@ -116,6 +116,8 @@ export function tableModel(table) {
   if (headerRows) model.headerRows = headerRows;
   const totals = g.rows.flatMap((tr, r) => (tr.classList.contains('tot') ? [r] : []));
   if (totals.length) model.totalRows = totals;
+  const widths = columnWidths(table);
+  if (widths.some(w => w)) model.columns = widths.map(w => (w ? { width: w } : {}));
   return validateTable(model);
 }
 
@@ -205,7 +207,13 @@ export function tableElement(table) {
     });
     return `<tr${tot ? ' class="tot"' : ''}>${cells.join('')}</tr>`;
   });
-  return { html: `<table class="t">${rows.join('')}</table>`, dropped };
+  return { html: `<table class="t">${colgroup(table.columns)}${rows.join('')}</table>`, dropped };
+}
+// Column widths as whole percentages of the table (FORMAT.md › Tables), kept as given (rounded,
+// at most 100 each, as the checker accepts them); a width under half a percent is automatic.
+function colgroup(columns) {
+  const whole = (columns ?? []).map(c => (c.width === undefined || c.width < 0.5 ? null : Math.min(100, Math.round(c.width))));
+  return whole.some(w => w) ? `<colgroup>${whole.map(w => (w ? `<col data-width="${w}">` : '<col>')).join('')}</colgroup>` : '';
 }
 
 // ---------- reading a paste ----------

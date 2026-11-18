@@ -125,6 +125,8 @@ jobs:
           CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-clipboard.mjs
       - name: Slides charts through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02c)
         run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-charts-clipboard.mjs
+      - name: Slides table column widths in Chromium, Firefox and WebKit
+        run: SLIDES_ENGINES=chromium,firefox,webkit node tests/slides-tables.mjs
       - name: Save in place - Cmd/Ctrl+S downloads a copy in Firefox and WebKit (Slides, Data)
         run: |
           node tests/save-in-place-slides.mjs

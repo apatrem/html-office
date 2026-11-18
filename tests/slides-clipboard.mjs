@@ -354,9 +354,9 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       lastCopy = await data.evaluate(() => globalThis.copied);
       await paste(b, 's05', 'keyboard');
       const fromData = await last(b, 's05');
-      ok(fromData === '<table class="t"><tbody><tr><th class="ta-c" colspan="2">Hours</th><th>Note</th></tr><tr><td>Spring</td><td class="n">120</td><td><span class="neg">Dry</span></td></tr>' +
+      ok(fromData === '<table class="t"><colgroup><col data-width="33"><col data-width="33"><col data-width="33"></colgroup><tbody><tr><th class="ta-c" colspan="2">Hours</th><th>Note</th></tr><tr><td>Spring</td><td class="n">120</td><td><span class="neg">Dry</span></td></tr>' +
         '<tr><td>Summer</td><td class="n">46</td><td>Guide</td></tr><tr class="tot"><td>Total</td><td class="n">165.5</td><td></td></tr></tbody></table>',
-        'Data → Slides: header row, centre across selection as colspan, numbers right-aligned as displayed, alert as neg, total row' + '\n      ' + fromData);
+        'Data → Slides: column widths, header row, centre across selection as colspan, numbers right-aligned as displayed, alert as neg, total row' + '\n      ' + fromData);
       ok(/1 link was not carried over/.test(await banner(b)), 'Data → Slides: the dropped link is counted');
       await copy(a, '#s90 > table');
       await data.bringToFront();

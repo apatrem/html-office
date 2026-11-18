@@ -77,6 +77,46 @@ export function deleteRow(table, at) {
   g.rows.splice(at, 1);
   rebuild(g, r => emptyLike(rowLike(g, r)));
 }
+// ---------- column widths (FORMAT.md › Tables) ----------
+// A colgroup with one col per grid column, each with an optional data-width (a whole percentage of
+// the table), present only while a column has a width.
+const group = table => table.querySelector(':scope > colgroup');
+export const columnWidths = table => {
+  const n = tableGrid(table).width, cols = group(table)?.children;
+  return Array.from({ length: n }, (_, i) => (cols?.[i]?.dataset.width ? Number(cols[i].dataset.width) : null));
+};
+// widths: one whole percentage or null per column.
+export function setColumnWidths(table, widths) {
+  group(table)?.remove();
+  if (widths.some(w => w)) {
+    const g = document.createElement('colgroup');
+    for (const w of widths) {
+      const col = g.appendChild(document.createElement('col'));
+      if (w) col.dataset.width = String(w);
+    }
+    table.prepend(g);
+  }
+  relayout(table);
+}
+// WebKit keeps the column layout of a table in a grid slide when its colgroup changes: a passing
+// change of table-layout makes it lay the table out again, without touching focus or selection.
+function relayout(table) {
+  const had = table.hasAttribute('style');
+  table.style.tableLayout = 'fixed';
+  void table.offsetWidth;
+  table.style.removeProperty('table-layout');
+  if (!had && !table.getAttribute('style')) table.removeAttribute('style');
+}
+// Every column the same width, adding up to 100%.
+export const evenWidths = n => Array.from({ length: n }, (_, i) => Math.floor(100 / n) + (i < 100 % n ? 1 : 0));
+// After a column is inserted (width null) or deleted at grid column `at`.
+function shiftWidths(table, at, insert) {
+  if (!group(table)) return;
+  const w = [...group(table).children].map(col => (col.dataset.width ? Number(col.dataset.width) : null));
+  if (insert) w.splice(at, 0, null); else w.splice(at, 1);
+  setColumnWidths(table, w);
+}
+
 // Inserted before grid column `at`; new cells take the look of the cell on their left.
 export function insertColumn(table, at) {
   const g = tableGrid(table);
@@ -90,6 +130,7 @@ export function insertColumn(table, at) {
   for (const a of crossing) a.cs++;
   g.anchors.push(...fresh);
   rebuild(g, r => emptyLike(rowLike(g, r)));
+  shiftWidths(table, at, true);
   return fresh;
 }
 export function deleteColumn(table, at) {
@@ -100,6 +141,7 @@ export function deleteColumn(table, at) {
     else if (a.c > at) a.c--;
   }
   rebuild(g, r => emptyLike(rowLike(g, r)));
+  shiftWidths(table, at, false);
 }
 // Unmerges `cells` (every merged cell when omitted): each covered position gets an empty cell.
 export function unmerge(table, cells) {

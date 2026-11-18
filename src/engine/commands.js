@@ -48,7 +48,8 @@ export function slideCommands(save) {
   R('duplicate', onEls(E.duplicateSel), any);
   R('delete', onEls(E.removeSel), any);
   R('chart-data', E.dataPanel, () => edit() && E.context().chart);
-  for (const op of ['row+', 'row-', 'col+', 'col-', 'unmerge']) R('table' + op, () => E.tableOp(op), () => edit() && E.context().table && E.tableCan(op));
+  for (const op of ['row+', 'row-', 'col+', 'col-', 'unmerge', 'distribute']) R('table' + op, () => E.tableOp(op), () => edit() && E.context().table && E.tableCan(op));
+  R('tablewidth', E.columnWidth, () => edit() && E.context().table && E.tableCan('width'));
   // Copy acts on a selected table; Paste adds the clipboard's table to the current slide (ADR-013).
   R('copy', E.copySel, () => edit() && E.copyable());
   R('paste', E.pasteMenu, edit);

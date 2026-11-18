@@ -79,7 +79,8 @@ export function mountShell(cmd) {
   const arrangeItems = () => ARRANGE.map(a => (a === '-' ? a : item(a[0], a[1], { args: [a[2]], icon: svg(a[3]), shortcut: a[4] && key(a[4]) })));
   const tableItems = () => [item('Insert row below', 'tablerow+', { resume: true }), item('Delete row', 'tablerow-', { resume: true }),
     item('Insert column right', 'tablecol+', { resume: true }), item('Delete column', 'tablecol-', { resume: true }), '-',
-    item('Unmerge cells', 'tableunmerge', { resume: true })];
+    item('Unmerge cells', 'tableunmerge', { resume: true }), '-',
+    item('Column width…', 'tablewidth', { resume: true }), item('Distribute columns evenly', 'tabledistribute', { resume: true })];
   const guide = () => (cmd.enabled('guide') ? [item('File format guide', 'guide')] : []);
 
   // Every command has a home in the menus; the toolbar repeats the frequent ones.
