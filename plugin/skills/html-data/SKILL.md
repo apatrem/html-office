@@ -20,6 +20,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
    - each cell has `input` (typed: `{"type":"number","value":12}`) or `formula` (`"=B2*C2"`), never both, and never `result`: calculation writes it;
    - numbers are JSON numbers; dates are Excel 1900 serial numbers with a date format;
    - formatting uses the closed vocabulary (cell styles, number formats, charte tokens); no literal colours, fonts or sizes; nothing executable.
+   - for multi-step calculations, name data columns with named ranges and use `LET`, `LAMBDA` (with `MAP`/`BYROW`), `FILTER`/`SORT`/`UNIQUE` and `XLOOKUP` (FORMAT.md › Readable formulas, `examples/valid/formulas.json`); not `GROUPBY`/`PIVOTBY` (use a pivot table), structured references such as `Sales[Amount]` (use named ranges) or named `LAMBDA`s (name them with `LET`). A formula returning an array spills into the cells below and right, which must stay empty.
 4. Build: `node <skill>/tools/workbook.mjs new out.html --model model.json` (add `--offline` for a file that also calculates without the network, `--charte theme.css` for branding; core tokens it leaves out take the default charte's values, and `new` names them). `new` calculates results and draws chart previews but does not refresh pivot tables: when the model has `pivots`, run `recalculate out.html --in-place --refresh-pivots` next.
 5. Validate the model output **with at most two corrective retries**: if `new` lists errors, fix exactly those in the JSON and run it again. After two failed corrections, stop and report the remaining errors; deliver nothing unverified.
 6. Check: `node <skill>/tools/workbook.mjs validate out.html` must say `Valid.` Then `inspect out.html --range "Summary!A1:F20"` and read the displayed values (one line per cell: formula or input, result, displayed text): check totals and signs against what the user expects.
@@ -37,7 +38,7 @@ Deliver one `.html` file containing the canonical JSON workbook, its calculated 
 
 ## Rules
 
-- Never hand-write `result`, `snapshot`, pivot output cells or chart `preview`: they are caches; `apply` and `recalculate` compute them. A file whose results are stale opens with a warning and recalculates on the first edit, but deliver files that `validate` reports as valid.
+- Never hand-write `result`, `spill`, `snapshot`, pivot output cells or chart `preview`: they are caches; `apply` and `recalculate` compute them. A file whose results are stale opens with a warning and recalculates on the first edit, but deliver files that `validate` reports as valid.
 - Keep IDs (sheets, validations, rules, pivots, charts) stable; never renumber or reuse them. Sheets are created, renamed and reordered in the browser, not by patches.
 - One value source per cell. Keep text that looks like a number (`"0012"`) as text. Use the scenario dropdown for alternatives instead of copying sheets.
 - Charts take one rectangular block, header row first (FORMAT.md › Charts); pivot tables read a range or a table sheet and own their output cells.

@@ -51,6 +51,51 @@ Policy A saves every populated formula result without a rectangular position cut
 
 See [ADR-005](https://github.com/apatrem/html-office/blob/main/docs/decisions/005-data-storage.md) for the decision, [Phase A evidence](https://github.com/apatrem/html-office/blob/main/packages/data/PHASE-A-REPORT.md) for limits, and [the storage review](https://github.com/apatrem/html-office/blob/main/packages/data/bench/storage/REVIEW.md) for the isolated HTML-only trials. Later T06–T22 work remains separate.
 
+## Spilled array results
+
+A formula that returns an array, such as `=SEQUENCE(3)`, `=FILTER(Product,Amount>=95)` or `=C2:C6*2`, fills ("spills" into) the cells right of and below it, as in Excel. Its formula cell, the anchor, keeps its `result` (the top-left value) and adds `spill`, a calculated result like `result`:
+
+```json
+"D1": {
+  "formula": "=SEQUENCE(3)",
+  "result": { "type": "number", "value": 1 },
+  "spill": {
+    "ref": "D1:D3",
+    "results": [
+      [{ "type": "number", "value": 1 }],
+      [{ "type": "number", "value": 2 }],
+      [{ "type": "number", "value": 3 }]
+    ]
+  }
+}
+```
+
+- `ref` is the whole rectangle, starting at the anchor and covering at least two cells. `results` holds one array of typed values per row, `width` values each; the first equals `result`. Spill rectangles do not overlap one another.
+- A covered cell has no record of its own, or only presentation (`cellStyle`, `format`, `style`), which applies to the spilled value. Readers (grid, PNG, print, CSV, copy, charts, pivot sources, dropdown sources, data bars, `inspect`) show the spilled value there; `inspect` lists it as `(spilled from D1)`. `D1#` in a formula refers to the spilled range.
+- A covered cell that receives its own input or formula keeps it: the anchor shows `#SPILL!` once recalculated, with no `spill`, and spills again when the cell is cleared. In the editor, covered cells are drawn in muted italics, show the anchor's formula read-only, and refuse direct edits (edit the anchor instead); pasting over them is allowed and blocks the spill, as in Excel. Copying a covered cell copies its value; copying the anchor copies its formula.
+- Spills are calculated results: patches cannot write them, and stale or missing results follow the snapshot rules above. Inserting or deleting rows or columns drops the spills of that sheet's anchors until the recalculation that follows; undo restores them.
+- Files written before spills were saved simply have no `spill` field and remain readable; they show spilled values after the next recalculation. IronCalc's binding does not report spill ranges, so the adapter reads them from the values (a spilled value is never blank). Where a spill passes along the row or column of another formula that could spill too, a separate engine instance measures both with `ROWS(D1#)`/`COLUMNS(D1#)`; formulas made only of single-cell references, operators and common scalar functions are known not to spill.
+
+## Readable formulas
+
+Formulas use Excel syntax with English function names and run in IronCalc. For multi-step calculations, prefer named steps and array functions over long nested formulas or helper columns. [`examples/valid/formulas.json`](https://github.com/apatrem/html-office/blob/main/packages/data/examples/valid/formulas.json) shows each pattern below on fictional orders; `tests/formulas.test.mjs` checks every result.
+
+- **Named ranges for columns.** Define one name per data column (`{"name":"Amount","sheetId":"orders","ref":"C2:C7"}`) and write `=SUMIFS(Amount,Region,"North")` or `=SUMPRODUCT((Region="North")*Amount)` instead of `Orders!$C$2:$C$7`.
+- **`LET` names intermediate values:** `=LET(total,SUM(Amount),MAP(B2#,LAMBDA(x,ROUND(x/total,3))))`. A `LET` can also name a `LAMBDA` used several times: `=LET(perUnit,LAMBDA(a,u,a/u),ROUND(perUnit(SUM(Amount),SUM(Units)),2))`.
+- **`LAMBDA` with `MAP`, `BYROW`, `BYCOL`, `REDUCE`:** `=MAP(A2#,LAMBDA(r,SUMIFS(Amount,Region,r)))` computes one total per spilled region; `=BYROW(Orders!C2:D7,LAMBDA(r,INDEX(r,1,1)/INDEX(r,1,2)))` one value per row.
+- **`FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `TAKE`, `CHOOSECOLS`, `HSTACK`, `VSTACK`, `SEQUENCE`** spill their results (see Spilled array results): `=SORT(UNIQUE(Region))`, `=FILTER(Product,Amount>=95)`, `=TAKE(SORTBY(Orders!A2:C7,Amount,-1),2)`. Refer to a spilled list with `A2#`.
+- **`XLOOKUP`** replaces `INDEX`/`MATCH` pairs: `=XLOOKUP("West",Region,Amount,"none")` gives a fallback, and search mode `-1` finds the last match.
+
+Not supported by the pinned engine or the format:
+
+- `GROUPBY` and `PIVOTBY` return `#NAME?`: use a pivot table (Pivot tables) or `UNIQUE` with `MAP`/`SUMIFS`.
+- Structured table references such as `Orders[Amount]` return `#ERROR!`: use named ranges.
+- Named `LAMBDA` functions: a workbook name is a cell rectangle, so a `LAMBDA` cannot be saved as a name. Name it inside the formula with `LET`.
+- A `LET` or `LAMBDA` name equal to a function (`price` is `PRICE`) or to a named range fails (`#ERROR!`, `#VALUE!`): choose other names.
+- `SUMIFS`/`COUNTIFS` criteria given as an array return one value, not an array: wrap them in `MAP` as above.
+- A `BYROW`/`BYCOL` `LAMBDA` must return one value per row (`SUM(r)`, `INDEX(r,1,2)`); one returning the row or a 1×1 array (`r*2`) gives `#VALUE!` for each row.
+- `ROUND` over an array returns `#N/IMPL`: round each value inside `MAP`.
+
 ## Structural edits and named references
 
 Named ranges retain `{name, sheetId, ref}`. `ref` is an A1 rectangle or the explicit string `"#REF!"` when a structural edit removes every referenced cell. Partial deletion shrinks the range; insertion relocates or expands it. Stable sheet IDs remain unchanged. Row/column operations obtain formula rewrites from IronCalc and return them to the readable model. A generated filename or opaque engine state is never required to restore references.
