@@ -15,6 +15,7 @@ import { ownerRects, pivotOwner, pivotLabel } from "../model/pivot.mjs";
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { snapshotState } from "../model/snapshots.mjs";
 import { display } from "../runtime/view.mjs";
+import { cellAt } from "../model/spills.mjs";
 import { jsonStringify } from "../model/json.mjs";
 
 export const MAX_INSPECT_CELLS = 5000,
@@ -153,8 +154,14 @@ export function inspectRange(book, target, sheetKey) {
   for (let row = rect.top; row <= rect.bottom; row++)
     for (let col = rect.left; col <= rect.right; col++) {
       const ref = address(row, col),
-        cell = sheet.cells[ref];
-      if (cell) cells.push({ ref, cell, shown: display(cell, book.locale) });
+        cell = cellAt(sheet, ref);
+      if (!cell) continue;
+      const shown = display(cell, book.locale);
+      // A spilled cell has no formula of its own: it names its anchor.
+      if (cell.spilledFrom) {
+        const { formula, ...spilled } = cell;
+        cells.push({ ref, cell: spilled, shown });
+      } else cells.push({ ref, cell, shown });
     }
   return {
     sheetId: sheet.id,
@@ -192,12 +199,14 @@ export function compactRange({ sheet, range, cells }, results) {
     ["Cell", "Formula or input", "Result", "Shown"],
     ...cells.map(({ ref, cell, shown }) => [
       ref,
-      cell.formula
-        ? oneLine(cell.formula)
-        : cell.input
-          ? scalarText(cell.input)
-          : "(empty)",
-      cell.formula ? scalarText(cell.result) : "",
+      cell.spilledFrom
+        ? `(spilled from ${cell.spilledFrom})`
+        : cell.formula
+          ? oneLine(cell.formula)
+          : cell.input
+            ? scalarText(cell.input)
+            : "(empty)",
+      cell.formula || cell.spilledFrom ? scalarText(cell.result) : "",
       oneLine(shown),
     ]),
   ];
@@ -333,8 +342,12 @@ export function applyPatch(book, patch) {
       );
       continue;
     }
-    if (edit.cell && Object.hasOwn(edit.cell, "result")) {
-      errors.push(`${at}: do not write "result"; recalculation computes it.`);
+    const computed =
+      edit.cell && ["result", "spill"].find((k) => Object.hasOwn(edit.cell, k));
+    if (computed) {
+      errors.push(
+        `${at}: do not write "${computed}"; recalculation computes it.`,
+      );
       continue;
     }
     const existing = sheet.cells[ref];
@@ -351,8 +364,14 @@ export function applyPatch(book, patch) {
         if (existing?.input) cell.input = existing.input;
         if (existing?.formula) cell.formula = existing.formula;
       }
-      if (cell.formula && cell.formula === existing?.formula && existing.result)
+      if (
+        cell.formula &&
+        cell.formula === existing?.formula &&
+        existing.result
+      ) {
         cell.result = existing.result;
+        if (existing.spill) cell.spill = existing.spill;
+      }
       try {
         validateCell(cell, next);
       } catch (error) {

@@ -13,6 +13,7 @@ import {
 import { validatePivots } from "./pivot.mjs";
 import { validateCharts } from "./charts.mjs";
 import { validateSources } from "./sources.mjs";
+import { validateSpills } from "./spills.mjs";
 // Normalized sparse model used by the engine. Physical HTML uses document.mjs.
 export const VERSION = "html-data/0.1";
 export const ERRORS = [
@@ -162,7 +163,7 @@ export function validateFormat(format) {
 export function validateCell(cell, book) {
   fields(
     cell,
-    ["input", "formula", "result", "format", "cellStyle", "style"],
+    ["input", "formula", "result", "spill", "format", "cellStyle", "style"],
     "cell",
   );
   if (cell.formula !== undefined) {
@@ -178,6 +179,14 @@ export function validateCell(cell, book) {
   if (cell.result !== undefined) {
     if (!cell.formula) fail("Result requires formula");
     validateValue(cell.result);
+  }
+  // Positions and results are checked per sheet (validateSpills).
+  if (cell.spill !== undefined) {
+    if (!cell.result) fail("Spill requires a formula result");
+    fields(cell.spill, ["ref", "results"], "spill");
+    if (!/^[A-Z]+\d+:[A-Z]+\d+$/.test(cell.spill.ref))
+      fail("Invalid spill range");
+    parseRange(cell.spill.ref);
   }
   // Catalogue membership (built-in or custom) is checked by validateWorkbook.
   if (cell.cellStyle !== undefined && !id(cell.cellStyle))
@@ -444,6 +453,7 @@ export function validateWorkbook(book) {
       if (cell.cellStyle !== undefined && !cellStyles.has(cell.cellStyle))
         fail(`Unknown cell style: ${cell.cellStyle}`);
     }
+    validateSpills(sheet, validateValue);
     validateAxes(sheet);
     validateSheetLinks(sheet, sheetIds);
   }

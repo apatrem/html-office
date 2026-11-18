@@ -3,6 +3,7 @@ import {
   parseRange,
   validateConditionalFormats,
 } from "./workbook.mjs";
+import { readView } from "./spills.mjs";
 export function setConditionalFormat(book, rule) {
   const rules = [...(book.conditionalFormats ?? [])],
     index = rules.findIndex((r) => r.id === rule.id);
@@ -106,13 +107,15 @@ export function conditionalScales(
           scale.count++;
         }
     }
-    for (const ref in sheet.cells)
+    // Spilled values count too (F-01).
+    const view = readView(sheet);
+    for (const ref in view.cells)
       inspect(
         ref,
-        replacements?.has(ref) ? replacements.get(ref) : sheet.cells[ref],
+        replacements?.has(ref) ? replacements.get(ref) : view.cells[ref],
       );
     for (const [ref, cell] of replacements ?? [])
-      if (!Object.hasOwn(sheet.cells, ref)) inspect(ref, cell);
+      if (!Object.hasOwn(view.cells, ref)) inspect(ref, cell);
   }
   return scales;
 }

@@ -2,7 +2,8 @@ import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
 import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
 import { computePivot, pivotFingerprint, validatePivots, PIVOT_ERROR } from "../model/pivot.mjs";
-import {validateWorkbook, validateValue, parseAddress, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
+import {validateWorkbook, validateValue, parseAddress, address, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
+import { occupied, forgetSpills } from '../model/spills.mjs';
 import { ENGINE } from './identity.mjs';
 export { ENGINE } from './identity.mjs';
 export function engineInput(cell) {
@@ -12,6 +13,21 @@ export function engineInput(cell) {
   if(v.type==='text')return `'${v.value}`;
   if(v.type==='boolean')return v.value?'TRUE':'FALSE';
   return Object.is(v.value,-0)?'-0':String(v.value);
+}
+// Formulas that cannot return an array: single-cell references, constants,
+// operators and these functions, with no range, name, spill reference or
+// array constant. They never spill, so they never need measuring.
+const SCALAR_FUNCTIONS=new Set('ABS AND AVERAGE CONCAT CONCATENATE COUNT COUNTA DATE DAY EDATE EOMONTH EXP IF IFERROR IFNA IFS INT ISBLANK ISERROR ISNUMBER ISTEXT LEFT LEN LN LOG LOWER MAX MID MIN MOD MONTH N NOT OR POWER PROPER RIGHT ROUND ROUNDDOWN ROUNDUP SQRT SUM TEXT TRIM UPPER VALUE YEAR'.split(' '));
+export function scalarFormula(formula){
+  const text=formula.slice(1).replace(/"(?:[^"]|"")*"/g,'""').replace(/'(?:[^']|'')*'!/g,'S!');
+  if(/[:#{\[]/.test(text))return false;
+  for(const m of text.matchAll(/(\$?[A-Za-z_][\w.$]*)(\s*[(!])?/g)){
+    const [,word,next]=m;
+    if(next?.includes('!'))continue;
+    if(next?.includes('(')){if(!SCALAR_FUNCTIONS.has(word.toUpperCase()))return false;continue;}
+    if(!/^\$?[A-Za-z]{1,3}\$?\d+$/.test(word)&&!/^(TRUE|FALSE)$/i.test(word))return false;
+  }
+  return true;
 }
 export class EngineSession {
   constructor(module){this.module=module;this.engine=null;}
@@ -112,14 +128,94 @@ export class EngineSession {
   }
   result(sheetIndex,ref){
     const {row,column}=parseAddress(ref),[type,value]=this.engine.getCellValue(sheetIndex,row,column);
-    const result=type==='blank'?{type}:{type,value};validateValue(result);return result;
+    // IronCalc's English text for its "not implemented" error ends with "!";
+    // the model keeps its code, #N/IMPL. Any other unknown code still fails.
+    const result=type==='blank'?{type}:{type,value:type==='error'&&value==='#N/IMPL!'?'#N/IMPL':value};validateValue(result);return result;
   }
   async calculateDelta(){
     this.engine.evaluate();
     const results=[];
-    this.book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){cell.result=this.result(i,ref);results.push({sheetId:sheet.id,ref,result:cell.result});}});
+    this.book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){cell.result=this.result(i,ref);delete cell.spill;results.push({sheetId:sheet.id,ref,result:cell.result});}});
+    // Spilled arrays are saved on their anchor as {ref, results} (F-01).
+    const spills=this.spills();
+    for(const entry of results){const spill=spills.get(`${entry.sheetId}!${entry.ref}`);if(spill){entry.spill=spill;this.book.sheets.find(s=>s.id===entry.sheetId).cells[entry.ref].spill=spill;}}
+    this.book.sheets.forEach(sheet=>forgetSpills(sheet.cells));
     this.book.snapshot={engine:ENGINE,fingerprint:await fingerprint(this.book),calculatedAt:new Date().toISOString()};
     return {results,snapshot:this.book.snapshot};
+  }
+  // IronCalc's binding does not expose spill ranges, so they are read from
+  // the values: a spill cell is a cell without its own input or formula
+  // whose value is not blank (spilled values never are). From each formula,
+  // the run of spill cells below it gives its height and the run to its
+  // right its width. These runs are exact unless two of them overlap, which
+  // happens when another spill passes along the anchor's row or column; the
+  // engine then measures those anchors with ROWS(A1#) and COLUMNS(A1#).
+  spills(){
+    const found=new Map(),ambiguous=[];
+    this.book.sheets.forEach((sheet,i)=>{
+      const free=(row,column)=>row<=1048576&&column<=16384&&!occupied(sheet.cells[address(row,column)])&&this.engine.getCellValue(i,row,column)[0]!=='blank';
+      const rects=[],owner=new Map();
+      for(const [ref,cell] of Object.entries(sheet.cells))if(cell.formula&&!scalarFormula(cell.formula)){
+        const {row,column}=parseAddress(ref);let height=1,width=1;
+        while(free(row+height,column))height++;
+        while(free(row,column+width))width++;
+        if(height*width>1)rects.push({ref,row,column,height,width});
+      }
+      for(const rect of rects)for(let y=0;y<rect.height;y++)for(let x=0;x<rect.width;x++){
+        const key=(rect.row+y)*16385+rect.column+x,other=owner.get(key);
+        if(other){other.ambiguous=rect.ambiguous=true;}else owner.set(key,rect);
+      }
+      for(const rect of rects)if(rect.ambiguous)ambiguous.push({sheet,index:i,...rect});else found.set(`${sheet.id}!${rect.ref}`,this.spillOf(i,rect));
+    });
+    if(ambiguous.length)this.measure(ambiguous).forEach((rect)=>{if(rect.height*rect.width>1)found.set(`${rect.sheet.id}!${rect.ref}`,this.spillOf(rect.index,rect));});
+    return found;
+  }
+  spillOf(index,{row,column,height,width}){
+    const results=[];
+    for(let y=0;y<height;y++){const line=[];for(let x=0;x<width;x++)line.push(this.result(index,address(row+y,column+x)));results.push(line);}
+    return {ref:`${address(row,column)}:${address(row+height-1,column+width-1)}`,results};
+  }
+  // Measures anchors in a separate engine holding the workbook and one extra
+  // sheet of ROWS/COLUMNS probes, so this session's sheets and results stay
+  // untouched. A measured size is kept only where it matches the values (an
+  // extra sheet changes SHEETS()); otherwise anchors keep, in reading order,
+  // the cells nobody claimed before them.
+  measure(rects){
+    const probe=new EngineSession(this.module),sizes=[];
+    try{
+      probe.load(this.book);
+      const engine=probe.engine,at=this.book.sheets.length+(this.book.names.some(n=>n.ref==='#REF!')?1:0);
+      let name='__office_spills';
+      while(this.book.sheets.some(s=>s.name.toLowerCase()===name))name+='_';
+      engine.pauseEvaluation();
+      try{
+        engine.newSheet();engine.renameSheet(at,name);
+        rects.forEach((rect,k)=>{const target=`'${rect.sheet.name.replaceAll("'","''")}'!${rect.ref}#`;engine.setUserInput(at,k+1,1,`=IFERROR(ROWS(${target}),0)`);engine.setUserInput(at,k+1,2,`=IFERROR(COLUMNS(${target}),0)`);});
+      }finally{engine.resumeEvaluation();}
+      engine.evaluate();
+      rects.forEach((_,k)=>{const read=c=>{const [type,value]=engine.getCellValue(at,k+1,c);return type==='number'?value:0;};sizes.push([read(1),read(2)]);});
+    }finally{probe.dispose();}
+    const claimed=new Set(),fits=(rect,height,width)=>{
+      if(height<1||width<1)return false;
+      for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+        const key=`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`;
+        if(claimed.has(key)||((y||x)&&!rect.spillCell(rect.row+y,rect.column+x)))return false;
+      }
+      return true;
+    };
+    const measured=rects.map((rect,k)=>({...rect,spillCell:(row,column)=>!occupied(rect.sheet.cells[address(row,column)])&&this.engine.getCellValue(rect.index,row,column)[0]!=='blank',size:sizes[k]}));
+    measured.sort((a,b)=>a.index-b.index||a.row-b.row||a.column-b.column);
+    for(const rect of measured){
+      let [height,width]=rect.size;
+      if(!fits(rect,height,width)){
+        height=1;width=1;
+        while(height<rect.height&&fits(rect,height+1,1))height++;
+        while(width<rect.width&&fits(rect,height,width+1))width++;
+      }
+      rect.height=height;rect.width=width;
+      for(let y=0;y<height;y++)for(let x=0;x<width;x++)claimed.add(`${rect.sheet.id}!${(rect.row+y)*16385+rect.column+x}`);
+    }
+    return measured;
   }
   async calculate(){await this.calculateDelta();return structuredClone(this.book);}
   dispose(){this.engine?.free();this.engine=null;}

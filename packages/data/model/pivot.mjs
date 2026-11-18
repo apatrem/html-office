@@ -7,6 +7,7 @@ import {
   validateValue,
   ERRORS,
 } from "./workbook.mjs";
+import { readView } from "./spills.mjs";
 import { jsonStringify } from "./json.mjs";
 
 export const MAX_PIVOTS = 50;
@@ -276,8 +277,10 @@ export function resolveSource(
   pivot,
   { bounds, formulaResultsCurrent } = {},
 ) {
-  const sheet = book.sheets.find((s) => s.id === pivot.source.sheetId);
-  if (!sheet) fail("The pivot's source sheet no longer exists.");
+  const found = book.sheets.find((s) => s.id === pivot.source.sheetId);
+  if (!found) fail("The pivot's source sheet no longer exists.");
+  // Spilled values are part of the source (F-01).
+  const sheet = readView(found);
   if (pivot.source.ref === "#REF!")
     fail("The pivot's source range was deleted. Choose a new source.");
   // A whole-sheet source leaves out pivot outputs on its sheet; the cached

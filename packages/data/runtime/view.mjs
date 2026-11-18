@@ -1,4 +1,5 @@
 import { address, parseAddress } from "../model/workbook.mjs";
+import { spillBounds, cellAt } from "../model/spills.mjs";
 const numberFormats = new Map(),
   dateFormats = new Map();
 export function display(cell, locale = "en-US") {
@@ -99,6 +100,13 @@ export function usedBounds(sheet) {
     cached = { rows, columns };
     bounds.set(sheet.cells, cached);
   }
+  // Spilled values count as used cells (F-01).
+  const spill = spillBounds(sheet);
+  if (spill.rows > cached.rows || spill.columns > cached.columns)
+    return {
+      rows: Math.max(cached.rows, spill.rows),
+      columns: Math.max(cached.columns, spill.columns),
+    };
   return cached;
 }
 export function preview(sheet, locale) {
@@ -114,8 +122,8 @@ export function preview(sheet, locale) {
     rows: Array.from({ length: rows }, (_, r) =>
       Array.from({ length: columns }, (_, c) => ({
         ref: address(r + 1, c + 1),
-        cell: sheet.cells[address(r + 1, c + 1)] ?? {},
-        text: display(sheet.cells[address(r + 1, c + 1)], locale),
+        cell: cellAt(sheet, address(r + 1, c + 1)) ?? {},
+        text: display(cellAt(sheet, address(r + 1, c + 1)), locale),
       })),
     ),
   };

@@ -20,6 +20,7 @@ import {
 } from "../model/navigation.mjs";
 import { sheetAxes } from "../model/axis.mjs";
 import { display } from "./view.mjs";
+import { readView } from "../model/spills.mjs";
 import { paint, generalAlign, spill, LINE } from "./grid.mjs";
 import { STALE_NOTICE } from "./picture.mjs";
 
@@ -401,7 +402,8 @@ export function setupPrint({
   } = {}) {
     clear();
     const book = getBook(),
-      sheet = getSheet();
+      // Spilled values are printed like any value (F-01).
+      sheet = readView(getSheet());
     orientation ??= bestOrientation(sheet, paper);
     const layout = printLayout(sheet, {
       paper,
