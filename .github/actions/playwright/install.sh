@@ -62,7 +62,7 @@ missing() {
 hosts_of() { grep -ohE 'https?://[^/[:space:]]+' "$@" 2>/dev/null | sed -E 's#https?://##' | sort -u; }
 mirrors_resolve() {
   local hosts host
-  hosts=$(hosts_of /etc/apt/apt-mirrors.txt)
+  hosts=$(hosts_of "${PLAYWRIGHT_APT_MIRRORS:-/etc/apt/apt-mirrors.txt}")
   [[ -n $hosts ]] || hosts=$(hosts_of /etc/apt/sources.list /etc/apt/sources.list.d/* | grep ubuntu)
   [[ -n $hosts ]] || hosts=archive.ubuntu.com
   for host in $hosts; do

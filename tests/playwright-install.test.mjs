@@ -18,6 +18,8 @@ function run({ installed = false, debs = 0, dnsFails = 0, budget, dnsWait, aptFa
   for (let i = 0; i < debs; i++) fs.writeFileSync(path.join(apt, `lib${i}.deb`), '');
   if (installed) fs.writeFileSync(path.join(dir, 'installed'), '');
   fs.writeFileSync(path.join(dir, 'dns-fails'), String(dnsFails));
+  // One mirror, so that each failed probe is one round of the backoff whatever the machine's list.
+  fs.writeFileSync(path.join(dir, 'mirrors'), 'http://mirror.example.test/ubuntu/\tpriority:1\n');
   const stub = (name, body) => fs.writeFileSync(path.join(bin, name), `#!/usr/bin/env bash\nS=${JSON.stringify(dir)}\n${body}\n`, { mode: 0o755 });
   stub('sudo', `echo "sudo $*" >> "$S/log"; if [ "$1" = tee ]; then cat > "$S/apt.conf"; exit 0; fi; exec "$@"`);
   stub('timeout', `echo "timeout $*" >> "$S/log"; [ "$1" = --kill-after=15 ] && shift; [ "$1" -gt 0 ] || exit 99; shift; exec "$@"`);
@@ -31,7 +33,7 @@ if(a[0]==='install-deps'&&a[1]==='--dry-run')process.exit(fs.existsSync(S+'/inst
 if(a[0]==='install-deps'){fs.writeFileSync(S+'/installed','');fs.writeFileSync(${JSON.stringify(apt)}+'/fresh.deb','');}`);
   const out = path.join(dir, 'output');
   const r = spawnSync('bash', [SCRIPT, 'chromium', 'webkit'], { encoding: 'utf8', env: { ...process.env,
-    PATH: `${bin}:${process.env.PATH}`, PLAYWRIGHT_CLI: cli, PLAYWRIGHT_APT_DIR: apt, GITHUB_OUTPUT: out,
+    PATH: `${bin}:${process.env.PATH}`, PLAYWRIGHT_CLI: cli, PLAYWRIGHT_APT_MIRRORS: path.join(dir, 'mirrors'), PLAYWRIGHT_APT_DIR: apt, GITHUB_OUTPUT: out,
     ...(budget === undefined ? {} : { PLAYWRIGHT_INSTALL_BUDGET: String(budget) }),
     ...(dnsWait === undefined ? {} : { PLAYWRIGHT_DNS_WAIT: String(dnsWait) }) } });
   const read = f => { try { return fs.readFileSync(path.join(dir, f), 'utf8'); } catch { return ''; } };
@@ -67,8 +69,10 @@ test('the mirrors: Playwright installs the packages as root under timeout, and t
 });
 
 test('DNS that recovers after several minutes of failed probes is used (review: the backoff status leaked)', () => {
+  // Six failed rounds: the pause has reached its 60 s cap before DNS answers.
   const r = run({ dnsFails: 6 });
   assert.equal(r.code, 0, r.stdout);
+  assert.equal(r.stdout.match(/No package mirror resolves: mirror\.example\.test/g)?.length, 6);
   assert.ok(r.log.includes('cli install-deps chromium webkit'));
 });
 
