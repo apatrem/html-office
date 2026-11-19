@@ -23,24 +23,43 @@ import { canonicalize, findArticle } from "../editor/schema/document.mjs";
 import { serializeFile } from "../model/file.mjs";
 import { articleHTML } from "../editor/schema/serialize.mjs";
 import { STANDARD_CODE_CEILING } from "./measure.mjs";
+import {
+  sideEffectFree,
+  pureCalls,
+  pruneCSS,
+  unusedClassesNamed,
+  iconsNamed,
+} from "./slim.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, "..");
 const repo = resolve(pkg, "../..");
 
-// Stylesheets imported by the runtime are embedded as minified text. esbuild is loaded only
-// to build: the document tools reach this module without it (T18).
+// Stylesheets imported by the runtime are embedded as minified text, the shared shell's without
+// the rules Text never uses (slim.mjs). esbuild is loaded only to build: the document tools reach
+// this module without it (T18).
+const SHELL = join(repo, "packages/shared/shell/");
 const cssText = (transform) => ({
   name: "css-text",
   setup: (b) =>
-    b.onLoad({ filter: /\.css$/ }, async (a) => ({
-      loader: "text",
-      contents: (
-        await transform(await readFile(a.path, "utf8"), {
-          loader: "css",
-          minify: true,
-        })
-      ).code,
+    b.onLoad({ filter: /\.css$/ }, async (a) => {
+      const { code } = await transform(await readFile(a.path, "utf8"), {
+        loader: "css",
+        minify: true,
+      });
+      return {
+        loader: "text",
+        contents: a.path.startsWith(SHELL) ? pruneCSS(code) : code,
+      };
+    }),
+});
+// The shared icon set, reduced to `icons` (slim.mjs).
+const iconSet = (icons) => ({
+  name: "icon-set",
+  setup: (b) =>
+    b.onLoad({ filter: /shared\/shell\/icons\.mjs$/ }, () => ({
+      loader: "js",
+      contents: `export const ICONS = ${JSON.stringify(icons)};`,
     })),
 });
 
@@ -73,18 +92,41 @@ export async function buildEngine() {
     await readFile(join(pkg, "package.json"), "utf8"),
   ).version;
   const { build, transform } = await import("esbuild");
-  const result = await build({
+  const options = {
     entryPoints: [join(pkg, "runtime/main.mjs")],
     bundle: true,
-    minify: true,
     format: "iife",
-    plugins: [cssText(transform)],
     target: ["chrome110", "edge110", "safari16", "firefox115"],
+    // Characters outside ASCII stay as they are: the file is UTF-8, and an escape costs more bytes.
+    charset: "utf8",
     write: false,
     legalComments: "none",
-    metafile: true,
     absWorkingDir: repo,
     alias: { entities: ENTITIES },
+  };
+  // A first build without stylesheets or icons gives the names the editor's code uses (slim.mjs).
+  const [probe] = (
+    await build({
+      ...options,
+      loader: { ".css": "empty" },
+      plugins: [sideEffectFree, pureCalls, iconSet({})],
+    })
+  ).outputFiles;
+  const named = unusedClassesNamed(probe.text);
+  if (named.length)
+    throw new Error(
+      `The editor's code names ${named.join(", ")}: take them out of UNUSED_SHELL_CLASSES (tools/slim.mjs)`,
+    );
+  const result = await build({
+    ...options,
+    minify: true,
+    metafile: true,
+    plugins: [
+      sideEffectFree,
+      pureCalls,
+      cssText(transform),
+      iconSet(iconsNamed(probe.text)),
+    ],
   });
   // The file embeds the editor, so the editor carries the notices of everything bundled in it (ADR-011 §9).
   const notices = formatNotices(

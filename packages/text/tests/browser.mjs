@@ -92,6 +92,13 @@ try {
   const { page, context, errors, requests } = await open(url);
   await page.waitForFunction(() => window.htmlText);
   assert.equal(await page.getAttribute("#doc", "contenteditable"), "true");
+  // The build keeps only the shared icons the editor names (tools/slim.mjs): each one shown draws.
+  const icons = await page.$$eval("svg.sh-ic", (all) =>
+    all.map((svg) => svg.innerHTML),
+  );
+  assert.ok(icons.length >= 5);
+  for (const drawing of icons)
+    assert.ok(/^<(path|rect|circle)/.test(drawing), drawing);
   assert.equal(
     await page.evaluate(() => window.htmlText.serialize()),
     built,

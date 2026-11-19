@@ -1,19 +1,19 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 591563,
-  "headroom": 8437,
-  "engineGzip": 192586,
+  "applicationCode": 579723,
+  "headroom": 20277,
+  "engineGzip": 189782,
   "file": {
-    "total": 597043,
-    "engine": 580168,
+    "total": 585203,
+    "engine": 568328,
     "content": 5092,
     "assets": 186
   },
   "rows": [
     {
       "component": "prosemirror-view 1.42.8",
-      "bytes": 98586,
+      "bytes": 98582,
       "share": 16.4
     },
     {
@@ -22,19 +22,19 @@
       "share": 7.7
     },
     {
-      "component": "commonmark 0.31.2",
-      "bytes": 34082,
-      "share": 5.7
-    },
-    {
       "component": "prosemirror-transform 1.12.4",
       "bytes": 32007,
       "share": 5.3
     },
     {
+      "component": "commonmark 0.31.2",
+      "bytes": 31824,
+      "share": 5.3
+    },
+    {
       "component": "prosemirror-tables 1.8.1",
-      "bytes": 26723,
-      "share": 4.5
+      "bytes": 25305,
+      "share": 4.2
     },
     {
       "component": "@csstools/css-tokenizer 3.0.4",
@@ -63,17 +63,17 @@
     },
     {
       "component": "Editor UI: shell, saving, print, figures, comments",
-      "bytes": 76102,
+      "bytes": 75976,
       "share": 12.7
     },
     {
       "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
-      "bytes": 55103,
+      "bytes": 55097,
       "share": 9.2
     },
     {
       "component": "Text model: HTML tree, file layout, validator",
-      "bytes": 28032,
+      "bytes": 28020,
       "share": 4.7
     },
     {
@@ -83,18 +83,8 @@
     },
     {
       "component": "Shared: charts",
-      "bytes": 21947,
+      "bytes": 21942,
       "share": 3.7
-    },
-    {
-      "component": "CSS: shell, panels and editor styles",
-      "bytes": 20952,
-      "share": 3.5
-    },
-    {
-      "component": "Shared: shell",
-      "bytes": 18653,
-      "share": 3.1
     },
     {
       "component": "Schema, parser, serialiser, editing guard",
@@ -102,9 +92,19 @@
       "share": 3.1
     },
     {
+      "component": "CSS: shell, panels and editor styles",
+      "bytes": 16669,
+      "share": 2.8
+    },
+    {
       "component": "Shared: clipboard",
       "bytes": 16590,
       "share": 2.8
+    },
+    {
+      "component": "Shared: shell",
+      "bytes": 14925,
+      "share": 2.5
     },
     {
       "component": "Shared: persistence",
