@@ -14,6 +14,7 @@ import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { diffLines } from "../tools/pack.mjs";
+import { ECHARTS_URL } from "../../shared/charts/echarts.mjs";
 
 const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
 const out = resolve(
@@ -100,6 +101,20 @@ async function run(engine) {
     page.on("request", (r) => {
       if (!r.url().startsWith("file:")) requests.push(r.url());
     });
+    // No request leaves the machine (T11's pinned library comes from node_modules and is still
+    // checked against the document's integrity attribute); every request stays recorded above.
+    await page.route(/^https?:\/\//, (route) =>
+      route.request().url() === ECHARTS_URL
+        ? route.fulfill({
+            path: new URL(
+              "../../../node_modules/echarts/dist/echarts.min.js",
+              import.meta.url,
+            ).pathname,
+            contentType: "text/javascript",
+            headers: { "access-control-allow-origin": "*" },
+          })
+        : route.abort(),
+    );
     await page.addInitScript(init);
     await page.goto(url);
     await page.waitForFunction(() => window.htmlText);

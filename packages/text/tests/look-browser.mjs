@@ -8,6 +8,7 @@ import { chromium } from "playwright";
 import { buildEngine, buildDocument } from "../tools/build.mjs";
 import { diffLines } from "../tools/pack.mjs";
 import { CHARTES } from "../../shared/themes/chartes.mjs";
+import { ECHARTS_URL } from "../../shared/charts/echarts.mjs";
 
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
@@ -40,6 +41,19 @@ async function open(target, disk = built) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
+  // No request leaves the machine: the document's pinned chart library comes from node_modules.
+  await page.route(/^https?:\/\//, (route) =>
+    route.request().url() === ECHARTS_URL
+      ? route.fulfill({
+          path: new URL(
+            "../../../node_modules/echarts/dist/echarts.min.js",
+            import.meta.url,
+          ).pathname,
+          contentType: "text/javascript",
+          headers: { "access-control-allow-origin": "*" },
+        })
+      : route.abort(),
+  );
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));

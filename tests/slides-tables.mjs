@@ -8,7 +8,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import * as playwright from 'playwright';
-import { upgrade } from '../plugin/skills/html-slides/tools/lib.mjs';
+import { ASSETS, upgrade } from '../plugin/skills/html-slides/tools/lib.mjs';
+import { ECHARTS_URL } from '../plugin/skills/html-slides/tools/echarts.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-tables');
@@ -43,6 +44,18 @@ function check(table) {
   return JSON.parse(r.stdout).out.filter(f => f.level === 'error' && f.slide === 's90').map(f => f.msg);
 }
 
+// Opens a deck without the network: no request leaves the machine (jsDelivr made page.goto time
+// out on CI). The deck's pinned ECharts comes from the skill's copy and is still checked against
+// the deck's integrity attribute: ready is false when the browser refuses it.
+async function open(page, file, label) {
+  await page.route(/^https?:\/\//, r => r.request().url() === ECHARTS_URL
+    ? r.fulfill({ path: path.join(ASSETS, 'echarts.min.js'), contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } })
+    : r.abort());
+  await page.goto(pathToFileURL(file).href);
+  await page.waitForFunction(() => window.deckEngine);
+  ok(await page.evaluate(() => window.deckEngine.ready) === true, `${label}: the pinned ECharts loads from the local copy and passes its integrity check`);
+}
+
 async function run(engine) {
   const browser = await playwright[engine].launch();
   const tag = m => `[${engine}] ${m}`;
@@ -58,9 +71,7 @@ async function run(engine) {
           return event;
         };
       });
-      await page.goto(pathToFileURL(file).href);
-      await page.waitForFunction(() => window.deckEngine);
-      await page.evaluate(() => window.deckEngine.ready);
+      await open(page, file, tag(label));
       await page.keyboard.press('e');
       const table = () => page.evaluate(() => {
         const t = document.querySelector('#s90 > table').cloneNode(true);
@@ -218,9 +229,7 @@ async function drag(engine) {
   try {
     const page = await browser.newPage({ viewport: { width: 1400, height: 900 } }), errors = [];
     page.on('pageerror', e => errors.push(String(e)));
-    await page.goto(pathToFileURL(FILE).href);
-    await page.waitForFunction(() => window.deckEngine);
-    await page.evaluate(() => window.deckEngine.ready);
+    await open(page, FILE, tag('current theme'));
     await page.keyboard.press('e');
     await page.locator('#s90 > table').scrollIntoViewIfNeeded();
     // Column borders and the frame, in slide pixels.
