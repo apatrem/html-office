@@ -420,6 +420,7 @@ export const TASKS = [
         file: "B/orders.html",
         label: "a chart of the totals by region",
         pairs: o.byRegion,
+        types: ["column", "bar"],
       },
     ],
   },

@@ -150,6 +150,8 @@ export const stripMarkdown = (t) =>
     .replace(/\[\^[^\]]+\]:?/g, " ")
     .replace(/\\([\\`*_{}[\]()#+\-.!|>])/g, "$1")
     .replace(/\*+|`/g, "")
+    .replace(/(^|[\s(])_+(?=\S)/g, "$1")
+    .replace(/(\S)_+(?=[\s.,;:!?)]|$)/gm, "$1")
     .replace(/^\s*(>|[-*+] |\d+\. |#+ )/gm, " ")
     .replace(/\|/g, " ");
 // The passages of a Markdown draft that a conversion must keep, split at footnote references.
@@ -158,8 +160,15 @@ export function draftFragments(md) {
   for (const raw of md.split("\n")) {
     const line = raw.trim();
     if (!line || /^#/.test(line) || /^\|?\s*-{3}/.test(line)) continue;
+    // A table row is one passage, its cells in order.
     const pieces = line.startsWith("|")
-      ? line.split("|").map((c) => c.trim())
+      ? [
+          line
+            .split("|")
+            .map((c) => c.trim())
+            .filter(Boolean)
+            .join(" "),
+        ]
       : line.replace(/^\[\^[^\]]+\]:\s*/, "").split(/\[\^[^\]]+\]/);
     for (const p of pieces) {
       const f = normalise(stripMarkdown(p)).trim();

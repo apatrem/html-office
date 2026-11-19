@@ -554,3 +554,80 @@ test("score passes correct answers and names each fault of wrong ones", async (t
   );
   assert.ok(INJECTION.text.includes("Formula analysis"));
 });
+
+// Second review round: cases checked on small models, without building a kit.
+test("score's labels, imported-data, header and chart rules on small models", async () => {
+  const n = (value) => ({ type: "number", value });
+  const t = (value) => ({ input: { type: "text", value } });
+  const model = {
+    sheets: [
+      { id: "m", name: "Members", cells: {} },
+      {
+        id: "a",
+        name: "Analysis",
+        cells: {
+          // The count left of its label, through a named range on the imported sheet.
+          A1: { formula: "=COUNTIF(MemberTier,B1)", result: n(14) },
+          B1: t("Basic"),
+          // A quoted name is text, not a reference.
+          A2: { formula: '=IF("MemberTier"="MemberTier",13,0)', result: n(13) },
+          B2: t("Plus"),
+          D1: t("Region"),
+          E1: t("Total"),
+          D2: t("North"),
+          E2: { input: n(5) },
+          D3: t("South"),
+          E3: { input: n(7) },
+        },
+      },
+    ],
+    names: [{ name: "MemberTier", sheetId: "m", ref: "C2:C41" }],
+    sources: [{ sheetId: "m" }],
+    charts: [
+      { id: "line", type: "line", source: { sheetId: "a", ref: "D1:E3" } },
+    ],
+  };
+  const ctx = { recalculated: async () => model, load: async () => model };
+  const labelled = (label, value) =>
+    CHECKS.labelled(
+      { label, value, results: true, mentions: true },
+      { ...ctx, file: "x" },
+    );
+  assert.equal((await labelled(/^Basic$/, 14)).pass, true);
+  assert.equal((await labelled(/^Plus$/, 13)).pass, false);
+  const pairs = { label: "", pairs: { North: 5, South: 7 } };
+  assert.equal(
+    (await CHECKS["chart-values"]({ ...pairs, types: ["column"] }, ctx)).pass,
+    false,
+  );
+  model.charts[0].type = "column";
+  assert.equal(
+    (await CHECKS["chart-values"]({ ...pairs, types: ["column"] }, ctx)).pass,
+    true,
+  );
+  // Orders under a title and notes, the header on row 5.
+  const first = orders().rows[0];
+  const orderSheet = {
+    id: "o",
+    name: "Orders",
+    cells: {
+      A1: t("Orders 2026 (fictional)"),
+      ...Object.fromEntries(
+        ["Order", "Date", "Region", "Product", "Quantity", "Amount"].map(
+          (h, i) => [`${String.fromCharCode(65 + i)}5`, t(h)],
+        ),
+      ),
+      A6: t(first.order),
+      B6: { input: n(serial(first.date)), format: { kind: "date" } },
+      C6: t(first.region),
+      D6: t(first.product),
+      E6: { input: n(first.quantity) },
+      F6: { input: n(first.amount) },
+    },
+  };
+  const records = await CHECKS.records(
+    { sheet: "Orders", rows: [first] },
+    { load: async () => ({ sheets: [orderSheet] }) },
+  );
+  assert.equal(records.pass, true, records.detail);
+});

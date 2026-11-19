@@ -390,3 +390,22 @@ test("score passes correct answers and names each fault of wrong ones", async (t
   assert.match(detail("B3", "outside-article"), /before the article/);
   assert.match(detail("B4", "draft-text document"), /9,600/);
 });
+
+// Second review round: Markdown emphasis and table rows in the draft-text rule.
+test("draft passages: table rows whole, emphasis in either Markdown form", async () => {
+  const { draftFragments, stripMarkdown, normalise } = await import(
+    "../acceptance/blind/score.mjs"
+  );
+  const md =
+    "| Item | EUR |\n| --- | --- |\n| Bikes | 9,600 |\n| Riders | 41,000 |\n";
+  const rows = draftFragments(md);
+  assert.deepEqual(rows, ["Item EUR", "Bikes 9,600", "Riders 41,000"]);
+  const swapped = normalise(
+    stripMarkdown("| Bikes | 41,000 |\n| Riders | 9,600 |"),
+  );
+  assert.ok(!rows.slice(1).every((r) => swapped.includes(r)));
+  assert.equal(
+    normalise(stripMarkdown("In the survey, _punctual delivery_ was first")),
+    normalise(stripMarkdown("In the survey, *punctual delivery* was first")),
+  );
+});

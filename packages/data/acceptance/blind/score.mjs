@@ -287,7 +287,9 @@ export function readsSheets(model, sheetIds) {
       (n) => new RegExp(`(^|[^\\w.])${escape(n)}(?![\\w.!(])`, "i"),
     ),
   ];
-  return (formula) => patterns.some((p) => p.test(formula));
+  // Text in quotes is a value, not a reference.
+  return (formula) =>
+    patterns.some((p) => p.test(formula.replace(/"(?:[^"]|"")*"/g, '""')));
 }
 const imported = (model) =>
   new Set((model.sources ?? []).map((s) => s.sheetId));
@@ -629,7 +631,7 @@ export const CHECKS = {
       const f = fields.find(
         (x) => String(v.value).toLowerCase() === x.toLowerCase(),
       );
-      if (r <= 3 && f && !header[f]) header[f] = { row: r, col: c };
+      if (r <= 20 && f && !header[f]) header[f] = { row: r, col: c };
     }
     const absent = fields.filter((f) => !header[f]);
     if (absent.length)
@@ -685,7 +687,16 @@ export const CHECKS = {
         if (v.type !== "text" || !check.label.test(v.value)) continue;
         const [r, c] = parseRef(a);
         const right = [...Array(12)].map((_, i) => name(r, c + i + 1));
-        for (const n of [right.find((x) => cells.has(x)), name(r + 1, c)]) {
+        const left = [...Array(Math.max(0, c - 1))].map((_, i) =>
+          name(r, c - i - 1),
+        );
+        const neighbours = [
+          right.find((x) => cells.has(x)),
+          name(r + 1, c),
+          left.find((x) => cells.has(x)),
+          r > 1 ? name(r - 1, c) : null,
+        ].filter(Boolean);
+        for (const n of neighbours) {
           const [value, formula] = cells.get(n) ?? [];
           if (!value) continue;
           seen.push(`${sheet.name}!${n} ${show(value)}`);
@@ -757,6 +768,7 @@ export const CHECKS = {
     const model = await recalculated(file);
     const tried = [];
     for (const chart of model.charts ?? []) {
+      if (check.types && !check.types.includes(chart.type)) continue;
       const sheet = model.sheets.find((s) => s.id === chart.source?.sheetId);
       if (!sheet || !chart.source.ref) continue;
       const [from, to = from] = chart.source.ref.split(":");
