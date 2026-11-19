@@ -1,0 +1,57 @@
+name: Playwright browsers
+description: >-
+  Installs Playwright's browsers and their Ubuntu packages after `npm ci`, from caches when it can,
+  with bounded retries and a clear error instead of a hang when the package mirrors are unreachable.
+inputs:
+  browsers:
+    description: Space-separated browser names, as for `playwright install`.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Cache keys
+      id: keys
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: |
+        version=$(node -p 'require("playwright/package.json").version')
+        set=$(echo $BROWSERS | tr ' ' '+')
+        # Browsers depend on the Playwright version; .deb files on the runner image they were made for.
+        # Runners of two image versions run side by side during a rollout: another image's packages
+        # are tried too (apt refuses a downgrade or a missing dependency before changing anything).
+        echo "browsers=playwright-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set" >> "$GITHUB_OUTPUT"
+        echo "apt-any=playwright-apt-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set-" >> "$GITHUB_OUTPUT"
+        echo "apt=playwright-apt-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+    - name: Restore browsers
+      id: browsers
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.keys.outputs.browsers }}
+    - name: Restore system packages
+      id: apt
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/playwright-apt
+        key: ${{ steps.keys.outputs.apt }}
+        restore-keys: ${{ steps.keys.outputs.apt-any }}
+    - name: Install ${{ inputs.browsers }}
+      id: install
+      shell: bash
+      env:
+        BROWSERS: ${{ inputs.browsers }}
+      run: '"$GITHUB_ACTION_PATH/install.sh" $BROWSERS'
+    # Saved now rather than at the end of the job, so that failing tests still leave a warm cache.
+    - name: Save browsers
+      if: steps.browsers.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ steps.keys.outputs.browsers }}
+    - name: Save system packages
+      if: steps.apt.outputs.cache-hit != 'true' && steps.install.outputs.apt-cache != ''
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/playwright-apt
+        key: ${{ steps.keys.outputs.apt }}
