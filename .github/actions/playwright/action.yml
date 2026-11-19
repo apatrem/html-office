@@ -16,10 +16,13 @@ runs:
         BROWSERS: ${{ inputs.browsers }}
       run: |
         version=$(node -p 'require("playwright/package.json").version')
-        set=$(echo $BROWSERS | tr ' ' '-')
+        set=$(echo $BROWSERS | tr ' ' '+')
         # Browsers depend on the Playwright version; .deb files on the runner image they were made for.
+        # Runners of two image versions run side by side during a rollout: another image's packages
+        # are tried too (apt refuses a downgrade or a missing dependency before changing anything).
         echo "browsers=playwright-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set" >> "$GITHUB_OUTPUT"
-        echo "apt=playwright-apt-${ImageOS:-$RUNNER_OS}-${ImageVersion:-unknown}-$RUNNER_ARCH-$version-$set" >> "$GITHUB_OUTPUT"
+        echo "apt-any=playwright-apt-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set-" >> "$GITHUB_OUTPUT"
+        echo "apt=playwright-apt-${ImageOS:-$RUNNER_OS}-$RUNNER_ARCH-$version-$set-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
     - name: Restore browsers
       id: browsers
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -32,6 +35,7 @@ runs:
       with:
         path: ~/.cache/playwright-apt
         key: ${{ steps.keys.outputs.apt }}
+        restore-keys: ${{ steps.keys.outputs.apt-any }}
     - name: Install ${{ inputs.browsers }}
       id: install
       shell: bash

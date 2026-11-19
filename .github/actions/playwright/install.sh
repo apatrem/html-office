@@ -8,13 +8,17 @@
 # Browsers come from ~/.cache/ms-playwright (restored by the action) or Playwright's CDN. Packages
 # come, in order, from the image itself, from the .deb files a previous run on the same runner image
 # kept in $PLAYWRIGHT_APT_DIR (no network needed), or from the Ubuntu mirrors, retried a bounded
-# number of times once their names resolve. Everything stops within $PLAYWRIGHT_INSTALL_BUDGET
-# seconds with an error that says what failed.
+# number of times once their names resolve (for up to $PLAYWRIGHT_DNS_WAIT seconds). Everything
+# stops within $PLAYWRIGHT_INSTALL_BUDGET seconds with an error that says what failed.
 set -uo pipefail
 
 browsers=("$@")
 debs=${PLAYWRIGHT_APT_DIR:-$HOME/.cache/playwright-apt}
 deadline=$((SECONDS + ${PLAYWRIGHT_INSTALL_BUDGET:-720}))
+
+# Playwright's CLI, run by path so that root can run it too (PLAYWRIGHT_CLI: tests/playwright-install.test.mjs).
+node=$(command -v node)
+cli=${PLAYWRIGHT_CLI:-$("$node" -p 'require("path").join(require("path").dirname(require.resolve("playwright/package.json")), "cli.js")')}
 
 fail() {
   echo "::error title=Playwright install::$1"
@@ -26,16 +30,23 @@ left() {
   ((rest > $1)) && rest=$1
   echo $((rest > 0 ? rest : 0))
 }
-# Retried with growing pauses while time is left; each attempt is bounded by `timeout`, which
-# signals the whole process group (sudo passes the signal on to apt).
+# Runs a command for at most min(cap, seconds left), then TERM and 15 s later KILL. It does not
+# start with under 10 s left (`timeout 0` would mean no limit). With --root, `timeout` itself runs
+# under sudo, so that its KILL reaches apt and dpkg.
+bounded() {
+  local as= t
+  [[ $1 == --root ]] && as=sudo && shift
+  t=$(left "$1")
+  shift
+  ((t >= 10)) || { echo "::warning::No time left for: $*"; return 124; }
+  $as timeout --kill-after=15 "$t" "$@"
+}
+# Retried with growing pauses while time is left.
 attempt() {
   local cap=$1 wait=15 n
   shift
   for n in 1 2 3; do
-    local t
-    t=$(left "$cap")
-    ((t < 10)) && return 1
-    timeout --kill-after=15 "$t" "$@" && return 0
+    bounded "$cap" "$@" && return 0
     echo "::warning::Attempt $n of '$*' failed (exit $?)"
     sleep "$(left $wait)"
     wait=$((wait * 2))
@@ -44,7 +55,7 @@ attempt() {
 }
 # Playwright's own check: `apt-get install -s` of its package list, offline; exits 1 if any is missing.
 missing() {
-  ! npx --no-install playwright install-deps --dry-run "${browsers[@]}" >/dev/null 2>&1
+  ! bounded 120 "$node" "$cli" install-deps --dry-run "${browsers[@]}" >/dev/null 2>&1
 }
 # The Ubuntu mirrors apt fetches from (the runner's mirror list, else the Ubuntu hosts in the
 # sources), resolved before apt is asked to use them.
@@ -65,16 +76,17 @@ mirrors_resolve() {
 }
 # A DNS blip of a few minutes is waited out; a longer outage fails the job instead of hanging it.
 wait_for_mirrors() {
-  local wait=10 stop=$((SECONDS + 300))
+  local wait=10 stop=$((SECONDS + ${PLAYWRIGHT_DNS_WAIT:-300}))
   until mirrors_resolve; do
-    ((SECONDS > stop || $(left 60) < 30)) && return 1
+    ((SECONDS >= stop || $(left 60) < 30)) && return 1
     sleep "$(left $wait)"
-    ((wait < 60)) && wait=$((wait * 2))
+    wait=$((wait < 30 ? wait * 2 : 60))
   done
+  return 0
 }
 
 echo "::group::Browsers: ${browsers[*]}"
-attempt 300 npx --no-install playwright install "${browsers[@]}" ||
+attempt 300 "$node" "$cli" install "${browsers[@]}" ||
   fail "Could not download the Playwright browsers (${browsers[*]}) from Playwright's CDN; re-run the job later."
 echo "::endgroup::"
 
@@ -87,7 +99,7 @@ shopt -s nullglob
 cached=("$debs"/*.deb)
 if ((${#cached[@]})); then
   echo "::group::Installing ${#cached[@]} cached packages without network"
-  if sudo timeout "$(left 300)" apt-get install -y --no-download --no-install-recommends "${cached[@]}" && ! missing; then
+  if bounded --root 300 apt-get install -y --no-download --no-install-recommends "${cached[@]}" && ! missing; then
     echo "::endgroup::"
     exit 0
   fi
@@ -96,7 +108,9 @@ if ((${#cached[@]})); then
 fi
 
 echo "::group::Installing system packages from the Ubuntu mirrors"
-# Fail a fetch in seconds rather than minutes, and keep every downloaded .deb for the next run.
+# Fail a fetch in seconds rather than minutes, and keep every downloaded .deb for the next run on
+# this image (and only those: packages restored for another image are dropped).
+sudo rm -rf "$debs"
 mkdir -p "$debs/partial"
 sudo tee /etc/apt/apt.conf.d/90-playwright-ci >/dev/null <<EOF
 Acquire::Retries "2";
@@ -109,7 +123,7 @@ EOF
 installed=0
 for n in 1 2 3; do
   wait_for_mirrors || break
-  if timeout --kill-after=15 "$(left 480)" npx --no-install playwright install-deps "${browsers[@]}" && ! missing; then
+  if bounded --root 480 "$node" "$cli" install-deps "${browsers[@]}" && ! missing; then
     installed=1
     break
   fi
