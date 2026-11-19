@@ -59,11 +59,23 @@ async function run(engine) {
     for (const name of ["click", "dblclick"]) {
       const original = page[name].bind(page);
       page[name] = async (selector, options) => {
-        if (selector.startsWith("#doc"))
+        if (selector.startsWith("#doc")) {
           await page
             .locator(selector)
             .first()
             .evaluate((el) => el.scrollIntoView({ block: "center" }));
+          // A click that also focuses the editor races ProseMirror's focus handler: 20 ms later it
+          // writes the editor's selection back to the page unless the browser has reported the new
+          // one by then. On a loaded runner the first double click then lost its word and the wait
+          // below never ended (Firefox, PR #115). Focus first and let that timer run: a timeout of
+          // equal delay set after it fires after it.
+          await page.evaluate(() => {
+            const { view } = window.htmlText;
+            if (view.focused) return;
+            view.focus();
+            return new Promise((done) => setTimeout(done, 20));
+          });
+        }
         await original(selector, options);
         // The editor reads a pointer selection on the browser's next selectionchange: wait
         // until its selection is in the element clicked (and not empty after a double click).
