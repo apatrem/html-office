@@ -50,12 +50,15 @@ test('packages already on the image: nothing is installed', () => {
   assert.equal(r.output, '', 'nothing to save');
 });
 
-test('cached packages install without network, under a root-owned timeout', () => {
+test('cached packages install without the mirrors, under a root-owned timeout, and are kept', () => {
   const r = run({ debs: 2, dnsFails: 99 });
   assert.equal(r.code, 0, r.stdout);
   const apt = r.log.findIndex(l => l.startsWith('apt-get'));
-  assert.match(r.log[apt - 2], /^sudo timeout --kill-after=15 \d+ apt-get install -y --no-download /);
+  assert.match(r.log[apt - 2], /^sudo timeout --kill-after=15 \d+ apt-get install -y --no-install-recommends \S+lib0\.deb \S+lib1\.deb$/);
   assert.ok(!r.log.includes('cli install-deps chromium webkit'), 'the mirrors are not used');
+  // Restored for another image, they are saved under this image's key with what apt added.
+  assert.match(r.conf, /Dir::Cache::Archives/);
+  assert.match(r.output, /^apt-cache=/);
 });
 
 test('the mirrors: Playwright installs the packages as root under timeout, and the .deb files are kept', () => {

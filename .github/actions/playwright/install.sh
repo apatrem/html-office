@@ -6,10 +6,11 @@
 #   install.sh chromium firefox webkit
 #
 # Browsers come from ~/.cache/ms-playwright (restored by the action) or Playwright's CDN. Packages
-# come, in order, from the image itself, from the .deb files a previous run on the same runner image
-# kept in $PLAYWRIGHT_APT_DIR (no network needed), or from the Ubuntu mirrors, retried a bounded
-# number of times once their names resolve (for up to $PLAYWRIGHT_DNS_WAIT seconds). Everything
-# stops within $PLAYWRIGHT_INSTALL_BUDGET seconds with an error that says what failed.
+# come, in order, from the image itself, from the .deb files a previous run kept in
+# $PLAYWRIGHT_APT_DIR (no network needed on the same runner image), or from the Ubuntu mirrors,
+# retried a bounded number of times once their names resolve (for up to $PLAYWRIGHT_DNS_WAIT
+# seconds). Everything stops within $PLAYWRIGHT_INSTALL_BUDGET seconds with an error that says what
+# failed.
 set -uo pipefail
 
 browsers=("$@")
@@ -96,23 +97,11 @@ if ! missing; then
 fi
 
 shopt -s nullglob
-cached=("$debs"/*.deb)
-if ((${#cached[@]})); then
-  echo "::group::Installing ${#cached[@]} cached packages without network"
-  if bounded --root 300 apt-get install -y --no-download --no-install-recommends "${cached[@]}" && ! missing; then
-    echo "::endgroup::"
-    exit 0
-  fi
-  echo "::endgroup::"
-  echo "::warning::The cached packages did not install; trying the Ubuntu mirrors."
-fi
-
-echo "::group::Installing system packages from the Ubuntu mirrors"
-# Fail a fetch in seconds rather than minutes, and keep every downloaded .deb for the next run on
-# this image (and only those: packages restored for another image are dropped).
-sudo rm -rf "$debs"
-mkdir -p "$debs/partial"
-sudo tee /etc/apt/apt.conf.d/90-playwright-ci >/dev/null <<EOF
+# apt fails a fetch in seconds rather than minutes and keeps what it downloads in $debs, which the
+# action saves for the next run on this image.
+apt_conf() {
+  mkdir -p "$debs/partial"
+  sudo tee /etc/apt/apt.conf.d/90-playwright-ci >/dev/null <<EOF
 Acquire::Retries "2";
 Acquire::http::Timeout "20";
 Acquire::https::Timeout "20";
@@ -120,6 +109,36 @@ APT::Keep-Downloaded-Packages "true";
 APT::Sandbox::User "root";
 Dir::Cache::Archives "$debs/";
 EOF
+}
+# Removes the settings and tells the action that $debs holds this image's packages.
+done_with_apt() {
+  sudo rm -f /etc/apt/apt.conf.d/90-playwright-ci
+  sudo rm -rf "$debs/partial" "$debs/lock"
+  sudo chown -R "$(id -u):$(id -g)" "$debs"
+  echo "::endgroup::"
+  local kept=("$debs"/*.deb)
+  ((${#kept[@]})) && [[ -n ${GITHUB_OUTPUT:-} ]] && echo "apt-cache=$debs" >>"$GITHUB_OUTPUT"
+  return 0
+}
+
+# Packages cached on this image need no network. Another image's may lack a few this image does
+# not have yet: apt fetches those (and keeps them), or refuses before changing anything.
+cached=("$debs"/*.deb)
+if ((${#cached[@]})); then
+  echo "::group::Installing ${#cached[@]} cached packages"
+  apt_conf
+  if bounded --root 300 apt-get install -y --no-install-recommends "${cached[@]}" && ! missing; then
+    done_with_apt
+    exit 0
+  fi
+  echo "::endgroup::"
+  echo "::warning::The cached packages did not install; trying the Ubuntu mirrors."
+fi
+
+echo "::group::Installing system packages from the Ubuntu mirrors"
+# Only what this image needs is kept: packages restored for another image are dropped.
+sudo rm -rf "$debs"
+apt_conf
 installed=0
 for n in 1 2 3; do
   wait_for_mirrors || break
@@ -130,13 +149,7 @@ for n in 1 2 3; do
   echo "::warning::Attempt $n to install the system packages failed"
   (($(left 60) < 30)) && break
 done
+((installed)) && done_with_apt && exit 0
 sudo rm -f /etc/apt/apt.conf.d/90-playwright-ci
-sudo rm -rf "$debs/partial" "$debs/lock"
-sudo chown -R "$(id -u):$(id -g)" "$debs"
 echo "::endgroup::"
-((installed)) ||
-  fail "Could not install the system packages for ${browsers[*]}: the Ubuntu package mirrors did not resolve or answer within the time allowed (apt or DNS outage). Re-run the job once they are reachable."
-# Tells the action to save the downloaded packages for runs on the same runner image.
-kept=("$debs"/*.deb)
-((${#kept[@]})) && [[ -n ${GITHUB_OUTPUT:-} ]] && echo "apt-cache=$debs" >>"$GITHUB_OUTPUT"
-exit 0
+fail "Could not install the system packages for ${browsers[*]}: the Ubuntu package mirrors did not resolve or answer within the time allowed (apt or DNS outage). Re-run the job once they are reachable."
