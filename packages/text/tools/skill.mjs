@@ -52,7 +52,8 @@ export function absoluteLinks(markdown, from) {
 
 // The command lines inlined in the bundle test import.meta.url to know whether they run as the
 // main script; in one bundle every module would. They get a URL of their own. esbuild and the
-// licence notices (which read the licence texts when loaded) serve only the repository's build:
+// licence notices (which read the licence texts when loaded) and slim.mjs (with the shared icon
+// set) serve only the repository's build:
 // the skill ships the built editor and its notices, and gets stubs that say so.
 const STUBS = {
   esbuild: ["build", "transform"],
@@ -62,6 +63,13 @@ const STUBS = {
     "packageEntries",
     "groupNotices",
     "formatNotices",
+  ],
+  slim: [
+    "sideEffectFree",
+    "pureCalls",
+    "pruneCSS",
+    "unusedClassesNamed",
+    "iconsNamed",
   ],
 };
 const CLI = /\/tools\/(build|check|measure|pack|sections|markdown)\.mjs$/;
@@ -74,6 +82,10 @@ const skillBundle = {
     }));
     b.onResolve({ filter: /\/shared\/notices\.mjs$/ }, () => ({
       path: "notices",
+      namespace: "stub",
+    }));
+    b.onResolve({ filter: /^\.\/slim\.mjs$/ }, () => ({
+      path: "slim",
       namespace: "stub",
     }));
     b.onLoad({ filter: /.*/, namespace: "stub" }, (a) => ({

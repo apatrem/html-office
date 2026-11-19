@@ -96,36 +96,61 @@ Not covered by these targets: open, save, print preview and PDF are one-off comm
 
 ## Code budget
 
-The built example's application code is **577,048 bytes of 600,000** (headroom 22,952); the editor script is 188,348 bytes gzipped. `tools/measure.mjs` splits it by component from esbuild's metafile (the bytes each source contributes to the minified bundle) plus the parts outside the bundle, and checks that the rows add up to the measured code. ProseMirror's eight packages come to 236,602 bytes (41% of the ceiling); everything of ours, shared modules and CSS included, to 275,709.
+The built example's application code is **579,723 bytes of 600,000** (headroom 20,277); the editor script is 189,782 bytes gzipped. `tools/measure.mjs` splits it by component from esbuild's metafile (the bytes each source contributes to the minified bundle) plus the parts outside the bundle, and checks that the rows add up to the measured code. ProseMirror's eight packages come to 235,180 bytes (39% of the ceiling), commonmark and the CSS tokenizer to 48,736, everything of ours, shared modules and CSS included, to 279,234. The embedded guide and offline ECharts are not application code and are not counted.
 
-| Component | Bytes | Share of the ceiling |
-| --- | ---: | ---: |
-| prosemirror-view 1.42.8 | 98,586 | 16.4% |
-| prosemirror-model 1.25.12 (with orderedmap) | 46,359 | 7.7% |
-| commonmark 0.31.2 (with mdurl) | 34,082 | 5.7% |
-| prosemirror-transform 1.12.4 | 32,007 | 5.3% |
-| prosemirror-tables 1.8.1 | 26,723 | 4.5% |
-| @csstools/css-tokenizer 3.0.4 (theme CSS checks) | 16,912 | 2.8% |
-| prosemirror-state 1.4.4 | 11,858 | 2.0% |
-| prosemirror-history 1.5.1 (with rope-sequence) | 9,235 | 1.5% |
-| prosemirror-commands 1.7.2 | 9,102 | 1.5% |
-| prosemirror-keymap 1.2.3 (with w3c-keyname) | 2,732 | 0.5% |
-| Editor UI: shell, saving, print, figures, comments (`runtime/`) | 70,961 | 11.8% |
-| Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection (`editor/`) | 52,667 | 8.8% |
-| Text model: HTML tree, file layout, validator (`model/`) | 27,598 | 4.6% |
-| Paste mapping and Markdown import (`editor/clipboard/`) | 22,790 | 3.8% |
-| Shared: charts | 21,947 | 3.7% |
-| CSS: shell, panels and editor styles | 20,680 | 3.4% |
-| Shared: shell | 18,653 | 3.1% |
-| Schema, parser, serialiser, editing guard (`editor/schema/`) | 17,982 | 3.0% |
-| Shared: clipboard | 16,594 | 2.8% |
-| Slides format vocabulary (`src/format.js`, theme CSS checks) | 2,421 | 0.4% |
-| Shared: persistence | 1,948 | 0.3% |
-| Shared: themes | 1,468 | 0.2% |
-| Bundle scaffolding (esbuild module wrappers) | 550 | 0.1% |
-| Licence notices and banner | 4,545 | 0.8% |
-| Inline-script escaping and the script element | 83 | 0.0% |
-| Document theme styles (`style#charte`, `style#theme`) | 8,046 | 1.3% |
-| HTML skeleton (head, metadata, zones) | 519 | 0.1% |
+"Before" is `main` at 0.7.2 (19 November 2026, after the table-width and heading-refusal work); "after" is the build with the savings below.
 
-The headroom left for T18–T20 is about 23 KB. The largest single items under our control are the editor UI and the editing modules; the CSS tokenizer (17 KB) serves only the theme-style checks of the validator.
+| Component | Before | After | Share of the ceiling |
+| --- | ---: | ---: | ---: |
+| prosemirror-view 1.42.8 | 98,586 | 98,582 | 16.4% |
+| prosemirror-model 1.25.12 (with orderedmap) | 46,359 | 46,359 | 7.7% |
+| prosemirror-transform 1.12.4 | 32,007 | 32,007 | 5.3% |
+| commonmark 0.31.2 (with mdurl) | 34,082 | 31,824 | 5.3% |
+| prosemirror-tables 1.8.1 | 26,723 | 25,305 | 4.2% |
+| @csstools/css-tokenizer 3.0.4 (theme CSS checks) | 16,912 | 16,912 | 2.8% |
+| prosemirror-state 1.4.4 | 11,858 | 11,858 | 2.0% |
+| prosemirror-history 1.5.1 (with rope-sequence) | 9,235 | 9,235 | 1.5% |
+| prosemirror-commands 1.7.2 | 9,102 | 9,102 | 1.5% |
+| prosemirror-keymap 1.2.3 (with w3c-keyname) | 2,732 | 2,732 | 0.5% |
+| Editor UI: shell, saving, print, figures, comments (`runtime/`) | 76,102 | 75,976 | 12.7% |
+| Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection (`editor/`) | 55,103 | 55,097 | 9.2% |
+| Text model: HTML tree, file layout, validator (`model/`) | 28,032 | 28,020 | 4.7% |
+| Paste mapping and Markdown import (`editor/clipboard/`) | 23,156 | 23,156 | 3.9% |
+| Shared: charts | 21,947 | 21,942 | 3.7% |
+| Schema, parser, serialiser, editing guard (`editor/schema/`) | 18,329 | 18,329 | 3.1% |
+| CSS: shell, panels and editor styles | 20,952 | 16,669 | 2.8% |
+| Shared: clipboard | 16,590 | 16,590 | 2.8% |
+| Shared: shell (icons included) | 18,653 | 14,925 | 2.5% |
+| Shared: persistence | 4,641 | 4,641 | 0.8% |
+| Slides format vocabulary (`src/format.js`, theme CSS checks) | 2,421 | 2,421 | 0.4% |
+| Shared: themes | 1,468 | 1,468 | 0.2% |
+| Bundle scaffolding (esbuild module wrappers) | 550 | 550 | 0.1% |
+| Licence notices and banner | 4,545 | 4,545 | 0.8% |
+| Inline-script escaping and the script element | 83 | 83 | 0.0% |
+| Document theme styles (`style#charte`, `style#theme`) | 11,078 | 11,078 | 1.8% |
+| HTML skeleton (head, metadata, zones) | 317 | 317 | 0.1% |
+| **Application code** | **591,563** | **579,723** | **96.6%** |
+
+### Savings (November 2026)
+
+None of these changes what the editor does or what a document looks like: each removes code or styles the editor cannot reach. They live in Text's build (`tools/build.mjs`, `tools/slim.mjs`); the shared modules are unchanged, so Slides and Data build as before. Each saving was measured by removing the changes one at a time from the final build.
+
+| Change | Saved |
+| --- | ---: |
+| The shared shell's stylesheets lose the rules for classes no Text code creates (Data's colour, fill and border pickers, cell-style grid, key-value table, link target, panel button row). A first build without stylesheets gives the editor's code; the build stops if that code names one of the dropped classes, whole or by its stem (`sh-sw-${token}`). | 4,258 |
+| The shared icon set keeps the 22 of 50 icons the editor's code names in a string literal (icons are always named by literals). | 3,722 |
+| commonmark has no `sideEffects` field, so esbuild kept every module its index re-exports; marked side-effect free, its XML renderer (never used) drops out. | 2,222 |
+| Four top-level calls of prosemirror-tables that the editor never uses (`toggleHeaderRow`, `toggleHeaderColumn`, `toggleHeaderCell`, `columnResizingPluginKey`) are marked `/* @__PURE__ */` when the module loads, so esbuild drops them and the code only they reach. The build stops if a binding is no longer found. | 1,418 |
+| esbuild writes characters outside ASCII as they are (`charset: "utf8"`) instead of `\uXXXX` escapes; the file is UTF-8. | 195 |
+| A selector for a class nothing creates (`.sh-save`) removed from `runtime/style.css`. | 25 |
+| **Total** | **11,840** |
+
+### Not done
+
+The task's target was 25 KB of headroom (575,000 bytes); the safe changes reach 20,277. What else was measured:
+
+- **A second minifier pass** over esbuild's output: terser 5 saves about 4.8 KB (about 2.7 s per build), `@swc/core` about 8 KB (about 0.2 s, a native package). Either reaches the target, but each adds a dependency, and terser slows every browser test file, which builds the editor; declined to keep dependencies and build time down.
+- **The licence notices** (4,545 bytes) carry two commonmark notices for files it does not ship in the editor (the specification in `test/`, benchmark samples) and mdurl's notice for `parse.js`, which is not bundled: about 0.8 KB. Left as is: the notices reproduce the packages' licence files.
+- **The CSS tokenizer** (16,912 bytes) serves only the validator's safety checks on style attributes and style zones; a smaller hand-written tokenizer would have to match it on every input that could hide a URL or an `@import`, so it was not replaced.
+- **Compressing the editor script** (gzip is 189,782 bytes, about a third) would change how the file embeds and starts the editor (script#engine), which is part of the format.
+- The remaining library code is reached by the editor; the validator, Markdown import, charts and clipboard modules are features, not authoring-time code.
