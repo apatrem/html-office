@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# Installs Playwright's browsers and their Ubuntu packages on a hosted runner without hanging on
+# an apt or DNS outage (11 November 2026: every package took 20 s to fail resolving three mirrors,
+# so jobs sat in `playwright install --with-deps` until their timeout).
+#
+#   install.sh chromium firefox webkit
+#
+# Browsers come from ~/.cache/ms-playwright (restored by the action) or Playwright's CDN. Packages
+# come, in order, from the image itself, from the .deb files a previous run on the same runner image
+# kept in $PLAYWRIGHT_APT_DIR (no network needed), or from the Ubuntu mirrors, retried a bounded
+# number of times once their names resolve. Everything stops within $PLAYWRIGHT_INSTALL_BUDGET
+# seconds with an error that says what failed.
+set -uo pipefail
+
+browsers=("$@")
+debs=${PLAYWRIGHT_APT_DIR:-$HOME/.cache/playwright-apt}
+deadline=$((SECONDS + ${PLAYWRIGHT_INSTALL_BUDGET:-720}))
+
+fail() {
+  echo "::error title=Playwright install::$1"
+  exit 1
+}
+# Seconds left, capped: every command below is bounded by the overall deadline.
+left() {
+  local rest=$((deadline - SECONDS))
+  ((rest > $1)) && rest=$1
+  echo $((rest > 0 ? rest : 0))
+}
+# Retried with growing pauses while time is left; each attempt is bounded by `timeout`, which
+# signals the whole process group (sudo passes the signal on to apt).
+attempt() {
+  local cap=$1 wait=15 n
+  shift
+  for n in 1 2 3; do
+    local t
+    t=$(left "$cap")
+    ((t < 10)) && return 1
+    timeout --kill-after=15 "$t" "$@" && return 0
+    echo "::warning::Attempt $n of '$*' failed (exit $?)"
+    sleep "$(left $wait)"
+    wait=$((wait * 2))
+  done
+  return 1
+}
+# Playwright's own check: `apt-get install -s` of its package list, offline; exits 1 if any is missing.
+missing() {
+  ! npx --no-install playwright install-deps --dry-run "${browsers[@]}" >/dev/null 2>&1
+}
+# The hosts apt fetches from (mirror list and sources), resolved before apt is asked to use them.
+mirrors_resolve() {
+  local hosts host
+  hosts=$(grep -ohE 'https?://[^/[:space:]]+' /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
+    /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null |
+    sed -E 's#https?://##' | grep -E 'ubuntu\.com$' | sort -u)
+  [[ -n $hosts ]] || hosts=archive.ubuntu.com
+  for host in $hosts; do
+    if timeout 10 getent ahosts "$host" >/dev/null; then
+      echo "Package mirror $host resolves"
+      return 0
+    fi
+  done
+  echo "No package mirror resolves: $(echo $hosts)"
+  return 1
+}
+# A DNS blip of a few minutes is waited out; a longer outage fails the job instead of hanging it.
+wait_for_mirrors() {
+  local wait=10 stop=$((SECONDS + 300))
+  until mirrors_resolve; do
+    ((SECONDS > stop || $(left 60) < 30)) && return 1
+    sleep "$(left $wait)"
+    ((wait < 60)) && wait=$((wait * 2))
+  done
+}
+
+echo "::group::Browsers: ${browsers[*]}"
+attempt 300 npx --no-install playwright install "${browsers[@]}" ||
+  fail "Could not download the Playwright browsers (${browsers[*]}) from Playwright's CDN; re-run the job later."
+echo "::endgroup::"
+
+if ! missing; then
+  echo "All system packages for ${browsers[*]} are already installed."
+  exit 0
+fi
+
+shopt -s nullglob
+cached=("$debs"/*.deb)
+if ((${#cached[@]})); then
+  echo "::group::Installing ${#cached[@]} cached packages without network"
+  if sudo timeout "$(left 300)" apt-get install -y --no-download --no-install-recommends "${cached[@]}" && ! missing; then
+    echo "::endgroup::"
+    exit 0
+  fi
+  echo "::endgroup::"
+  echo "::warning::The cached packages did not install; trying the Ubuntu mirrors."
+fi
+
+echo "::group::Installing system packages from the Ubuntu mirrors"
+# Fail a fetch in seconds rather than minutes, and keep every downloaded .deb for the next run.
+mkdir -p "$debs/partial"
+sudo tee /etc/apt/apt.conf.d/90-playwright-ci >/dev/null <<EOF
+Acquire::Retries "2";
+Acquire::http::Timeout "20";
+Acquire::https::Timeout "20";
+APT::Keep-Downloaded-Packages "true";
+APT::Sandbox::User "root";
+Dir::Cache::Archives "$debs/";
+EOF
+installed=0
+for n in 1 2 3; do
+  wait_for_mirrors || break
+  if timeout --kill-after=15 "$(left 480)" npx --no-install playwright install-deps "${browsers[@]}" && ! missing; then
+    installed=1
+    break
+  fi
+  echo "::warning::Attempt $n to install the system packages failed"
+  (($(left 60) < 30)) && break
+done
+sudo rm -f /etc/apt/apt.conf.d/90-playwright-ci
+sudo rm -rf "$debs/partial" "$debs/lock"
+sudo chown -R "$(id -u):$(id -g)" "$debs"
+echo "::endgroup::"
+((installed)) ||
+  fail "Could not install the system packages for ${browsers[*]}: the Ubuntu package mirrors did not resolve or answer within the time allowed (apt or DNS outage). Re-run the job once they are reachable."
+# Tells the action to save the downloaded packages for runs on the same runner image.
+kept=("$debs"/*.deb)
+((${#kept[@]})) && [[ -n ${GITHUB_OUTPUT:-} ]] && echo "apt-cache=$debs" >>"$GITHUB_OUTPUT"
+exit 0

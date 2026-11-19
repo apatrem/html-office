@@ -25,7 +25,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: chromium
       - run: npm audit --audit-level=high
       - run: npm test
       - name: Reproduce pinned engine assessment
@@ -54,7 +56,9 @@ jobs:
             packages/data/package-lock.json
       - run: npm ci
       - run: npm ci --prefix packages/data --ignore-scripts
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: chromium
       - run: npm audit --prefix packages/data --audit-level=high
       - run: npm --prefix packages/data run format:check
       - run: npm run test:data
@@ -87,7 +91,9 @@ jobs:
             packages/text/package-lock.json
       - run: npm ci
       - run: npm ci --prefix packages/text --ignore-scripts
-      - run: npx playwright install --with-deps chromium
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: chromium
       - run: npm audit --prefix packages/text --audit-level=high
       - run: npm --prefix packages/text run format:check
       - run: npm run test:text
@@ -116,7 +122,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: chromium firefox webkit
       - name: Inert clipboard parsing and paste events in Chromium, Firefox and WebKit (ADR-013 X02a)
         run: node tests/clipboard-engines.mjs
       - name: Slides tables through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02b)
@@ -155,7 +163,9 @@ jobs:
             packages/text/package-lock.json
       - run: npm ci
       - run: npm ci --prefix packages/text --ignore-scripts
-      - run: npx playwright install --with-deps firefox webkit
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: firefox webkit
       - name: Edit, save a copy and recover from file:// in Firefox and WebKit (Text T05)
         run: node packages/text/tests/saving-browser.mjs
         env:
