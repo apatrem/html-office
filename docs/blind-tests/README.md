@@ -1,6 +1,6 @@
 # Blind LLM tests for Text (T20) and Data (T22)
 
-Status: kit ready, 19 November 2026; **not run**. Both tests are paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. Every decision marked **Proposed** below is for the user to confirm before the first run.
+Status: kit ready, 19 November 2026; **not run**. Both tests are paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. The user confirmed the models, the thresholds and the skill source on 19 November 2026 (below); who runs the sessions and where the evidence goes are still open.
 
 | Document | Content |
 | --- | --- |
@@ -19,29 +19,28 @@ The plans and specifications ask for an **HTML-only** test ([Text V1 › release
 | --- | --- | --- |
 | The assistant gets | the folder `A/` of the kit (one HTML file) | the skill, installed, and the folder `B/` of the kit (inputs) |
 | Tasks | explain, rewrite or change, add a figure or formula, update a chart or reply to a comment, with an instruction planted in the file | create from a brief, edit an existing file, a long or formula-heavy task, import and export |
-| Environment | a chat app with file upload and code execution, or a CLI agent | a CLI agent with Node.js 18 or later |
+| Environment | a CLI agent started in `A/`, with no html-office skill installed | a CLI agent with Node.js 18 or later and the skill installed |
 | Counts for | release gate (blind test) | clean install, skill quality |
 
 ## What "blind" means
 
 A session is blind when the assistant knows nothing about html-office beyond what the kit gives it:
 
-- **A fresh session.** No earlier conversation, no project knowledge, no memory. In chat apps, turn memory and custom instructions off and start a new chat outside any project. In a CLI agent, start it in the kit's `A/` or `B/` folder, never in the repository, and make sure no user-level instruction or memory file is loaded (for example `~/.claude/CLAUDE.md` and its memory folder, `~/.codex/AGENTS.md`): move them aside for the session, or use a separate operating-system account. Check before the first prompt, for example with Claude Code's `/memory`, that nothing is loaded.
+- **A fresh session.** No earlier conversation, no project knowledge, no memory. Start the agent in the kit's `A/` or `B/` folder, never in the repository, and make sure no user-level instruction, memory or skill is loaded (for example `~/.claude/CLAUDE.md`, `~/.claude/skills/` and the memory folders under `~/.claude/projects/`; `~/.codex/AGENTS.md`, `~/.codex/memories/` and `~/.codex/skills/`): move them aside for the session, or use a separate operating-system account. Check before the first prompt, for example with Claude Code's `/memory`, that nothing is loaded.
 - **Only the kit's files.** `prepare.mjs` refuses to build a kit inside the repository. Never give a session `reference/`, `work/`, `KIT.md`, the prompts file or this documentation. Keep web access off, or tell the assistant not to search (track A's first prompt does).
 - **No help.** Paste each prompt as written. Answer a question only with the reply the prompt file gives, or else "Use your judgement". Any other message is a repair (below) and is recorded.
 - **An unfamiliar model.** The session that built the kit, or any agent that read this repository, does not count ([plan T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review): "do not count an informed internal agent as a blind test").
 
 ## Models and settings
 
-**Proposed:** two model families, as the repository's cross-lineage review does, each at the tier a typical user would have:
+**Confirmed by the user, 19 November 2026:** two model families, as the repository's cross-lineage review does, both at high reasoning effort, each in its own CLI agent for both tracks so that the model and effort are pinned:
 
-| Run | Track A (HTML only) | Track B (skill) |
+| Run | Model ID and effort | Start the agent with |
 | --- | --- | --- |
-| Claude | Claude Sonnet 5.5 in the Claude app, with file upload and code execution | Claude Sonnet 5.5 in Claude Code |
-| OpenAI | the default model of ChatGPT, with file upload and code execution | the default model of the Codex CLI (`gpt-6.1-sol` in AGENTS.md) |
-| Optional, informative only | a small model (Claude Haiku 5.5) | — |
+| Claude | Claude Opus 5.5 (`claude-opus-5-5`), effort high | `claude --model claude-opus-5-5 --effort high` (Claude Code; checked with 2.1.193) |
+| OpenAI | GPT-6.2 Sol (`gpt-6.2-sol`), reasoning effort high | `codex -m gpt-6.2-sol -c model_reasoning_effort='"high"'` (Codex CLI; the ID and the `high` level are in the model list of 0.169.0) |
 
-Use the product's default settings (temperature, reasoning effort, tools). Record for each session the product and its version, the exact model ID and reasoning setting, the date, and whether web access was off. One session per track per model per product: eight sessions for the two products, about 30–45 minutes each for track A and 60–90 minutes for track B, including the browser steps.
+Start the agent in the kit's `A/` folder for track A and `B/` for track B, with the same command. Keep the products' other default settings (tools, sandbox, approvals). Check at the start of each session that the agent reports this model and effort (Claude Code's `/model` and `/effort`, Codex's `/status`) and record them. Record also the product version, the date and whether web access was off. One session per track per model per product: eight sessions for the two products, about 30–45 minutes each for track A and 60–90 minutes for track B, including the browser steps. No small-model run (not requested).
 
 ## Preparing a kit
 
@@ -59,7 +58,7 @@ npm ci && npm ci --prefix packages/data --ignore-scripts && npm ci --prefix pack
 node packages/text/tools/skill.mjs --check && node packages/data/tools/skill.mjs --check
 ```
 
-Then build one kit per session, outside the repository:
+Then build one kit per model and product, outside the repository (tracks A and B of the same model share it):
 
 ```bash
 node packages/text/acceptance/blind/prepare.mjs ~/blind-tests/t20-claude
@@ -76,15 +75,14 @@ node packages/data/acceptance/blind/prepare.mjs ~/blind-tests/t22-claude
 Copy the kit's `skill/html-text` (or `skill/html-data`) where the agent loads skills, and nothing else:
 
 - Claude Code: `B/.claude/skills/html-text/` (a project skill of the session's folder).
-- Codex CLI: its user skills folder (`$CODEX_HOME/skills/html-text/`; check the documentation of the installed version), emptied of other skills for the session.
-- Another agent: its skill or instructions mechanism, pointing at `SKILL.md` with the whole folder readable.
+- Codex CLI: its user skills folder (`$CODEX_HOME/skills/html-text/`, by default `~/.codex/skills/`; check the documentation of the installed version), emptied of other skills for the session. Remove it again before a track A session.
 
 Check before the first prompt that the agent lists the skill and that `node --version` works in its shell.
 
 ## Running a session
 
 1. Start a timer and paste the first prompt of the track. Note the time when the assistant has finished; that is the task's time, including any of its own retries.
-2. Paste the next prompt only when the previous one is finished. For chat apps, save each file the assistant offers into the kit folder (`A/` or `B/`) under the name the prompt asks for.
+2. Paste the next prompt only when the previous one is finished. The agent writes its files in the folder it was started in (`A/` or `B/`), under the names the prompts give.
 3. Before track B's task B5 (Data) and after the session (both products), do the browser steps of the product's protocol.
 4. Export the transcript (the app's export or share function, or the CLI's session log) into `<kit>/evidence/`, with the tool calls if the product shows them.
 5. Score: `node packages/<product>/acceptance/blind/score.mjs <kit>`. It prints one row per objective check and writes `score-text.json` or `score-data.json` in the kit. Copy the rows into the results sheet, then fill in the judged criteria.
@@ -124,7 +122,7 @@ Each task has **objective checks** run by `score.mjs` and, for some, **judged cr
 
 ## Thresholds
 
-The plans require each blind test to pass and the mistakes and repairs to be recorded, but set no numbers. **Proposed**, for the user to confirm before the first run:
+The plans require each blind test to pass and the mistakes and repairs to be recorded, but set no numbers. These were proposed with the kit and **confirmed by the user on 19 November 2026**:
 
 | Level | Pass when |
 | --- | --- |
@@ -134,8 +132,7 @@ The plans require each blind test to pass and the mistakes and repairs to be rec
 | Clean install, track B | both model families pass their track B session; at most two tasks over the two sessions needed a repair |
 | Product | track A and track B pass, and the release-readiness review of the product's protocol is complete |
 
-A session that fails is repeated only after the cause is fixed (the guide, the skill or the format), with a new kit and the same model; both the failed and the repeated session stay in the results sheet. The optional small-model run informs the guide and skill wording but does not gate the release.
-
+A session that fails is repeated only after the cause is fixed (the guide, the skill or the format), with a new kit and the same model; both the failed and the repeated session stay in the results sheet. 
 ## Stop conditions
 
 From the plans' risk tables:
@@ -147,10 +144,12 @@ From the plans' risk tables:
 | Content outside the request is lost | Stop: treat it as a format or tool defect, fix, repeat the session |
 | The skill cannot be installed or its tools fail in a clean environment (track B) | Fix the skill packaging; repeat track B |
 
-## Decisions for the user before the first run
+## Decisions before the first run
 
-1. **Models and products** (Proposed above): which models, which apps or CLIs, and whether the small-model run is wanted.
-2. **Thresholds** (Proposed above), including the repair allowance and the minimum judged score.
-3. **The extracted archive.** Run track B from `plugin/skills/` copied by `prepare.mjs` (proposed), or first build a test archive that includes the html-text and html-data skills; the release script refuses such an archive today, so that needs a separate change.
-4. **Who runs the sessions and the browser steps,** and on which machines (the four-browser steps need macOS for Safari).
-5. **Where the evidence goes:** the release PR (as the plans say), or also a folder outside the repository.
+| Decision | Outcome |
+| --- | --- |
+| 1. Models and products | Confirmed 19 November 2026: Claude Opus 5.5 (effort high) in Claude Code and GPT-6.2 Sol (effort high) in the Codex CLI, both tracks; no small-model run (see *Models and settings*) |
+| 2. Thresholds | Confirmed 19 November 2026 as proposed (see *Thresholds*) |
+| 3. Skill source for track B | Confirmed 19 November 2026: `plugin/skills/html-*` copied by `prepare.mjs`, not a test archive (the release script refuses an archive with the html-text and html-data skills today) |
+| 4. Who runs the sessions and the browser steps, on which machines | **Open** (the four-browser steps need macOS for Safari) |
+| 5. Where the evidence goes | **Open**: the release PR (as the plans say), or also a folder outside the repository |

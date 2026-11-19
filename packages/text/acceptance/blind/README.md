@@ -1,6 +1,6 @@
 # T20 blind-test kit (html-text)
 
-The material of the [T20 protocol](../../../../docs/blind-tests/TEXT-T20.md); the method, the proposed thresholds and the decisions to take are in the [blind-test README](../../../../docs/blind-tests/README.md).
+The material of the [T20 protocol](../../../../docs/blind-tests/TEXT-T20.md); the method, the models, the thresholds and the decisions are in the [blind-test README](../../../../docs/blind-tests/README.md).
 
 | File | Role |
 | --- | --- |

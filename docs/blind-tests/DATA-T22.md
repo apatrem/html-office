@@ -1,6 +1,6 @@
 # T22 protocol: html-data blind test and release-readiness review
 
-Status: ready to run, 19 November 2026; not run. The shared method (what "blind" means, models, installation, repairs, evidence, proposed thresholds) is in the [README](README.md); record results in [RESULTS-T22.md](RESULTS-T22.md). Plan: [T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review); specification: [release gates](../HTML-OFFICE-V1.md#first-acceptance-workbook-and-release-gates).
+Status: ready to run, 19 November 2026; not run. The shared method (what "blind" means, confirmed models and thresholds, installation, repairs, evidence) is in the [README](README.md); record results in [RESULTS-T22.md](RESULTS-T22.md). Plan: [T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review); specification: [release gates](../HTML-OFFICE-V1.md#first-acceptance-workbook-and-release-gates).
 
 The kit is [`packages/data/acceptance/blind/`](../../packages/data/acceptance/blind/): exact prompts in [`PROMPTS.md`](../../packages/data/acceptance/blind/PROMPTS.md), inputs in `inputs/`, checks and expected values in `tasks.mjs`.
 

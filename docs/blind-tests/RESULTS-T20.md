@@ -1,14 +1,15 @@
 # T20 results: html-text blind test
 
-Fill in one column or block per session, following the [T20 protocol](TEXT-T20.md) and the [shared method](README.md). Thresholds are the **proposed** ones of the README until the user confirms them; record the confirmed version here. Status: **not run**.
+Fill in one column or block per session, following the [T20 protocol](TEXT-T20.md) and the [shared method](README.md). The models, thresholds and skill source were confirmed by the user on 19 November 2026. Status: **not run**.
 
 ## Decisions
 
 | Decision | Value | Confirmed by, date |
 | --- | --- | --- |
-| Models and products | Proposed: Claude Sonnet 5.5 (Claude app; Claude Code), default ChatGPT model (ChatGPT; Codex CLI) | |
-| Thresholds | Proposed: README › Thresholds | |
-| Skill source for track B | Proposed: `plugin/skills/html-text` copied by `prepare.mjs` | |
+| Models and products | Claude Opus 5.5 (`claude-opus-5-5`, effort high) in Claude Code; GPT-6.2 Sol (`gpt-6.2-sol`, effort high) in the Codex CLI; both tracks | User, 19 November 2026 |
+| Thresholds | README › Thresholds, as proposed | User, 19 November 2026 |
+| Skill source for track B | `plugin/skills/html-text` copied by `prepare.mjs` | User, 19 November 2026 |
+| Who runs the sessions and browser steps; where the evidence goes | Open | |
 
 ## Sessions
 

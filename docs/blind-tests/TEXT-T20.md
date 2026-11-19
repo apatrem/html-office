@@ -1,6 +1,6 @@
 # T20 protocol: html-text blind test and release-readiness review
 
-Status: ready to run, 19 November 2026; not run. The shared method (what "blind" means, models, installation, repairs, evidence, proposed thresholds) is in the [README](README.md); record results in [RESULTS-T20.md](RESULTS-T20.md). Plan: [T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review); specification: [release gates](../HTML-TEXT-V1.md#acceptance-document-and-release-gates).
+Status: ready to run, 19 November 2026; not run. The shared method (what "blind" means, confirmed models and thresholds, installation, repairs, evidence) is in the [README](README.md); record results in [RESULTS-T20.md](RESULTS-T20.md). Plan: [T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review); specification: [release gates](../HTML-TEXT-V1.md#acceptance-document-and-release-gates).
 
 The kit is [`packages/text/acceptance/blind/`](../../packages/text/acceptance/blind/): exact prompts in [`PROMPTS.md`](../../packages/text/acceptance/blind/PROMPTS.md), inputs in `inputs/`, checks in `tasks.mjs`.
 

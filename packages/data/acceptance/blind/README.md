@@ -1,6 +1,6 @@
 # T22 blind-test kit (html-data)
 
-The material of the [T22 protocol](../../../../docs/blind-tests/DATA-T22.md); the method, the proposed thresholds and the decisions to take are in the [blind-test README](../../../../docs/blind-tests/README.md).
+The material of the [T22 protocol](../../../../docs/blind-tests/DATA-T22.md); the method, the models, the thresholds and the decisions are in the [blind-test README](../../../../docs/blind-tests/README.md).
 
 | File | Role |
 | --- | --- |

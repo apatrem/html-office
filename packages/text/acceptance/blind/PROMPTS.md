@@ -4,7 +4,7 @@ The exact prompts of the [T20 protocol](../../../../docs/blind-tests/TEXT-T20.md
 
 ## Track A: HTML only
 
-Session A sees only the folder `A/`, which holds `fictional-business-review.html`. If the assistant cannot write files (a chat app), ask it to give the edited file as a download and save it in `A/` under the name the prompt gives.
+Session A sees only the folder `A/`, which holds `fictional-business-review.html`; the agent is started there, with no html-office skill installed, and writes its files there.
 
 ### A1 Explain the structure
 
