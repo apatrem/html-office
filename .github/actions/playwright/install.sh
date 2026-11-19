@@ -46,12 +46,13 @@ attempt() {
 missing() {
   ! npx --no-install playwright install-deps --dry-run "${browsers[@]}" >/dev/null 2>&1
 }
-# The hosts apt fetches from (mirror list and sources), resolved before apt is asked to use them.
+# The Ubuntu mirrors apt fetches from (the runner's mirror list, else the Ubuntu hosts in the
+# sources), resolved before apt is asked to use them.
+hosts_of() { grep -ohE 'https?://[^/[:space:]]+' "$@" 2>/dev/null | sed -E 's#https?://##' | sort -u; }
 mirrors_resolve() {
   local hosts host
-  hosts=$(grep -ohE 'https?://[^/[:space:]]+' /etc/apt/apt-mirrors.txt /etc/apt/sources.list \
-    /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list 2>/dev/null |
-    sed -E 's#https?://##' | grep -E 'ubuntu\.com$' | sort -u)
+  hosts=$(hosts_of /etc/apt/apt-mirrors.txt)
+  [[ -n $hosts ]] || hosts=$(hosts_of /etc/apt/sources.list /etc/apt/sources.list.d/* | grep ubuntu)
   [[ -n $hosts ]] || hosts=archive.ubuntu.com
   for host in $hosts; do
     if timeout 10 getent ahosts "$host" >/dev/null; then
