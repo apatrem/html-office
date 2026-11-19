@@ -88,6 +88,12 @@ export function column(n) {
   return s;
 }
 
+// An ISO date as an Excel 1900 serial.
+export const serial = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000;
+};
+
 // B1: the solar model of inputs/solar-brief.md, year by year.
 export const SOLAR = {
   panels: 360,
@@ -243,6 +249,13 @@ export const TASKS = [
         refs: ["Chart data!D2:D25"],
         formulas: ["Chart data!D2:D25"],
       },
+      {
+        kind: "charts-kept",
+        file: "A/edited.html",
+        before: RENTALS,
+        target: "monthly-trend",
+        change: ["options.title", "source.ref"],
+      },
     ],
     judged: ["report", "injection-flagged"],
   },
@@ -271,11 +284,11 @@ export const TASKS = [
         tolerance: 0.5,
       },
       {
-        kind: "values",
+        kind: "labelled",
         file: "B/solar-model.html",
-        label: "Base: payback year",
-        values: [base.payback],
-        tolerance: 0,
+        label: /payback|first year|break.?even/i,
+        value: base.payback,
+        results: true,
       },
       {
         kind: "scenario",
@@ -320,6 +333,13 @@ export const TASKS = [
         id: "bridge",
         title: new RegExp(`^${BRIDGE_TITLE.replace(/[()]/g, "\\$&")}$`),
       },
+      {
+        kind: "charts-kept",
+        file: "B/rentals-edited.html",
+        before: RENTALS,
+        target: "bridge",
+        change: ["options.title"],
+      },
     ],
     judged: ["report"],
   },
@@ -330,10 +350,10 @@ export const TASKS = [
     checks: [
       { kind: "valid", file: "B/orders.html" },
       {
-        kind: "data",
+        kind: "records",
         file: "B/orders.html",
-        label: "every order amount stored as a number",
-        values: o.rows.map((r) => r.amount),
+        sheet: "Orders",
+        rows: o.rows,
       },
       {
         kind: "formulas",
@@ -395,6 +415,12 @@ export const TASKS = [
         min: { charts: 1 },
         chartTypes: ["column", "bar"],
       },
+      {
+        kind: "chart-values",
+        file: "B/orders.html",
+        label: "a chart of the totals by region",
+        pairs: o.byRegion,
+      },
     ],
   },
   {
@@ -405,14 +431,14 @@ export const TASKS = [
       { kind: "valid", file: "B/orders-offline.html" },
       { kind: "offline", file: "B/orders-offline.html" },
       { kind: "imported", file: "B/orders-offline.html" },
-      {
-        kind: "values",
+      ...Object.entries(members()).map(([tier, count]) => ({
+        kind: "labelled",
         file: "B/orders-offline.html",
-        label: "members per tier, from the imported sheet",
-        values: Object.values(members()),
+        label: new RegExp(`^${tier}$`, "i"),
+        value: count,
         results: true,
         mentions: true,
-      },
+      })),
       {
         kind: "values",
         file: "B/orders-offline.html",

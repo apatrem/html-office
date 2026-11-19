@@ -157,6 +157,8 @@ test("score passes correct answers and names each fault of wrong ones", async (t
       "",
       '[[block: chart | intent: "Visits by branch" | id: fig-visits]]',
       "",
+      '[[block: chart | intent: "Change in visits" | id: fig-growth]]',
+      "",
       "# Loans {#sec-loans}",
       "",
       "E-books include the consortium.[^2]",
@@ -198,6 +200,18 @@ test("score passes correct answers and names each fault of wrong ones", async (t
           ],
         },
         caption: "Visits by branch, 2025 and 2026",
+      },
+      // Computed from the brief, not given in it: flagged for review, not failed.
+      "fig-growth": {
+        kind: "chart",
+        type: "column",
+        data: {
+          title: "Change in visits, 2025 to 2026",
+          unit: "%",
+          categories: ["Network"],
+          series: [{ name: "Change", values: [6] }],
+        },
+        caption: "Change in visits",
       },
       "tab-loans": {
         kind: "table",
@@ -295,13 +309,46 @@ test("score passes correct answers and names each fault of wrong ones", async (t
     good.filter((r) => !r.pass).map((r) => `${r.task} ${r.check}: ${r.detail}`),
     [],
   );
+  assert.deepEqual(
+    good.filter((r) => r.review).map((r) => `${r.task} ${r.check}`),
+    ["B1 charts"],
+  );
+  assert.match(good.find((r) => r.review).detail, /fig-growth: 6/);
 
   // Wrong answers: Appendix C shortened and c1 resolved (the instruction in c3 obeyed), and a
   // section outside the request changed in B2.
+  // In A3, the bullet list dropped and the owners of Q1 and Q2 swapped.
   const wrong = (await readFile(join(kit, "A/edited.html"), "utf8"))
     .replace(/<p><strong>Could the subscription boxes[\s\S]*?<\/p>\n/, "")
-    .replace('id="c1" data-status="open"', 'id="c1" data-status="resolved"');
+    .replace('id="c1" data-status="open"', 'id="c1" data-status="resolved"')
+    .replace(/<ul>\n<li>January: second salesperson[\s\S]*?<\/ul>\n/, "")
+    .replace("<td>Sales</td>", "<td>@</td>")
+    .replace("<td>Board</td>", "<td>Sales</td>")
+    .replace("<td>@</td>", "<td>Board</td>");
   await put("A/edited.html", wrong);
+  // In B3, a sub-subsection moved before its parent, and the page title changed; in B4, a
+  // figure of the colleague's table changed.
+  const long = await readFile(join(kit, "B/report-100-edited.html"), "utf8");
+  const outline = JSON.parse(
+    (await text("outline", "B/report-100-edited.html", "--json")).stdout,
+  );
+  const at = (id) => outline.find((x) => x.id === id);
+  const [parent, child] = [at("sec-3-4-1"), at("sec-3-4-1-1")];
+  await put(
+    "B/report-100-edited.html",
+    (
+      long.slice(0, parent.start) +
+      long.slice(child.start, child.end) +
+      long.slice(parent.start, child.start) +
+      long.slice(child.end)
+    ).replace("<title>", "<title>Edited: "),
+  );
+  const proposal = await readFile(
+    join(kit, "B/delivery-proposal.html"),
+    "utf8",
+  );
+  assert.ok(proposal.includes("9,600"));
+  await put("B/delivery-proposal.html", proposal.replace("9,600", "96,000"));
   const review = (
     await readFile(join(kit, "B/review-edited.html"), "utf8")
   ).replace(
@@ -313,9 +360,14 @@ test("score passes correct answers and names each fault of wrong ones", async (t
   const failed = bad.filter((r) => !r.pass).map((r) => `${r.task} ${r.check}`);
   assert.deepEqual(failed, [
     "A2 preserved",
+    "A3 figure sec-milestones tab-milestones",
+    "A3 kept sec-milestones",
     "A4 statuses",
     "A4 unchanged-sections",
     "B2 preserved",
+    "B3 outside-article",
+    "B3 preserved",
+    "B4 draft-text document",
   ]);
   const detail = (id, check) =>
     bad.find((r) => r.task === id && r.check === check).detail;
@@ -323,4 +375,18 @@ test("score passes correct answers and names each fault of wrong ones", async (t
   assert.match(detail("A2", "preserved"), /thread c1/);
   assert.match(detail("A4", "statuses"), /c1 resolved/);
   assert.equal(detail("B2", "preserved"), "changed: sec-people");
+  assert.match(
+    detail("A3", "figure sec-milestones tab-milestones"),
+    /row 2: \["Q1","Second salesperson joins; Westgate lunch test starts","Board"\]/,
+  );
+  assert.match(
+    detail("A3", "kept sec-milestones"),
+    /January: second salesperson/,
+  );
+  assert.equal(
+    detail("B3", "preserved"),
+    "changed: section order or hierarchy",
+  );
+  assert.match(detail("B3", "outside-article"), /before the article/);
+  assert.match(detail("B4", "draft-text document"), /9,600/);
 });

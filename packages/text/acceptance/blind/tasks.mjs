@@ -152,11 +152,14 @@ export const TASKS = [
         section: "sec-milestones",
         id: MILESTONES.id,
         figure: "table",
-        text: [
-          MILESTONES.caption,
-          ...MILESTONES.head,
-          ...MILESTONES.body.flat(),
-        ],
+        caption: MILESTONES.caption,
+        rows: [MILESTONES.head, ...MILESTONES.body],
+      },
+      {
+        kind: "kept",
+        file: "A/edited.html",
+        section: "sec-milestones",
+        before: REVIEW,
       },
       {
         kind: "xref",
@@ -297,6 +300,11 @@ export const TASKS = [
     checks: [
       { kind: "valid", file: "B/report-100-edited.html" },
       {
+        kind: "outside-article",
+        file: "B/report-100-edited.html",
+        before: LONG,
+      },
+      {
         kind: "preserved",
         file: "B/report-100-edited.html",
         before: LONG,
@@ -308,6 +316,12 @@ export const TASKS = [
         file: "B/report-100-edited.html",
         section: "sec-3-4",
         target: "tab-3-2",
+      },
+      {
+        kind: "kept",
+        file: "B/report-100-edited.html",
+        section: "sec-3-4",
+        before: LONG,
       },
       {
         kind: "contains",
@@ -356,6 +370,18 @@ export const TASKS = [
         kind: "contains",
         file: "B/delivery-proposal.md",
         text: DRAFT.headings,
+      },
+      {
+        kind: "draft-text",
+        what: "document",
+        file: "B/delivery-proposal.html",
+        source: "B/inputs/colleague-draft.md",
+      },
+      {
+        kind: "draft-text",
+        what: "Markdown copy",
+        file: "B/delivery-proposal.md",
+        source: "B/inputs/colleague-draft.md",
       },
     ],
   },

@@ -13,7 +13,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { TASKS, REFERENCE_A, REFERENCE_B2 } from "./tasks.mjs";
+import { TASKS, REFERENCE_A, REFERENCE_B2, serial } from "./tasks.mjs";
 
 const run = promisify(execFile);
 const REFERENCES = { A: REFERENCE_A, B2: REFERENCE_B2 };
@@ -235,6 +235,69 @@ const formulasOf = (model) =>
     Object.values(s.cells ?? {}).filter((c) => c.formula),
   );
 
+// The formula whose spill covers a cell, if any.
+export function spilledInto(sheet, address) {
+  const [row, col] = parseRef(address);
+  for (const [anchor, c] of Object.entries(sheet.cells ?? {})) {
+    if (!c.spill) continue;
+    const [from, to] = c.spill.ref.split(":").map(parseRef);
+    if (row >= from[0] && row <= to[0] && col >= from[1] && col <= to[1])
+      return { anchor, cell: c };
+  }
+  return null;
+}
+
+// Every filled position of a sheet, in reading order: [address, typed value, formula cell].
+export function grid(sheet) {
+  let rows = sheet.table?.height ?? 0,
+    cols = sheet.table?.width ?? 0;
+  const grow = (a) => {
+    const [r, c] = parseRef(a);
+    rows = Math.max(rows, r);
+    cols = Math.max(cols, c);
+  };
+  for (const [a, c] of Object.entries(sheet.cells ?? {})) {
+    grow(a);
+    if (c.spill) grow(c.spill.ref.split(":")[1]);
+  }
+  const out = [];
+  for (let r = 1; r <= rows; r++)
+    for (let c = 1; c <= cols; c++) {
+      const a = name(r, c);
+      const v = cellValue(sheet, a);
+      if (v === null || v === undefined || v.type === "blank") continue;
+      const own = sheet.cells?.[a];
+      out.push([a, v, own?.formula ? own : spilledInto(sheet, a)?.cell]);
+    }
+  return out;
+}
+
+// Does a formula read one of these sheets, directly or through a named range on them?
+export function readsSheets(model, sheetIds) {
+  const names = model.sheets
+    .filter((s) => sheetIds.has(s.id))
+    .map((s) => s.name);
+  const ranges = (model.names ?? [])
+    .filter((n) => sheetIds.has(n.sheetId))
+    .map((n) => n.name);
+  const escape = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns = [
+    ...names.map((n) => new RegExp(`(^|[^\\w.])'?${escape(n)}'?!`, "i")),
+    ...ranges.map(
+      (n) => new RegExp(`(^|[^\\w.])${escape(n)}(?![\\w.!(])`, "i"),
+    ),
+  ];
+  return (formula) => patterns.some((p) => p.test(formula));
+}
+const imported = (model) =>
+  new Set((model.sources ?? []).map((s) => s.sheetId));
+const dropPath = (o, path) => {
+  const keys = path.split(".");
+  const last = keys.pop();
+  const parent = keys.reduce((x, k) => x?.[k], o);
+  if (parent) delete parent[last];
+};
+
 // ---- The checks ----
 
 export const CHECKS = {
@@ -290,13 +353,20 @@ export const CHECKS = {
     } catch {
       return { pass: false, detail: firstLine(r) };
     }
-    const errors = (report.errors ?? []).map((x) =>
+    const text = (x) =>
       typeof x === "string"
         ? x
-        : `${x.location ?? ""} ${x.message ?? JSON.stringify(x)}`.trim(),
-    );
+        : `${x.location ?? ""} ${x.message ?? JSON.stringify(x)}`.trim();
+    // A change to the editor, engine, brand or guide is only a warning for validate, but
+    // here it is a change outside the request.
+    const errors = [
+      ...(report.errors ?? []).map(text),
+      ...(report.warnings ?? [])
+        .map(text)
+        .filter((w) => /differ from the reference/.test(w)),
+    ];
     return {
-      pass: report.valid === true,
+      pass: report.valid === true && errors.length === 0,
       detail: errors.length
         ? errors.slice(0, 6).join("; ") +
           (errors.length > 6 ? ` (+${errors.length - 6})` : "")
@@ -384,8 +454,9 @@ export const CHECKS = {
     }
     for (const ref of check.formulas ?? []) {
       const [s, cells] = cellsOf(raw, ref);
+      const [calculated] = cellsOf(mine, ref);
       for (const address of cells)
-        if (!s.cells?.[address]?.formula)
+        if (!s.cells?.[address]?.formula && !spilledInto(calculated, address))
           wrong.push(`${s.name}!${address} is not a formula`);
     }
     return {
@@ -471,22 +542,19 @@ export const CHECKS = {
   // `mentions`: as the result of a formula that reads an imported sheet).
   async values(check, { file, recalculated }) {
     const model = await recalculated(file);
-    let formula;
-    if (check.mentions) {
-      const imported = new Set((model.sources ?? []).map((s) => s.sheetId));
-      const names = model.sheets
-        .filter((s) => imported.has(s.id))
-        .map((s) => s.name);
-      formula = (f) =>
-        names.some((n) => f.includes(`${n}!`) || f.includes(`'${n}'!`));
-    }
+    const formula = check.mentions
+      ? readsSheets(model, imported(model))
+      : undefined;
     const pool = valuesOf(model, { results: check.results, formula }).filter(
       (v) => typeof v === "number",
     );
     const tolerance = check.tolerance ?? 1e-6;
-    const missing = check.values.filter(
-      (v) => !pool.some((x) => Math.abs(x - v) <= tolerance),
-    );
+    // Each expected value takes its own occurrence: two equal values need two cells.
+    const missing = check.values.filter((v) => {
+      const i = pool.findIndex((x) => Math.abs(x - v) <= tolerance);
+      if (i >= 0) pool.splice(i, 1);
+      return i < 0;
+    });
     return {
       pass: missing.length === 0,
       detail: missing.length
@@ -546,22 +614,185 @@ export const CHECKS = {
     return CHECKS.values(check, { ...ctx, file: out });
   },
 
-  async data(check, { file, load }) {
-    const pool = valuesOf(await load(file), { inputs: true }).filter(
-      (v) => typeof v === "number",
+  // Every CSV record is a row of the sheet, field by field and typed: text as text, numbers
+  // as numbers, dates as date serials with a date format.
+  async records(check, { file, load }) {
+    const model = await load(file);
+    const sheet = model.sheets.find(
+      (s) => s.name.toLowerCase() === check.sheet.toLowerCase(),
     );
-    const left = [...pool];
-    const missing = [];
-    for (const v of check.values) {
-      const i = left.indexOf(v);
-      if (i < 0) missing.push(v);
-      else left.splice(i, 1);
+    if (!sheet) return { pass: false, detail: `no sheet ${check.sheet}` };
+    const fields = Object.keys(check.rows[0]);
+    const header = {};
+    for (const [a, v] of grid(sheet)) {
+      const [r, c] = parseRef(a);
+      const f = fields.find(
+        (x) => String(v.value).toLowerCase() === x.toLowerCase(),
+      );
+      if (r <= 3 && f && !header[f]) header[f] = { row: r, col: c };
+    }
+    const absent = fields.filter((f) => !header[f]);
+    if (absent.length)
+      return { pass: false, detail: `no column ${absent.join(", ")}` };
+    const top = Math.max(...Object.values(header).map((h) => h.row));
+    const byOrder = new Map();
+    for (let r = top + 1; r <= top + check.rows.length + 50; r++) {
+      const id = cellValue(sheet, name(r, header.order.col))?.value;
+      if (id !== undefined) byOrder.set(id, r);
+    }
+    const formatOf = (a) =>
+      sheet.cells?.[a]?.format ?? sheet.table?.cellMetadata?.[a]?.format;
+    const wrong = [];
+    for (const rec of check.rows) {
+      const r = byOrder.get(rec.order);
+      if (!r) {
+        wrong.push(`${rec.order} missing`);
+        continue;
+      }
+      for (const f of fields.slice(1)) {
+        const a = name(r, header[f].col);
+        const v = cellValue(sheet, a);
+        const want =
+          f === "date"
+            ? { type: "number", value: serial(rec.date) }
+            : typeof rec[f] === "number"
+              ? { type: "number", value: rec[f] }
+              : { type: "text", value: rec[f] };
+        if (!same(v, want)) wrong.push(`${a} ${f} ${show(v)}`);
+        else if (f === "date" && formatOf(a)?.kind !== "date")
+          wrong.push(`${a} not formatted as a date`);
+      }
     }
     return {
-      pass: missing.length === 0,
-      detail: missing.length
-        ? `${missing.length} of ${check.values.length} missing: ${missing.slice(0, 8).join(", ")}`
-        : `all ${check.values.length} present`,
+      pass: wrong.length === 0,
+      detail: wrong.length
+        ? `${wrong.length} problem(s): ${wrong.slice(0, 6).join("; ")}`
+        : `all ${check.rows.length} records, typed`,
+    };
+  },
+
+  // A text cell matching the label has the value next to it (right on its row, or below):
+  // the first filled cell, which must be a formula result (`results`) reading an imported
+  // sheet (`mentions`) when asked.
+  async labelled(check, { file, recalculated }) {
+    const model = await recalculated(file);
+    const reads = check.mentions ? readsSheets(model, imported(model)) : null;
+    const seen = [];
+    for (const sheet of model.sheets) {
+      if (check.mentions && imported(model).has(sheet.id)) continue;
+      const cells = new Map(grid(sheet).map(([a, v, f]) => [a, [v, f]]));
+      for (const [a, [v]] of cells) {
+        if (v.type !== "text" || !check.label.test(v.value)) continue;
+        const [r, c] = parseRef(a);
+        const right = [...Array(12)].map((_, i) => name(r, c + i + 1));
+        for (const n of [right.find((x) => cells.has(x)), name(r + 1, c)]) {
+          const [value, formula] = cells.get(n) ?? [];
+          if (!value) continue;
+          seen.push(`${sheet.name}!${n} ${show(value)}`);
+          const ok =
+            same(
+              value,
+              {
+                type: typeof check.value === "number" ? "number" : "text",
+                value: check.value,
+              },
+              1e-6,
+            ) &&
+            (!check.results || formula) &&
+            (!reads || (formula && reads(formula.formula)));
+          if (ok)
+            return {
+              pass: true,
+              detail: `${sheet.name}!${a} "${v.value}": ${sheet.name}!${n} = ${show(value)}`,
+            };
+        }
+      }
+    }
+    return {
+      pass: false,
+      detail: `no label ${check.label} with ${check.value}${check.mentions ? " calculated from the imported sheet" : ""} next to it${seen.length ? ` (found ${seen.slice(0, 4).join(", ")})` : ""}`,
+    };
+  },
+
+  // Every chart of the original is kept as it was; on the target, only the listed paths may
+  // change. Previews are caches.
+  async "charts-kept"(check, { file, before, load }) {
+    const strip = (c) => {
+      const { preview, ...rest } = c;
+      return rest;
+    };
+    const [a, b] = [
+      (await load(before)).charts ?? [],
+      (await load(file)).charts ?? [],
+    ];
+    const problems = [];
+    for (const old of a) {
+      const now = b.find((c) => c.id === old.id);
+      if (!now) {
+        problems.push(`${old.id} deleted`);
+        continue;
+      }
+      const [x, y] = [structuredClone(strip(old)), structuredClone(strip(now))];
+      if (old.id === check.target)
+        for (const p of check.change) {
+          dropPath(x, p);
+          dropPath(y, p);
+        }
+      if (JSON.stringify(x) !== JSON.stringify(y))
+        problems.push(`${old.id} changed`);
+    }
+    for (const c of b)
+      if (!a.some((x) => x.id === c.id)) problems.push(`${c.id} added`);
+    return {
+      pass: problems.length === 0,
+      detail: problems.length
+        ? problems.join(", ")
+        : `${a.length} chart(s) kept; on ${check.target} only ${check.change.join(", ")} may differ`,
+    };
+  },
+
+  // Some chart's source block pairs each category with its expected value (categories down
+  // the first column or across the first row).
+  async "chart-values"(check, { file, recalculated }) {
+    const model = await recalculated(file);
+    const tried = [];
+    for (const chart of model.charts ?? []) {
+      const sheet = model.sheets.find((s) => s.id === chart.source?.sheetId);
+      if (!sheet || !chart.source.ref) continue;
+      const [from, to = from] = chart.source.ref.split(":");
+      const [r1, c1] = parseRef(from),
+        [r2, c2] = parseRef(to);
+      const pairs = new Map();
+      for (let r = r1; r <= r2; r++)
+        for (let c = c1; c <= c2; c++) {
+          const v = cellValue(sheet, name(r, c));
+          if (v?.type !== "number") continue;
+          for (const k of [
+            cellValue(sheet, name(r, c1)),
+            cellValue(sheet, name(r1, c)),
+          ])
+            if (k?.type === "text") pairs.set(`${k.value}=${v.value}`, true);
+        }
+      const missing = Object.entries(check.pairs).filter(
+        ([k, v]) =>
+          ![...pairs.keys()].some(
+            (p) =>
+              p.split("=")[0] === k &&
+              Math.abs(Number(p.split("=")[1]) - v) < 1e-6,
+          ),
+      );
+      if (!missing.length)
+        return {
+          pass: true,
+          detail: `${chart.id} (${chart.type}): ${Object.entries(check.pairs)
+            .map(([k, v]) => `${k} ${v}`)
+            .join(", ")}`,
+        };
+      tried.push(`${chart.id} lacks ${missing.map(([k]) => k).join(", ")}`);
+    }
+    return {
+      pass: false,
+      detail: tried.length ? tried.join("; ") : "no chart",
     };
   },
 

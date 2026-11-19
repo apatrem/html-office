@@ -74,7 +74,7 @@ export async function score(kit, { only } = {}) {
           const before = check.before && baseline(task, check.before);
           Object.assign(
             row,
-            await CHECKS[check.kind](check, { file, before, load, text }),
+            await CHECKS[check.kind](check, { kit, file, before, load, text }),
           );
         }
       } catch (e) {
@@ -133,6 +133,39 @@ export function threads(html) {
     /<aside class="comment-thread" id="([^"]+)"[^>]*>[\s\S]*?<\/aside>/g,
   ))
     out.set(m[1], m[0]);
+  return out;
+}
+
+// Quotes, dashes and spaces as plain characters, runs of spaces as one.
+export const normalise = (t) =>
+  t
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/ ([.,;:)])/g, "$1")
+    .replace(/\( /g, "(");
+export const stripMarkdown = (t) =>
+  t
+    .replace(/\[\^[^\]]+\]:?/g, " ")
+    .replace(/\\([\\`*_{}[\]()#+\-.!|>])/g, "$1")
+    .replace(/\*+|`/g, "")
+    .replace(/^\s*(>|[-*+] |\d+\. |#+ )/gm, " ")
+    .replace(/\|/g, " ");
+// The passages of a Markdown draft that a conversion must keep, split at footnote references.
+export function draftFragments(md) {
+  const out = [];
+  for (const raw of md.split("\n")) {
+    const line = raw.trim();
+    if (!line || /^#/.test(line) || /^\|?\s*-{3}/.test(line)) continue;
+    const pieces = line.startsWith("|")
+      ? line.split("|").map((c) => c.trim())
+      : line.replace(/^\[\^[^\]]+\]:\s*/, "").split(/\[\^[^\]]+\]/);
+    for (const p of pieces) {
+      const f = normalise(stripMarkdown(p)).trim();
+      if (f) out.push(f);
+    }
+  }
   return out;
 }
 
@@ -227,7 +260,8 @@ export const CHECKS = {
   // Nothing changed in the article but the allowed sections (their own bytes) and threads
   // (which may only gain replies), compared in canonical form.
   async preserved(check, { file, before, load }) {
-    const [a, b] = [parts(await load(before)), parts(await load(file))];
+    const [da, db] = [await load(before), await load(file)];
+    const [a, b] = [parts(da), parts(db)];
     const allowed = new Set([
       ...check.allow,
       ...check.threads.map((t) => `thread ${t}`),
@@ -238,6 +272,10 @@ export const CHECKS = {
       else if (b.get(key) !== value && !allowed.has(key)) changed.push(key);
     }
     for (const key of b.keys()) if (!a.has(key)) changed.push(`${key} added`);
+    // The same sections in the same order, at the same levels and under the same parents.
+    const shape = (d) => d.outline.map((x) => `${x.id}/${x.level}/${x.parent}`);
+    if (shape(da).join() !== shape(db).join())
+      changed.push("section order or hierarchy");
     for (const t of check.threads) {
       const [x, y] = [a.get(`thread ${t}`), b.get(`thread ${t}`)];
       const kept =
@@ -323,6 +361,62 @@ export const CHECKS = {
     return { pass, detail: `${n} ${check.what}(s), ${want}` };
   },
 
+  // Every line of the section as it was is still there, in order: unchanged, or (a
+  // paragraph) with text added at its end. For tasks that only add.
+  async kept(check, ctx) {
+    const [was, now] = [
+      own(await ctx.load(ctx.before), check.section)
+        .split("\n")
+        .filter(Boolean),
+      own(await ctx.load(ctx.file), check.section)
+        .split("\n")
+        .filter(Boolean),
+    ];
+    let i = 0;
+    const lost = [];
+    for (const line of was) {
+      const stem = line.endsWith("</p>") ? line.slice(0, -4) : null;
+      const at = now.findIndex(
+        (x, k) => k >= i && (x === line || (stem && x.startsWith(stem))),
+      );
+      if (at < 0)
+        lost.push(
+          decode(line.replace(/<[^>]+>/g, " "))
+            .trim()
+            .slice(0, 60),
+        );
+      else i = at + 1;
+    }
+    return {
+      pass: lost.length === 0,
+      detail: lost.length
+        ? `lost or changed: ${lost.map((l) => `"${l}…"`).join(", ")}`
+        : `all ${was.length} lines kept in order`,
+    };
+  },
+
+  // The source Markdown's text (paragraphs, list items, quotes, table cells and footnotes,
+  // split at footnote references) is in the document or its Markdown copy, as written.
+  async "draft-text"(check, ctx) {
+    const source = await readFile(join(ctx.kit, check.source), "utf8");
+    const fragments = draftFragments(source);
+    const target = ctx.file.endsWith(".md")
+      ? normalise(stripMarkdown(await readFile(ctx.file, "utf8")))
+      : normalise(
+          decode((await ctx.load(ctx.file)).html.replace(/<[^>]+>/g, " ")),
+        );
+    const missing = fragments.filter((f) => !target.includes(f));
+    return {
+      pass: missing.length === 0,
+      detail: missing.length
+        ? `${missing.length} of ${fragments.length} passages changed or missing: ${missing
+            .slice(0, 3)
+            .map((m) => `"${m.slice(0, 50)}…"`)
+            .join(", ")}`
+        : `all ${fragments.length} passages kept`,
+    };
+  },
+
   async figure(check, ctx) {
     const html = await scope(check, ctx);
     const m = new RegExp(
@@ -333,19 +427,30 @@ export const CHECKS = {
         pass: false,
         detail: `no figure ${check.id} in ${check.section ?? "the document"}`,
       };
-    const content = decode(m[0].replace(/<[^>]+>/g, "\u0000"));
-    const missing = check.text.filter((t) => !content.includes(t));
+    const cellText = (h) => decode(h.replace(/<[^>]+>/g, "")).trim();
+    const caption = cellText(
+      /<figcaption>([\s\S]*?)<\/figcaption>/.exec(m[0])?.[1] ?? "",
+    );
+    const rows = [...m[0].matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((r) =>
+      [...r[1].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/g)].map((c) =>
+        cellText(c[1]),
+      ),
+    );
     const kind = m[1] === check.figure;
+    const problems = [];
+    if (!kind) problems.push(`figure.${m[1]}, expected figure.${check.figure}`);
+    if (caption !== check.caption) problems.push(`caption "${caption}"`);
+    check.rows.forEach((want, i) => {
+      if (JSON.stringify(rows[i]) !== JSON.stringify(want))
+        problems.push(`row ${i + 1}: ${JSON.stringify(rows[i] ?? [])}`);
+    });
+    if (rows.length !== check.rows.length)
+      problems.push(`${rows.length} rows, expected ${check.rows.length}`);
     return {
-      pass: kind && missing.length === 0,
-      detail: [
-        kind
-          ? `figure.${m[1]}`
-          : `figure.${m[1]}, expected figure.${check.figure}`,
-        missing.length
-          ? `missing cells: ${missing.join(" | ")}`
-          : "every cell and the caption present",
-      ].join("; "),
+      pass: problems.length === 0,
+      detail: problems.length
+        ? problems.join("; ")
+        : `figure.${m[1]}: the caption and every cell in place`,
     };
   },
 
@@ -491,12 +596,15 @@ export const CHECKS = {
       ].filter((v) => typeof v === "number");
       for (const v of values) if (!known(v)) unknown.push(`${id}: ${v}`);
     }
+    // A number not in the brief may be computed from it (allowed) or invented (blocking):
+    // the person decides, so it is flagged for review rather than failed.
     return {
-      pass: charts.length >= check.min && unknown.length === 0,
+      pass: charts.length >= check.min,
+      review: unknown.length > 0,
       detail:
         `${charts.length} chart(s)` +
         (unknown.length
-          ? `; numbers not in the brief (judge: computed or invented?): ${unknown.join(", ")}`
+          ? `; REVIEW, numbers not in the brief (computed or invented?): ${unknown.join(", ")}`
           : "; every number from the brief"),
     };
   },
@@ -558,7 +666,7 @@ export const CHECKS = {
 export function table(results) {
   const rows = results.map(
     (r) =>
-      `| ${r.task} | ${r.check} | ${r.pass ? "pass" : "**fail**"} | ${r.detail.replace(/\|/g, "\\|").replace(/\n/g, " ")} |`,
+      `| ${r.task} | ${r.check} | ${r.pass ? (r.review ? "**review**" : "pass") : "**fail**"} | ${r.detail.replace(/\|/g, "\\|").replace(/\n/g, " ")} |`,
   );
   return [
     "| Task | Check | Result | Detail |",
@@ -587,6 +695,10 @@ if (
   const results = await score(kit, { only });
   console.log(json ? JSON.stringify(results, null, 2) : table(results));
   const failed = results.filter((r) => !r.pass).length;
-  console.log(`\n${results.length - failed} of ${results.length} checks pass.`);
+  const review = results.filter((r) => r.pass && r.review).length;
+  console.log(
+    `\n${results.length - failed} of ${results.length} checks pass` +
+      (review ? `; ${review} need a person's review.` : "."),
+  );
   process.exitCode = failed ? 1 : 0;
 }
