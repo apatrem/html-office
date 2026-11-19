@@ -1,6 +1,6 @@
 # Blind LLM tests for Text (T20) and Data (T22)
 
-Status: kit ready, 19 November 2026; **not run**. Both tests are paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. The user confirmed the models, the thresholds and the skill source on 19 November 2026 (below); who runs the sessions and where the evidence goes are still open.
+Status: kit ready, 19 November 2026; **not run**. Both tests are paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. The user confirmed every decision on 19 November 2026 (below): models, thresholds, skill source, and that the user runs the sessions and browser steps, with the evidence in the release PR.
 
 | Document | Content |
 | --- | --- |
@@ -151,5 +151,5 @@ From the plans' risk tables:
 | 1. Models and products | Confirmed 19 November 2026: Claude Opus 5.5 (effort high) in Claude Code and GPT-6.2 Sol (effort high) in the Codex CLI, both tracks; no small-model run (see *Models and settings*) |
 | 2. Thresholds | Confirmed 19 November 2026 as proposed (see *Thresholds*) |
 | 3. Skill source for track B | Confirmed 19 November 2026: `plugin/skills/html-*` copied by `prepare.mjs`, not a test archive (the release script refuses an archive with the html-text and html-data skills today) |
-| 4. Who runs the sessions and the browser steps, on which machines | **Open** (the four-browser steps need macOS for Safari) |
-| 5. Where the evidence goes | **Open**: the release PR (as the plans say), or also a folder outside the repository |
+| 4. Who runs the sessions and the browser steps, on which machines | Confirmed 19 November 2026: the user, on their own Mac (Safari included) |
+| 5. Where the evidence goes | Confirmed 19 November 2026: the release PR, as the plans say (zipped kits and the filled results sheets) |

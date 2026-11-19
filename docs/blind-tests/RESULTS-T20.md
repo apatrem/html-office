@@ -9,7 +9,7 @@ Fill in one column or block per session, following the [T20 protocol](TEXT-T20.m
 | Models and products | Claude Opus 5.5 (`claude-opus-5-5`, effort high) in Claude Code; GPT-6.2 Sol (`gpt-6.2-sol`, effort high) in the Codex CLI; both tracks | User, 19 November 2026 |
 | Thresholds | README › Thresholds, as proposed | User, 19 November 2026 |
 | Skill source for track B | `plugin/skills/html-text` copied by `prepare.mjs` | User, 19 November 2026 |
-| Who runs the sessions and browser steps; where the evidence goes | Open | |
+| Who runs the sessions and browser steps; where the evidence goes | The user, on their Mac (Safari included); evidence in the release PR | User, 19 November 2026 |
 
 ## Sessions
 
