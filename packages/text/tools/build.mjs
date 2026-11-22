@@ -18,6 +18,7 @@ import {
   formatNotices,
 } from "../../shared/notices.mjs";
 import { parseFile } from "../model/parse.mjs";
+import { isMain } from "./cli.mjs";
 import { element, text, attr } from "../model/html.mjs";
 import { canonicalize, findArticle } from "../editor/schema/document.mjs";
 import { serializeFile } from "../model/file.mjs";
@@ -250,7 +251,7 @@ export async function buildDocument(source, engine, { echarts = null } = {}) {
   return serializeFile(file, articleHTML(doc));
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const [input, output] = args.filter((a) => !a.startsWith("--"));
   if (!input) {

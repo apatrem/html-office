@@ -10,8 +10,11 @@ import {
   readFile,
   writeFile,
   mkdtemp,
+  mkdir,
   readdir,
   access,
+  link,
+  symlink,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -750,4 +753,105 @@ test("convert: a table's columns are counted even without widths", async () => {
     ),
     "columns lists 1 column(s), the table has 2",
   );
+});
+
+// Project review, 22 Nov 2026: pack left stale labels and contents (only convert regenerated
+// them), although the guide says the tools rewrite them.
+test("pack: rewrites stale cross-reference labels and contents", async () => {
+  const stale = report
+    .replace(
+      '<a class="xref" href="#fig-revenue">Figure 1</a>',
+      '<a class="xref" href="#fig-revenue">Figure 9</a>',
+    )
+    .replace(
+      '<li><a href="#sec-regions">2 Regions</a>',
+      '<li><a href="#sec-regions">Old title</a>',
+    );
+  assert.notEqual(stale, report);
+  assert.deepEqual(
+    checkSource(stale)
+      .warnings.map((w) => w.code)
+      .sort(),
+    ["stale-contents", "stale-label"],
+  );
+  const file = join(dir, "stale.html");
+  await writeFile(file, stale);
+  const r = run("pack", file);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /labels and contents rewritten/);
+  assert.equal(await readFile(file, "utf8"), report);
+});
+
+// Project review: the command lines compared import.meta.url with `file://${argv[1]}` and did
+// nothing, with exit code 0, when the path held a space or a non-ASCII character. Run here
+// through such a path (symbolic links kept, so that the module's URL holds it too).
+test("the command lines run from a path with spaces and non-ASCII characters", async () => {
+  const base = join(dir, "dossier é x");
+  await mkdir(base);
+  await symlink(at("../.."), join(base, "packages"));
+  for (const name of ["node_modules", "src"])
+    await symlink(at(`../../../${name}`), join(base, name));
+  const tool = (name, ...args) =>
+    spawnSync(
+      process.execPath,
+      [
+        "--preserve-symlinks",
+        "--preserve-symlinks-main",
+        join(base, "packages/text/tools", name),
+        ...args,
+      ],
+      { encoding: "utf8" },
+    );
+  const checked = tool("check.mjs", REPORT);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stdout, /0 error/);
+  const copy = join(dir, "packed-from-space.html");
+  const packed = tool("pack.mjs", REPORT, copy);
+  assert.equal(packed.status, 0, packed.stderr);
+  assert.match(packed.stdout, /wrote|nothing to write/);
+  assert.equal(await readFile(copy, "utf8"), report);
+  // Every command line uses the shared check (build and measure take seconds to run).
+  for (const name of await readdir(at("../tools/")))
+    if (name.endsWith(".mjs"))
+      assert.doesNotMatch(
+        await readFile(at(`../tools/${name}`), "utf8"),
+        /file:\/\/\$\{process\.argv\[1\]\}/,
+        name,
+      );
+});
+
+// Project review: pack, add-image and new --force wrote over the file in place; like replace,
+// they now write a new file next to it and rename it over, so a failed write leaves the old one
+// whole. A hard link to the old file still sees the old bytes afterwards.
+test("pack, pack.mjs, add-image and new --force replace the file by renaming", async () => {
+  const cases = [
+    ["pack", (f) => run("pack", f)],
+    [
+      "pack.mjs",
+      (f) =>
+        spawnSync(process.execPath, [at("../tools/pack.mjs"), f], {
+          encoding: "utf8",
+        }),
+    ],
+    ["add-image", (f) => run("add-image", f, join(EXAMPLES, "valid/site.png"))],
+    ["new --force", (f) => run("new", f, "--force", "--title", "Other")],
+  ];
+  for (const [name, command] of cases) {
+    const folder = join(dir, `atomic-${name.replace(/\W/g, "")}`);
+    await mkdir(folder);
+    const file = join(folder, "doc.html"),
+      other = join(folder, "link.html");
+    // Not canonical, so that pack.mjs has something to write.
+    const before = report.replace("<body>\n", "<body>\n\n");
+    await writeFile(file, before);
+    await link(file, other);
+    const r = command(file);
+    assert.equal(r.status, 0, `${name}: ${r.stderr}`);
+    assert.ok((await readFile(file, "utf8")) !== before, `${name}: written`);
+    assert.ok(
+      (await readFile(other, "utf8")) === before,
+      `${name}: the old file was overwritten in place`,
+    );
+    assert.deepEqual((await readdir(folder)).sort(), ["doc.html", "link.html"]);
+  }
 });
