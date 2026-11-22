@@ -149,10 +149,11 @@ export function sidebar(hd) {
     const box = ui('div', 'hs-mini');
     t.appendChild(box);
     const tools = ui('span', 'hs-ttools');
+    tool(tools, 'clipboard', 'Copy slide', () => { hd.goSlide(slide, false, true); hd.copySlide(); });
     tool(tools, 'copy', 'Duplicate slide', () => { hd.goSlide(slide, false); hd.dupSlide(); });
     tool(tools, 'trash', 'Delete slide', () => { hd.goSlide(slide, false); hd.delSlide(); });
     t.appendChild(tools);
-    t.addEventListener('click', e => { if (!e.target.closest('.hs-ttools')) hd.goSlide(slide, true); });
+    t.addEventListener('click', e => { if (!e.target.closest('.hs-ttools')) hd.goSlide(slide, true, true); });
     t.addEventListener('dragstart', e => { drag = slide; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', slide.id); t.classList.add('dragging'); });
     t.addEventListener('dragend', () => { drag = null; t.classList.remove('dragging'); clearMarks(); });
     t.addEventListener('dragover', e => {
@@ -225,7 +226,7 @@ export function helpPanel() {
     ['Drag · handles', 'Move · resize (snapping; Alt = free; Shift = proportions)'],
     ['Arrow keys (Alt = 1 px)', 'Move by 8 px'],
     ['Cmd+Z · Cmd+Shift+Z', 'Undo · redo'],
-    ['Cmd+C · Cmd+V', 'Copy the selected table or chart · paste a table (from a slide, Data, Excel, Sheets, Word or Docs) or a chart onto the current slide'],
+    ['Cmd+C · Cmd+V', 'Copy the selected table or chart, or the slide clicked in the thumbnails · paste a slide after the current one, or a table (from a slide, Data, Excel, Sheets, Word or Docs) or a chart onto it'],
     ['Cmd+D · Delete', 'Duplicate · delete the element'],
     ['Cmd+B · Cmd+I', 'Bold · italic'],
     ['Cmd+] · Cmd+[', 'Bring forward · send backward'],

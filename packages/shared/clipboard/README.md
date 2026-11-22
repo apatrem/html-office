@@ -4,10 +4,10 @@ The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisio
 
 | File | Contents |
 | --- | --- |
-| `envelope.mjs` | `html-office-clip/1`: `SCHEMA`, the carriers (`MIME`, the `data-html-office` `ATTRIBUTE`, Data's read-only `LEGACY_MIME`), `LIMITS`, `decodeEnvelope` / `checkEnvelope` / `encodeEnvelope` |
+| `envelope.mjs` | `html-office-clip/1` (kinds `table`, `chart` and, read by Slides only, `slide`): `SCHEMA`, the carriers (`MIME`, the `data-html-office` `ATTRIBUTE`, Data's read-only `LEGACY_MIME`), `LIMITS`, `decodeEnvelope` / `checkEnvelope` / `encodeEnvelope` |
 | `table.mjs` | The portable table model (§3): vocabulary (`TEXT_COLORS`, `FILLS`, `CELL_STYLES`), `validateTable`, and TSV (`toTSV`, `tableText`, and `fromTSV`, which reads Excel's quoting back with a cell bound) |
 | `read.mjs` | `readClipboard` (reader precedence), `parseInert` (a detached `<template>`), `findEnvelope`, `readTable` (the HTML table reader), `readTableElement` (one table of a larger fragment, with its cell elements on request), and the style helpers `classRules`, `declarations`, `hidden`, `weight`, `slant` |
-| `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `figureHTML` (a chart's picture and caption, X02c), `excelFormat` |
+| `write.mjs` | `writeClipboard` (every flavour from one `copy` event), `tableHTML` (semantic table with literal charte styles and Excel/Sheets exact-value hints), `figureHTML` (a chart's picture and caption, X02c), `sectionHTML` (simple HTML around other content: a slide, V1-01), `excelFormat` |
 | `errors.mjs` | `ClipboardError`, allow-listed field checks, `safeURL` |
 | `fixtures/` | Excel, Google Sheets, Word and Google Docs table HTML (see its README) |
 
@@ -22,7 +22,7 @@ The cross-product clipboard of html-office, from [ADR-013](../../../docs/decisio
 5. `text`: `text/plain`;
 6. `none`.
 
-An envelope with another `schema` string is skipped with a message in `notices`. A recognised envelope that is malformed, over a limit or unsafe throws a `ClipboardError`: the paste is aborted, never continued with displayed values. `text/html` over 8 Mi code units is treated as absent; other flavours over their limits throw.
+An envelope with another `schema` string is skipped with a message in `notices`; one of this schema with a `kind` the reader does not know is refused, and the message names the kind. A recognised envelope that is malformed, over a limit or unsafe throws a `ClipboardError`: the paste is aborted, never continued with displayed values. `text/html` over 8 Mi code units is treated as absent; other flavours over their limits throw.
 
 A `rowspan` stops at the end of its row group (`thead`, each `tbody`, `tfoot`), as HTML lays it out; `rowspan="0"` runs to that end.
 
@@ -41,4 +41,5 @@ Data includes the portable `table` in its envelope up to the same 20,000 cells; 
 - `tests/clipboard.test.mjs` (root): the module in Node, with parse5 standing in for the browser's parser (`tests/helpers/inert-dom.mjs`).
 - `tests/clipboard-engines.mjs` (root, CI job `clipboard-engines`): in Chromium, Firefox and WebKit, the zero-request and no-script check for resource-bearing HTML, the fixtures read as in Node, the envelope through dispatched paste events, and a Data paste of its own `text/html` (formulas relocated) undone in one step. Native pasteboards across documents and browsers stay in ADR-013's manual matrix. `CLIPBOARD_ENGINES=chromium,webkit` limits the engines.
 - `packages/data/tests/clipboard.test.mjs` and `clipboard-html-browser.mjs`: Data's mapping and Data ⇄ Data, Data ⇄ other applications in the browser.
+- `tests/slides-slide-clipboard.mjs` (root; Chromium in `npm test`, all three engines in the `clipboard-engines` CI job): a whole slide between two decks with different themes ([`src/engine/slide-clipboard.js`](../../../src/engine/slide-clipboard.js), ADR-013's amendment of 22 November 2026).
 - `tests/slides-clipboard.mjs` (root; Chromium in `npm test`, all three engines in the `clipboard-engines` CI job): Slides ⇄ Slides tables in two tabs (`file://` and `localhost`), each carrier alone, hostile clipboards, Excel/Sheets/Word/Docs fixtures, merged cells through the editor's commands and print, and Slides ⇄ Data.

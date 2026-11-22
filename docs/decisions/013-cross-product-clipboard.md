@@ -1,6 +1,6 @@
 # ADR-013 — Cross-product clipboard contract (tables and charts)
 
-Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a, X02b and X02c are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`packages/shared/charts/clipboard.mjs`](../../packages/shared/charts/clipboard.mjs), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)), and Text's table pairs with Text T07 ([`packages/text/runtime/clipboard.mjs`](../../packages/text/runtime/clipboard.mjs)); X02d and X02f remain. X02b took decision 3's option A: Slides tables have merged cells.
+Status: proposed on 24 October 2026 (task X01 of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). It details [ADR-011](011-html-office-shared-principles.md) §5 and §8. The user took the four open choices the same day; see [Decisions taken by the user](#decisions-taken-by-the-user). X03, X02a, X02b and X02c are implemented ([`packages/shared/clipboard/`](../../packages/shared/clipboard/README.md), [`packages/shared/charts/clipboard.mjs`](../../packages/shared/charts/clipboard.mjs), [`src/engine/clipboard.js`](../../src/engine/clipboard.js)), and Text's table pairs with Text T07 ([`packages/text/runtime/clipboard.mjs`](../../packages/text/runtime/clipboard.mjs)); X02d and X02f remain. X02b took decision 3's option A: Slides tables have merged cells. Whole slides (Slides V1-01) were added on 22 November 2026 as a third kind: see the [amendment](#amendment-of-22-november-2026--whole-slides-kind-slide).
 
 ## Context
 
@@ -105,7 +105,7 @@ Rules:
 }
 ```
 
-- `kind` is `table` (a Data range, or a Slides or Text table) or `chart`. One object per copy in V1. A mixed Text selection uses Text's own HTML, and other targets get its semantic HTML.
+- `kind` is `table` (a Data range, or a Slides or Text table) or `chart`; `slide` was added on 22 November 2026 (amendment below). One object per copy in V1. A mixed Text selection uses Text's own HTML, and other targets get its semantic HTML.
 - `source` is informative only and is never trusted:
   - `product` and `format` identify the writer;
   - `locale` is present only when the writer itself formatted the displayed text in that locale: Data's `locale`. Slides and Text table text is typed by authors, so they omit it. Text's `lang` is a language, not a number format;
@@ -388,6 +388,72 @@ The user took these on 24 October 2026; the options are kept for the record.
    - **Alternate option, kept open: split merges on paste.** Slides tables stay without merges, and a pasted merge keeps its text in the anchor cell and leaves the covered cells empty, with a notice. X02b may ship it instead of A only if merges prove incompatible with Slides table editing, the checker's geometry checks or print, and it must say so in its PR. The mapping rules above describe both.
 4. **Copying stale Data results: A, allow the copy, mark it `stale` and show a notice in the destination**, consistent with Data's PNG download.
    - Not chosen: refusing the copy until recalculation, which may need the engine download in standard mode.
+
+## Amendment of 22 November 2026 — whole slides (kind `slide`)
+
+Slides V1-01 copies a whole slide between two decks open in separate tabs, and within one deck. It reuses this contract with a third kind. The choices below were taken by the V1-01 session as defaults; the user had not ruled on them when the pull request was opened and may overrule any of them.
+
+### Envelope
+
+```json
+{
+  "schema": "html-office-clip/1",
+  "kind": "slide",
+  "source": { "product": "slides", "format": "1" },
+  "slide": {
+    "html": "<section class=\"slide\" data-layout=\"default\" data-detached=\"\">…</section>",
+    "assets": { "a7": { "type": "image/webp", "data": "BASE64" } }
+  }
+}
+```
+
+- `slide.html` is the slide as a saved file holds it (content, notes, chart JSON and each drawn chart's SVG preview), without its `id` and without anything the editor adds. `slide.assets` holds only the images that slide uses. One slide per copy.
+- As with every envelope, nothing identifies the source document: no path, title, footer, theme, font or other slide.
+- **A new kind, not a new schema.** A reader that does not know a kind refuses the paste with a notice and leaves its document unchanged; a reader that does not know a schema skips the envelope and reads the semantic flavours. For a slide the refusal is the better result in an older Slides editor: its fall-back would paste the outline as a table, or report that the clipboard holds no table or chart. Observed with the released 0.7.2 editor (a test keeps this while the example decks embed that release): `Paste failed: clipboard envelope: unknown kind. Deck unchanged.` From this change on, the message names the kind and says that a newer version may be needed.
+- **Data** refuses a slide with a message ("A slide cannot be pasted into a workbook; copy one of its tables instead"). **Text** reads a slide as it reads any other application's content: the simple HTML written beside the envelope (headings, paragraphs, lists and tables).
+
+### Carriers
+
+The same three flavours, written by one `copy` event:
+
+- `application/x-html-office+json`: the envelope;
+- `text/html`: **simple HTML for other applications** inside one `<section data-html-office="…">`: headings, paragraphs, lists and tables without classes or styles. A chart gives its title and data table, an image the line `[Image: alt text]`; speaker and reviewer notes are left out. There is no picture of the slide;
+- `text/plain`: the same content as an outline, one line per block, `- ` before list items and table rows as TSV.
+
+A slide whose envelope does not fit the `text/html` limit (8 Mi code units, typically several large images) is copied without `text/html`. It then pastes between tabs of one Chromium or Firefox browser only, and the copy notice says so.
+
+### Gestures
+
+- **Copy:** Slide › Copy slide, the Copy slide button of a thumbnail, and Cmd/Ctrl+C after clicking a thumbnail while nothing is selected on the canvas. Selecting an element or typing text keeps the element and text copies unchanged.
+- **Paste:** Cmd/Ctrl+V outside text editing, Edit › Paste, and Slide › Paste slide (which adds nothing but a slide). The slide is inserted **after the current slide** and becomes the current one, in one undoable step.
+
+### Pasting: nothing is adopted
+
+The destination parses `slide.html` in an inert template and **builds a new section node by node** from the format's own vocabulary:
+
+- elements: headings, paragraphs, `div`, lists, inline formatting, tables with `colgroup`, `figure`, `img` and the two note `aside`s; other namespaces, scripts, styles, frames, media and form controls are left out with what they hold, and any other element gives way to its content;
+- classes: the catalogue's content classes only, and theme classes on `span`; the existing text sanitiser then runs on every element;
+- attributes: `data-layout` (a layout the destination does not know becomes `default`, with a notice), `data-detached`, `data-nofoot`, `data-shape`, `colspan`, `rowspan`, `data-width`, `alt` and, on the direct children of a detached slide, the four geometry properties rebuilt from numbers. No `style`, event attribute, `id`, link or external resource is read;
+- charts: the JSON passes the strict schema and the type's validation, as a pasted chart does (§4). With ECharts available the chart is drawn from its data in the destination's colours and the source's preview is discarded. Without it, the preview is rebuilt by the SVG sanitiser with identifiers of its own, marked as a preview, and replaced when ECharts loads; a deck saved before that keeps the preview in the source's colours until it is saved again with ECharts available;
+- images: each asset must be a valid base64 image; it is stored under a new identifier, or under the existing one when the destination already holds the same image;
+- identifiers: the slide and its elements get new identifiers from the destination.
+
+The pasted slide therefore takes the destination's branding, chart palette, footer and page number. After the paste, text fit is measured with the checker's rules (a title over its lines, an element past the footer or the slide, text taller than its frame); elements that do not fit are reported in the paste notice and selected. Nothing is truncated or resized.
+
+### Limits and versions
+
+| Item | Limit | Above it |
+| --- | --- | --- |
+| `slide.html` | 4 Mi code units, 20,000 elements, 32 levels | Refused |
+| Images | 32 per slide, 8 Mi base64 characters each (6 MB) | Refused |
+| Chart JSON, points and preview | As §4 | Refused; an oversized preview is dropped |
+| Whole envelope | 64 Mi code units (§1) | Copy fails with a message |
+
+A recognised envelope that is malformed or over a limit aborts the paste (§1). A slide whose `source.format` is a later major format than the destination's is refused with a notice asking to upgrade the deck's editor. Writers read their own copy back before writing it, so a writer never produces what a reader refuses.
+
+### Tests
+
+`tests/slides-slide-clipboard.mjs` runs in `npm test` (Chromium) and in the `clipboard-engines` job (Chromium, Firefox, WebKit): two decks with different themes, identifiers, assets after save and reopen offline, charts with and without ECharts, notes, undo and redo, the draft, overflow, malformed, oversized and hostile envelopes, an unknown kind, and the released reader. Real pasteboards across tabs and browsers are manual ([MANUAL-CHECKS.md](../MANUAL-CHECKS.md)).
 
 ## Alternatives considered
 

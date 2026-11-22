@@ -159,6 +159,9 @@ export function readTransfer(
     }
     if (envelope?.kind === "chart")
       throw new ClipboardError("a chart is pasted (Edit › Paste), not dropped");
+    // A whole slide (Slides V1-01) is read as any other application's content: the simple HTML
+    // or the outline written beside its envelope.
+    if (envelope?.kind === "slide") envelope = null;
     if (envelope?.table)
       return {
         blocks: [tableFigure(envelope.table, used)],

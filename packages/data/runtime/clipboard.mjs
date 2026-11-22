@@ -408,6 +408,10 @@ export function setupClipboard({
         const { envelope } = read;
         if (envelope.kind === "chart")
           throw new Error("Charts cannot be pasted into Data yet");
+        if (envelope.kind === "slide")
+          throw new Error(
+            "A slide cannot be pasted into a workbook; copy one of its tables instead",
+          );
         if (envelope.table) validateTableFormats(envelope.table);
         if (envelope.range) pasteRange(envelope.range, notices);
         else pasteTable(envelope.table, notices, envelope.source);

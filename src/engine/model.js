@@ -209,15 +209,17 @@ export function nextSlideId() {
   do { id = 's' + String(++n).padStart(2, '0'); } while (document.getElementById(id));
   return id;
 }
-// Inserts a slide (HTML of a <section>) after `after` (or at the end of the deck); assigns identifiers.
-export function insertSlideHTML(html, after) {
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  const s = t.content.firstElementChild;
+// Inserts a slide (a <section>, or its HTML) after `after` (or at the end of the deck); assigns identifiers.
+export function insertSlide(s, after) {
   s.id = nextSlideId();
   items(s).forEach(el => { el.dataset.id = newId(); });
   if (after) after.after(s); else state.main.appendChild(s);
   return s;
+}
+export function insertSlideHTML(html, after) {
+  const t = document.createElement('template');
+  t.innerHTML = html.trim();
+  return insertSlide(t.content.firstElementChild, after);
 }
 
 // ---------- undo / redo ----------

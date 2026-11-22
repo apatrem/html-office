@@ -103,6 +103,7 @@ export function mountShell(cmd) {
         item('Clear formatting', 'clear-format', { resume: true, withText: true })];
     } },
     { name: 'Slide', items: () => [{ heading: 'Layout' }, ...layoutItems(), '-', item('Reset layout', 'reset-layout'), item('Footer…', 'footer'), '-',
+      item('Copy slide', 'copy-slide'), item('Paste slide', 'paste-slide'), '-',
       item('Duplicate slide', 'duplicate-slide'), item('Delete slide', 'delete-slide')] },
     { name: 'Arrange', items: arrangeItems },
     { name: 'Table', items: tableItems },

@@ -50,8 +50,11 @@ export function slideCommands(save) {
   R('chart-data', E.dataPanel, () => edit() && E.context().chart);
   for (const op of ['row+', 'row-', 'col+', 'col-', 'unmerge', 'distribute']) R('table' + op, () => E.tableOp(op), () => edit() && E.context().table && E.tableCan(op));
   R('tablewidth', E.columnWidth, () => edit() && E.context().table && E.tableCan('width'));
-  // Copy acts on a selected table; Paste adds the clipboard's table to the current slide (ADR-013).
-  R('copy', E.copySel, () => edit() && E.copyable());
-  R('paste', E.pasteMenu, edit);
+  // Copy acts on a selected table or chart, or on the slide chosen in the thumbnails; Paste adds the
+  // clipboard's slide after the current one, or its table or chart to the current slide (ADR-013).
+  R('copy', () => E.copySel(), () => edit() && (E.copyable() || E.slidePicked()));
+  R('paste', () => E.pasteMenu(), edit);
+  R('copy-slide', () => E.copySel(true), () => edit() && !!current());
+  R('paste-slide', () => E.pasteMenu('slide'), edit);
   return c;
 }

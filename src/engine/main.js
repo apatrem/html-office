@@ -97,7 +97,7 @@ function boot() {
   if (!V.isStatic()) {
     const commands = slideCommands(save);
     const shell = mountShell(commands);
-    const side = V.sidebar({ goSlide: E.goSlide, dupSlide: E.duplicateSlide, delSlide: E.deleteSlide, moveSlideTo: E.moveSlideTo,
+    const side = V.sidebar({ goSlide: E.goSlide, dupSlide: E.duplicateSlide, delSlide: E.deleteSlide, copySlide: () => commands.run('copy-slide'), moveSlideTo: E.moveSlideTo,
       newSlideItems: shell.newSlideItems });
     ready.then(() => side.rebuild()); // editing opened before the charts finished loading
     V.fit();

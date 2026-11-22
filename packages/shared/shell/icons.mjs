@@ -69,6 +69,8 @@ export const ICONS = {
   arrange:
     '<path d="M12 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h4"/><rect x="8" y="8" width="9" height="9" rx="1"/>',
   copy: '<rect x="6.5" y="6.5" width="10" height="10" rx="1.5"/><path d="M13.5 6.5V4.5a1 1 0 0 0-1-1h-8a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/>',
+  clipboard:
+    '<rect x="4.5" y="4.5" width="11" height="12.5" rx="1.5"/><path d="M7.5 4.5V3h5v1.5M7.5 9h5M7.5 12.5h5"/>',
   trash: '<path d="M4 6h12M8 6V4h4v2M5.5 6l.8 10.5h7.4L14.5 6"/>',
   rowAdd:
     '<rect x="3" y="3.5" width="14" height="6" rx="1"/><path d="M10 12.5v5M7.5 15h5"/>',

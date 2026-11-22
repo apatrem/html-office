@@ -2,8 +2,8 @@
 // alignment, in-place text, theme formatting, data panel, keyboard.
 import Moveable from 'moveable';
 import Selecto from 'selecto';
-import { state, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, measure, undo, redo,
-  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, markDirty, persistDraft, jsonForScript, look } from './model.js';
+import { state, on, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, measure, undo, redo,
+  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlide, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, readAssets, markDirty, persistDraft, jsonForScript, look } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
 import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches, previewOf, theme } from '../../packages/shared/charts/index.mjs';
 import { sanitizeSVG } from '../../packages/shared/charts/clipboard.mjs';
@@ -13,6 +13,7 @@ import { tableGrid, merged, insertRow, deleteRow, insertColumn, deleteColumn, un
 import { columnWidthDialog } from './dialogs.js';
 import { initTableResize } from './table-resize.js';
 import { copyTable, copyChart, readPaste } from './clipboard.js';
+import { copySlide, readSlide } from './slide-clipboard.js';
 
 const GRID = 8;
 const CONTENT = { x: 64, y: 44, w: 1152, h: 624 };
@@ -21,6 +22,8 @@ const ALL_DIR = { left: true, top: true, right: true, bottom: true, center: true
 
 let moveable, selecto, H = {};
 let targets = [], selSlide = null, editing = null, gesture = null, buttonDown = false;
+// The slide was chosen in the thumbnails and nothing on the canvas since: Cmd/Ctrl+C copies it.
+let picked = false;
 
 export const editingMode = () => document.body.classList.contains('hs-editing');
 export const selection = () => targets.filter(el => el.isConnected);
@@ -33,6 +36,7 @@ function setTargets(list) {
   list = list.filter(el => slideOf(el) === slide);
   selSlide = slide;
   if (slide) {
+    picked = false;
     setCurrent(slide);
     moveable.snapContainer = slide;
     moveable.elementGuidelines = items(slide).filter(el => !list.includes(el));
@@ -150,6 +154,7 @@ function startText(el, e) {
   if (el.matches('.rule, img')) return;
   if (editing) stopText();
   setTargets([]);
+  picked = false;
   editing = { el, tok: begin(slideOf(el)) };
   el.setAttribute('contenteditable', 'true');
   el.setAttribute('spellcheck', 'true');
@@ -548,12 +553,14 @@ export function insertImage() {
 }
 
 // ---------- clipboard (ADR-013) ----------
-// A selected table is copied as an element; text being typed keeps the browser's own copy and a
-// plain-text paste. Keyboard shortcuts first put the focus and a selection in an off-screen proxy,
-// so that every engine fires copy and paste events while no text is selected or editable.
-let proxy = null;
+// A selected table or chart is copied as an element, and the slide chosen in the thumbnails as a
+// whole slide; text being typed keeps the browser's own copy and a plain-text paste. Keyboard
+// shortcuts first put the focus and a selection in an off-screen proxy, so that every engine fires
+// copy and paste events while no text is selected or editable.
+let proxy = null, wholeSlide = false;
 const shortcut = k => (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+') + k;
 export const copyable = () => !editing && selection().length === 1 && (!!tableOf(selection()[0]) || selection()[0].matches('figure.chart'));
+export const slidePicked = () => picked && !editing && !selection().length && !!state.current?.isConnected;
 // The picture of a chart (title, unit and plot as PNG), kept until the chart or the theme changes.
 const pictures = new WeakMap();
 function pictureOf(fig) {
@@ -586,10 +593,20 @@ function disarmClipboard() {
 const ownClipboard = target => !!target.closest?.('input, textarea, .hs-panel, .sh-pop, .sh-drawer') ||
   (() => { const s = getSelection(); return s.rangeCount > 0 && !s.isCollapsed && !proxy.contains(s.anchorNode); })();
 function onCopy(e) {
-  if (editing || !editingMode() || !copyable() || ownClipboard(e.target)) return;
+  const slide = wholeSlide || slidePicked() ? currentSlide() : null;
+  wholeSlide = false;
+  if (editing || !editingMode() || !(slide || copyable()) || ownClipboard(e.target)) return;
   e.preventDefault();
   disarmClipboard();
   const n = ++copies, el = selection()[0];
+  if (slide) {
+    try {
+      const written = copySlide(e.clipboardData, slide), at = `Slide ${slides().indexOf(slide) + 1} copied.`;
+      banner(written.html ? `${at} Paste it into this deck or another one.`
+        : `${at} Its images are too large for Safari or another browser: paste it in a tab of this browser.`, [], written.html ? 3000 : 8000);
+    } catch (x) { banner('Copy failed: ' + x.message + '.', [], 5000); }
+    return;
+  }
   if (el.matches('figure.chart')) return copyFigure(e.clipboardData, el, n);
   try {
     const written = copyTable(e.clipboardData, tableOf(el));
@@ -616,11 +633,15 @@ function copyFigure(data, fig, n) {
     })]).then(() => { if (n === copies) banner('Chart copied, with a picture for other applications.', [], 3000); }, () => {});
   } catch (x) { /* the strings of the copy event stay */ }
 }
-// The menu command: the copy event fired by execCommand from the menu click.
-export function copySel() {
-  if (!copyable()) return banner('Select a table or a chart to copy it, or double-click to copy text.', [], 3000);
+// The menu commands: the copy event fired by execCommand from the menu click. Edit › Copy takes the
+// selected table or chart, or the slide chosen in the thumbnails; Slide › Copy slide the current slide.
+export function copySel(slide) {
+  if (slide === true) { if (editing) stopText(); if (!currentSlide()) return; }
+  else if (!copyable() && !slidePicked()) return banner('Select a table or a chart to copy it, or double-click to copy text. Slide › Copy slide copies the whole slide.', [], 4000);
+  wholeSlide = slide === true;
   armClipboard();
   if (!document.execCommand('copy')) { disarmClipboard(); banner(`Press ${shortcut('C')} to copy.`, [], 3000); }
+  wholeSlide = false;
 }
 function onPaste(e) {
   if (editing) {
@@ -635,7 +656,8 @@ function onPaste(e) {
 }
 // The menu command reads the clipboard where the browser allows it (Chromium, Firefox 127+, Safari
 // with its paste prompt): sanitised text/html keeps the data-html-office attribute.
-export async function pasteMenu() {
+// only: 'slide' for Slide › Paste slide, which adds nothing else.
+export async function pasteMenu(only) {
   if (!navigator.clipboard?.read) return banner(`Press ${shortcut('V')} to paste.`, [], 3000);
   const flavours = {};
   try {
@@ -643,14 +665,18 @@ export async function pasteMenu() {
       for (const type of ['text/html', 'text/plain'])
         if (item.types.includes(type) && !(type in flavours)) flavours[type] = await (await item.getType(type)).text();
   } catch (x) { return banner(`The browser did not allow reading the clipboard. Press ${shortcut('V')} to paste.`, [], 5000); }
-  pasteData({ types: Object.keys(flavours), getData: type => flavours[type] ?? '' });
+  pasteData({ types: Object.keys(flavours), getData: type => flavours[type] ?? '' }, only);
 }
-// One undoable step: a new table.t or figure.chart on the current slide, placed like an inserted element.
-function pasteData(data) {
+// One undoable step: a new slide after the current one, or a new table.t or figure.chart on the
+// current slide, placed like an inserted element.
+function pasteData(data, only) {
   let read;
   try { read = readPaste(data); }
   catch (x) { return banner('Paste failed: ' + x.message + '. Deck unchanged.', [], 6000); }
-  if (!read) return banner('The clipboard holds no table or chart. To paste text, double-click a text box first.', [], 4000);
+  if (only === 'slide' && !read?.slide)
+    return banner(`The clipboard holds no slide that the browser lets this command read. Copy one with Slide › Copy slide, or press ${shortcut('V')}.`, [], 5000);
+  if (!read) return banner('The clipboard holds no slide, table or chart. To paste text, double-click a text box first.', [], 4000);
+  if (read.slide) return pasteSlide(read);
   if (read.chart) return pasteChart(read.chart, read.notices);
   const r = insertNode(read.html, Math.min(CONTENT.w, Math.max(320, read.columns * 112)), 8);
   if (!r) return;
@@ -670,7 +696,7 @@ function pasteChart({ type, data, svg }, notices) {
   const r = insertNode(`<figure class="chart" data-type="${type}"><script type="application/json">${jsonForScript(data)}</script></figure>`, 640, 360);
   if (!r) return;
   const preview = !echartsReady() && svg ? sanitizeSVG(svg, { prefix: `p${Date.now().toString(36)}${++pastes}-` }) : null;
-  if (preview) r.el.appendChild(preview);
+  if (preview) previews.add(r.el.appendChild(preview));
   if (!r.slide.querySelector(':scope > .source')) {
     const src = fromHTML('<p class="source">Source: to be completed</p>');
     src.dataset.id = newId();
@@ -682,18 +708,67 @@ function pasteChart({ type, data, svg }, notices) {
   setTargets([r.el]);
   const notes = [...notices];
   if (!echartsReady()) {
-    if (preview) r.el.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
     notes.push(preview ? 'Shown as a preview until ECharts loads.' : 'The chart is drawn when ECharts loads.');
-    // Undo and redo may have replaced the figure meanwhile: every chart still waiting is drawn.
-    loadECharts().then(ec => {
-      if (!ec) return;
-      const waiting = [...state.main.querySelectorAll('figure.chart:not(.live)')];
-      waiting.forEach(renderChart);
-      new Set(waiting.map(slideOf)).forEach(refreshCaches);
-      persistDraft();
-    });
+    drawWhenLoaded();
   }
   banner(['Chart pasted.', ...notes].join(' '), [], notes.length ? 6000 : 3000);
+}
+// Charts pasted before ECharts is there show their source's preview, marked as one (again after a
+// deck change has redrawn the figures), and are drawn in this deck's colours when it arrives. Undo
+// and redo may have replaced the figures meanwhile: every chart still waiting is drawn.
+const previews = new WeakSet();
+function markPreviews() {
+  for (const svg of state.main.querySelectorAll('figure.chart:not(.live) > svg.render'))
+    if (previews.has(svg) && !svg.parentNode.querySelector(':scope > .hs-chart-preview')) svg.parentNode.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
+}
+function drawWhenLoaded() {
+  markPreviews();
+  loadECharts().then(ec => {
+    if (!ec) return;
+    const waiting = [...state.main.querySelectorAll('figure.chart:not(.live)')];
+    waiting.forEach(renderChart);
+    new Set(waiting.map(slideOf)).forEach(refreshCaches);
+    persistDraft();
+  });
+}
+
+// ---------- whole slides (V1-01) ----------
+// Elements that do not fit with this deck's theme, as the checker reports them: a title over its
+// lines, an element past the footer or the slide, text taller than its frame.
+function misfits(slide) {
+  const layout = slide.dataset.layout || 'default', sr = slide.getBoundingClientRect(), k = sr.width / 1280, detached = slide.hasAttribute('data-detached');
+  return items(slide).filter(el => {
+    if (el.matches('figure, img')) return false;
+    const r = el.getBoundingClientRect(), x = (r.left - sr.left) / k, y = (r.top - sr.top) / k, w = r.width / k, h = r.height / k;
+    if (el.matches('h1') && Math.round(h / (parseFloat(getComputedStyle(el).lineHeight) || 40)) > (/^(cover|end)$/.test(layout) ? 3 : 2)) return true;
+    if (w && (x < -1 || y < -1 || x + w > 1281 || y + h > 721)) return true;
+    if (!el.matches('.source, .cartouche, .tracker') && y + h > 668 && !/^(cover|end|section|quote)$/.test(layout)) return true;
+    return el.scrollHeight > el.clientHeight + 3 && (detached || getComputedStyle(el).overflow !== 'visible');
+  });
+}
+// A copied slide becomes a new slide after the current one, in this deck's theme: one undoable deck
+// step. Its images join this deck's assets under new identifiers (an identical image is reused).
+function pasteSlide({ slide, source, notices }) {
+  let read;
+  try { read = readSlide(slide, { source, preview: !echartsReady(), prefix: `p${Date.now().toString(36)}${++pastes}-` }); }
+  catch (x) { return banner('Paste failed: ' + x.message + '. Deck unchanged.', [], 6000); }
+  const all = readAssets(), ids = new Map();
+  for (const [id, a] of read.assets)
+    ids.set(id, Object.keys(all).find(k => all[k]?.kind !== 'font' && all[k]?.type === a.type && all[k].data === a.data) ?? addAsset(a));
+  read.node.querySelectorAll('img[data-asset]').forEach(img => { img.dataset.asset = ids.get(img.dataset.asset); });
+  deckOp(() => insertSlide(read.node, currentSlide()));
+  const s = read.node, notes = [...notices, ...read.notices], figs = [...s.querySelectorAll('figure.chart')];
+  if (figs.length && !echartsReady()) {
+    s.querySelectorAll('figure.chart > svg.render').forEach(svg => previews.add(svg));
+    notes.push('Its charts are drawn in this deck\'s colours when ECharts loads.');
+    drawWhenLoaded();
+  }
+  const bad = misfits(s);
+  if (bad.length) {
+    notes.push(`${bad.length} ${bad.length === 1 ? 'element does' : 'elements do'} not fit with this deck's theme (selected): shorten the text or enlarge the frame.`);
+    setTargets(bad);
+  }
+  banner([`Slide pasted as slide ${slides().indexOf(s) + 1}.`, ...notes].join(' '), [], notes.length ? 9000 : 3000);
 }
 
 // ---------- slide operations ----------
@@ -722,9 +797,11 @@ export function moveSlideTo(slide, ref, after) {
   if (!slide || !ref || slide === ref) return;
   deckOp(() => { if (after) ref.after(slide); else ref.before(slide); return slide; });
 }
-export function goSlide(slide, scroll) {
+// pick: chosen in the thumbnails, where Cmd/Ctrl+C then copies the slide.
+export function goSlide(slide, scroll, pick) {
   if (editing) stopText();
   clearSel();
+  picked = !!pick;
   setCurrent(slide);
   if (scroll) slide.scrollIntoView({ block: 'center', behavior: 'instant' });
 }
@@ -883,7 +960,7 @@ function onKey(e) {
   if (mod && k.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   // no preventDefault: the browser's own copy and paste fire the events (onCopy, onPaste)
   if (mod && 'cv'.includes(k.toLowerCase()) && !ownClipboard(e.target)) {
-    if (k.toLowerCase() === 'v' || copyable()) armClipboard();
+    if (k.toLowerCase() === 'v' || copyable() || slidePicked()) armClipboard();
     return;
   }
   if (mod && k.toLowerCase() === 'd') { e.preventDefault(); duplicateSel(); return; }
@@ -932,10 +1009,11 @@ export function init(handlers) {
   proxy.setAttribute('aria-hidden', 'true');
   proxy.textContent = '\u00a0';
   document.body.appendChild(proxy);
+  on('deck', () => queueMicrotask(markPreviews));
   document.addEventListener('copy', onCopy);
   document.addEventListener('paste', onPaste);
   addEventListener('pointerdown', () => { buttonDown = true; }, true);
-  state.main.addEventListener('pointerdown', e => { const sl = e.target.closest('section.slide'); if (sl) setCurrent(sl); }, true);
+  state.main.addEventListener('pointerdown', e => { picked = false; const sl = e.target.closest('section.slide'); if (sl) setCurrent(sl); }, true);
   addEventListener('pointerup', () => { buttonDown = false; }, true);
   document.addEventListener('keydown', onKey);
   document.addEventListener('keyup', e => {
