@@ -456,7 +456,8 @@ export function validateWorkbook(book) {
         validateCell(cell);
       } catch (error) {
         // Name the cell, since the message quotes only the formula.
-        if (error.formula) error.message = `${sheet.name}!${ref}: ${error.message}`;
+        if (error.formula)
+          error.message = `${sheet.name}!${ref}: ${error.message}`;
         throw error;
       }
       if (cell.cellStyle !== undefined && !cellStyles.has(cell.cellStyle))

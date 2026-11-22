@@ -98,8 +98,7 @@ export function formulaProblem(formula) {
         if (text[j] === "[") depth++;
         if (text[j] === "]" && --depth === 0) break;
       }
-      if (j >= text.length)
-        return `Missing "]" for the "[" ${where(at)}.`;
+      if (j >= text.length) return `Missing "]" for the "[" ${where(at)}.`;
       if (prev === "operand" && !space) at = j + 1;
       else problem = operand("reference", start, text.slice(at, j + 1), j + 1);
     } else if (ch === "(") {
@@ -132,7 +131,8 @@ export function formulaProblem(formula) {
     } else if (ch === ",") {
       const top = stack.at(-1);
       if (!top) {
-        const before = prev === "operand" && /^\d+$/.test(last.token) ? last : null,
+        const before =
+            prev === "operand" && /^\d+$/.test(last.token) ? last : null,
           after = /^\d/.exec(text.slice(at + 1));
         if (before && !space && after)
           return `"," ${where(start)} is not a decimal point: write the number with "." (for example ${before.token}.${/^\d+/.exec(text.slice(at + 1))[0]}). A comma only separates function arguments.`;
@@ -153,7 +153,8 @@ export function formulaProblem(formula) {
     } else {
       // Operators: + - * / ^ & = < > <= >= <> :
       prev = "op";
-      at += (ch === "<" || ch === ">") && /[=>]/.test(text[at + 1] ?? "") ? 2 : 1;
+      at +=
+        (ch === "<" || ch === ">") && /[=>]/.test(text[at + 1] ?? "") ? 2 : 1;
     }
     if (problem) return problem;
     space = false;
@@ -179,9 +180,13 @@ export function definedNameProblem(name) {
       `contains "-", which the engine refuses: use letters, digits and _ (for example ${name.replaceAll("-", "_")}).`,
     );
   if (/^[rc]$/i.test(name))
-    return bad("is refused by the engine: R and C are reserved. Choose another name.");
+    return bad(
+      "is refused by the engine: R and C are reserved. Choose another name.",
+    );
   if (/^(true|false)$/i.test(name))
-    return bad("is refused by the engine: it is a Boolean value. Choose another name.");
+    return bad(
+      "is refused by the engine: it is a Boolean value. Choose another name.",
+    );
   const cell = /^([A-Za-z]{1,3})(\d+)$/.exec(name);
   if (cell) {
     const column = [...cell[1].toUpperCase()].reduce(

@@ -354,6 +354,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
       ],
       common = [
         item("Copy style", "copy-style"),
+        item("Clear contents", "clear-contents", { shortcut: "Del" }),
         item("Clear formatting", "clear-formatting"),
       ];
     const items =
@@ -440,6 +441,7 @@ export function mountShell({ commands, state, panels: extraPanels = {} }) {
         item("Duplicate chart", "duplicate-chart"),
         item("Delete chart", "delete-chart"),
         "-",
+        item("Clear contents", "clear-contents", { shortcut: "Del" }),
         item("Clear formatting", "clear-formatting"),
       ],
     },

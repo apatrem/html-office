@@ -97,7 +97,7 @@ test("what the engine reads correctly is never refused", () => {
     "=LOG10(100)+ATAN2(1,1)",
     "=SUM(Orders[[#Data],[Amount]])",
     "=Orders[Amount]",
-    "=XLOOKUP(A1,B1:B3,C1:C3,\"none\")",
+    '=XLOOKUP(A1,B1:B3,C1:C3,"none")',
     "=A1+",
     "=1-",
   ];
@@ -111,7 +111,10 @@ test("a cell with such a formula is refused by the model, naming the cell", () =
     /Unexpected "\)"/,
   );
   const bad = book({ A1: num(100), B1: { formula: "=A1*1,2" } });
-  assert.throws(() => validateWorkbook(bad), /^Error: Sheet1!B1: "," at position 6/);
+  assert.throws(
+    () => validateWorkbook(bad),
+    /^Error: Sheet1!B1: "," at position 6/,
+  );
   assert.doesNotThrow(() =>
     validateWorkbook(book({ A1: num(100), B1: { formula: "=A1*1.2" } })),
   );
@@ -131,10 +134,7 @@ test("the editor path refuses it before the engine or the book change", async ()
       assert.deepEqual(session.book, before);
     }
     session.edit("s", "B1", { formula: "=SUM(A1:A2)+5" });
-    assert.equal(
-      (await session.calculateDelta()).results[0].result.value,
-      108,
-    );
+    assert.equal((await session.calculateDelta()).results[0].result.value, 108);
   } finally {
     session.dispose();
   }
@@ -167,7 +167,12 @@ test("the command line refuses it in new, apply and validate", async () => {
   const original = cell.formula;
   cell.formula = original + ")";
   await writeFile(join(dir, "bad.json"), JSON.stringify(model));
-  const made = await cli("new", join(dir, "bad.html"), "--model", join(dir, "bad.json"));
+  const made = await cli(
+    "new",
+    join(dir, "bad.html"),
+    "--model",
+    join(dir, "bad.json"),
+  );
   assert.equal(made.code, 1, made.out);
   assert.match(made.out, /Unexpected "\)"/);
   // validate: the saved file was edited by hand after it was written.

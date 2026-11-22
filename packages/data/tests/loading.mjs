@@ -109,7 +109,7 @@ try {
     await page.getByRole("button", { name: "Apply edit" }).click();
     await page
       .locator("#status")
-      .filter({ hasText: "Expected finite number" })
+      .filter({ hasText: '"Infinity" is not a number' })
       .waitFor();
     await page.getByLabel("Cell value").fill("180");
     await page.getByRole("button", { name: "Apply edit" }).click();

@@ -115,8 +115,18 @@ const sheetOne = () =>
       { input: { type: "number", value } },
     ]),
   );
-const row = (index, count = 1) => ({ axis: "row", action: "delete", index, count });
-const column = (index, count = 1) => ({ axis: "column", action: "delete", index, count });
+const row = (index, count = 1) => ({
+  axis: "row",
+  action: "delete",
+  index,
+  count,
+});
+const column = (index, count = 1) => ({
+  axis: "column",
+  action: "delete",
+  index,
+  count,
+});
 // [formula, command, formula after, value after]
 const rangeCases = [
   ["=SUM(Sheet1!A2:A3)", row(3), "=SUM(Sheet1!A2)", 2],
@@ -151,7 +161,12 @@ const rangeCases = [
   // Unchanged: another sheet, a single cell, an insertion, a range already broken.
   ["=SUM(Other!B1:B2)", row(1), "=SUM(Other!B1:B2)", 0],
   ["=Sheet1!A3", row(3), "=#REF!", "#REF!"],
-  ["=SUM(Sheet1!A1:A2)", { axis: "row", action: "insert", index: 2, count: 1 }, "=SUM(Sheet1!A1:A3)", 3],
+  [
+    "=SUM(Sheet1!A1:A2)",
+    { axis: "row", action: "insert", index: 2, count: 1 },
+    "=SUM(Sheet1!A1:A3)",
+    3,
+  ],
 ];
 for (const [formula, command, expected, value] of rangeCases)
   test(`deleting ${command.axis} ${command.index}+${command.count} turns ${formula} into ${expected}`, async () => {
@@ -179,7 +194,10 @@ for (const [formula, command, expected, value] of rangeCases)
       const reloaded = new EngineSession({ Model });
       try {
         reloaded.load(readModel(writeModel(session.book)));
-        assert.deepEqual((await reloaded.calculate()).sheets[1].cells.A1.result, result);
+        assert.deepEqual(
+          (await reloaded.calculate()).sheets[1].cells.A1.result,
+          result,
+        );
       } finally {
         reloaded.dispose();
       }

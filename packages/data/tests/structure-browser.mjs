@@ -151,7 +151,8 @@ try {
     await jump(page, axis === "row" ? "B3" : "C2");
     await command(page, `Delete ${plural}`);
     await updated(page);
-    const shrunk = (await copy(page, `structure-ranges-${axis}-after.html`)).book,
+    const shrunk = (await copy(page, `structure-ranges-${axis}-after.html`))
+        .book,
       [first, second] =
         axis === "row"
           ? ["=SUM(Inputs!B2:B3)", "=SUM(Inputs!$B$2:$C$2)"]
@@ -164,19 +165,23 @@ try {
     await page
       .getByText("Undo restored the previous workbook.", { exact: true })
       .waitFor();
-    const undone = (await copy(page, `structure-ranges-${axis}-undone.html`)).book;
+    const undone = (await copy(page, `structure-ranges-${axis}-undone.html`))
+      .book;
     for (const book of [before, undone]) delete book.snapshot;
     assert.deepEqual(undone, before);
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await page
       .getByText("Redo restored the previous workbook.", { exact: true })
       .waitFor();
-    const redone = (await copy(page, `structure-ranges-${axis}-redone.html`)).book;
+    const redone = (await copy(page, `structure-ranges-${axis}-redone.html`))
+      .book;
     assert.equal(redone.sheets[1].cells.E1.formula, first);
     assert.equal(redone.sheets[1].cells.E2.formula, second);
     assert.deepEqual(errors, []);
     await context.close();
-    console.log(`PASS structure: deleting ${plural} shrinks ranges; undo and redo are exact`);
+    console.log(
+      `PASS structure: deleting ${plural} shrinks ranges; undo and redo are exact`,
+    );
   }
   {
     const { context, page, errors } = await ready("pending");

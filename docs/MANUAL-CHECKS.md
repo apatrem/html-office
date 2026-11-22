@@ -113,6 +113,17 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 - Narrow window: the menus fold into ☰, and the grid stays usable.
 - Safari and Firefox: open, edit, recalculate, and Save a copy.
 
+### 2.6 Formulas, ranges, typing, clearing and the clock (review fixes)
+
+Run this on a copy of `data-pnl.html`, in Chrome, then Safari and Firefox for steps 3 to 5.
+
+1. **Formulas the engine would half read.** In an empty cell type `=SUM(B2:B3))+5`, then `=B2*1,2`, then `=10 000*2`, each followed by Enter. Each is refused: the status line names the position (`Unexpected ")" at position …`), says to write the number with `.`, or says numbers cannot contain spaces. The cell is unchanged, and Escape restores the formula bar.
+2. **Deleting the end of a range.** In an empty area type `=SUM(B2:B4)` in one cell. Select row 4 (click its header) and use Edit › Delete rows: the formula reads `=SUM(B2:B3)` and shows a number, not `#REF!` or `#VALUE!`. Undo restores `=SUM(B2:B4)`; Redo shrinks it again. Repeat with a formula over a row range and Edit › Delete columns, and with a range on another sheet.
+3. **Typing into an empty cell.** Press F2, or double-click, on empty cells and type `42`, `50%`, `3 apples`, `2026-03-04` and `=B2*2`: a number, 50% shown as a percent, text, a date shown as a date, and a formula with its result. Typing `0x10` gives text. Then regional settings › `fr-FR` (File › Regional settings…): `1,5` is the number 1,5 (the formula bar shows `1,5` again when you return to the cell) and `04/03/2026` is 4 March 2026.
+4. **Clearing.** Select a block with formatted cells (the P&L header and a few figures), press Delete (Backspace on a Mac keyboard works too): contents go, while fills, borders and number formats stay; one Undo brings everything back, one Redo clears again. Do the same with Edit › Clear contents and from the cell's right-click menu. A formula that read a cleared cell recalculates without `#VALUE!`. In the formula bar, empty a text cell and a number cell and press Enter: both clear.
+5. **Dates and the clock.** With the computer's time zone set well away from UTC, in the evening or early morning there (for example Pacific/Auckland or America/Los_Angeles), enter `=TODAY()` and `=NOW()`: they show the local date and time. Open a copy that was saved on an earlier day with these functions: the status line says the results are current but `TODAY()` shows the value of that day, the chip reads "Results dated", and Recalculate (in the status line) refreshes them.
+6. **Plain numbers.** Enter `=0.1+0.2`: the cell shows 0.3. In `fr-FR`, `=1/3` shows `0,333333333333333`; the formula bar shows the number with a comma.
+
 ## 3. Slides (`slides-catalogue.html`)
 
 1. **Shell (U04)**

@@ -35,8 +35,24 @@ export function scalarFormula(formula,names=new Set()){
   }
   return true;
 }
+// The offset in ms of a time zone (the local one when none is named) from UTC at an instant.
+export function zoneOffset(at,timeZone){
+  if(!timeZone)return -new Date(at).getTimezoneOffset()*60000;
+  const part=new Intl.DateTimeFormat('en-US',{timeZone,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(at);
+  const get=type=>Number(part.find(p=>p.type===type).value),whole=Math.floor(at/1000)*1000;
+  return Date.UTC(get('year'),get('month')-1,get('day'),get('hour'),get('minute'),get('second'))-whole;
+}
 export class EngineSession {
-  constructor(module){this.module=module;this.engine=null;}
+  // The engine binding runs in UTC only (typed-binding.rs). TODAY() and NOW()
+  // read the clock while it evaluates, so evaluate() shifts that clock by the
+  // zone's offset: they show the local date and time, as in Excel. `timeZone`
+  // is an IANA name; without one, the zone of the machine.
+  constructor(module,{timeZone}={}){this.module=module;this.engine=null;this.timeZone=timeZone;}
+  evaluate(){
+    const now=Date.now,offset=zoneOffset(now(),this.timeZone);
+    Date.now=()=>now()+offset;
+    try{this.engine.evaluate();}finally{Date.now=now;}
+  }
   load(book){
     validateWorkbook(book);this.dispose();this.book=structuredClone(book);
     this.engine=new this.module.Model(book.title,'en','UTC','en');
@@ -141,7 +157,7 @@ export class EngineSession {
     const result=type==='blank'?{type}:{type,value:type==='error'&&value==='#N/IMPL!'?'#N/IMPL':value};validateValue(result);return result;
   }
   async calculateDelta(){
-    this.engine.evaluate();
+    this.evaluate();
     const results=[];
     this.book.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){cell.result=this.result(i,ref);delete cell.spill;results.push({sheetId:sheet.id,ref,result:cell.result});}});
     // Spilled arrays are saved on their anchor as {ref, results} (F-01).
@@ -188,7 +204,7 @@ export class EngineSession {
   // untouched. Sizes that match the values are kept; spilled cells left
   // unclaimed then extend the anchors whose runs reach them.
   measure(rects){
-    const probe=new EngineSession(this.module),sizes=[];
+    const probe=new EngineSession(this.module,{timeZone:this.timeZone}),sizes=[];
     try{
       probe.load(this.book);
       const engine=probe.engine,at=this.book.sheets.length+(this.book.names.some(n=>n.ref==='#REF!')?1:0);

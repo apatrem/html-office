@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { EditHistory, captureCells } from "../model/history.mjs";
+import { EditHistory, MAX_UNDO, captureCells } from "../model/history.mjs";
 function fixture() {
   return {
     sheets: [
@@ -120,4 +120,13 @@ test("structural undo/redo moves inputs without storing the whole source sheet",
   assert.equal(book.sheets[0].cells.A2, undefined);
   assert.equal(book.sheets[0].cells.D8.input.value, "keep");
   assert.equal(book.names[0].ref, "#REF!");
+});
+test("history keeps the latest 100 undo steps", () => {
+  const history = new EditHistory();
+  for (let i = 0; i < MAX_UNDO + 25; i++)
+    history.record({ before: [], after: [], step: i });
+  assert.equal(history.past.length, MAX_UNDO);
+  assert.equal(history.past[0].step, 25);
+  assert.equal(history.past.at(-1).step, MAX_UNDO + 24);
+  assert.equal(history.canUndo, true);
 });

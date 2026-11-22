@@ -1,5 +1,6 @@
 import { address, parseAddress } from "../model/workbook.mjs";
 import { spillBounds, cellAt } from "../model/spills.mjs";
+import { conventions } from "../model/entry.mjs";
 const numberFormats = new Map(),
   dateFormats = new Map();
 export function display(cell, locale = "en-US") {
@@ -34,7 +35,14 @@ export function display(cell, locale = "en-US") {
         .join("");
     return formatter.format(date);
   }
-  if (f.kind === "general") return String(v.value);
+  // General: what a person would read, 15 significant digits (0.1+0.2 is
+  // 0.3) and the locale's decimal mark; the cell keeps its full precision.
+  if (f.kind === "general") {
+    const text = String(Number(v.value.toPrecision(15)));
+    return conventions(locale).decimal === "comma"
+      ? text.replace(".", ",")
+      : text;
+  }
   const options = {
     minimumFractionDigits: f.digits ?? 2,
     maximumFractionDigits: f.digits ?? 2,

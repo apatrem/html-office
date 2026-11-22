@@ -175,7 +175,8 @@ try {
     [240, 0, 160, 90, 400],
   );
   assert.equal(cells.D1.spill.ref, "D1:D7");
-  assert.equal(cells.D8.input.type, "blank");
+  // The emptied cell is gone (an empty entry clears), so nothing moved to D8.
+  assert.equal(cells.D8, undefined);
   assert.equal((await text(page, "E2")).trim(), "0.0");
   await command(page, "Delete rows");
   await page

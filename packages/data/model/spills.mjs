@@ -119,6 +119,27 @@ export function applyResults(book, results) {
   }
   for (const cells of touched) forgetSpills(cells);
 }
+// The part of a calculation's delta that differs from the saved results of
+// `book`: an edit may change one result among thousands, and history keeps
+// only what changed. The edited cells (`edits`: {sheetId, ref}) always stay,
+// since their old record is replaced.
+export function changedResults(book, edits, results) {
+  const edited = new Set(edits.map((e) => `${e.sheetId}!${e.ref}`)),
+    sheets = new Map(book.sheets.map((s) => [s.id, s.cells]));
+  return results.filter((r) => {
+    if (edited.has(`${r.sheetId}!${r.ref}`)) return true;
+    const cell = sheets.get(r.sheetId)?.[r.ref];
+    // Typed results are flat ({type, value}); spills are compared whole.
+    return (
+      !cell?.result ||
+      cell.result.type !== r.result.type ||
+      cell.result.value !== r.result.value ||
+      (cell.spill || r.spill
+        ? JSON.stringify(cell.spill) !== JSON.stringify(r.spill)
+        : false)
+    );
+  });
+}
 // The anchors' spill rectangles do not overlap, start at their anchor, and
 // carry one typed result per cell, the first equal to the anchor's result.
 export function validateSpills(sheet, validateValue) {

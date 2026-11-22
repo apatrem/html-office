@@ -14,7 +14,11 @@ import { validateSources } from "../model/sources.mjs";
 import { readModel } from "./document-model.mjs";
 import { EngineClient } from "./client.mjs";
 import { setupPersistence } from "./saving.mjs";
-import { snapshotState, CalculationRevision } from "../model/snapshots.mjs";
+import {
+  snapshotState,
+  volatileNotice,
+  CalculationRevision,
+} from "../model/snapshots.mjs";
 import { touchPreview, display } from "./view.mjs";
 import { h } from "../../shared/shell/dom.mjs";
 import { modal, field } from "../../shared/shell/dialogs.mjs";
@@ -29,8 +33,14 @@ import {
   shiftWorkbook,
   captureHead,
 } from "../model/structure.mjs";
+import {
+  conventions,
+  readEntry,
+  readTyped,
+  numberText,
+} from "../model/entry.mjs";
 import { EditHistory, captureCells } from "../model/history.mjs";
-import { applyResults, cellAt } from "../model/spills.mjs";
+import { applyResults, changedResults, cellAt } from "../model/spills.mjs";
 import {
   ownerRects,
   pivotOwner,
@@ -93,9 +103,20 @@ function trustSnapshot() {
   if (book.snapshot) verifiedSnapshots.add(book.snapshot.fingerprint);
 }
 const config = JSON.parse($("engine-config").textContent);
-const status = (text) => {
+// `recalculate` shows the Recalculate button beside a message about results
+// that are stale, missing or dated.
+const status = (text, { recalculate = false } = {}) => {
   $("status").textContent = text;
+  $("status-recalculate").hidden = !recalculate;
 };
+// What the status line says once the saved results have been checked.
+const checkedStatus = (state) =>
+  state === "current"
+    ? (volatileNotice(book) ?? "Saved results are current.")
+    : "Saved results are stale or missing. Apply an edit to recalculate.";
+const checkedOptions = (state) => ({
+  recalculate: state !== "current" || !!volatileNotice(book),
+});
 const persistence = setupPersistence({
   getBook: () => book,
   // Saved files carry this session's chart drawings as previews.
@@ -138,15 +159,15 @@ const persistence = setupPersistence({
         grid.draw();
         charts.draw();
         drawCalculationState();
-        status(
-          value.state === "current"
-            ? "Saved results are current."
-            : "Saved results are stale or missing. Apply an edit to recalculate.",
-        );
+        status(checkedStatus(value.state), checkedOptions(value.state));
       }
     });
   },
 });
+// Typing into an untyped cell's value field picks the type from the text, as
+// typing in the grid does, until the person chooses a type themselves.
+let autoType = true;
+const entryConventions = () => conventions(book.locale);
 function cellEdits(refs) {
   return refs.map(({ sheetId, ref }) => ({
     sheetId,
@@ -195,14 +216,16 @@ const grid = createGrid($("grid"), {
       void moveHistory(key === "y" || event.shiftKey ? "redo" : "undo");
     }
   },
+  onClear: () => void clearContents(),
   onEdit: (initial) => {
     if (spillNotice()) return;
+    // Typing over a cell picks the type as the text grows; F2 or a double
+    // click keeps the cell's own type (an empty cell stays untyped).
     if (initial !== undefined) {
+      autoType = true;
       $("cell-type").value = inferType(initial);
       $("cell-value").value = initial;
     }
-    if (initial === undefined && $("cell-type").value === "blank")
-      $("cell-type").value = "text";
     $("cell-value").focus();
     if (initial === undefined) $("cell-value").select();
   },
@@ -241,8 +264,14 @@ function choose(ref, updateGrid = true) {
       ) ?? {},
     value = cell.input ?? { type: "blank" };
   $("cell-type").value = cell.formula ? "formula" : value.type;
+  autoType = $("cell-type").value === "blank";
   $("cell-value").value =
-    cell.formula ?? (value.type === "blank" ? "" : String(value.value));
+    cell.formula ??
+    (value.type === "blank"
+      ? ""
+      : ["number", "date"].includes(value.type)
+        ? numberText(value.value, entryConventions())
+        : String(value.value));
   // A spilled cell shows its anchor's formula, read-only.
   $("cell-value").readOnly = !!cell.spilledFrom;
   dropdowns.draw();
@@ -283,11 +312,16 @@ function drawCalculationState() {
               ? verifiedSnapshots.has(book.snapshot.fingerprint)
               : formulaFree
           )
-        ? ["Calculated", "ok"]
+        ? volatileNotice(book)
+          ? ["Results dated", "warn"]
+          : ["Calculated", "ok"]
         : ["Results stale", "warn"];
   $("calc-state").textContent = text;
   $("calc-state").dataset.tone = tone;
 }
+// The typed text as a cell: its type is the one in the formula bar, read
+// with the workbook locale's conventions (the same readers as the CSV import).
+// An empty text clears the cell and leaves its formatting.
 function enteredCell() {
   const type = $("cell-type").value,
     text = $("cell-value").value;
@@ -299,22 +333,21 @@ function enteredCell() {
   delete cell.formula;
   delete cell.result;
   delete cell.spill;
-  if (type === "formula") cell.formula = text;
-  else if (type === "blank") {
-    if (text)
-      throw new Error(
-        "Choose a text or number input type for nonempty content.",
-      );
-    cell.input = { type };
-  } else if (type === "number" || type === "date") {
-    if (!text.trim()) throw new Error("Enter a number.");
-    cell.input = { type, value: Number(text) };
-  } else if (type === "boolean") {
-    if (!["TRUE", "FALSE"].includes(text.toUpperCase()))
-      throw new Error("Enter TRUE or FALSE.");
-    cell.input = { type, value: text.toUpperCase() === "TRUE" };
-  } else cell.input = { type, value: text };
-  return cell;
+  if (type === "formula" && text.trim()) cell.formula = text;
+  else {
+    const entry =
+      type === "formula"
+        ? readEntry("", {})
+        : readTyped(text, type, entryConventions());
+    if (entry.kind === "formula") cell.formula = text;
+    else if (entry.input.type !== "blank") {
+      cell.input = entry.input;
+      // The format a typed 50% or date brings applies to a cell without one.
+      if (entry.format && !old.format) cell.format = entry.format;
+    }
+  }
+  // Nothing left (no content, no formatting): the cell is removed.
+  return Object.keys(cell).length ? cell : null;
 }
 // Pivot outputs belong to their pivot (ADR-014): ordinary edits are refused.
 function assertUnowned(edits) {
@@ -387,14 +420,16 @@ async function apply({
     if (!recalculateOnly) await session.editMany(edits);
     const result = await session.calculate();
     if (!revisions.current(epoch)) return;
-    const refs = [...edits, ...result.results],
+    // Only results that differ go into history and recovery.
+    const changed = changedResults(book, edits, result.results),
+      refs = [...edits, ...changed],
       before = captureCells(book, refs),
       linkEdits = edits.some((edit) => edit.link !== undefined),
       // Rows holding wrapped cells among the edits and recalculated results
       // are re-measured once the new values are in place.
       wrapped = formatting.wrappedRows(book, [
         ...edits,
-        ...result.results.map(({ sheetId, ref }) => ({ sheetId, ref })),
+        ...changed.map(({ sheetId, ref }) => ({ sheetId, ref })),
       ]),
       headChange =
         linkEdits ||
@@ -419,7 +454,7 @@ async function apply({
           edits.filter((edit) => edit.sheetId === sheet.id),
         ),
       );
-    applyResults(book, result.results);
+    applyResults(book, changed);
     if (sources !== undefined) book.sources = sources;
     if (pivots !== undefined) {
       if (pivots.length) book.pivots = pivots;
@@ -486,6 +521,40 @@ async function apply({
     }
   }
 }
+// Delete or Edit › Clear contents: the values and formulas of the selection
+// go in one undoable step; formats, styles, links and sizes stay. Cells
+// without content are not touched, so a large selection costs only what it holds.
+async function clearContents() {
+  if (loading) return;
+  const rect = grid.selection,
+    sheet = book.sheets.find((s) => s.id === sheetId),
+    edits = [];
+  for (const [ref, cell] of Object.entries(sheet.cells)) {
+    if (!cell.formula && (!cell.input || cell.input.type === "blank")) continue;
+    const { row, column } = parseAddress(ref);
+    if (
+      row < rect.top ||
+      row > rect.bottom ||
+      column < rect.left ||
+      column > rect.right
+    )
+      continue;
+    const rest = { ...cell };
+    for (const field of ["input", "formula", "result", "spill"])
+      delete rest[field];
+    edits.push({ sheetId, ref, cell: Object.keys(rest).length ? rest : null });
+  }
+  if (!edits.length) return status("The selection has no contents to clear.");
+  try {
+    assertUnowned(edits);
+  } catch (error) {
+    return status(`${error.message} Nothing was cleared.`);
+  }
+  await apply({
+    edits,
+    selectionAfter: { sheetId, anchor: rect.anchor, focus: rect.focus },
+  });
+}
 // A spilled cell belongs to its anchor's array result (F-01): it is changed
 // through the anchor's formula, not edited on its own.
 function spillNotice(ref = selected) {
@@ -539,17 +608,17 @@ $("cell-value").addEventListener("keydown", async (event) => {
     $("grid").focus();
   }
 });
-// Typing into an empty cell's value field picks a type, as typing in the grid does.
 function inferType(text) {
-  return text.startsWith("=")
-    ? "formula"
-    : /^[0-9.+-]/.test(text)
-      ? "number"
-      : "text";
+  const kind = readEntry(text, entryConventions()).kind;
+  return kind === "blank" ? "text" : kind;
 }
 $("cell-value").addEventListener("input", () => {
-  if ($("cell-type").value === "blank" && $("cell-value").value)
-    $("cell-type").value = inferType($("cell-value").value);
+  if (!autoType) return;
+  const text = $("cell-value").value;
+  $("cell-type").value = text ? inferType(text) : "blank";
+});
+$("cell-type").addEventListener("change", () => {
+  autoType = $("cell-type").value === "blank";
 });
 // The name box takes a cell or a range (B4 or B4:D20, active cell first).
 $("cell-address").addEventListener("change", () => {
@@ -1626,6 +1695,7 @@ register(
   refreshSource,
   () => idle() && !!book.sources?.length,
 );
+register("clear-contents", clearContents);
 register("fill-down", () => clipboard.fill("down"));
 register("fill-right", () => clipboard.fill("right"));
 for (const axis of ["row", "column"])
@@ -1836,6 +1906,7 @@ register(
 );
 register("dropdown-settings", () => dropdownSettings.open());
 register("recalculate", () => apply({ recalculateOnly: true }));
+$("status-recalculate").onclick = () => commands.run("recalculate");
 register(
   "grid-lines",
   () => {
@@ -1955,9 +2026,5 @@ if (revisions.current(initialRevision)) {
   grid.draw();
   charts.draw();
   drawCalculationState();
-  status(
-    initialState.state === "current"
-      ? "Saved results are current."
-      : "Saved results are stale or missing. Apply an edit to recalculate.",
-  );
+  status(checkedStatus(initialState.state), checkedOptions(initialState.state));
 }
