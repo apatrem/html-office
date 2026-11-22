@@ -40,7 +40,7 @@ The following features were approved for later V1 development: V1-01 to V1-05 on
 
 | ID | Feature | Status |
 | --- | --- | --- |
-| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Implemented on 22 November 2026 (ADR-013 amendment); pull request open, manual browser checks pending |
+| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Implemented on 22 November 2026 (ADR-013 amendment), PR #123 awaiting the owner's review; manual browser checks pending |
 | V1-02 | Create reusable themes from reference files | Planned |
 | V1-03 | Confirm a short generation brief and default settings | Planned |
 | V1-04 | Copy/paste individual elements and selections | Started: tables and charts (ADR-013 X02b, X02c), merged in PRs #70 and #71 (27 October 2026) |
@@ -61,7 +61,7 @@ Acceptance goals:
 
 Before implementation, define compatible document versions, insertion location and browser support/fallbacks. Define how pasting handles unavailable ECharts so that chart JSON, SVG snapshots and destination colours remain consistent.
 
-Implemented on 22 November 2026 on the cross-product clipboard, as a third kind of envelope ([ADR-013, amendment](decisions/013-cross-product-clipboard.md#amendment-of-22-november-2026--whole-slides-kind-slide)). The points left open above were settled as defaults that the user may still overrule:
+Implemented on 22 November 2026 in PR #123 on the cross-product clipboard, as a third kind of envelope ([ADR-013, amendment](decisions/013-cross-product-clipboard.md#amendment-of-22-november-2026--whole-slides-kind-slide)). The points left open above were settled as defaults that the user may still overrule:
 
 - **Copy:** Slide › Copy slide, a thumbnail's Copy slide button, or Cmd/Ctrl+C after clicking a thumbnail. **Paste:** Cmd/Ctrl+V outside text editing, Edit › Paste or Slide › Paste slide; the slide goes after the current slide, in one undo step.
 - **Versions:** a slide from a later major format is refused with a notice; a layout the destination does not know becomes the default layout, with a notice.

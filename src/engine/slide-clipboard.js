@@ -11,8 +11,9 @@ import { FORMAT_VERSION, CONTENT_CLASSES, assetProblem } from '../format.js';
 import { cleanNode, readAssets, jsonForScript, sanitize, setPos } from './model.js';
 import { LAYOUTS, SHAPE_KEYS } from './templates.js';
 
-// String lengths (UTF-16 code units) checked before parsing; an image is its base64 text.
-export const SLIDE_LIMITS = { html: 4 * 2 ** 20, nodes: 20000, depth: 32, assets: 32, asset: 8 * 2 ** 20 };
+// String lengths (UTF-16 code units) checked before parsing; an image is its base64 text; `assets`
+// counts distinct images; `cells` is a table's grid once its merged cells are expanded.
+export const SLIDE_LIMITS = { html: 4 * 2 ** 20, nodes: 20000, depth: 32, assets: 32, asset: 8 * 2 ** 20, cells: 5000 };
 const fail = message => { throw new ClipboardError(message); };
 const HTML = 'http://www.w3.org/1999/xhtml';
 
@@ -165,11 +166,14 @@ export function readSlide(slide, { source = {}, preview = false, prefix = 'p' } 
     if (tag === 'img') {
       const id = n.getAttribute('data-asset');
       if (!id || !Object.hasOwn(given, id)) { images++; return []; }
-      const a = given[id];
-      if (assetProblem(id, a) || a.kind === 'font') fail('clipboard slide: an image is malformed');
-      if (a.data.length > SLIDE_LIMITS.asset) fail(`clipboard slide: an image is larger than ${Math.round(SLIDE_LIMITS.asset * 3 / 4 / 2 ** 20)} MB`);
-      assets.set(id, { type: a.type, data: a.data });
-      if (assets.size > SLIDE_LIMITS.assets) fail(`clipboard slide: more than ${SLIDE_LIMITS.assets} images`);
+      // each image is checked once, its size first, however often the slide shows it
+      if (!assets.has(id)) {
+        const a = given[id];
+        if (typeof a?.data === 'string' && a.data.length > SLIDE_LIMITS.asset) fail(`clipboard slide: an image is larger than ${Math.round(SLIDE_LIMITS.asset * 3 / 4 / 2 ** 20)} MB`);
+        if (assetProblem(id, a) || a.kind === 'font') fail('clipboard slide: an image is malformed');
+        if (assets.size >= SLIDE_LIMITS.assets) fail(`clipboard slide: more than ${SLIDE_LIMITS.assets} images`);
+        assets.set(id, { type: a.type, data: a.data });
+      }
       el.dataset.asset = id;
       el.alt = (n.getAttribute('alt') ?? '').slice(0, 2000);
       return [el];
@@ -184,11 +188,15 @@ export function readSlide(slide, { source = {}, preview = false, prefix = 'p' } 
       const json = el.appendChild(document.createElement('script'));
       json.type = 'application/json';
       json.textContent = jsonForScript(chart.data);
+      // data-preview: the source's picture, in its colours, until the chart is drawn here
       const shown = chart.svg && sanitizeSVG(chart.svg, { prefix: `${prefix}${(charts++).toString(36)}-` });
-      if (shown) el.appendChild(shown);
+      if (shown) { shown.setAttribute('data-preview', ''); el.appendChild(shown); }
       return [el];
     }
     for (const c of n.childNodes) el.append(...build(c, depth + 1, false));
+    // merged cells are bounded before any grid is laid out for them (table commands, copies)
+    if (tag === 'table' && [...el.rows].reduce((sum, tr) => sum + [...tr.cells].reduce((s, c) => s + c.colSpan * c.rowSpan, 0), 0) > SLIDE_LIMITS.cells)
+      fail(`clipboard slide: a table covers more than ${SLIDE_LIMITS.cells.toLocaleString('en-US')} cells`);
     return [el];
   };
   for (const n of src.childNodes) {

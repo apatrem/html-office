@@ -149,7 +149,7 @@ Use shapes for processes, steps, and arrows on detached slides:
 </figure>
 ```
 
-Types, fields, and examples: CHARTS.md. Title/unit come from JSON. `pack` adds a cached `<svg class="render">` for offline viewing; never author or edit it by hand. JSON is authoritative. Within script JSON, escape `<` as `\u003c` to avoid a closing script tag.
+Types, fields, and examples: CHARTS.md. Title/unit come from JSON. `pack` adds a cached `<svg class="render">` for offline viewing; never author or edit it by hand (the editor marks it `data-preview` while it still shows the picture of a chart pasted without ECharts, in its source's colours). JSON is authoritative. Within script JSON, escape `<` as `\u003c` to avoid a closing script tag.
 
 In the editor, Cmd/Ctrl+C copies a selected chart for another deck, and as a picture for PowerPoint, Keynote, Word or Docs; Cmd/Ctrl+V adds a copied chart to the current slide, drawn from its JSON in this deck's theme.
 

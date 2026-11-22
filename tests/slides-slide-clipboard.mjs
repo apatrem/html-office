@@ -6,7 +6,8 @@
 // rest of the destination are untouched; one undo step, redo, draft, save, check and reopen offline;
 // text that no longer fits is reported; a deck without ECharts shows the sanitised previews; malformed,
 // oversized and hostile envelopes are refused or neutralised (no request, no script); an unknown kind,
-// and what the released 0.7.2 reader does with a slide.
+// and what the released 0.7.2 reader does with a slide. Cases marked "review" come from the
+// cross-lineage review of PR #123.
 // Chromium runs every case with the real clipboard. CLIPBOARD_ENGINES=chromium,firefox,webkit adds
 // Firefox and WebKit, where the copy is real and the paste a dispatched event carrying the copied
 // flavours: their native pasteboards across documents stay in docs/MANUAL-CHECKS.md.
@@ -48,6 +49,9 @@ const S91 = '<section class="slide dark" id="s91" data-layout="panel-13" data-no
   '<p class="tracker">Fictional</p><h1>A slide that follows its layout</h1><div class="body w-8"><p>Its elements carry no coordinates.</p></div></section>';
 const S92 = '<section class="slide" id="s92" data-layout="default" data-detached=""><h1 data-id="e920" style="--x:64;--y:72;--w:1152;--h:88">A tight text box</h1>' +
   '<div class="body" data-id="e921" style="--x:64;--y:200;--w:420;--h:32"><p>Twelve volunteers water the beds every week.</p></div></section>';
+// A line that cannot wrap: wider than its frame in a larger type, never taller.
+const S93 = '<section class="slide" id="s93" data-layout="default" data-detached=""><h1 data-id="e930" style="--x:64;--y:72;--w:1152;--h:88">A line that cannot wrap</h1>' +
+  '<div class="body" data-id="e931" style="--x:64;--y:200;--w:560;--h:120"><pre>water(beds, 12); plant(rows, 8); compost(3.5)</pre></div></section>';
 // The destination's own slide and image use the identifiers of the copied slide.
 const OWN = '<section class="slide" id="s90" data-layout="default"><h1 data-id="e900">The destination\'s own slide s90</h1><div class="body" data-id="e901"><p>Unrelated content.</p></div>' +
   '<img data-asset="a7" alt="The destination\'s own image" class="w-4" data-id="e902"></section>';
@@ -60,7 +64,7 @@ const deck = (html, { attrs, slides, assets, charte }) => {
   return out;
 };
 const A = path.join(DIR, 'a/deck.html'), B = path.join(DIR, 'b/deck.html'), WIDE = path.join(DIR, 'b/wide.html'), C = path.join(DIR, 'c/no-charts.html');
-fs.writeFileSync(A, deck(example, { attrs: 'data-footer="Deck A · Fictional data" data-theme="red" data-font="georgia"', slides: S90 + S91 + S92,
+fs.writeFileSync(A, deck(example, { attrs: 'data-footer="Deck A · Fictional data" data-theme="red" data-font="georgia"', slides: S90 + S91 + S92 + S93,
   assets: { a7: { type: 'image/png', data: PNG_A }, a8: { type: 'image/png', data: PNG_B } } }));
 const destination = { attrs: 'data-footer="Deck B · Fictional data" data-theme="green"', slides: OWN, assets: { a7: { type: 'image/png', data: PNG_B } } };
 fs.writeFileSync(B, deck(example, destination));
@@ -241,7 +245,19 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       'while typing, the shortcut is the browser\'s own copy of the selected text');
     await a.keyboard.press('Escape');
     await a.keyboard.press('Escape');
+    // Firefox kept the text selected after typing: the next shortcut copied it, not the slide (CI, PR #123).
+    ok(await a.evaluate(() => getSelection().toString()) === '', 'leaving the text box leaves no text selected');
     ok(await mainHTML(a) === source0, 'the source is still unchanged');
+
+    // Review: where the browser refuses the menu's copy, the shortcut the notice asks for copies the slide, not a selected table.
+    await a.locator('#s90 > table').click({ position: { x: 20, y: 8 } });
+    await a.evaluate(() => { document.execCommand = () => false; globalThis.copied = null; });
+    await menu(a, 'Slide', 'Copy slide');
+    const asked = await banner(a);
+    await a.evaluate(() => { delete document.execCommand; });
+    await a.keyboard.press('ControlOrMeta+c');
+    await a.waitForFunction(() => globalThis.copied);
+    ok(/^Press .+C to copy\.$/.test(asked) && JSON.parse((await a.evaluate(() => globalThis.copied))[MIME] || '{}').kind === 'slide', `review: after "${asked}", the shortcut copies the slide`);
 
     // 3. Paste into the other deck after its current slide: the destination's theme, new identifiers.
     await copy(a, 's90');
@@ -273,6 +289,22 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
     ok(await shape(b, pasted) === sourceShape && redone.image === 1 && redone.live && redone.footer === 'Deck B · Fictional data', 'redo brings it back, with its image and chart');
     const draft = await b.evaluate(() => JSON.parse(localStorage.getItem('html-slides:' + location.pathname) || 'null'));
     ok(draft?.main.includes('A whole slide travels between two decks') && draft.assets[f.asset]?.data === PNG_A, 'the draft holds the pasted slide and its image');
+    // Review: the draft made by the paste had the chart's data but no picture of it.
+    const drafted = new RegExp(`<section [^>]*id="${pasted}"[\\s\\S]*?</section>`).exec(draft?.main ?? '')?.[0] ?? '';
+    ok(/<svg[^>]*class="render"/.test(drafted) && drafted.toLowerCase().includes(`fill="${f.acc}"`) && !drafted.includes('data-preview'),
+      'review: the draft already holds the chart preview, in the destination\'s colours');
+    {
+      // ECharts never answers here: once it fails, its notice takes the place of the offer to restore.
+      const lost = await ctx.newPage();
+      await lost.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/, () => {});
+      await lost.goto(pathToFileURL(B).href, { waitUntil: 'domcontentloaded' });
+      await lost.waitForFunction(() => window.deckEngine);
+      await lost.locator('.hs-banner button', { hasText: 'Restore' }).click();
+      const back = await facts(lost, pasted);
+      ok(back.image === 1 && !back.live && back.saved.includes(f.acc) && back.json === JSON.stringify(CHART),
+        `review: the draft restored without ECharts shows the image and the chart preview (${back.saved.slice(0, 4)})`);
+      await lost.close();
+    }
 
     // 5. Save, check, and reopen without ECharts: the image and the chart preview are in the file.
     const saved = await save(b, path.join(DIR, 'b/saved.html'));
@@ -321,6 +353,15 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       selected: window.deckEngine.selection().join() === el.dataset.id, style: el.getAttribute('style') }; }, p92);
     ok(/1 element does not fit with this deck's theme \(selected\)/.test(tight) && fit.over && fit.selected && fit.text === 'Twelve volunteers water the beds every week.' && fit.style === '--x:64;--y:200;--w:420;--h:32',
       `overflow brought by the theme is reported, the element selected, nothing truncated or resized ("${tight}")`);
+    // Review: a line that cannot wrap grows wider than its frame, not taller.
+    await copy(a, 's93');
+    const wide0 = await a.evaluate(() => { const el = document.querySelector('#s93 > .body'); return el.scrollWidth <= el.clientWidth + 3 && el.scrollHeight <= el.clientHeight + 3; });
+    const wider = await paste(w, 's05');
+    const p93 = (await order(w))[5];
+    const across = await w.evaluate(id => { const el = document.querySelector(`#${id} > .body`); return { wide: el.scrollWidth > el.clientWidth + 3, tall: el.scrollHeight > el.clientHeight + 3,
+      text: el.textContent, selected: window.deckEngine.selection().join() === el.dataset.id }; }, p93);
+    ok(wide0 && /1 element does not fit/.test(wider) && across.wide && !across.tall && across.selected && across.text === 'water(beds, 12); plant(rows, 8); compost(3.5)',
+      `review: text wider than its frame is reported too, and kept whole ("${wider.slice(0, 90)}"; ${JSON.stringify(across)})`);
     const roomy = await paste(w, 's05', { [MIME]: flavours[MIME] });
     ok(/^Slide pasted as slide 6\./.test(roomy), `the custom type alone carries a slide ("${roomy.slice(0, 80)}")`);
     await w.close();
@@ -330,6 +371,8 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
 
     // 9. Refused, deck and assets unchanged: malformed, oversized, newer format, unknown kind.
     const unchanged = await mainHTML(b), assets1 = JSON.stringify(await assetsOf(b));
+    const storedDraft = page => page.evaluate(() => { const d = JSON.parse(localStorage.getItem('html-slides:' + location.pathname) || '{}'); return JSON.stringify([d.main, d.assets]); });
+    const draft1 = await storedDraft(b);
     const sec = inner => `<section class="slide" data-layout="default">${inner}</section>`;
     const img = '<h1>T</h1><img data-asset="a1" alt="x">';
     const refused = [
@@ -345,6 +388,8 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       ['an image of another type', envelope({ html: sec(img), assets: { a1: { type: 'text/html', data: PNG_A } } }), /an image is malformed/],
       ['a font as an image', envelope({ html: sec(img), assets: { a1: { kind: 'font', family: 'X', type: 'font/woff2', data: PNG_A } } }), /an image is malformed/],
       ['an image over 8 Mi of base64', envelope({ html: sec(img), assets: { a1: { type: 'image/png', data: 'A'.repeat(8 * 2 ** 20 + 4) } } }), /an image is larger than 6 MB/],
+      // Review: 20 cells of 999 × 999 passed every limit and would expand to 20 million grid slots.
+      ['merged cells covering millions of cells', envelope({ html: sec('<table class="t">' + '<tr><td colspan="999" rowspan="999">x</td></tr>'.repeat(20) + '</table>') }), /a table covers more than 5,000 cells/],
       ['33 images', envelope({ html: sec('<h1>T</h1>' + Array.from({ length: 33 }, (_, i) => `<img data-asset="a${i}" alt="x">`).join('')),
         assets: Object.fromEntries(Array.from({ length: 33 }, (_, i) => [`a${i}`, { type: 'image/png', data: PNG_A }])) }), /more than 32 images/],
       ['a chart without data', envelope({ html: sec('<figure class="chart" data-type="column"></figure>') }), /a chart has no readable data/],
@@ -356,9 +401,15 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       ['JSON that does not parse', '{"schema":', /not valid JSON/]];
     for (const [what, json, why] of refused) {
       const msg = await paste(b, 's05', { [MIME]: json, 'text/html': '<table><tr><td>valid</td></tr></table>', 'text/plain': 'x' });
-      ok(/^Paste failed/.test(msg) && /Deck unchanged\.$/.test(msg) && why.test(msg) && await mainHTML(b) === unchanged && JSON.stringify(await assetsOf(b)) === assets1,
-        `refused, deck unchanged: ${what} ("${msg.slice(0, 120)}")`);
+      ok(/^Paste failed/.test(msg) && /Deck unchanged\.$/.test(msg) && why.test(msg) && await mainHTML(b) === unchanged && JSON.stringify(await assetsOf(b)) === assets1 && await storedDraft(b) === draft1,
+        `refused, deck, assets and draft unchanged: ${what} ("${msg.slice(0, 120)}")`);
     }
+    // Review: the image limit counts distinct images, each checked once however often it is shown.
+    const many = await paste(b, 's05', { [MIME]: envelope({ html: sec('<h1>T</h1><div class="body">' + '<img data-asset="a1" alt="x">'.repeat(300) + '</div>'), assets: { a1: { type: 'image/png', data: PNG_A } } }) });
+    const shown = await b.evaluate(id => [...new Set([...document.querySelectorAll(`#${id} img`)].map(i => i.dataset.asset))].length + '/' + document.querySelectorAll(`#${id} img`).length, (await order(b))[5]);
+    ok(/^Slide pasted as slide 6\./.test(many) && shown === '1/300', `review: one image shown 300 times is one image (${shown}; "${many.slice(0, 60)}")`);
+    await b.keyboard.press('ControlOrMeta+z');
+    ok(await mainHTML(b) === unchanged, 'undone');
     const newer = await paste(b, 's05', { [MIME]: JSON.stringify({ schema: 'html-office-clip/2', kind: 'slide' }), 'text/plain': 'x' });
     ok(/holds no slide, table or chart/.test(newer) && await mainHTML(b) === unchanged, `an envelope of a newer schema is skipped ("${newer.slice(0, 70)}")`);
 
@@ -398,7 +449,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
     {
       const off2 = await context(browser, { offline: true });
       const c = await open(off2, C);
-      const evil = env.slide.html.replace(/<svg([^>]*)class="render"/, `<svg$1onload="globalThis.ran=9" class="render"`).replace('</svg>', `<script>globalThis.ran=10</script><image href="${resources}/chart.png"/></svg>`);
+      const evil = env.slide.html.replace(/<svg([^>]*)class="render"/, `<svg$1onload="globalThis.ran=9" class="render"`).replace('</svg>', `<script>globalThis.ran=10</script><image href="${resources}/chart.png"/><defs><linearGradient id="dup"></linearGradient><clipPath id="dup"><rect width="1" height="1"/></clipPath></defs></svg>`);
       hits = [];
       const waiting = await paste(c, 's05', { [MIME]: envelope({ html: evil + '', assets: env.slide.assets }) });
       await paste(c, 's05', { [MIME]: flavours[MIME] });
@@ -408,8 +459,15 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
         return { ids: [...(s?.querySelectorAll('[id]') ?? [])].map(n => n.id), badge: !!fig.querySelector('.hs-chart-preview'), html: s?.outerHTML ?? '', live: fig.classList.contains('live') };
       }));
       ok(/Its charts are drawn in this deck's colours when ECharts loads\./.test(waiting) && previews.length === 2 && previews.every(p => p.badge && !p.live && p.html.length > 500 && !/script|onload|<image|href/.test(p.html)) &&
-        !previews[0].ids.some(id => previews[1].ids.includes(id)) && hits.length === 0 && await c.evaluate(() => globalThis.ran) === undefined,
+        !previews[0].ids.some(id => previews[1].ids.includes(id)) && hits.length === 0 && await c.evaluate(() => globalThis.ran) === undefined &&
+        previews.every(p => new Set(p.ids).size === p.ids.length) && previews[1].ids.length === 1 && /<linearGradient id="p[\w-]+"><\/linearGradient><clipPath><rect/.test(previews[1].html),
         `without ECharts, the charts show their previews rebuilt from the SVG allow-list, with ids of their own ("${waiting.slice(0, 90)}")`);
+      // Review: undo and redo rebuild the figures; the previews are still labelled.
+      await c.keyboard.press('ControlOrMeta+z');
+      await c.keyboard.press('ControlOrMeta+Shift+z');
+      await frames(c);
+      const badges = await c.evaluate(() => [...document.querySelectorAll('main#deck figure.chart')].map(fig => !!fig.querySelector(':scope > .hs-chart-preview') && fig.querySelector(':scope > svg.render').hasAttribute('data-preview')));
+      ok(badges.length === 2 && badges.every(Boolean), `review: after undo and redo the previews keep their label (${badges})`);
       const offline = check(await save(c, path.join(DIR, 'c/offline.html')));
       ok(offline.status === 0, 'the deck saved offline passes the checker' + (offline.status ? ': ' + offline.stdout.slice(0, 600) : ''));
       const again = await open(ctx, path.join(DIR, 'c/offline.html'), { edit: false });

@@ -187,6 +187,10 @@ export function stopText(select = true) {
   el.removeEventListener('input', markDirty);
   el.removeAttribute('contenteditable');
   el.removeAttribute('spellcheck');
+  // Firefox keeps the text selected in a box that is no longer editable: the next Cmd/Ctrl+C would
+  // copy that unseen text instead of the selected element or slide.
+  const sel = getSelection();
+  if (sel.rangeCount && el.contains(sel.anchorNode)) sel.removeAllRanges();
   sanitize(el);
   commit(tok);
   if (select !== false && editingMode() && el.isConnected) setTargets([el]); else notify();
@@ -640,7 +644,12 @@ export function copySel(slide) {
   else if (!copyable() && !slidePicked()) return banner('Select a table or a chart to copy it, or double-click to copy text. Slide › Copy slide copies the whole slide.', [], 4000);
   wholeSlide = slide === true;
   armClipboard();
-  if (!document.execCommand('copy')) { disarmClipboard(); banner(`Press ${shortcut('C')} to copy.`, [], 3000); }
+  if (!document.execCommand('copy')) {
+    disarmClipboard();
+    // the shortcut the notice asks for must copy the slide too, not an element still selected
+    if (slide === true) { clearSel(); picked = true; }
+    banner(`Press ${shortcut('C')} to copy.`, [], 3000);
+  }
   wholeSlide = false;
 }
 function onPaste(e) {
@@ -696,7 +705,7 @@ function pasteChart({ type, data, svg }, notices) {
   const r = insertNode(`<figure class="chart" data-type="${type}"><script type="application/json">${jsonForScript(data)}</script></figure>`, 640, 360);
   if (!r) return;
   const preview = !echartsReady() && svg ? sanitizeSVG(svg, { prefix: `p${Date.now().toString(36)}${++pastes}-` }) : null;
-  if (preview) previews.add(r.el.appendChild(preview));
+  if (preview) { preview.setAttribute('data-preview', ''); r.el.appendChild(preview); }
   if (!r.slide.querySelector(':scope > .source')) {
     const src = fromHTML('<p class="source">Source: to be completed</p>');
     src.dataset.id = newId();
@@ -713,13 +722,13 @@ function pasteChart({ type, data, svg }, notices) {
   }
   banner(['Chart pasted.', ...notes].join(' '), [], notes.length ? 6000 : 3000);
 }
-// Charts pasted before ECharts is there show their source's preview, marked as one (again after a
-// deck change has redrawn the figures), and are drawn in this deck's colours when it arrives. Undo
-// and redo may have replaced the figures meanwhile: every chart still waiting is drawn.
-const previews = new WeakSet();
+// Charts pasted before ECharts is there show their source's preview (svg.render[data-preview]),
+// labelled as one, again after a deck change, undo or redo has redrawn the figures, and are drawn in
+// this deck's colours when it arrives. Undo and redo may have replaced the figures meanwhile: every
+// chart still waiting is drawn.
 function markPreviews() {
-  for (const svg of state.main.querySelectorAll('figure.chart:not(.live) > svg.render'))
-    if (previews.has(svg) && !svg.parentNode.querySelector(':scope > .hs-chart-preview')) svg.parentNode.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
+  for (const svg of state.main.querySelectorAll('figure.chart:not(.live) > svg.render[data-preview]'))
+    if (!svg.parentNode.querySelector(':scope > .hs-chart-preview')) svg.parentNode.appendChild(ui('div', 'hs-chart-preview', 'Preview'));
 }
 function drawWhenLoaded() {
   markPreviews();
@@ -734,7 +743,7 @@ function drawWhenLoaded() {
 
 // ---------- whole slides (V1-01) ----------
 // Elements that do not fit with this deck's theme, as the checker reports them: a title over its
-// lines, an element past the footer or the slide, text taller than its frame.
+// lines, an element past the footer or the slide, text taller or wider than its frame.
 function misfits(slide) {
   const layout = slide.dataset.layout || 'default', sr = slide.getBoundingClientRect(), k = sr.width / 1280, detached = slide.hasAttribute('data-detached');
   return items(slide).filter(el => {
@@ -743,7 +752,8 @@ function misfits(slide) {
     if (el.matches('h1') && Math.round(h / (parseFloat(getComputedStyle(el).lineHeight) || 40)) > (/^(cover|end)$/.test(layout) ? 3 : 2)) return true;
     if (w && (x < -1 || y < -1 || x + w > 1281 || y + h > 721)) return true;
     if (!el.matches('.source, .cartouche, .tracker') && y + h > 668 && !/^(cover|end|section|quote)$/.test(layout)) return true;
-    return el.scrollHeight > el.clientHeight + 3 && (detached || getComputedStyle(el).overflow !== 'visible');
+    // taller or, beyond the checker's rule, wider than its frame (a line that cannot wrap)
+    return (el.scrollHeight > el.clientHeight + 3 || el.scrollWidth > el.clientWidth + 3) && (detached || getComputedStyle(el).overflow !== 'visible');
   });
 }
 // A copied slide becomes a new slide after the current one, in this deck's theme: one undoable deck
@@ -756,10 +766,16 @@ function pasteSlide({ slide, source, notices }) {
   for (const [id, a] of read.assets)
     ids.set(id, Object.keys(all).find(k => all[k]?.kind !== 'font' && all[k]?.type === a.type && all[k].data === a.data) ?? addAsset(a));
   read.node.querySelectorAll('img[data-asset]').forEach(img => { img.dataset.asset = ids.get(img.dataset.asset); });
-  deckOp(() => insertSlide(read.node, currentSlide()));
-  const s = read.node, notes = [...notices, ...read.notices], figs = [...s.querySelectorAll('figure.chart')];
+  // The charts are drawn and their previews saved inside the step: the undo history and the draft
+  // then hold this deck's pictures of them, for a reader without ECharts.
+  const s = read.node, figs = [...s.querySelectorAll('figure.chart')];
+  deckOp(() => {
+    insertSlide(s, currentSlide());
+    if (echartsReady()) { figs.forEach(renderChart); refreshCaches(s); }
+    return s;
+  });
+  const notes = [...notices, ...read.notices];
   if (figs.length && !echartsReady()) {
-    s.querySelectorAll('figure.chart > svg.render').forEach(svg => previews.add(svg));
     notes.push('Its charts are drawn in this deck\'s colours when ECharts loads.');
     drawWhenLoaded();
   }

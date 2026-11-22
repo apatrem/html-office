@@ -434,18 +434,19 @@ The destination parses `slide.html` in an inert template and **builds a new sect
 - elements: headings, paragraphs, `div`, lists, inline formatting, tables with `colgroup`, `figure`, `img` and the two note `aside`s; other namespaces, scripts, styles, frames, media and form controls are left out with what they hold, and any other element gives way to its content;
 - classes: the catalogue's content classes only, and theme classes on `span`; the existing text sanitiser then runs on every element;
 - attributes: `data-layout` (a layout the destination does not know becomes `default`, with a notice), `data-detached`, `data-nofoot`, `data-shape`, `colspan`, `rowspan`, `data-width`, `alt` and, on the direct children of a detached slide, the four geometry properties rebuilt from numbers. No `style`, event attribute, `id`, link or external resource is read;
-- charts: the JSON passes the strict schema and the type's validation, as a pasted chart does (§4). With ECharts available the chart is drawn from its data in the destination's colours and the source's preview is discarded. Without it, the preview is rebuilt by the SVG sanitiser with identifiers of its own, marked as a preview, and replaced when ECharts loads; a deck saved before that keeps the preview in the source's colours until it is saved again with ECharts available;
+- charts: the JSON passes the strict schema and the type's validation, as a pasted chart does (§4). With ECharts available the chart is drawn from its data in the destination's colours and the source's preview is discarded. Without it, the preview is rebuilt by the SVG sanitiser with identifiers of its own, marked as a preview (`data-preview` on the saved `svg.render`, so that the label survives undo, redo and saving), and replaced when ECharts loads; a deck saved before that keeps the preview in the source's colours until it is saved again with ECharts available. With ECharts, the charts are drawn and their previews saved inside the paste step, so the draft and the undo history hold the destination's pictures of them;
 - images: each asset must be a valid base64 image; it is stored under a new identifier, or under the existing one when the destination already holds the same image;
 - identifiers: the slide and its elements get new identifiers from the destination.
 
-The pasted slide therefore takes the destination's branding, chart palette, footer and page number. After the paste, text fit is measured with the checker's rules (a title over its lines, an element past the footer or the slide, text taller than its frame); elements that do not fit are reported in the paste notice and selected. Nothing is truncated or resized.
+The pasted slide therefore takes the destination's branding, chart palette, footer and page number. After the paste, text fit is measured with the checker's rules (a title over its lines, an element past the footer or the slide, text taller than its frame) and one more: text wider than its frame, for a line that cannot wrap. Elements that do not fit are reported in the paste notice and selected. Nothing is truncated or resized.
 
 ### Limits and versions
 
 | Item | Limit | Above it |
 | --- | --- | --- |
 | `slide.html` | 4 Mi code units, 20,000 elements, 32 levels | Refused |
-| Images | 32 per slide, 8 Mi base64 characters each (6 MB) | Refused |
+| Images | 32 distinct images per slide, 8 Mi base64 characters each (6 MB); each is checked once | Refused |
+| Tables | 5,000 cells per table once merged cells are expanded | Refused |
 | Chart JSON, points and preview | As §4 | Refused; an oversized preview is dropped |
 | Whole envelope | 64 Mi code units (§1) | Copy fails with a message |
 
@@ -453,7 +454,7 @@ A recognised envelope that is malformed or over a limit aborts the paste (§1). 
 
 ### Tests
 
-`tests/slides-slide-clipboard.mjs` runs in `npm test` (Chromium) and in the `clipboard-engines` job (Chromium, Firefox, WebKit): two decks with different themes, identifiers, assets after save and reopen offline, charts with and without ECharts, notes, undo and redo, the draft, overflow, malformed, oversized and hostile envelopes, an unknown kind, and the released reader. Real pasteboards across tabs and browsers are manual ([MANUAL-CHECKS.md](../MANUAL-CHECKS.md)).
+`tests/slides-slide-clipboard.mjs` runs in `npm test` (Chromium) and in the `clipboard-engines` job (Chromium, Firefox, WebKit): two decks with different themes, identifiers, assets after save and reopen offline, charts with and without ECharts, notes, undo and redo, the draft, overflow, malformed, oversized and hostile envelopes, an unknown kind, and the released reader. The cases added by the cross-lineage review of the pull request are marked "review" in the file. Real pasteboards across tabs and browsers are manual ([MANUAL-CHECKS.md](../MANUAL-CHECKS.md)).
 
 ## Alternatives considered
 
