@@ -360,6 +360,17 @@ Use `text-example.html`, in Chrome, then Safari and Firefox. Put the caret in th
 9. **Centred and right-aligned**: set 60 % and Centre, drag a border: it follows the pointer and the table stays centred. Set Right: borders change the column to their right, and the table's left edge can be dragged.
 10. **Then save and reopen**: the widths after dragging are kept; Table › Column width… shows the dragged column's new percentage.
 
+### Project review fixes (November 2026)
+
+Use copies of `text-example.html`, in Chrome, then Safari and Firefox where a step says so.
+
+1. **Non-canonical file**: in a text editor, change `<h1 class="new-page" id="sec-plan">` to `<h1 id="sec-plan" class="new-page">` and wrap one cover line over two lines. Open the file: it edits normally, and the state line says "Not in canonical form: Save asks before rewriting it". Type a word, then File › Save: the dialog *Rewrite this file in canonical form?* opens, with Cancel focused. Escape or Cancel: the status says "Save cancelled", and the file on disk is unchanged. Save again and choose **Rewrite and save**: the native picker opens on the file; after saving, the state line no longer mentions canonical form, the file's attributes are back in canonical order, and later saves go straight to the file. In Safari and Firefox, Save a copy downloads the canonical file with no question.
+2. **Stale labels open clean**: in a text editor, change `>Figure 1</a>` to `>Figure 7</a>`. Open the file: the reference reads *Figure 1*, the status says "No unsaved changes", and closing the tab does not warn. Reopen it: no "Recover unsaved changes?" dialog.
+3. **Select all keeps comments**: open the Comments panel, then Ctrl/Cmd+A in the document and type a letter: every thread is still listed, marked *Orphaned*. Undo brings back the text and the anchors. Repeat with Backspace and with a paste.
+4. **Copy above the original**: select the *2027 plan* heading, copy, put the caret at the start of the document's first paragraph and paste: the pasted heading gets a new ID, and the cross-references to *2027 plan* still scroll to the original. Save and look at the HTML: the original keeps `id="sec-plan"`.
+5. **Code from an editor**: copy a few indented lines with a blank line and a tab from VS Code (or another code editor) and paste into the example's code block: indentation, the tab and the blank line are kept. Edit › Paste as plain text does the same. Tab inside the code block inserts a tab.
+6. **Paths with spaces**: copy the skill to a folder whose name has a space and an accent (`~/Documents/Mes outils é/`), then `node ".../tools/document.mjs" check file.html` and `pack file.html --out packed.html`: both print their report and write the file.
+
 ## 7. Data, from T15
 
 Each task adds its checks here, under its own heading (`### T15 — …`), in task order.
