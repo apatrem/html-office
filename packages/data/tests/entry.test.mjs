@@ -88,6 +88,9 @@ test("a type chosen in the formula bar reads its text or says what is wrong", ()
     digits: 0,
   });
   assert.throws(() => number("0x10"), /"0x10" is not a number/);
+  // The fallback keeps the locale's mark and stays finite.
+  assert.throws(() => number("1.5", fr), /not a number \(use ","/);
+  assert.throws(() => number("1e309"), /not a number/);
   assert.throws(() => number("3 apples"), /not a number/);
   assert.throws(() => number("1,5"), /not a number \(use "\." for decimals/);
   // What the bar shows for a stored number always reads back as a number.
