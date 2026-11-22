@@ -15,6 +15,8 @@ import {
   access,
   link,
   symlink,
+  chmod,
+  stat,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -868,4 +870,43 @@ test("pack, pack.mjs, add-image and new --force replace the file by renaming", a
     );
     assert.deepEqual((await readdir(folder)).sort(), ["doc.html", "link.html"]);
   }
+});
+
+// Codex review of the project-review fixes: a renamed file keeps the destination's permissions;
+// add-image --out writes the copy even when the picture is already there; pack --layout numbers
+// labels with the layout it writes.
+test("whole-file writes keep the file's permissions; add-image --out; pack --layout labels", async () => {
+  const file = join(dir, "private.html");
+  await writeFile(file, report.replace("<body>\n", "<body>\n\n"));
+  await chmod(file, 0o600);
+  assert.equal(run("pack", file).status, 0);
+  assert.equal((await stat(file)).mode & 0o777, 0o600);
+
+  const copy = join(dir, "same-image-copy.html");
+  const same = run(
+    "add-image",
+    REPORT,
+    join(EXAMPLES, "valid/site.png"),
+    "--out",
+    copy,
+  );
+  assert.equal(same.status, 0, same.stderr);
+  assert.equal(await readFile(copy, "utf8"), report);
+
+  const layout = join(dir, "roman.css");
+  const theme = text(zones(report).id(zones(report).head, "theme"));
+  assert.match(theme, /--heading-format:"1\.1\.1\.1"/);
+  await writeFile(
+    layout,
+    theme.replace('--heading-format:"1.1.1.1"', '--heading-format:"I.A.1.a"'),
+  );
+  const roman = join(dir, "roman.html");
+  const r = run("pack", REPORT, "--layout", layout, "--out", roman);
+  assert.equal(r.status, 0, r.stderr);
+  const html = await readFile(roman, "utf8");
+  assert.deepEqual(
+    checkSource(html).warnings.map((w) => w.code),
+    [],
+  );
+  assert.match(html, /<a class="xref" href="#sec-summary">Section I<\/a>/);
 });

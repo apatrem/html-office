@@ -344,7 +344,7 @@ async function run(engine) {
             r.onsuccess = () => resolve(r.result);
             r.onerror = () => reject(r.error);
           });
-          let found = 0;
+          let found = "";
           await new Promise((resolve, reject) => {
             const t = db.transaction("drafts", "readwrite");
             const cursor = t.objectStore("drafts").openCursor();
@@ -352,14 +352,12 @@ async function run(engine) {
               const c = cursor.result;
               if (!c) return;
               if (String(c.key).endsWith(":zones")) {
-                found++;
-                c.update({
-                  ...c.value,
-                  text: c.value.text.replace(
-                    '<script id="engine"',
-                    '<script id="echarts">window.injected = 1</script>\n<script id="engine"',
-                  ),
-                });
+                const at = c.value.text.lastIndexOf("</body>");
+                found =
+                  c.value.text.slice(0, at) +
+                  '<script id="echarts">window.injected = 1</script>\n' +
+                  c.value.text.slice(at);
+                c.update({ ...c.value, text: found });
               }
               c.continue();
             };
@@ -369,7 +367,8 @@ async function run(engine) {
           db.close();
           return found;
         });
-        assert.equal(tampered, 1);
+        // Codex review: the stored zones do hold the script before reopening.
+        assert.match(tampered, /<script id="echarts">window\.injected = 1/);
         await page.close();
         page = await open(url);
         await page.waitForSelector("dialog.sh-dialog[open]");

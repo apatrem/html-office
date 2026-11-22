@@ -39,6 +39,8 @@ import { compactCSS } from "../theme/compact.mjs";
 import { rewrite, readPayloads, imageType, ConvertError } from "./convert.mjs";
 import { drawCharts, echartsBytes } from "./previews.mjs";
 import { isMain, writeWhole } from "./cli.mjs";
+import { Transform } from "prosemirror-transform";
+import { regenerate, fileFormat } from "../editor/numbering.mjs";
 import { sectionMarkdown } from "./section-markdown.mjs";
 
 const N = schema.nodes;
@@ -379,8 +381,11 @@ export async function packDocument(args, log = console.log) {
     put(style("charte", await charteCSS(args.charte, notes)), () => false);
   if (args.layout)
     put(style("theme", await readFile(args.layout, "utf8")), () => false);
-  const { doc: opened } = openFile(file);
-  const { doc, drawn, failed } = await drawCharts(file, opened, {
+  // Labels and contents follow the layout written (a new heading format numbers differently).
+  const relabel = new Transform(openFile(file).doc);
+  const regenerated =
+    regenerate(relabel, { format: fileFormat(file) }) || packed.regenerated;
+  const { doc, drawn, failed } = await drawCharts(file, relabel.doc, {
     redraw: !!args.redraw,
   });
   for (const id of failed)
@@ -392,7 +397,7 @@ export async function packDocument(args, log = console.log) {
   for (const w of report.warnings)
     log(`warning  ${w.line}:${w.col}  ${w.code}: ${w.message}`);
   log(
-    `${packed.changes.length} line(s) rewritten into canonical form${packed.regenerated ? " (labels and contents rewritten)" : ""}, ${drawn} chart preview(s) drawn; wrote ${out} (html-text ${engine.version}, ${offline ? "offline" : "standard"}): ${sizeLine(html)}.`,
+    `${packed.changes.length} line(s) rewritten into canonical form${regenerated ? " (labels and contents rewritten)" : ""}, ${drawn} chart preview(s) drawn; wrote ${out} (html-text ${engine.version}, ${offline ? "offline" : "standard"}): ${sizeLine(html)}.`,
   );
 }
 
@@ -421,9 +426,11 @@ export async function addImage(args, log = console.log) {
   const all = old ? JSON.parse(old.children.map((c) => c.value).join("")) : {};
   // The same picture is stored once: its key is printed, and nothing is written.
   if (Object.hasOwn(all, key)) {
+    if (args.out && resolve(args.out) !== resolve(input))
+      await writeChecked(args.out, source);
     log(key);
     log(
-      `${image} is already in the file as asset "${key}"; refer to it as "asset": "${key}" in a payload. Nothing was written.`,
+      `${image} is already in the file as asset "${key}"; refer to it as "asset": "${key}" in a payload. ${args.out ? `Wrote ${args.out} unchanged.` : "Nothing was written."}`,
     );
     return;
   }
