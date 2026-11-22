@@ -40,7 +40,7 @@ The following features were approved for later V1 development: V1-01 to V1-05 on
 
 | ID | Feature | Status |
 | --- | --- | --- |
-| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Implemented on 22 November 2026 (ADR-013 amendment), PR #123 awaiting the owner's review; manual browser checks pending |
+| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Implemented on 22 November 2026 (ADR-013 amendment, PR #123); manual browser checks pending |
 | V1-02 | Create reusable themes from reference files | Planned |
 | V1-03 | Confirm a short generation brief and default settings | Planned |
 | V1-04 | Copy/paste individual elements and selections | Started: tables and charts (ADR-013 X02b, X02c), merged in PRs #70 and #71 (27 October 2026) |
