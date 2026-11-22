@@ -10,8 +10,13 @@ import {
   readFile,
   writeFile,
   mkdtemp,
+  mkdir,
   readdir,
   access,
+  link,
+  symlink,
+  chmod,
+  stat,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -69,6 +74,15 @@ const NEW_ARGS = [
   "--numbers",
 ];
 const created = run("new", REPORT, ...NEW_ARGS);
+// A picture the report does not hold yet (a 1 × 1 grey PNG).
+const GREY = join(dir, "grey.png");
+await writeFile(
+  GREY,
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
 const report = await readFile(REPORT, "utf8");
 
 test("new: a valid, canonical, current document from Markdown and payloads", async () => {
@@ -273,7 +287,12 @@ test("pack: draws a missing chart preview, --redraw draws every one", async () =
 test("add-image: one asset more, every other byte unchanged", async () => {
   const file = join(dir, "with-image.html");
   await writeFile(file, report);
-  const r = run("add-image", file, join(EXAMPLES, "valid/site.png"));
+  // The report's own picture is already there: its key, and nothing written.
+  const same = run("add-image", file, join(EXAMPLES, "valid/site.png"));
+  assert.equal(same.status, 0, same.stderr);
+  assert.match(same.stdout, /^a1\n.*already in the file as asset "a1"/);
+  assert.equal(await readFile(file, "utf8"), report);
+  const r = run("add-image", file, GREY);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^a2\n/);
   const html = await readFile(file, "utf8");
@@ -750,4 +769,146 @@ test("convert: a table's columns are counted even without widths", async () => {
     ),
     "columns lists 1 column(s), the table has 2",
   );
+});
+
+// Project review, 22 Nov 2026: pack left stale labels and contents (only convert regenerated
+// them), although the guide says the tools rewrite them.
+test("pack: rewrites stale cross-reference labels and contents", async () => {
+  const stale = report
+    .replace(
+      '<a class="xref" href="#fig-revenue">Figure 1</a>',
+      '<a class="xref" href="#fig-revenue">Figure 9</a>',
+    )
+    .replace(
+      '<li><a href="#sec-regions">2 Regions</a>',
+      '<li><a href="#sec-regions">Old title</a>',
+    );
+  assert.notEqual(stale, report);
+  assert.deepEqual(
+    checkSource(stale)
+      .warnings.map((w) => w.code)
+      .sort(),
+    ["stale-contents", "stale-label"],
+  );
+  const file = join(dir, "stale.html");
+  await writeFile(file, stale);
+  const r = run("pack", file);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /labels and contents rewritten/);
+  assert.equal(await readFile(file, "utf8"), report);
+});
+
+// Project review: the command lines compared import.meta.url with `file://${argv[1]}` and did
+// nothing, with exit code 0, when the path held a space or a non-ASCII character. Run here
+// through such a path (symbolic links kept, so that the module's URL holds it too).
+test("the command lines run from a path with spaces and non-ASCII characters", async () => {
+  const base = join(dir, "dossier é x");
+  await mkdir(base);
+  await symlink(at("../.."), join(base, "packages"));
+  for (const name of ["node_modules", "src"])
+    await symlink(at(`../../../${name}`), join(base, name));
+  const tool = (name, ...args) =>
+    spawnSync(
+      process.execPath,
+      [
+        "--preserve-symlinks",
+        "--preserve-symlinks-main",
+        join(base, "packages/text/tools", name),
+        ...args,
+      ],
+      { encoding: "utf8" },
+    );
+  const checked = tool("check.mjs", REPORT);
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.match(checked.stdout, /0 error/);
+  const copy = join(dir, "packed-from-space.html");
+  const packed = tool("pack.mjs", REPORT, copy);
+  assert.equal(packed.status, 0, packed.stderr);
+  assert.match(packed.stdout, /wrote|nothing to write/);
+  assert.equal(await readFile(copy, "utf8"), report);
+  // Every command line uses the shared check (build and measure take seconds to run).
+  for (const name of await readdir(at("../tools/")))
+    if (name.endsWith(".mjs"))
+      assert.doesNotMatch(
+        await readFile(at(`../tools/${name}`), "utf8"),
+        /file:\/\/\$\{process\.argv\[1\]\}/,
+        name,
+      );
+});
+
+// Project review: pack, add-image and new --force wrote over the file in place; like replace,
+// they now write a new file next to it and rename it over, so a failed write leaves the old one
+// whole. A hard link to the old file still sees the old bytes afterwards.
+test("pack, pack.mjs, add-image and new --force replace the file by renaming", async () => {
+  const cases = [
+    ["pack", (f) => run("pack", f)],
+    [
+      "pack.mjs",
+      (f) =>
+        spawnSync(process.execPath, [at("../tools/pack.mjs"), f], {
+          encoding: "utf8",
+        }),
+    ],
+    ["add-image", (f) => run("add-image", f, GREY)],
+    ["new --force", (f) => run("new", f, "--force", "--title", "Other")],
+  ];
+  for (const [name, command] of cases) {
+    const folder = join(dir, `atomic-${name.replace(/\W/g, "")}`);
+    await mkdir(folder);
+    const file = join(folder, "doc.html"),
+      other = join(folder, "link.html");
+    // Not canonical, so that pack.mjs has something to write.
+    const before = report.replace("<body>\n", "<body>\n\n");
+    await writeFile(file, before);
+    await link(file, other);
+    const r = command(file);
+    assert.equal(r.status, 0, `${name}: ${r.stderr}`);
+    assert.ok((await readFile(file, "utf8")) !== before, `${name}: written`);
+    assert.ok(
+      (await readFile(other, "utf8")) === before,
+      `${name}: the old file was overwritten in place`,
+    );
+    assert.deepEqual((await readdir(folder)).sort(), ["doc.html", "link.html"]);
+  }
+});
+
+// Codex review of the project-review fixes: a renamed file keeps the destination's permissions;
+// add-image --out writes the copy even when the picture is already there; pack --layout numbers
+// labels with the layout it writes.
+test("whole-file writes keep the file's permissions; add-image --out; pack --layout labels", async () => {
+  const file = join(dir, "private.html");
+  await writeFile(file, report.replace("<body>\n", "<body>\n\n"));
+  // POSIX permission bits (Windows has none to keep; re-check finding).
+  const posix = process.platform !== "win32";
+  if (posix) await chmod(file, 0o600);
+  assert.equal(run("pack", file).status, 0);
+  if (posix) assert.equal((await stat(file)).mode & 0o777, 0o600);
+
+  const copy = join(dir, "same-image-copy.html");
+  const same = run(
+    "add-image",
+    REPORT,
+    join(EXAMPLES, "valid/site.png"),
+    "--out",
+    copy,
+  );
+  assert.equal(same.status, 0, same.stderr);
+  assert.equal(await readFile(copy, "utf8"), report);
+
+  const layout = join(dir, "roman.css");
+  const theme = text(zones(report).id(zones(report).head, "theme"));
+  assert.match(theme, /--heading-format:"1\.1\.1\.1"/);
+  await writeFile(
+    layout,
+    theme.replace('--heading-format:"1.1.1.1"', '--heading-format:"I.A.1.a"'),
+  );
+  const roman = join(dir, "roman.html");
+  const r = run("pack", REPORT, "--layout", layout, "--out", roman);
+  assert.equal(r.status, 0, r.stderr);
+  const html = await readFile(roman, "utf8");
+  assert.deepEqual(
+    checkSource(html).warnings.map((w) => w.code),
+    [],
+  );
+  assert.match(html, /<a class="xref" href="#sec-summary">Section I<\/a>/);
 });

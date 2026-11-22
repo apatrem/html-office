@@ -19,10 +19,11 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, basename } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { buildEngine, echartsNotices } from "./build.mjs";
 import { echartsBytes } from "./previews.mjs";
+import { isMain } from "./cli.mjs";
 
 const text = fileURLToPath(new URL("../", import.meta.url)),
   repo = join(text, "../.."),
@@ -173,10 +174,7 @@ async function digests(root) {
   return found;
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (isMain(import.meta.url)) {
   if (process.argv.includes("--check")) {
     const fresh = await mkdtemp(join(tmpdir(), "html-text-skill-"));
     await packageSkill(fresh);

@@ -24,6 +24,9 @@ import {
 const N = schema.nodes;
 const PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+// Another picture: the store keeps one asset per distinct picture.
+const GREY =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==";
 const ASSETS = `{"a1":{"type":"image/png","data":"${PNG}"},"f1":{"kind":"font","family":"Brand","type":"font/woff2","data":"AAAA"},"a9":{"type":"image/png","data":"${PNG}"}}`;
 const source = (body, assets = ASSETS) =>
   `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Images</title>\n</head>\n<body>\n<article id="doc" data-format="1" lang="en">\n${body}\n</article>\n${assets === null ? "" : `<script id="assets" type="application/json">${assets}</script>\n`}</body>\n</html>\n`;
@@ -102,7 +105,7 @@ test("alt text is required; wrapped images take a wrap width", () => {
 
 test("a wrapped image goes before the block it anchors to, a block image after it", () => {
   const e = editor();
-  const asset = e.store.add({ type: "image/png", data: PNG });
+  const asset = e.store.add({ type: "image/png", data: GREY });
   assert.equal(asset, "a2");
   e.cursor("Last.");
   assert.equal(e.run(insertImage({ asset, alt: "" })), false);
@@ -140,7 +143,7 @@ test("changing and replacing an image; invalid changes are refused", () => {
     articleHTML(e.state.doc),
     /id="fig-a" data-width="text">\n<img data-asset="a1" alt="Renamed">/,
   );
-  const next = e.store.add({ type: "image/png", data: PNG });
+  const next = e.store.add({ type: "image/png", data: GREY });
   assert.ok(e.run(setImage({ asset: next })));
   // The replaced asset is not saved any more; fonts stay; the unused a9 goes too.
   assert.deepEqual(e.assets(e.saved()), ["f1", "a2"]);
@@ -266,4 +269,13 @@ test("store fonts become @font-face rules; a field that could end the rule leave
     { data: "AA)}body{x" },
   ])
     assert.equal(css(bad), "", JSON.stringify(bad));
+});
+
+// Project review, 22 Nov 2026 (optional item): the same picture added twice is stored once.
+test("adding an image the store already holds reuses its key", () => {
+  const e = editor();
+  assert.equal(e.store.add({ type: "image/png", data: PNG }), "a1");
+  const webp = e.store.add({ type: "image/webp", data: PNG });
+  assert.equal(webp, "a2", "another type is another asset");
+  assert.equal(e.store.add({ type: "image/webp", data: PNG }), webp);
 });

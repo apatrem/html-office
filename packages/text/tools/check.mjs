@@ -14,6 +14,7 @@ import { attr, classes } from "../model/html.mjs";
 import { usedAssets } from "../editor/images.mjs";
 import { numbering, fileFormat } from "../editor/numbering.mjs";
 import { sectionsOf, sectionAt, articleOf } from "../model/sections.mjs";
+import { isMain } from "./cli.mjs";
 
 const excerpt = (text, offset) =>
   JSON.stringify(text.slice(offset, offset + 40));
@@ -153,7 +154,7 @@ export function checkSource(source) {
   } else if (difference)
     report.warnings.push({
       code: "not-canonical",
-      message: `Not in canonical form: expected ${excerpt(canonical, difference.offset)}, found ${excerpt(source, difference.offset)}. pack.mjs rewrites it`,
+      message: `Not in canonical form: expected ${excerpt(canonical, difference.offset)}, found ${excerpt(source, difference.offset)}. The pack command (document.mjs pack) rewrites it`,
       path: "document",
       line: difference.line,
       col: difference.col,
@@ -246,5 +247,5 @@ export async function run(argv) {
   return report.ok ? 0 : 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`)
+if (isMain(import.meta.url))
   process.exitCode = await run(process.argv.slice(2));

@@ -33,6 +33,7 @@ const SHORTCUTS = [
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
   ["Next, previous table cell", "Tab, Shift+Tab"],
+  ["Tab character in code", "Tab"],
   ["Page break", key("Enter")],
   ["Footnote (Escape leaves it)", alt("F")],
   ["Comment on the selection", alt("M")],
@@ -654,16 +655,6 @@ export function mountShell(
     if (el.textContent !== t) el.textContent = t;
   };
   const protectedCount = report.protected.length;
-  text(
-    kept,
-    [
-      protectedCount &&
-        `${protectedCount} protected block${protectedCount > 1 ? "s" : ""} (not editable)`,
-      !saving.canonical && "Not in canonical form: saving needs pack.mjs",
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  );
   const article = document.getElementById("doc");
   let measured = "";
   function sync() {
@@ -709,6 +700,17 @@ export function mountShell(
           : e.style === "cover"
             ? "Cover line"
             : "—"),
+    );
+    text(
+      kept,
+      [
+        protectedCount &&
+          `${protectedCount} protected block${protectedCount > 1 ? "s" : ""} (not editable)`,
+        !saving.canonical &&
+          "Not in canonical form: Save asks before rewriting it",
+      ]
+        .filter(Boolean)
+        .join(" · "),
     );
     status.dataset.state = saving.busy ? "saving" : saving.state;
     text(
@@ -1028,7 +1030,38 @@ export function mountShell(
     });
     list.focus();
   }
+  // Save on a file not in canonical form: rewriting it whole needs the person's agreement.
+  // Resolves to true only for Rewrite and save.
+  const rewrite = () =>
+    new Promise((resolve) =>
+      modal(
+        "Rewrite this file in canonical form?",
+        [
+          h(
+            "p",
+            {},
+            "This file is valid, but not laid out as the editor writes it (attribute order, line breaks, spacing), as after an edit by hand or by another tool. Saving rewrites the whole file in that canonical form, not only your changes; the document reads the same.",
+          ),
+          h(
+            "p",
+            {},
+            "Nothing is written until you choose Rewrite and save. Save a copy downloads the canonical file and leaves this one as it is; the html-text skill's document.mjs pack command rewrites it outside the browser.",
+          ),
+        ],
+        [
+          h("button", { class: "sh-b sh-t sh-ghost", value: "" }, "Cancel"),
+          h("span", { class: "sh-spacer" }),
+          h(
+            "button",
+            { class: "sh-b sh-t sh-primary", value: "rewrite" },
+            "Rewrite and save",
+          ),
+        ],
+        { onClose: (value) => resolve(value === "rewrite") },
+      ),
+    );
   return {
+    rewrite,
     recover,
     link,
     markdown,
@@ -1061,7 +1094,7 @@ export function refusal(report) {
         "p",
         {},
         h("strong", {}, "This document cannot be edited. "),
-        `${report.errors.length} problem${report.errors.length > 1 ? "s" : ""} must be fixed in the source first (packages/text/tools/check.mjs lists them all):`,
+        `${report.errors.length} problem${report.errors.length > 1 ? "s" : ""} must be fixed in the source first (the html-text skill's document.mjs check command lists them all):`,
       ),
       h(
         "ul",

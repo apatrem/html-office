@@ -409,3 +409,19 @@ test("draft passages: table rows whole, emphasis in either Markdown form", async
     normalise(stripMarkdown("In the survey, *punctual delivery* was first")),
   );
 });
+
+// Project review, 22 Nov 2026: pack now rewrites labels and contents, so a section another task
+// renumbered (Figure 2 becoming Figure 3) is still kept; a change to its own text is not.
+test("kept sections are judged without their generated labels and contents", async () => {
+  const { withoutGenerated } = await import("../acceptance/blind/score.mjs");
+  const section = (label, text) =>
+    `<h2 id="sec-a">A</h2>\n<nav class="toc" data-depth="2">\n<ol>\n<li><a href="#sec-a">${label} A</a></li>\n</ol>\n</nav>\n<p>${text} (<a class="xref" href="#fig-x">Figure ${label}</a>).</p>\n`;
+  assert.equal(
+    withoutGenerated(section("2", "Same")),
+    withoutGenerated(section("3", "Same")),
+  );
+  assert.notEqual(
+    withoutGenerated(section("2", "Same")),
+    withoutGenerated(section("2", "Other")),
+  );
+});

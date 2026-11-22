@@ -351,6 +351,40 @@ async function run(engine) {
     assert.match(doc, /growth {3}= 0\.12x = 1\ny = 2<\/code><\/pre>/);
     pass("in a table cell the paste becomes lines; in code, text");
 
+    // Project review: plain text pasted into code keeps its indentation, tabs and blank lines,
+    // also when the clipboard holds an editor's HTML (white-space: pre spans), and from
+    // Edit › Paste as plain text.
+    const source = "if (a) {\r\n\treturn 1;\r\n\r\n    // two\r\n}";
+    const pre = source
+      .split("\r\n")
+      .map((l) => `<div><span style="color:#00f">${l}</span></div>`)
+      .join("");
+    for (const types of [
+      { "text/plain": source },
+      {
+        "text/plain": source,
+        "text/html": `<div style="white-space: pre;">${pre}</div>`,
+      },
+    ]) {
+      doc = await pasted(types, "growth   = 0.12");
+      assert.ok(
+        doc.includes(
+          "growth   = 0.12if (a) {\n\treturn 1;\n\n    // two\n}</code></pre>",
+        ),
+        doc,
+      );
+    }
+    pass("in code, pasted text keeps indentation, tabs and blank lines");
+
+    // Tab in code inserts a tab (project review, optional item).
+    await caret("growth   = 0.12");
+    const beforeTab = await saved();
+    await page.keyboard.press("Tab");
+    assert.match(article(check(await saved())), /growth {3}= 0\.12\t/);
+    await undo();
+    assert.equal(await saved(), beforeTab);
+    pass("Tab in code inserts a tab");
+
     // ---- copy ----
     const copy = (select) =>
       page.evaluate((select) => {
@@ -876,6 +910,20 @@ async function run(engine) {
     assert.match(
       article(check(await saved())),
       /Plain one<\/p>\n<p>Plain two<\/p>/,
+    );
+    await undo();
+    // Into code, the text as written (project review).
+    await caret("growth   = 0.12");
+    await page.evaluate(() => {
+      navigator.clipboard.readText = async () => "\tone\n\n  two";
+    });
+    await page.evaluate(() => window.htmlText.commands.run("paste-plain"));
+    await page.waitForFunction(() =>
+      window.htmlText.serialize().includes("  two"),
+    );
+    assert.match(
+      article(check(await saved())),
+      /growth {3}= 0\.12\tone\n\n {2}two<\/code>/,
     );
     await undo();
     await page.evaluate(() => {

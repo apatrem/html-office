@@ -1,5 +1,5 @@
 // T08 from file:// in Chromium, Firefox and WebKit: stale labels and contents are rewritten on
-// open (an unsaved change), heading numbers and caption labels show on screen and in print,
+// open (not an unsaved change), heading numbers and caption labels show on screen and in print,
 // missing targets are flagged, the heading-numbers setting, Insert › Contents and the
 // cross-reference dialog. Each saved result is valid, canonical, and differs only where expected.
 //   TEXT_ENGINES=chromium,firefox,webkit node tests/numbering-browser.mjs   (default: chromium)
@@ -89,10 +89,15 @@ async function run(name) {
         }, selector)
         .then((content) => content.replace(/\u2002/g, " "));
 
-    // ---- open: stale content rewritten, shown as an unsaved change ----
-    assert.match(
+    // ---- open: stale content rewritten, not an unsaved change (project review) ----
+    // Generated content is no edit: no unsaved state, no draft, no recovery on the next open.
+    assert.equal(
       await page.getAttribute(".tx-shell [role=status]", "data-state"),
-      /^(unsaved|draft)$/,
+      "saved",
+    );
+    assert.equal(
+      await page.evaluate(() => window.htmlText.saving.dirty),
+      false,
     );
     let lines = check(await saved());
     assert.deepEqual(lines.sort(), [
@@ -104,8 +109,19 @@ async function run(name) {
       await page.isDisabled('.tx-shell button[aria-label="Undo"]'),
       true,
     );
+    await page.waitForFunction(
+      () => window.htmlText.saving.recovery !== "opening",
+    );
+    await page.waitForTimeout(700);
+    const again = await context.newPage();
+    await again.goto(url);
+    await again.waitForFunction(
+      () => window.htmlText?.saving.recovery !== "opening",
+    );
+    assert.equal(await again.locator("dialog[open]").count(), 0, "no draft");
+    await again.close();
     pass(
-      "stale labels and contents are rewritten on open, outside the history",
+      "stale labels and contents are rewritten on open, outside the history, as no unsaved change",
     );
 
     // ---- numbers on screen and in print; missing targets flagged ----
@@ -275,7 +291,8 @@ async function run(name) {
       );
       await other.evaluate(() => {
         const { view } = window.htmlText;
-        view.dispatch(view.state.tr.insertText("Draft ", 1));
+        // In the cover's title (position 1 is between the cover and its title).
+        view.dispatch(view.state.tr.insertText("Draft ", 2));
       });
       await other.waitForFunction(
         () =>
@@ -290,6 +307,7 @@ async function run(name) {
       await other.click("dialog.sh-dialog button:text('Restore as a copy')");
       const restored = await other.evaluate(() => window.htmlText.serialize());
       assert.match(restored, /--heading-format:"I\.A\.1\.a"/);
+      assert.match(restored, /<h1 class="title">Draft /);
       assert.match(
         restored,
         /<li><a href="#sec-regions">II\.A Regions<\/a><\/li>/,

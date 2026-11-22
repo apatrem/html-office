@@ -11,6 +11,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildEngine, buildDocument, measureFile } from "./build.mjs";
 import { parseFile } from "../model/parse.mjs";
+import { isMain } from "./cli.mjs";
 
 // Raised from 500,000 by the user on 28 October 2026 (T07–T13 together come to about 548 KB).
 export const STANDARD_CODE_CEILING = 600000;
@@ -128,7 +129,7 @@ export async function measure() {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const result = await measure();
   console.log(
     "| Component | Bytes | Share of the ceiling |\n| --- | ---: | ---: |",

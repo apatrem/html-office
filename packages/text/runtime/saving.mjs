@@ -3,7 +3,8 @@
 // once, then reuses it, even after reopening (shared FileBinding). Safari and Firefox save a
 // complete copy, and Save there downloads one. Every unsaved revision is kept as a draft in this browser's IndexedDB,
 // offered again when the file is reopened. The remembered file is reused only while it holds
-// exactly the document as opened, in canonical form: a save never normalises silently.
+// exactly the document as opened, in canonical form. A file that is not in canonical form is
+// rewritten whole by Save only once the person agrees (ask()): a save never normalises silently.
 import {
   DirtyState,
   FileBinding,
@@ -18,10 +19,12 @@ const DRAFT_DELAY = 500;
 // opened: the canonical text of the document as opened. draft(): the article HTML of the current
 // document; zones(): the file's other zones as text (the engine left empty), stored with the
 // draft so that it can be restored whatever the file holds later. onDraft({date, asCopy, article,
-// zones}): a draft was found on open; the shell asks to restore or discard it.
+// zones}): a draft was found on open; the shell asks to restore or discard it. canonical: whether
+// the opened file is in canonical form; ask(): resolves to whether Save may rewrite it into it.
 export function setupSaving({
   opened,
   canonical,
+  ask,
   serialize,
   check,
   name,
@@ -45,6 +48,7 @@ export function setupSaving({
     recovered: () => asCopy,
   });
   let busy = false,
+    asking = false,
     message = "",
     copied = -1,
     kept = -1,
@@ -163,10 +167,6 @@ export function setupSaving({
 
   // The file text to write, read back first: a problem stops the save before anything is written.
   const output = () => {
-    if (!canonical)
-      throw new Error(
-        "this file is not in canonical form, so saving would rewrite more than your edits. Run tools/pack.mjs on it first; nothing was written",
-      );
     const text = serialize();
     const problem = check(text);
     if (problem) throw new Error(`${problem}; nothing was written`);
@@ -175,8 +175,24 @@ export function setupSaving({
 
   async function save() {
     // Not while a draft found on open awaits a choice, nor before the draft store has answered.
-    if (busy || !direct || recovery === "opening" || recovery === "unresolved")
+    if (
+      busy ||
+      asking ||
+      !direct ||
+      recovery === "opening" ||
+      recovery === "unresolved"
+    )
       return;
+    if (!canonical) {
+      asking = true;
+      const agreed = await ask();
+      asking = false;
+      if (!agreed)
+        return say(
+          "Save cancelled: nothing was written. Your work remains open.",
+        );
+      canonical = true;
+    }
     busy = true;
     changed();
     try {
@@ -304,6 +320,8 @@ export function setupSaving({
     get problem() {
       return unavailable;
     },
-    canonical,
+    get canonical() {
+      return canonical;
+    },
   };
 }
