@@ -1,6 +1,6 @@
 # ADR-011 — Shared principles across html-office products
 
-Status: proposed on 22 October 2026; §10 accepted in session S01 and §7 accepted in U03 the same day. Sections marked **accepted** consolidate decisions already recorded elsewhere; sections marked **proposed** or **open** need the tasks in the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md) before acceptance. Applies to html-slides, html-data and html-text.
+Status: accepted and implemented. Proposed on 22 October 2026; §10 was accepted in session S01 and §7 in U03 the same day, and the other sections consolidate decisions recorded elsewhere. The shell, shared charte, charts, notices and appearance settings are in all three products (tasks of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). Only the items under **Open** remain. Applies to html-slides, html-data and html-text.
 
 ## Accepted (consolidated)
 
@@ -9,7 +9,7 @@ Status: proposed on 22 October 2026; §10 accepted in session S01 and §7 accept
 3. **One skill per product, one plugin.** Slides, Data and Text each ship a focused skill when implemented, sharing the authoring rules of [Office V1](../HTML-OFFICE-V1.md#shared-authoring-and-quality-rules): validate, retry twice, then stop; teach with valid and invalid examples; measure against a committed heavy fixture in CI.
 4. **One brand theme.** A single `style#charte` token set (colours, fonts, chart palette, logo, footer, locale) styles all three products; each adds only its own layout styles. Content never hard-codes colours or fonts outside the theme vocabulary.
 5. **Charts.** One chart contract (types, JSON schema) implemented by a shared module on pinned, SRI-verified ECharts, with saved SVG previews for offline viewing and print.
-6. **Embedded application-code ceilings (standard mode).** Data 750,000 bytes ([ADR-010](010-manual-formatting-and-ironcalc-toolbar.md)) and Text 500,000 bytes ([HTML-TEXT-V1](../HTML-TEXT-V1.md)). Content, saved results and previews are measured separately; offline builds may be larger.
+6. **Embedded application-code ceilings (standard mode).** Data 750,000 bytes ([ADR-010](010-manual-formatting-and-ironcalc-toolbar.md)) and Text 500,000 bytes ([HTML-TEXT-V1](../HTML-TEXT-V1.md)). **Update, 28 October 2026: the user raised the Text ceiling to 600,000 bytes** (`STANDARD_CODE_CEILING` in `packages/text/tools/measure.mjs`; HTML-TEXT-V1 states it). Content, saved results and previews are measured separately; offline builds may be larger.
 
 ## Accepted in U03 (22 October 2026)
 

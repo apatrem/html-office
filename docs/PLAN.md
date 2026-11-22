@@ -1,6 +1,6 @@
 # V1 plan — standalone, editable HTML presentations
 
-Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 18 October 2026. The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since, each item with its pull request.
+Status, 22 November 2026: release 0.7.2 is published ([v0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2), 18 November 2026); usage validation is pending and the approved V1 additions are mostly open (see the backlog table). The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since (all of it in 0.7.2), each item with its pull request.
 
 This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The seven approved Slides additions below remain planned; an [ideas backlog](#ideas-backlog-not-approved) records candidates that are not approved.
 
@@ -36,7 +36,7 @@ Merged since 0.7.1:
 
 ## Approved V1 backlog
 
-The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. All are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
+The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. V1-04 has started and the other rows say where they stand; none is complete. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
 
 | ID | Feature | Status |
 | --- | --- | --- |

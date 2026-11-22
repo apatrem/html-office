@@ -1,6 +1,6 @@
 # HTML Data ribbon assessment and implementation
 
-Current checkpoint, 22 October 2026: the user chose **variant A of the shared editor shell built from native components** (U03, [ADR-011](decisions/011-html-office-shared-principles.md) §7) after the [R06 spike](HTML-DATA-NATIVE-SHELL-SPIKE.md). The IronCalc toolbar on Preact (R05) is not adopted, and F04 becomes cross-plan U04-Data. Earlier checkpoint, 21 October 2026: after the R04 report the user chose a **lighter fork of the actual IronCalc toolbar on Preact** with its complete formatting features. The design is recorded in [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md); R05 below is the spike, followed by production tasks F01–F06. The native ribbon remains the working default until F04. Import and T15–T22 remain paused. R01–R04 below are historical context.
+Current state, 22 November 2026: the user chose **variant A of the shared editor shell built from native components** (U03, [ADR-011](decisions/011-html-office-shared-principles.md) §7) on 22 October 2026, after the [R06 spike](HTML-DATA-NATIVE-SHELL-SPIKE.md); it is implemented (U04-Data and F01–F06 are merged). The IronCalc toolbar on Preact (R05) and the lighter fork were not adopted. R01–R05 below are historical context.
 
 Approved direction: 20 October 2026. The user requests a ribbon-based interface familiar to Excel users, asks for an assessment plan, then authorises implementation and resumption of the remaining Data plan. This replaces the earlier pause. Existing portability, JSON, engine, licence, code-size and performance requirements remain in force.
 
@@ -145,3 +145,9 @@ Each task is a separate reviewable increment with the existing unit/browser/form
 - **F06 — PNG** (implemented on `feature/data-f06-png`). Model-generated SVG of the selection rasterised to PNG, stale-result band and size limits.
 
 T15 import acceptance gains ADR-010 conversions: merges to `centerContinuous` or unmerge, number-format codes to presets, diagonal borders and unsupported alignment reported in diagnostics.
+
+## History
+
+Earlier status notes, kept for the record:
+
+Current checkpoint, 22 October 2026: the user chose **variant A of the shared editor shell built from native components** (U03, [ADR-011](decisions/011-html-office-shared-principles.md) §7) after the [R06 spike](HTML-DATA-NATIVE-SHELL-SPIKE.md). The IronCalc toolbar on Preact (R05) is not adopted, and F04 becomes cross-plan U04-Data. Earlier checkpoint, 21 October 2026: after the R04 report the user chose a **lighter fork of the actual IronCalc toolbar on Preact** with its complete formatting features. The design is recorded in [ADR-010](decisions/010-manual-formatting-and-ironcalc-toolbar.md); R05 below is the spike, followed by production tasks F01–F06. The native ribbon remains the working default until F04. Import and T15–T22 remain paused. R01–R04 below are historical context.

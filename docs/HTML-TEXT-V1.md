@@ -1,6 +1,6 @@
 # HTML Text V1 specification
 
-Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text implementation has not started; task order and verification are in the [Text implementation plan](HTML-TEXT-PLAN.md). Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
+Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text is implemented (T01–T19 merged); only the blind test and release review (T20) remain, run by the owner. Task order and verification are in the [Text implementation plan](HTML-TEXT-PLAN.md); current state in [STATUS.md](STATUS.md). Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
 
 ## Purpose and boundaries
 

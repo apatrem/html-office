@@ -1,6 +1,6 @@
 # HTML Data V1 implementation plan
 
-Status: proposed implementation sequence, 15 October 2026. Product decisions are consolidated in the [Office specification](HTML-OFFICE-V1.md); [ADR-003](decisions/003-html-office-and-data-runtime.md) records the architecture. Implementation update, 19 October 2026: T01–T04 have a working experimental implementation; T05 browser evidence and T05b storage experiments are in [the Phase A report](../packages/data/PHASE-A-REPORT.md). The user approved hybrid JSON storage and policy A in [ADR-005](decisions/005-data-storage.md); its model/runtime adoption and unfamiliar-LLM evidence are included in T05b. T06–T10 and the shared-brand/range-formatting slice of T11 are merged; T11 sheet navigation is under verification. Later tasks continue under the autonomous authorisation recorded in [the progress ledger](HTML-DATA-PROGRESS.md). The earlier engine assessment alone did not complete these product tasks.
+Status, 22 November 2026: T01–T21 are merged; only T22, the blind test and release-readiness review, remains. The owner runs it by hand ([protocol](blind-tests/DATA-T22.md)); the Data skill joins the plugin when it passes. Product decisions are in the [Office specification](HTML-OFFICE-V1.md), the architecture in [ADR-003](decisions/003-html-office-and-data-runtime.md), per-task evidence in [the progress ledger](HTML-DATA-PROGRESS.md) and the state of all products in [STATUS.md](STATUS.md). The task text below is the original plan, read with its history at the end.
 
 ## Delivery rules and dependencies
 
@@ -257,3 +257,9 @@ A probe of the pinned engine (ironcalc/0.9.0+html-office.4, engine only, not the
 | PDF or HTML-only LLM workflow fails | Fix the document contract/rendering and repeat the failing acceptance task before claiming V1 readiness |
 
 No further product question is currently pending. Technical validation may expose a concrete tradeoff requiring a documented scope decision; it must not silently remove an approved requirement.
+
+## History
+
+Earlier status notes, kept for the record:
+
+Status: proposed implementation sequence, 15 October 2026. Product decisions are consolidated in the [Office specification](HTML-OFFICE-V1.md); [ADR-003](decisions/003-html-office-and-data-runtime.md) records the architecture. Implementation update, 19 October 2026: T01–T04 have a working experimental implementation; T05 browser evidence and T05b storage experiments are in [the Phase A report](../packages/data/PHASE-A-REPORT.md). The user approved hybrid JSON storage and policy A in [ADR-005](decisions/005-data-storage.md); its model/runtime adoption and unfamiliar-LLM evidence are included in T05b. T06–T10 and the shared-brand/range-formatting slice of T11 are merged; T11 sheet navigation is under verification. Later tasks continue under the autonomous authorisation recorded in [the progress ledger](HTML-DATA-PROGRESS.md). The earlier engine assessment alone did not complete these product tasks.

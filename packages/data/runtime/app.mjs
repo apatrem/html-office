@@ -1851,6 +1851,9 @@ register(
     const dialog = $("help-dialog");
     for (const details of dialog.querySelectorAll("details"))
       details.open = details.dataset.section === section;
+    // The guide is read from template#html-data-guide: the file holds one copy.
+    const guide = $("html-data-guide");
+    if (guide) $("guide-text").textContent = guide.content.textContent;
     dialog.showModal();
     dialog.querySelector(`[data-section="${section}"] summary`)?.focus();
   },

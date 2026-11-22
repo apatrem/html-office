@@ -1,6 +1,6 @@
 # ADR-004 — HTML Text format and editor
 
-Status: accepted product direction on 15 October 2026. Text is not implemented; editor size, round-trip fidelity and print behaviour remain release gates in the [Text specification](../HTML-TEXT-V1.md).
+Status: accepted product direction on 15 October 2026. Implemented: Text T01–T19 are merged; the blind test (T20) remains. Editor size, round-trip fidelity and print behaviour are release gates in the [Text specification](../HTML-TEXT-V1.md).
 
 ## Context
 

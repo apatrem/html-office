@@ -1,6 +1,6 @@
-# HTML Data — Phase A prototype
+# HTML Data
 
-Work authorised through T05b only. The user approved hybrid JSON storage and policy A in [ADR-005](../../docs/decisions/005-data-storage.md); T06 and later product features are out of scope for this PR. This package is independent of Slides and is not yet a distributed skill.
+Editable workbooks in one HTML file: a readable JSON workbook, IronCalc formulas in a worker, and a browser editor ([overview](../../README.md), [status](../../docs/STATUS.md)). The package is independent of Slides. Its skill is generated into [`plugin/skills/html-data/`](../../plugin/skills/html-data/SKILL.md) (`node packages/data/tools/skill.mjs`); it joins the plugin archive after the blind test ([protocol](../../docs/blind-tests/DATA-T22.md)). The storage decision is [ADR-005](../../docs/decisions/005-data-storage.md); the first experiment is kept in [PHASE-A-REPORT.md](PHASE-A-REPORT.md).
 
 The [html-data/0.2 document contract](model/FORMAT.md) uses compact JSON row arrays for declared dense raw-data tables, sparse cell records for freeform models, and JSON metadata. Every populated formula result is saved. Other encodings remain assessment candidates only.
 
@@ -10,7 +10,7 @@ The [html-data/0.2 document contract](model/FORMAT.md) uses compact JSON row arr
 
 A cell has an `input` or `formula`, optional typed formula `result`, `cellStyle` and `format`. Unknown structural fields are rejected. Arbitrary JSON metadata remains inert and survives bounded edits. Cell text may contain literal markup but is never HTML. JSON escaping prevents script termination and preserves Unicode. No executable content is accepted in model fields.
 
-The SHA-256 calculation fingerprint includes typed inputs, formulas, sheet identity/order/names, named ranges and the date system. It excludes results, formats and descriptive metadata. Snapshots identify engine, fingerprint and calculation time. Fingerprints detect stale results, not authenticity. Missing/stale snapshots must be visible in the prototype.
+The SHA-256 calculation fingerprint includes typed inputs, formulas, sheet identity/order/names, named ranges and the date system. It excludes results, formats and descriptive metadata. Snapshots identify engine, fingerprint and calculation time. Fingerprints detect stale results, not authenticity. Missing or stale snapshots are shown as such.
 
 Run model tests: `node --test packages/data/tests/model.test.mjs`.
 
