@@ -88,6 +88,7 @@ const safeValue = (name, value) => {
 // Returns a new svg.render element built in this document, or null when nothing usable remains.
 // Every id is replaced by a short fresh one starting with the per-paste `prefix` (so repeated
 // pastes never lengthen it); url(#id) to an id of this SVG follows it, any other reference is removed.
+// An id used twice in the source stays on its first element only.
 export function sanitizeSVG(text, { prefix, parse = parseInert } = {}) {
   if (typeof text !== 'string' || text.length > CHART_LIMITS.svg) return null;
   const source = [...parse(text).childNodes].find(n => n.nodeType === 1);
@@ -107,12 +108,14 @@ export function sanitizeSVG(text, { prefix, parse = parseInert } = {}) {
     const m = /^url\(#([\w-]{1,64})\)$/.exec(value);
     return m ? (ids.has(m[1]) ? `url(#${ids.get(m[1])})` : null) : value;
   };
+  const given = new Set();
   const build = (n, depth) => {
     const out = document.createElementNS(SVG, n.localName);
     for (const a of n.attributes) {
       if (a.namespaceURI || !ATTRIBUTES.has(a.name) || !safeValue(a.name, a.value)) continue;
       let value = a.name === 'id' ? ids.get(a.value) : a.value;
-      if (value === undefined) continue;
+      if (value === undefined || a.name === 'id' && given.has(value)) continue;
+      if (a.name === 'id') given.add(value);
       if (REFERENCE.has(a.name) && (value = rewrite(value)) === null) continue;
       out.setAttribute(a.name, value);
     }

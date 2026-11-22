@@ -172,6 +172,30 @@ test('envelope: recognised, unknown major version skipped, malformed refused', (
     JSON.stringify({ ...envelope, source: { locale: 7 } })])
     assert.throws(() => decodeEnvelope(broken), ClipboardError, broken);
   assert.throws(() => decodeEnvelope(' '.repeat(LIMITS.json + 1)), /too large/);
+  // A whole slide (V1-01): its member is returned as it is, for Slides to validate; a kind this
+  // version does not know is refused with a notice that names it.
+  const slide = { html: '<section class="slide"></section>', assets: {}, future: 1 };
+  assert.deepEqual(decodeEnvelope(JSON.stringify({ schema: SCHEMA, kind: 'slide', source: { product: 'slides', format: '1' }, slide, table })).envelope,
+    { schema: SCHEMA, kind: 'slide', source: { product: 'slides', format: '1' }, slide });
+  for (const broken of [{ schema: SCHEMA, kind: 'slide' }, { schema: SCHEMA, kind: 'slide', slide: [] }, { schema: SCHEMA, kind: 'slide', slide: 'x' }])
+    assert.throws(() => decodeEnvelope(JSON.stringify(broken)), /a slide needs slide data/);
+  assert.throws(() => decodeEnvelope(JSON.stringify({ schema: SCHEMA, kind: 'image', table })), /unknown kind "image" \(a newer version of html-office may be needed\)/);
+});
+
+test('a section for other applications carries the envelope in its attribute', () => {
+  const data = transfer({});
+  const types = {};
+  data.setData = (type, value) => { types[type] = value; };
+  const slide = { schema: SCHEMA, kind: 'slide', slide: { html: '<section class="slide"><h1>"T" &amp; <b>x</b></h1></section>' } };
+  assert.deepEqual(writeClipboard(data, { envelope: slide, section: '<h1>T</h1>', text: 'T' }), { html: true });
+  assert.equal(types[MIME], JSON.stringify(slide));
+  assert.equal(types['text/plain'], 'T');
+  assert.ok(types['text/html'].endsWith('<h1>T</h1></section>'));
+  const read = readClipboard(transfer({ 'text/html': types['text/html'], 'text/plain': 'T' }), options);
+  assert.deepEqual([read.source, read.via, read.envelope.slide], ['envelope', 'html', slide.slide]);
+  // Over the text/html limit, the section is left out: the custom type and the text still travel.
+  const big = { ...slide, slide: { html: 'x'.repeat(LIMITS.html) } };
+  assert.deepEqual(writeClipboard(data, { envelope: big, section: '<p>x</p>', text: 'x' }), { html: false });
 });
 
 test('reader precedence: custom type, HTML attribute, legacy range, HTML table, plain text', () => {

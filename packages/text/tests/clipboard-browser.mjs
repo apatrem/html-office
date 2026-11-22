@@ -300,8 +300,24 @@ async function run(engine) {
       "text/plain": "From a newer version",
     });
     assert.match(doc, /Table 1<\/a>\.From a newer version<\/p>/);
+    // A whole slide (Slides V1-01): its envelope is not for Text, the simple HTML beside it is.
+    doc = await pasted({
+      "application/x-html-office+json": JSON.stringify({
+        schema: "html-office-clip/1",
+        kind: "slide",
+        source: { product: "slides", format: "1" },
+        slide: { html: '<section class="slide"><h1>Ignored</h1></section>' },
+      }),
+      "text/html":
+        '<section data-html-office="{&quot;schema&quot;:&quot;html-office-clip/1&quot;,&quot;kind&quot;:&quot;slide&quot;,&quot;slide&quot;:{}}">' +
+        "<h1>A fictional slide title</h1><ul><li>First point</li></ul></section>",
+      "text/plain": "A fictional slide title\n- First point",
+    });
+    assert.match(doc, /A fictional slide title/);
+    assert.match(doc, /<ul>\n<li>(<p>)?First point/);
+    assert.doesNotMatch(doc, /Ignored|html-office/);
     pass(
-      "broken, chart and oversized envelopes refused; a newer schema skipped",
+      "broken, chart and oversized envelopes refused; a newer schema skipped; a slide pasted as its simple HTML",
     );
 
     // ---- plain text, and where the paste lands ----

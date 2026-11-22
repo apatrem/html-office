@@ -15,7 +15,9 @@ export const LIMITS = {
   htmlCells: 20000,
   text: 64 * 2 ** 20,
 };
-const KINDS = ["table", "chart"];
+// "slide" is a whole slide (V1-01), read by Slides only: Data refuses it and
+// Text reads the simple HTML written beside it.
+const KINDS = ["table", "chart", "slide"];
 
 // Recognised envelopes are validated whole; an unknown schema string (a newer
 // major version) is reported as skipped so the reader can fall through.
@@ -38,14 +40,17 @@ export function decodeEnvelope(text, { maxCells } = {}) {
 
 // Unknown members are ignored (forward compatibility): only the known ones
 // are copied out. The members a destination validates itself (range,
-// chart) are returned as they are.
+// chart, slide) are returned as they are.
 export function checkEnvelope(value, { maxCells } = {}) {
   const fail = (message) => {
     throw new ClipboardError(`clipboard envelope: ${message}`);
   };
   if (!plainObject(value) || value.schema !== SCHEMA)
     fail("unsupported schema");
-  if (!KINDS.includes(value.kind)) fail("unknown kind");
+  if (!KINDS.includes(value.kind))
+    fail(
+      `unknown kind "${String(value.kind).slice(0, 32)}" (a newer version of html-office may be needed)`,
+    );
   const out = { schema: SCHEMA, kind: value.kind, source: {} };
   if (value.source !== undefined) {
     if (!plainObject(value.source)) fail("source must be an object");
@@ -68,6 +73,9 @@ export function checkEnvelope(value, { maxCells } = {}) {
     if (value.table !== undefined)
       out.table = validateTable(value.table, { maxCells });
     if (!out.table && !out.range) fail("a table needs a table or a range");
+  } else if (value.kind === "slide") {
+    if (!plainObject(value.slide)) fail("a slide needs slide data");
+    out.slide = value.slide;
   } else {
     if (!plainObject(value.chart)) fail("a chart needs chart data");
     out.chart = value.chart;

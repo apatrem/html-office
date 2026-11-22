@@ -145,6 +145,17 @@ Run this on a copy of `data-pnl.html`, in Chrome, then Safari and Firefox for st
 4. **Table column widths**: Insert › Table, then Table › Column width… with the caret in the first column: 50. The column takes half the table's width at once (Chrome, Safari and Firefox). Undo removes it. Distribute columns evenly gives equal columns; Insert column right and Delete column keep the others' widths. Resize the table's frame: the columns keep their proportions. Copy the table and paste it on another slide, and into `text-example.html`: the widths come with it. Save and reopen: the widths are kept.
 5. **Drag a column border** (mouse, then a trackpad): hovering the border between two columns shows the resize cursor. Drag it to the right: only the column on its left widens and the table's frame widens by as much; the slide is detached, as when resizing. Keep dragging: the frame stops at the slide's right edge. One Undo reverts the drag and the detachment; Escape during a drag cancels it. A click on a border selects nothing and changes nothing.
 
+6. **Copy and paste a whole slide (V1-01)**: open two copies of `slides-catalogue.html` in two tabs and give them different themes (Theme & font). In the first, click a thumbnail and press ⌘C / Ctrl+C; in the second, click a thumbnail and press ⌘V / Ctrl+V. Do it in **Chrome**, **Safari** and **Firefox**, then from Chrome to Safari and from Safari to Chrome (only the HTML carrier works there).
+   - The slide appears after the clicked slide and is the current one. Its colours, fonts, footer text and page number are the destination's; a chart is redrawn in the destination's colours.
+   - Text, shapes, tables, images and speaker notes are there and editable; a detached slide keeps its positions. One Undo removes the slide; Redo brings it back with its image.
+   - Slide › Copy slide and the Copy slide button on a thumbnail copy the same slide. Slide › Paste slide pastes it in Chrome and, after the browser's Paste prompt, in Safari and Firefox; where the browser refuses, the notice asks for ⌘V / Ctrl+V.
+   - A slide with an image: save the destination, close it and reopen it with the network off. The image and the chart are shown.
+   - Paste a slide whose text is long into a deck with a larger body font (Georgia): the notice counts the elements that no longer fit and selects them; nothing is cut.
+   - A deck without charts, network off: paste a slide that has a chart. The chart shows a "Preview" badge in the source's colours; with the network back it is redrawn in the deck's colours.
+   - With a table or chart selected, ⌘C / Ctrl+C still copies that element; while typing, it copies the selected text.
+   - Paste the copied slide into Word, Google Docs and a plain text editor: the title, text, lists and tables arrive as an outline; there is no picture and no speaker note. Paste it into `text-example.html`: the same outline, in the document's styles. Paste it into `data-pnl.html`: refused with a message, workbook unchanged.
+   - Paste it into a deck that still has the 0.7.2 editor (for example the example deck of the released plugin): refused with a notice, deck unchanged.
+
 ## 4. All three products
 
 1. **Third-party notices (L01)**: Help › Third-party notices opens collapsed, readable text, with no external link, in each product.

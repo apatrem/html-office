@@ -41,6 +41,8 @@ Drafts preserve content, deck attributes, and assets together. Edits during a sa
 - Content elements are **direct children** of the section. The engine assigns stable `data-id` values on first loading; never change or reuse existing values.
 - Document order determines both reading and stacking order.
 
+In the editor, a whole slide can be copied to another deck open in another tab, or within the deck: Slide › Copy slide, the Copy slide button of a thumbnail, or Cmd/Ctrl+C after clicking a thumbnail; then Cmd/Ctrl+V or Slide › Paste slide in the destination, which adds it after the current slide. The copy keeps the content, notes, chart data, images and, on a detached slide, the coordinates; it takes the destination's theme, font, footer and page number, and gets new `id` and `data-id` values and new asset names. Text that no longer fits is reported, never cut: check the deck after pasting. Other applications receive the slide's text as an outline.
+
 ## Placement: layout or coordinates
 
 **Template slide** (default): no coordinates. A 12-column grid places content left to right on the same row.
@@ -89,7 +91,7 @@ Use shapes for processes, steps, and arrows on detached slides:
 </figure>
 ```
 
-Types, fields, and examples: CHARTS.md. Title/unit come from JSON. `pack` adds a cached `<svg class="render">` for offline viewing; never author or edit it by hand. JSON is authoritative. Within script JSON, escape `<` as `\u003c` to avoid a closing script tag.
+Types, fields, and examples: CHARTS.md. Title/unit come from JSON. `pack` adds a cached `<svg class="render">` for offline viewing; never author or edit it by hand (the editor marks it `data-preview` while it still shows the picture of a chart pasted without ECharts, in its source's colours). JSON is authoritative. Within script JSON, escape `<` as `\u003c` to avoid a closing script tag.
 
 In the editor, Cmd/Ctrl+C copies a selected chart for another deck, and as a picture for PowerPoint, Keynote, Word or Docs; Cmd/Ctrl+V adds a copied chart to the current slide, drawn from its JSON in this deck's theme.
 

@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 581596,
-  "headroom": 18404,
-  "engineGzip": 190478,
+  "applicationCode": 582047,
+  "headroom": 17953,
+  "engineGzip": 190634,
   "file": {
-    "total": 587076,
-    "engine": 570201,
+    "total": 587527,
+    "engine": 570652,
     "content": 5092,
     "assets": 186
   },
@@ -63,7 +63,7 @@
     },
     {
       "component": "Editor UI: shell, saving, print, figures, comments",
-      "bytes": 77042,
+      "bytes": 77070,
       "share": 12.8
     },
     {
@@ -83,7 +83,7 @@
     },
     {
       "component": "Shared: charts",
-      "bytes": 21942,
+      "bytes": 22004,
       "share": 3.7
     },
     {
@@ -92,13 +92,13 @@
       "share": 3.2
     },
     {
-      "component": "CSS: shell, panels and editor styles",
-      "bytes": 16669,
+      "component": "Shared: clipboard",
+      "bytes": 16955,
       "share": 2.8
     },
     {
-      "component": "Shared: clipboard",
-      "bytes": 16594,
+      "component": "CSS: shell, panels and editor styles",
+      "bytes": 16669,
       "share": 2.8
     },
     {
