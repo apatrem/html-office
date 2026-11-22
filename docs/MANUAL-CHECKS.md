@@ -8,7 +8,7 @@ Use the three files in `dist/latest/`, built from the checkout under test (`dist
 bash tools/manual-check-files.sh
 ```
 
-It builds the Text example (`packages/text/fixtures/valid/example.html`), the Data P&L fixture (`packages/data/fixtures/pnl.json`) and copies the committed Slides catalogue:
+It builds the Text example (`packages/text/fixtures/valid/example.html`) and the Data P&L fixture (`packages/data/fixtures/pnl.json`), both as offline builds, and copies the committed Slides catalogue:
 
 | File | Product |
 | --- | --- |
@@ -146,7 +146,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
-- Copy a Slides chart into Data and into another deck.
+- Copy a Slides chart into another deck. (Pasting a chart into Data is not built: X02d.)
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
 
 ## 6. Text, from T07

@@ -20,6 +20,8 @@ test("the guide is a template in head, ahead of the workbook, with one copy and 
   assert.equal(html.split('id="html-data-guide"').length, 2);
   assert.equal(
     template[1]
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
       .replace(/&amp;/g, "&")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'"),

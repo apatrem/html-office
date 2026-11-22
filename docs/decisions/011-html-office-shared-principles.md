@@ -1,6 +1,6 @@
 # ADR-011 — Shared principles across html-office products
 
-Status: accepted and implemented. Proposed on 22 October 2026; §10 was accepted in session S01 and §7 in U03 the same day, and the other sections consolidate decisions recorded elsewhere. The shell, shared charte, charts, notices and appearance settings are in all three products (tasks of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). Only the items under **Open** remain. Applies to html-slides, html-data and html-text.
+Status: accepted and implemented. Proposed on 22 October 2026; §10 was accepted in session S01 and §7 in U03 the same day, and the other sections consolidate decisions recorded elsewhere. The shell, shared charte, charts, notices and appearance settings are in all three products (tasks of the [cross-product plan](../HTML-OFFICE-CROSS-PLAN.md)). Only the items under **Open** and the Data chart pairs of ADR-013 (X02d, X02f) remain. Applies to html-slides, html-data and html-text.
 
 ## Accepted (consolidated)
 
