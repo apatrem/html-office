@@ -10,6 +10,7 @@ import {
   FILLS,
   validateAxes,
 } from "./formatting.mjs";
+import { formulaProblem, definedNameProblem } from "./formula.mjs";
 import { validatePivots } from "./pivot.mjs";
 import { validateCharts } from "./charts.mjs";
 import { validateSources } from "./sources.mjs";
@@ -173,6 +174,8 @@ export function validateCell(cell, book) {
       cell.formula.length < 2
     )
       fail("Formula requires =");
+    const problem = formulaProblem(cell.formula);
+    if (problem) throw Object.assign(new Error(problem), { formula: true });
     if (cell.input !== undefined) fail("Cell cannot contain input and formula");
   }
   if (cell.input !== undefined) validateValue(cell.input);
@@ -449,7 +452,13 @@ export function validateWorkbook(book) {
     if (!object(sheet.cells)) fail("Expected sparse cells");
     for (const [ref, cell] of Object.entries(sheet.cells)) {
       parseAddress(ref);
-      validateCell(cell);
+      try {
+        validateCell(cell);
+      } catch (error) {
+        // Name the cell, since the message quotes only the formula.
+        if (error.formula) error.message = `${sheet.name}!${ref}: ${error.message}`;
+        throw error;
+      }
       if (cell.cellStyle !== undefined && !cellStyles.has(cell.cellStyle))
         fail(`Unknown cell style: ${cell.cellStyle}`);
     }
@@ -487,11 +496,9 @@ export function validateWorkbook(book) {
   const named = new Set();
   for (const name of book.names) {
     fields(name, ["name", "sheetId", "ref"], "named range");
-    if (
-      !id(name.name) ||
-      named.has(name.name.toLowerCase()) ||
-      !ids.has(name.sheetId)
-    )
+    const problem = definedNameProblem(name.name);
+    if (problem) fail(problem);
+    if (named.has(name.name.toLowerCase()) || !ids.has(name.sheetId))
       fail("Invalid named range");
     named.add(name.name.toLowerCase());
     if (name.ref !== "#REF!") parseRange(name.ref);

@@ -1,6 +1,6 @@
 import { assertScenarioInputs } from "../model/validation.mjs";
 import { organizeWorkbook } from '../model/organization.mjs';
-import { shiftWorkbook, structureBeforeRefs } from "../model/structure.mjs";
+import { shiftWorkbook, structureBeforeRefs, repairRanges } from "../model/structure.mjs";
 import { computePivot, pivotFingerprint, validatePivots, PIVOT_ERROR } from "../model/pivot.mjs";
 import {validateWorkbook, validateValue, parseAddress, address, fingerprint, validateCell, validateValidations} from '../model/workbook.mjs';
 import { occupied, forgetSpills } from '../model/spills.mjs';
@@ -90,13 +90,15 @@ export class EngineSession {
   }
   async structure(command){
     const beforeRefs=structureBeforeRefs(this.book,command),next=shiftWorkbook(this.book,command);
-    const index=this.book.sheets.findIndex(s=>s.id===command.sheetId);
+    const index=this.book.sheets.findIndex(s=>s.id===command.sheetId),edited=this.book.sheets[index].name;
     const method=(command.action==='insert'?'insert':'delete')+(command.axis==='row'?'Rows':'Columns');
     this.engine.pauseEvaluation();
     try{this.engine[method](index,command.index,command.count);}finally{this.engine.resumeEvaluation();}
     const formulas=[];
     next.sheets.forEach((sheet,i)=>{for(const [ref,cell]of Object.entries(sheet.cells))if(cell.formula){
-      const {row,column}=parseAddress(ref),formula=this.engine.getCellContent(i,row,column);
+      const {row,column}=parseAddress(ref);
+      // The engine breaks a range whose end was deleted; Data shrinks it instead.
+      const formula=repairRanges(cell.formula,this.engine.getCellContent(i,row,column),{ownSheet:sheet.name,edited,command});
       validateCell({...cell,formula});sheet.cells[ref]={...cell,formula};formulas.push({sheetId:sheet.id,ref,formula});
     }});
     // Rebind canonical names: the engine does not reliably relocate them itself.

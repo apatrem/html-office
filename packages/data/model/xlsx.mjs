@@ -4,6 +4,7 @@
 // that data to Data cells. What Data cannot hold is reported, never guessed:
 // a formula Data cannot run is imported as the value the file saved.
 import { address } from "./csv.mjs";
+import { formulaProblem, definedNameProblem } from "./formula.mjs";
 
 export const XLSX_LIMITS = {
   bytes: 64 * 1024 * 1024,
@@ -443,6 +444,8 @@ const REASONS = {
     `${plural(n, "formula returns a date", "formulas return dates")} in the 1904 date system`,
   name: (n) =>
     `${plural(n, "formula uses", "formulas use")} a named range that is not imported as the file defines it`,
+  syntax: (n) =>
+    `${plural(n, "formula", "formulas")} Data cannot read (for example an intersection of ranges)`,
 };
 const PARTS = {
   macros: "Macros are not imported and never run.",
@@ -536,11 +539,14 @@ export function mapSheet(
     if (f) {
       // A 1904 workbook's date formulas count days from 1904; Data's from
       // 1900: such a formula keeps the (converted) date it saved.
-      const rewritten = array
+      let rewritten = array
         ? { reason: "array" }
         : summary.date1904 && dateFormat
           ? { reason: "date1904" }
           : rewriteFormula(f, sheets, names);
+      // Data reads one formula syntax; what it cannot read keeps its value.
+      if (rewritten.formula && formulaProblem("=" + rewritten.formula))
+        rewritten = { reason: "syntax" };
       if (rewritten.formula) {
         cell.formula = "=" + rewritten.formula;
         if (value) cell.result = value;
@@ -628,7 +634,7 @@ export function mapNames(summary, { sheets, taken }) {
       n.local ||
       !m ||
       !to ||
-      !/^[a-zA-Z][\w-]{0,79}$/.test(n.name) ||
+      definedNameProblem(n.name) ||
       taken.has(n.name.toLowerCase())
     ) {
       skipped.push(n.name);
