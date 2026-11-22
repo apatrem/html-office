@@ -5,8 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { EditorState, TextSelection } from "prosemirror-state";
-import { history, undo } from "prosemirror-history";
+import { EditorState, TextSelection, AllSelection } from "prosemirror-state";
+import { history, undo, closeHistory } from "prosemirror-history";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
@@ -458,4 +458,61 @@ test("a heading nested in a protected block bounds sections", () => {
     K.threads(e.state.doc).find((t) => t.id === "c1").node.attrs.section,
     "s2",
   );
+});
+
+// Project review, 22 Nov 2026: Select all, then typing, deleting or pasting replaced the comments
+// section too, and every thread vanished. Threads whose anchors go are orphaned instead, as for a
+// partial deletion; deleting a thread from the panel and undoing a new thread still remove it.
+test("replacing the whole document orphans every thread instead of deleting it", () => {
+  for (const [label, edit] of [
+    ["type", (tr) => tr.insertText("New")],
+    ["delete", (tr) => tr.deleteSelection()],
+    [
+      "paste",
+      (tr) =>
+        tr.replaceSelectionWith(
+          tr.doc.type.schema.nodes.paragraph.create(
+            null,
+            tr.doc.type.schema.text("Pasted"),
+          ),
+        ),
+    ],
+  ]) {
+    const e = editor();
+    e.select("north site");
+    e.run(K.addComment(ALEX));
+    e.select("shrank");
+    e.run(K.addComment({ ...ALEX, text: "Second." }));
+    // Its own undo step, as typing after a pause is.
+    const all = closeHistory(
+      e.state.tr.setSelection(new AllSelection(e.state.doc)),
+    );
+    e.dispatch(edit(all));
+    const left = K.threads(e.state.doc);
+    assert.deepEqual(
+      left.map((t) => [t.id, t.orphan]),
+      [
+        ["c1", true],
+        ["c2", true],
+      ],
+      label,
+    );
+    assert.match(e.saved(), /data-quote="north site"[^]*data-quote="shrank"/);
+    undo(e.state, e.dispatch);
+    assert.equal(
+      K.threads(e.state.doc).filter((t) => !t.orphan).length,
+      2,
+      `${label}: undo reattaches both`,
+    );
+  }
+  // Deleting from the panel and undoing a new thread still remove the thread.
+  const e = editor();
+  e.select("north site");
+  e.run(K.addComment(ALEX));
+  undo(e.state, e.dispatch);
+  assert.deepEqual(K.threads(e.state.doc), [], "undo removes a new thread");
+  e.select("north site");
+  e.run(K.addComment(ALEX));
+  e.run(K.deleteThread("c1"));
+  assert.deepEqual(K.threads(e.state.doc), [], "deleted from the panel");
 });

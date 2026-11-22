@@ -7,6 +7,7 @@
 import { closeHistory } from "prosemirror-history";
 import { schema } from "./schema/schema.mjs";
 import { usedIds } from "./commands.mjs";
+import { DROP } from "./schema/guard.mjs";
 import { classes } from "../model/html.mjs";
 
 const N = schema.nodes,
@@ -232,7 +233,7 @@ export const deleteThread = (id) => (state, dispatch) => {
   const t = threadById(state.doc, id);
   if (!t || t.kept) return false;
   if (dispatch) {
-    const tr = step(state.tr);
+    const tr = step(state.tr).setMeta(DROP, true);
     const mark = COMMENT.create({ ref: id });
     for (const { from, to } of t.anchors) tr.removeMark(from, to, mark);
     const section = tr.doc.lastChild;

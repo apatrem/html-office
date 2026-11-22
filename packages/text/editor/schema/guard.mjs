@@ -1,10 +1,15 @@
 // Keeps edited documents inside the subset where the schema alone cannot (FORMAT.md). After each
 // changing transaction it repairs, in one appended step:
 // - links over footnotes and cross-references (HTML cannot nest <a>): those nodes are unlinked;
-// - repeated IDs (a split heading, a duplicated figure): later copies get a fresh ID;
-// - table rows left short by an edit: empty cells fill the grid back to a rectangle.
-// It also refuses a transaction that deletes a comment thread text still refers to.
+// - repeated IDs (a split heading, a pasted copy): the node that had the ID keeps it, and the
+//   copies get a fresh one, so references never move to a copy;
+// - table rows left short by an edit: empty cells fill the grid back to a rectangle;
+// - comment threads an edit removed (Select all, then typing): they come back, orphaned.
+// It also refuses a transaction that deletes a comment thread text still refers to. Only
+// deleteThread (marked with DROP) and undo or redo remove threads.
 import { Plugin } from "prosemirror-state";
+import { Mapping } from "prosemirror-transform";
+import { isHistoryTransaction } from "prosemirror-history";
 import { schema } from "./schema.mjs";
 import { classes } from "../../model/html.mjs";
 
@@ -36,17 +41,27 @@ export function linkConflicts(doc) {
   return found;
 }
 
-// [{pos, id}] for every node after the first that repeats an ID.
-export function repeatedIds(doc) {
-  const seen = new Set(),
+export const DROP = "dropThread";
+
+// [{pos, id}] for every node that repeats an ID, except the one that keeps it: the one at
+// keep.get(id) when there is one, the first otherwise.
+export function repeatedIds(doc, keep = new Map()) {
+  const all = new Map(),
     found = [];
   doc.descendants((node, pos) => {
-    if (!IDS.has(node.type.name)) return;
-    if (seen.has(node.attrs.id)) found.push({ pos, id: node.attrs.id });
-    seen.add(node.attrs.id);
+    if (IDS.has(node.type.name))
+      all.set(node.attrs.id, [...(all.get(node.attrs.id) ?? []), pos]);
   });
-  return { seen, found };
+  for (const [id, list] of all) {
+    const kept = list.includes(keep.get(id)) ? keep.get(id) : list[0];
+    for (const pos of list) if (pos !== kept) found.push({ pos, id });
+  }
+  return { seen: new Set(all.keys()), found };
 }
+
+// The threads of the comments section (the last block).
+const threadsOf = (doc) =>
+  doc.lastChild?.type === N.comments ? doc.lastChild.content.content : [];
 
 // Missing cells per row of a table, from its spans: [{row, missing}] with the row's end position.
 export function shortRows(table, pos) {
@@ -78,11 +93,21 @@ export function shortRows(table, pos) {
     .filter((e) => e.missing > 0);
 }
 
-function repair(state) {
+// old: the state before `transactions`, which led to `state`.
+function repair(state, old, transactions) {
   const tr = state.tr;
   for (const { node, pos } of linkConflicts(state.doc))
     tr.removeNodeMark(pos, link);
-  const { seen, found } = repeatedIds(tr.doc);
+  // Where each ID's node from before the edit is now.
+  const mapping = new Mapping(),
+    keep = new Map();
+  for (const t of transactions) mapping.appendMapping(t.mapping);
+  old.doc.descendants((node, pos) => {
+    const to = mapping.mapResult(pos, 1);
+    if (IDS.has(node.type.name) && !to.deleted && !keep.has(node.attrs.id))
+      keep.set(node.attrs.id, to.pos);
+  });
+  const { seen, found } = repeatedIds(tr.doc, keep);
   for (const { pos, id } of found) {
     let n = 2;
     while (seen.has(`${id}-${n}`) || fileIds.has(`${id}-${n}`)) n++;
@@ -102,6 +127,17 @@ function repair(state) {
           (head ? N.table_header : N.table_cell).create(),
         ),
       );
+  const ids = new Set(threadsOf(tr.doc).map((t) => t.attrs.id));
+  const lost = transactions.some(
+    (t) => t.getMeta(DROP) || isHistoryTransaction(t),
+  )
+    ? []
+    : threadsOf(old.doc).filter((t) => !ids.has(t.attrs.id));
+  if (lost.length)
+    tr.insert(
+      tr.doc.content.size - (ids.size ? 1 : 0),
+      ids.size ? lost : N.comments.create(null, lost),
+    );
   return tr.docChanged ? tr : null;
 }
 
@@ -134,7 +170,9 @@ export const subsetGuard = () =>
         return true;
       return lostThreads(tr.doc).length <= lostThreads(state.doc).length;
     },
-    appendTransaction(transactions, _old, state) {
-      return transactions.some((tr) => tr.docChanged) ? repair(state) : null;
+    appendTransaction(transactions, old, state) {
+      return transactions.some((tr) => tr.docChanged)
+        ? repair(state, old, transactions)
+        : null;
     },
   });
