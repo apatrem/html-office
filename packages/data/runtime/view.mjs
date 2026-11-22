@@ -38,7 +38,10 @@ export function display(cell, locale = "en-US") {
   // General: what a person would read, 15 significant digits (0.1+0.2 is
   // 0.3) and the locale's decimal mark; the cell keeps its full precision.
   if (f.kind === "general") {
-    const text = String(Number(v.value.toPrecision(15)));
+    const rounded = Number(v.value.toPrecision(15)),
+      text = Number.isFinite(rounded)
+        ? String(rounded)
+        : v.value.toPrecision(15);
     return conventions(locale).decimal === "comma"
       ? text.replace(".", ",")
       : text;

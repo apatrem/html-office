@@ -161,3 +161,27 @@ test("results from an earlier day are marked, never results from today", () => {
     null,
   );
 });
+
+test("spill sizing uses the same local clock as the calculation", async () => {
+  await at(instant, async () => {
+    const session = new EngineSession(await loadEngine(), {
+      timeZone: "Asia/Tokyo",
+    });
+    try {
+      // Tokyo is already on the 23rd (46349): the one-row branch is taken.
+      // A2's run crosses B1's row, so both anchors are measured by a probe.
+      session.load(
+        book({
+          B1: { formula: "=IF(TODAY()=46349,SEQUENCE(1,2),SEQUENCE(3))" },
+          A2: { formula: "=SEQUENCE(2,2)" },
+        }),
+      );
+      await session.calculateDelta();
+      const cells = session.book.sheets[0].cells;
+      assert.equal(cells.B1.spill.ref, "B1:C1");
+      assert.equal(cells.A2.spill.ref, "A2:B3");
+    } finally {
+      session.dispose();
+    }
+  });
+});

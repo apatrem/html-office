@@ -97,6 +97,11 @@ export function readTyped(text, type, conv) {
       input: { type, value: number.input.value },
       ...(type === "number" && number.format && { format: number.format }),
     };
+  // A chosen number type takes what the bar shows for any stored number:
+  // 17 digits, 1.2345678901234568e+21, a leading zero.
+  const plain = conv.decimal === "comma" ? text.replace(",", ".") : text;
+  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(plain.trim()))
+    return { input: { type, value: Number(plain) } };
   const hint =
     conv.decimal === "comma" ? 'use "," for decimals' : 'use "." for decimals';
   throw new Error(

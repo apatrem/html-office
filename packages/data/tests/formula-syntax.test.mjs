@@ -175,6 +175,24 @@ test("the command line refuses it in new, apply and validate", async () => {
   );
   assert.equal(made.code, 1, made.out);
   assert.match(made.out, /Unexpected "\)"/);
+  // apply: a patch cell with such a formula is refused and the file stays as it was.
+  const before = await readFile(good, "utf8");
+  await writeFile(
+    join(dir, "patch.json"),
+    JSON.stringify({
+      edits: [
+        {
+          sheet: model.sheets[0].name,
+          ref: "Z99",
+          cell: { formula: "=A1*1,2" },
+        },
+      ],
+    }),
+  );
+  const patched = await cli("apply", good, join(dir, "patch.json"));
+  assert.equal(patched.code, 1, patched.out);
+  assert.match(patched.out, /"," at position 6/);
+  assert.equal(await readFile(good, "utf8"), before);
   // validate: the saved file was edited by hand after it was written.
   const html = await readFile(good, "utf8"),
     escaped = JSON.stringify(original).slice(1, -1);

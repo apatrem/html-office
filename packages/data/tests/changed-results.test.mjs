@@ -113,3 +113,28 @@ test("only changed results and the edited cells go into an edit's history entry"
     session.dispose();
   }
 });
+
+test("a result that only changes sign of zero is a change", () => {
+  const book = {
+    sheets: [
+      {
+        id: "s",
+        cells: {
+          B1: { formula: "=A1*0", result: { type: "number", value: 0 } },
+        },
+      },
+    ],
+  };
+  const delta = [
+    { sheetId: "s", ref: "B1", result: { type: "number", value: -0 } },
+  ];
+  assert.equal(changedResults(book, [], delta).length, 1);
+  assert.equal(
+    changedResults(
+      book,
+      [],
+      [{ sheetId: "s", ref: "B1", result: { type: "number", value: 0 } }],
+    ).length,
+    0,
+  );
+});

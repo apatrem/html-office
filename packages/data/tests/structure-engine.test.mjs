@@ -136,6 +136,8 @@ const rangeCases = [
   ["=SUM(Sheet1!A2:A4)", row(2), "=SUM(Sheet1!A2:A3)", 7],
   ["=SUM(Sheet1!A2:A4)", row(3), "=SUM(Sheet1!A2:A3)", 6],
   ["=SUM(Sheet1!A2:A4)", row(4), "=SUM(Sheet1!A2:A3)", 5],
+  // Written backwards, it is the same range.
+  ["=SUM(Sheet1!A4:A2)", row(4), "=SUM(Sheet1!A2:A3)", 5],
   ["=SUM(Sheet1!A2:A4)", row(3, 2), "=SUM(Sheet1!A2)", 2],
   ["=SUM(Sheet1!A2:A4)", row(1, 3), "=SUM(Sheet1!A1)", 4],
   ["=SUM(Sheet1!$A$2:$A$4)", row(4), "=SUM(Sheet1!$A$2:$A$3)", 5],
@@ -205,3 +207,19 @@ for (const [formula, command, expected, value] of rangeCases)
       session.dispose();
     }
   });
+
+test("a sheet name with accents or other letters does not hide a range from the repair", async () => {
+  const book = structuredClone(fixture);
+  book.sheets[0].name = "Réel";
+  book.sheets[0].cells = sheetOne();
+  book.sheets[1].cells = { A1: { formula: "=SUM(Réel!A2:A4)" } };
+  const session = new EngineSession({ Model });
+  try {
+    session.load(book);
+    const delta = await session.structure({ sheetId: "inputs", ...row(4) });
+    assert.equal(delta.formulas[0].formula, "=SUM(Réel!A2:A3)");
+    assert.equal(session.book.sheets[1].cells.A1.result.value, 5);
+  } finally {
+    session.dispose();
+  }
+});

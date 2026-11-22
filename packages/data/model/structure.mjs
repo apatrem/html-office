@@ -275,8 +275,8 @@ export function shiftWorkbook(book, command) {
 // name of the sheet holding the formula and `edited` that of the edited sheet.
 const END = String.raw`\$?[A-Z]{1,3}\$?\d+|\$?[A-Z]{1,3}|\$?\d+|#REF!`;
 const RANGE = new RegExp(
-  String.raw`(?<![\w.$!'])((?:'(?:[^']|'')+'|[A-Za-z_][\w.]*)!)?(${END}):(${END})(?![\w(.])`,
-  "gi",
+  String.raw`(?<![\p{L}\p{N}_.$!'])((?:'(?:[^']|'')+'|[\p{L}_][\p{L}\p{N}_.]*)!)?(${END}):(${END})(?![\p{L}\p{N}_(.])`,
+  "giu",
 );
 function rangesOf(text) {
   // Text between quotes is never a reference.
@@ -289,7 +289,7 @@ function rangesOf(text) {
   }));
 }
 const sheetQualifier = (name) =>
-  /^[A-Za-z_][A-Za-z0-9_.]*$/.test(name) &&
+  /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) &&
   !/^[A-Za-z]{1,3}\d+$/.test(name) &&
   !/^R\d*C\d*$/i.test(name)
     ? `${name}!`
@@ -331,8 +331,13 @@ export function repairRanges(before, after, { ownSheet, edited, command }) {
         return row ? Number(m[4] || NaN) : m[2] ? column : NaN;
       };
       if (parts.every(Boolean)) {
-        const a = number(parts[0]),
+        let a = number(parts[0]),
           b = number(parts[1]);
+        // A range written backwards (A4:A2) is the same range.
+        if (a > b) {
+          [a, b] = [b, a];
+          parts.reverse();
+        }
         // A column range is not changed by deleting rows, nor a row range by deleting columns.
         if (Number.isFinite(a) && Number.isFinite(b) && a <= b) {
           const first = a < command.index ? a : Math.max(a, last + 1),

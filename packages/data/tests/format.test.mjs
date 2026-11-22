@@ -140,3 +140,8 @@ test("unformatted numbers show 15 significant digits in the locale's own decimal
   display(cell);
   assert.equal(cell.input.value, 0.30000000000000004);
 });
+test("unformatted numbers at the edge of the double range stay finite", () => {
+  assert.equal(display(number(Number.MAX_VALUE)), "1.79769313486232e+308");
+  assert.equal(display(number(-Number.MAX_VALUE)), "-1.79769313486232e+308");
+  assert.equal(display(number(Number.MIN_VALUE)), "5e-324");
+});

@@ -90,7 +90,16 @@ test("a type chosen in the formula bar reads its text or says what is wrong", ()
   assert.throws(() => number("0x10"), /"0x10" is not a number/);
   assert.throws(() => number("3 apples"), /not a number/);
   assert.throws(() => number("1,5"), /not a number \(use "\." for decimals/);
-  assert.throws(() => number("007"), /not a number/);
+  // What the bar shows for a stored number always reads back as a number.
+  assert.deepEqual(number("007"), { type: "number", value: 7 });
+  assert.deepEqual(number("1234567890123456"), {
+    type: "number",
+    value: 1234567890123456,
+  });
+  assert.deepEqual(number("1,2345678901234568e+21", fr), {
+    type: "number",
+    value: 1.2345678901234568e21,
+  });
   assert.throws(() => number("Infinity"), /not a number/);
   assert.deepEqual(readTyped("2026-03-04", "date", us).input.type, "date");
   assert.deepEqual(readTyped("46023", "date", us).input, {

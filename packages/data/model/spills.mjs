@@ -133,7 +133,7 @@ export function changedResults(book, edits, results) {
     return (
       !cell?.result ||
       cell.result.type !== r.result.type ||
-      cell.result.value !== r.result.value ||
+      !Object.is(cell.result.value, r.result.value) ||
       (cell.spill || r.spill
         ? JSON.stringify(cell.spill) !== JSON.stringify(r.spill)
         : false)

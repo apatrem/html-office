@@ -215,7 +215,7 @@ export class EngineSession {
         engine.newSheet();engine.renameSheet(at,name);
         rects.forEach((rect,k)=>{const target=`'${rect.sheet.name.replaceAll("'","''")}'!${rect.ref}#`;engine.setUserInput(at,k+1,1,`=IFERROR(ROWS(${target}),0)`);engine.setUserInput(at,k+1,2,`=IFERROR(COLUMNS(${target}),0)`);});
       }finally{engine.resumeEvaluation();}
-      engine.evaluate();
+      probe.evaluate();
       rects.forEach((_,k)=>{const read=c=>{const [type,value]=engine.getCellValue(at,k+1,c);return type==='number'?value:0;};sizes.push([read(1),read(2)]);});
     }finally{probe.dispose();}
     const claimed=new Set(),fits=(rect,height,width)=>{
