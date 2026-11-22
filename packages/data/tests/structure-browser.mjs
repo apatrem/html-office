@@ -23,14 +23,14 @@ book.sheets[0].cells.H10 = {
 };
 const html = await buildWorkbook(book, { offline: true }),
   browser = await chromium.launch();
-async function ready(id) {
+async function ready(id, source = html) {
   const context = await browser.newContext({ acceptDownloads: true }),
     page = await context.newPage(),
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
   const file = resolve(out, `structure-${id}.html`);
-  await writeFile(file, html);
+  await writeFile(file, source);
   await page.goto(pathToFileURL(file).href);
   await page.getByText("Saved results are current.", { exact: true }).waitFor();
   return { context, page, errors };
@@ -130,6 +130,57 @@ try {
     await context.close();
     console.log(
       `PASS structure: ${axis} references, names, undo/redo, recovery and offline reopen`,
+    );
+  }
+  // Review defect 2: deleting the last row or column of a referenced range
+  // shrinks the range (it was =SUM(A2:#REF!)); undo returns the exact book.
+  for (const axis of ["row", "column"]) {
+    const ranged = structuredClone(book);
+    ranged.names = [];
+    ranged.sheets[0].cells.B4 = { input: { type: "number", value: 7 } };
+    ranged.sheets[0].cells.C3 = { input: { type: "number", value: 8 } };
+    ranged.sheets[1].cells.E1 = { formula: "=SUM(Inputs!B2:B4)" };
+    ranged.sheets[1].cells.E2 = { formula: "=SUM(Inputs!$B$2:$C$3)" };
+    const { context, page, errors } = await ready(
+        `ranges-${axis}`,
+        await buildWorkbook(ranged, { offline: true }),
+      ),
+      plural = axis === "row" ? "rows" : "columns",
+      before = (await copy(page, `structure-ranges-${axis}-before.html`)).book;
+    // The last row (4) or column (C) of the first range, and of the second.
+    await jump(page, axis === "row" ? "B3" : "C2");
+    await command(page, `Delete ${plural}`);
+    await updated(page);
+    const shrunk = (await copy(page, `structure-ranges-${axis}-after.html`))
+        .book,
+      [first, second] =
+        axis === "row"
+          ? ["=SUM(Inputs!B2:B3)", "=SUM(Inputs!$B$2:$C$2)"]
+          : ["=SUM(Inputs!B2:B4)", "=SUM(Inputs!$B$2:$B$3)"];
+    assert.equal(shrunk.sheets[1].cells.E1.formula, first);
+    assert.equal(shrunk.sheets[1].cells.E2.formula, second);
+    assert.equal(shrunk.sheets[1].cells.E1.result.type, "number");
+    assert.equal(shrunk.sheets[1].cells.E2.result.type, "number");
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await page
+      .getByText("Undo restored the previous workbook.", { exact: true })
+      .waitFor();
+    const undone = (await copy(page, `structure-ranges-${axis}-undone.html`))
+      .book;
+    for (const book of [before, undone]) delete book.snapshot;
+    assert.deepEqual(undone, before);
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await page
+      .getByText("Redo restored the previous workbook.", { exact: true })
+      .waitFor();
+    const redone = (await copy(page, `structure-ranges-${axis}-redone.html`))
+      .book;
+    assert.equal(redone.sheets[1].cells.E1.formula, first);
+    assert.equal(redone.sheets[1].cells.E2.formula, second);
+    assert.deepEqual(errors, []);
+    await context.close();
+    console.log(
+      `PASS structure: deleting ${plural} shrinks ranges; undo and redo are exact`,
     );
   }
   {

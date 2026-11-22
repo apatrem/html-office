@@ -266,6 +266,100 @@ export function shiftWorkbook(book, command) {
   delete next.snapshot;
   return next;
 }
+// The engine breaks a range when a deletion removes only one of its ends:
+// A2:A3 without row 3 becomes A2:#REF!, and without row 2 #REF!:A2. A range
+// shrinks as in Excel and becomes #REF! only when all of it is deleted.
+// `before` is the formula as it was and `after` what the engine returned:
+// each range of `before` that the engine broke is written again from its own
+// text, and everything else stays as the engine wrote it. `ownSheet` is the
+// name of the sheet holding the formula and `edited` that of the edited sheet.
+const END = String.raw`\$?[A-Z]{1,3}\$?\d+|\$?[A-Z]{1,3}|\$?\d+|#REF!`;
+const RANGE = new RegExp(
+  String.raw`(?<![\p{L}\p{N}_.$!'])((?:'(?:[^']|'')+'|[\p{L}_][\p{L}\p{N}_.]*)!)?(${END}):(${END})(?![\p{L}\p{N}_(.])`,
+  "giu",
+);
+function rangesOf(text) {
+  // Text between quotes is never a reference.
+  const masked = text.replace(/"(?:[^"]|"")*"/g, (m) => " ".repeat(m.length));
+  return [...masked.matchAll(RANGE)].map((m) => ({
+    start: m.index,
+    end: m.index + m[0].length,
+    qualifier: m[1]?.slice(0, -1) ?? null,
+    ends: [m[2], m[3]],
+  }));
+}
+const sheetQualifier = (name) =>
+  /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) &&
+  !/^[A-Za-z]{1,3}\d+$/.test(name) &&
+  !/^R\d*C\d*$/i.test(name)
+    ? `${name}!`
+    : `'${name.replaceAll("'", "''")}'!`;
+export function repairRanges(before, after, { ownSheet, edited, command }) {
+  if (command.action !== "delete" || !after.includes("#REF!")) return after;
+  const was = rangesOf(before),
+    now = rangesOf(after);
+  if (was.length !== now.length) return after;
+  const row = command.axis === "row",
+    last = command.index + command.count - 1,
+    drop = (n) => (n > last ? n - command.count : n);
+  let result = "",
+    at = 0;
+  now.forEach((range, i) => {
+    const source = was[i],
+      text = after.slice(range.start, range.end);
+    let fixed = text;
+    const target = source.qualifier
+      ? source.qualifier.replace(/^'|'$/g, "").replaceAll("''", "'")
+      : ownSheet;
+    if (
+      text.includes("#REF!") &&
+      !source.ends.includes("#REF!") &&
+      target.toLowerCase() === edited.toLowerCase()
+    ) {
+      // Both ends are of one kind: cells, columns or rows.
+      const parts = source.ends.map(
+        (end) =>
+          /^(\$?)([A-Z]{1,3})(\$?)(\d+)$/i.exec(end) ??
+          /^(\$?)([A-Z]{1,3})()()$/i.exec(end) ??
+          /^()()(\$?)(\d+)$/.exec(end),
+      );
+      const number = (m) => {
+        const column = [...m[2].toUpperCase()].reduce(
+          (n, c) => n * 26 + c.charCodeAt(0) - 64,
+          0,
+        );
+        return row ? Number(m[4] || NaN) : m[2] ? column : NaN;
+      };
+      if (parts.every(Boolean)) {
+        let a = number(parts[0]),
+          b = number(parts[1]);
+        // A range written backwards (A4:A2) is the same range.
+        if (a > b) {
+          [a, b] = [b, a];
+          parts.reverse();
+        }
+        // A column range is not changed by deleting rows, nor a row range by deleting columns.
+        if (Number.isFinite(a) && Number.isFinite(b) && a <= b) {
+          const first = a < command.index ? a : Math.max(a, last + 1),
+            end = b > last ? b : Math.min(b, command.index - 1);
+          if (first > end) fixed = "#REF!";
+          else {
+            const write = (m, n) =>
+              row
+                ? `${m[1]}${m[2]}${m[3]}${n}`
+                : `${m[1]}${address(1, n).replace(/\d+$/, "")}${m[3]}${m[4]}`;
+            const from = write(parts[0], drop(first)),
+              to = write(parts[1], drop(end));
+            fixed = `${source.qualifier ? sheetQualifier(edited) : ""}${from === to && parts[0][2] && parts[0][4] ? from : `${from}:${to}`}`;
+          }
+        }
+      }
+    }
+    result += after.slice(at, range.start) + fixed;
+    at = range.end;
+  });
+  return result + after.slice(at);
+}
 export function structureBeforeRefs(book, command) {
   validateStructure(command, book);
   const refs = [];

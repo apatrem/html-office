@@ -42,6 +42,7 @@ const MENUS = {
     "Delete columns",
     "Duplicate chart",
     "Delete chart",
+    "Clear contents",
     "Clear formatting",
   ],
   Insert: [

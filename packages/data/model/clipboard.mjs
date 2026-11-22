@@ -6,6 +6,7 @@ import {
   validateFormat,
 } from "./workbook.mjs";
 import { effectiveStyle, BUILTIN_CELL_STYLES } from "./formatting.mjs";
+import { parseNumber, parseDate } from "./csv.mjs";
 import { cellAt, asValue } from "./spills.mjs";
 import { COLUMN_WIDTH } from "./navigation.mjs";
 export const LIMIT = 2000000;
@@ -160,6 +161,12 @@ function markdown(text) {
   rows.splice(1, 1);
   return rows;
 }
+// The conventions a paste dialog choice stands for; the readers are the
+// CSV import's, shared with typing into a cell (model/entry.mjs).
+const CONVENTIONS = {
+  "en-US": { decimal: "point", order: "mdy" },
+  "fr-FR": { decimal: "comma", order: "dmy" },
+};
 function typed(text, typing) {
   if (typing === "text") return { type: "text", value: text };
   if (text === "") return { type: "blank" };
@@ -168,47 +175,36 @@ function typed(text, typing) {
   const date = /^(\d{1,4})[-/](\d{1,2})[-/](\d{1,4})$/.exec(text);
   const ambiguousNumber =
     /^[+-]?[\d .,\u00a0\u202f]+$/.test(text) && /[, \u00a0\u202f]/.test(text);
-  if ((date || ambiguousNumber) && typing === "auto")
+  // A year written first (2026-03-04) reads the same in every convention.
+  if (((date && date[1].length !== 4) || ambiguousNumber) && typing === "auto")
     throw new Error(
       `Ambiguous value ${JSON.stringify(text)}. Choose text, US or European typing before applying.`,
     );
+  const convention = CONVENTIONS[typing] ?? CONVENTIONS["en-US"];
   if (date) {
-    let y, m, d;
-    if (date[1].length === 4) [y, m, d] = date.slice(1).map(Number);
-    else {
-      y = Number(date[3]);
-      [m, d] =
-        typing === "fr-FR"
-          ? [Number(date[2]), Number(date[1])]
-          : [Number(date[1]), Number(date[2])];
-    }
-    const value = new Date(Date.UTC(2000, m - 1, d));
-    value.setUTCFullYear(y);
-    if (y < 1900 || m !== value.getUTCMonth() + 1 || d !== value.getUTCDate())
-      throw new Error(`Invalid date: ${text}`);
-    return {
-      type: "date",
-      value:
-        (value - Date.UTC(1899, 11, 31)) / 86400000 +
-        (value >= Date.UTC(1900, 2, 1) ? 1 : 0),
-    };
+    const value = parseDate(
+      text,
+      date[1].length === 4 ? "dmy" : convention.order,
+    );
+    if (value === null) throw new Error(`Invalid date: ${text}`);
+    return { type: "date", value };
   }
   if (/^[+-]?0\d/.test(text)) return { type: "text", value: text };
-  let normal = text;
-  if (ambiguousNumber) {
-    const pattern =
-      typing === "fr-FR"
-        ? /^[+-]?(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)(?:,\d+)?$/
-        : /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/;
-    if (!pattern.test(text))
-      throw new Error(`Invalid ${typing} number: ${text}`);
-    normal =
-      typing === "fr-FR"
-        ? text.replace(/[ \u00a0\u202f]/g, "").replace(",", ".")
-        : text.replaceAll(",", "");
-  }
-  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(normal)) {
-    const n = Number(normal);
+  // Grouped digits, a sign and an exponent read as numbers; parentheses, a
+  // typographic minus (\u22128), a currency symbol and a percent sign stay as
+  // they are (typeText reads %).
+  const number = /[()\u2212]/.test(text)
+    ? null
+    : parseNumber(text, convention.decimal);
+  if (
+    number?.value !== undefined &&
+    (!number.format || number.format.kind === "number")
+  )
+    return { type: "number", value: number.value };
+  if (ambiguousNumber) throw new Error(`Invalid ${typing} number: ${text}`);
+  // A plain decimal point reads as one under either convention.
+  if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) {
+    const n = Number(text);
     if (Number.isFinite(n) && (!Number.isInteger(n) || Number.isSafeInteger(n)))
       return { type: "number", value: n };
   }

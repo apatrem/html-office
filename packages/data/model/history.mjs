@@ -17,6 +17,8 @@ export function captureCells(book, refs) {
       ),
     }));
 }
+// Undo steps kept (Excel keeps 100): the oldest go first.
+export const MAX_UNDO = 100;
 export class EditHistory {
   past = [];
   future = [];
@@ -32,6 +34,7 @@ export class EditHistory {
   }
   record(entry) {
     this.past.push(structuredClone(entry));
+    if (this.past.length > MAX_UNDO) this.past.shift();
     this.future.length = 0;
   }
   move(book, redo) {
