@@ -191,8 +191,9 @@ function typed(text, typing) {
   }
   if (/^[+-]?0\d/.test(text)) return { type: "text", value: text };
   // Grouped digits, a sign and an exponent read as numbers; parentheses, a
-  // currency symbol and a percent sign stay as they are (typeText reads %).
-  const number = /[()]/.test(text)
+  // typographic minus (\u22128), a currency symbol and a percent sign stay as
+  // they are (typeText reads %).
+  const number = /[()\u2212]/.test(text)
     ? null
     : parseNumber(text, convention.decimal);
   if (

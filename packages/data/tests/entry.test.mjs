@@ -168,3 +168,10 @@ test("paste reads with the same readers: two-digit years, grouped European numbe
   assert.throws(() => input("31/02/2026", "fr-FR"), /Invalid date/);
   assert.equal(input("007", "fr-FR").type, "text");
 });
+
+test("a pasted typographic minus or parenthesised amount stays text, as before", () => {
+  const input = (text) => parsePaste(text, { typing: "en-US" })[0][0].input;
+  assert.deepEqual(input("\u22128"), { type: "text", value: "\u22128" });
+  assert.deepEqual(input("(5,000)"), { type: "text", value: "(5,000)" });
+  assert.deepEqual(input("-8"), { type: "number", value: -8 });
+});
