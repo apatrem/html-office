@@ -878,9 +878,11 @@ test("pack, pack.mjs, add-image and new --force replace the file by renaming", a
 test("whole-file writes keep the file's permissions; add-image --out; pack --layout labels", async () => {
   const file = join(dir, "private.html");
   await writeFile(file, report.replace("<body>\n", "<body>\n\n"));
-  await chmod(file, 0o600);
+  // POSIX permission bits (Windows has none to keep; re-check finding).
+  const posix = process.platform !== "win32";
+  if (posix) await chmod(file, 0o600);
   assert.equal(run("pack", file).status, 0);
-  assert.equal((await stat(file)).mode & 0o777, 0o600);
+  if (posix) assert.equal((await stat(file)).mode & 0o777, 0o600);
 
   const copy = join(dir, "same-image-copy.html");
   const same = run(
