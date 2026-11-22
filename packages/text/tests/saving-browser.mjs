@@ -327,6 +327,66 @@ async function run(engine) {
       }
     }
 
+    // ---- a restored draft never brings scripts of its own (project review) ----
+    // The editor and the offline chart library always come from the opened file: a draft whose
+    // stored zones were changed (by another page of the same origin) cannot add a script.
+    {
+      const { ctx, errors, open } = await context();
+      const url = await write(`draft-scripts-${engine}.html`, built);
+      let page = await open(url);
+      await settled(page);
+      if ((await recovery(page)) === "ready") {
+        await typeInLead(page, "Tampered ");
+        await waitState(page, "draft");
+        const tampered = await page.evaluate(async () => {
+          const db = await new Promise((resolve, reject) => {
+            const r = indexedDB.open("html-office-text-recovery", 1);
+            r.onsuccess = () => resolve(r.result);
+            r.onerror = () => reject(r.error);
+          });
+          let found = 0;
+          await new Promise((resolve, reject) => {
+            const t = db.transaction("drafts", "readwrite");
+            const cursor = t.objectStore("drafts").openCursor();
+            cursor.onsuccess = () => {
+              const c = cursor.result;
+              if (!c) return;
+              if (String(c.key).endsWith(":zones")) {
+                found++;
+                c.update({
+                  ...c.value,
+                  text: c.value.text.replace(
+                    '<script id="engine"',
+                    '<script id="echarts">window.injected = 1</script>\n<script id="engine"',
+                  ),
+                });
+              }
+              c.continue();
+            };
+            t.oncomplete = resolve;
+            t.onerror = () => reject(t.error);
+          });
+          db.close();
+          return found;
+        });
+        assert.equal(tampered, 1);
+        await page.close();
+        page = await open(url);
+        await page.waitForSelector("dialog.sh-dialog[open]");
+        await page.click("dialog.sh-dialog button:text('Restore draft')");
+        assert.match(await lead(page), /^Tampered Revenue grew/);
+        const saved = await page.evaluate(() => window.htmlText.serialize());
+        assert.doesNotMatch(saved, /injected|<script id="echarts"/);
+        assert.equal(
+          saved.slice(saved.lastIndexOf('<script id="engine"')),
+          built.slice(built.lastIndexOf('<script id="engine"')),
+        );
+        assert.deepEqual(errors, []);
+        pass("a restored draft takes every script from the opened file");
+      }
+      await ctx.close();
+    }
+
     // ---- direct Save: cancelled, failed, delayed and externally changed (Chromium, Edge) ----
     if (engine === "chromium") {
       const { ctx, errors, open } = await context();

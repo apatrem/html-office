@@ -177,7 +177,7 @@ function start() {
   // The file as opened, unused assets included: Save checks the chosen file against it.
   const opened = saveFile(file, doc);
   // A source that differs from its canonical form where the browser can see it (line breaks in
-  // text, attribute order…) would be rewritten by any save: that needs pack.mjs, never a silent save.
+  // text, attribute order…) is rewritten whole by a save: Save asks first, never a silent save.
 
   // DOMParser runs no script: the reader for every text this editor writes or restores.
   const read = (text) =>
@@ -186,6 +186,7 @@ function start() {
   const saving = setupSaving({
     opened,
     canonical: looksCanonical(file, articleHTML(doc)),
+    ask: () => shell.rewrite(),
     serialize: () => save(view.state.doc),
     // The text about to be written must reopen as the same document; DOMParser runs no script.
     check: (text) => verifySaved(text, view.state.doc, read),
@@ -195,30 +196,40 @@ function start() {
     // The article is a placeholder that restoring replaces with the draft's.
     zones: () =>
       serializeFile(
-        withEngine(assets.fileFor(file, view.state.doc), []),
+        withScripts(assets.fileFor(file, view.state.doc), []),
         '<article id="doc"></article>',
       ),
     onDraft: (found) => shell.recover(found, restoreDraft),
   });
-  // The file tree with the engine's code replaced (a draft stores the zones without it).
-  function withEngine(tree, code) {
+  // The scripts that run (the offline chart library, the editor; not script#assets, which is
+  // data) come only from the opened file: a draft is stored without them, and whatever scripts
+  // a stored draft holds are replaced on restore.
+  const running = (node) =>
+    node.name === "script" && attr(node, "id") !== "assets";
+  const scriptsOf = (tree) =>
+    tree.html.children.find((n) => n.name === "body").children.filter(running);
+  function withScripts(tree, scripts) {
     const swap = (node) =>
-      node.type === "element" && attr(node, "id") === "engine"
-        ? Array.isArray(code)
-          ? { ...node, children: code }
-          : code
-        : node.name === "html" || node.name === "body"
-          ? { ...node, children: node.children.map(swap) }
+      node.name === "html"
+        ? { ...node, children: node.children.map(swap) }
+        : node.name === "body"
+          ? {
+              ...node,
+              children: [
+                ...node.children.filter((n) => !running(n)),
+                ...scripts,
+              ],
+            }
           : node;
     return { ...tree, html: swap(tree.html) };
   }
-  // A draft is restored with the zones stored with it (its assets, theme…) and this editor: it
-  // must validate like a file. It replaces the document and starts a new history, since undo
-  // cannot bring back the zones it replaced; saving then writes those zones.
+  // A draft is restored with the zones stored with it (its assets, theme…), this file's scripts
+  // and this editor: it must validate like a file. It replaces the document and starts a new
+  // history, since undo cannot bring back the zones it replaced; saving then writes those zones.
   function restoreDraft({ article, zones }) {
     if (article === null)
       throw new Error("it was stored by another version of the editor");
-    const tree = withEngine(read(zones), findEngine(file.html));
+    const tree = withScripts(read(zones), scriptsOf(file));
     const next = openFile(read(serializeFile(tree, article))).doc;
     file = tree;
     assets.reset(file);
@@ -243,21 +254,20 @@ function start() {
     return out;
   };
   E.reserveIds(fileIds(file.html));
-  const findEngine = (node) =>
-    node.type === "element" && attr(node, "id") === "engine"
-      ? node
-      : node.children?.map(findEngine).find(Boolean);
   const run = (command) => () => command(view.state, view.dispatch, view);
   // The layout theme's heading format (style#theme --heading-format, T08), read from the file
   // as check.mjs reads it. A restored draft brings its own theme, so the options change then.
   const numbers = { format: fileFormat(file) };
   const charts = chartManager(() => commands.changed());
-  // Generated labels and contents are rewritten on open, outside the undo history: a stale
-  // label written by hand or by an LLM shows as an unsaved change and is corrected on save.
+  // Generated labels and contents are rewritten on open, outside the undo history and the
+  // unsaved state: a stale label written by hand or by an LLM is no edit (no draft, no prompt on
+  // closing), and is corrected by the next save.
   const refresh = () => {
     const tr = view.state.tr;
     if (regenerate(tr, numbers))
-      view.dispatch(tr.setMeta("addToHistory", false));
+      view.dispatch(
+        tr.setMeta("addToHistory", false).setMeta("generated", true),
+      );
   };
   // Pastes go through T07's clipboard handling, which first gives them to the internal clipboard
   // (a copy from this document, kept whole: T09) and to the chart plugin (a chart envelope: T11).
@@ -351,7 +361,7 @@ function start() {
       }),
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
-        if (tr.docChanged) saving.edited();
+        if (tr.docChanged && !tr.getMeta("generated")) saving.edited();
         mirrorLook(view.state.doc);
         preview?.update();
         commands.changed();

@@ -32,7 +32,7 @@ export function outline(source, { report, numbers: wanted = true } = {}) {
   const found = sectionsOf(article);
   if (!found)
     throw new SectionError(
-      "The article holds markup the HTML parser repaired (such as a stray </p> or a missing </article>): run check.mjs and pack.mjs",
+      "The article holds markup the HTML parser repaired (such as a stray </p> or a missing </article>): run check, then pack",
     );
   const { blocks, sections } = found;
   report ??= checkSource(source);
@@ -90,13 +90,13 @@ export function replace(source, id, html) {
   const before = outline(source, { numbers: false });
   if (!before.report.ok)
     throw new SectionError(
-      "The document has errors: run check.mjs",
+      "The document has errors: run check",
       before.report.errors,
     );
   const odd = before.report.warnings.find((w) => w.code === "not-canonical");
   if (odd)
     throw new SectionError(
-      `The document is not in canonical form at line ${odd.line}: run pack.mjs first`,
+      `The document is not in canonical form at line ${odd.line}: run pack first`,
     );
   const target = find(before.sections, id);
   if (!html.trim()) throw new SectionError("The replacement is empty");

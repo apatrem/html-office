@@ -27,7 +27,7 @@ export async function run(argv) {
   try {
     result = markdownSource(await readFile(input, "utf8"));
   } catch (error) {
-    console.error(`${input}: ${error.message} (run check.mjs)`);
+    console.error(`${input}: ${error.message} (run check)`);
     return 1;
   }
   if (output) await writeWhole(output, result.markdown);

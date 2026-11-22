@@ -221,7 +221,7 @@ export async function buildDocument(source, engine, { echarts = null } = {}) {
   const { file, doc, difference } = canonicalize(source, parseFile);
   if (difference)
     throw new Error(
-      `The document is not in canonical form at ${difference.line}:${difference.col}: run pack.mjs first`,
+      `The document is not in canonical form at ${difference.line}:${difference.col}: run pack first`,
     );
   const body = file.html.children.find((n) => n.name === "body");
   const script = element(

@@ -44,7 +44,7 @@ Rules:
 
 - Headings carry stable IDs. A section runs from its heading to the next heading of the same or a higher level; tooling and the guide address sections by these IDs.
 - No `style` attributes, scripts, event handlers, executable URLs or external resources in content. Formatting is expressed by elements, classes and data attributes defined in the format reference.
-- Opening and saving an unchanged canonical document must produce byte-identical content. Any normalisation is an explicit tooling step (as with Slides `pack`), never a side effect of a later save.
+- Opening and saving an unchanged canonical document must produce byte-identical content. Any normalisation is an explicit step (a tooling step, as with Slides `pack`, or the editor's confirmation before its first save rewrites a non-canonical file), never a side effect of a later save.
 - Content outside the schema is rejected by validation before editing or kept as a protected, uneditable block. It is never silently dropped.
 - A **read-only Markdown view** shows the document as Markdown for reading and copying. It is a projection, not a second source; editing in Markdown is deferred.
 

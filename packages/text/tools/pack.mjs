@@ -117,7 +117,7 @@ if (isMain(import.meta.url)) {
     result = pack(await readFile(input, "utf8"));
   } catch (error) {
     console.error(
-      `${error.message}. Run check.mjs for every location; nothing was written.`,
+      `${error.message}. Run check for every location; nothing was written.`,
     );
     process.exit(1);
   }
