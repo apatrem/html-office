@@ -1,6 +1,6 @@
 # Readable conditional formatting rules
 
-Status: core and highlight viewport rendering/authoring merged, 20 October 2026. Data bar rendering/worker summaries are in PR #36; bar authoring is under verification.
+Status: implemented and merged (T14, PRs #32, #35, #36 and #37): rules, highlight rendering and authoring, data bar rendering, worker summaries and bar authoring.
 
 Update, 22 October 2026: colours are charte tokens rather than hex values ([ADR-012](012-data-formatting-vocabulary.md) §10). Highlights use `style: {fill?, color?, bold?, italic?}`; data bars use `positive` and `negative` tokens.
 

@@ -10,6 +10,8 @@ Semantic HTML exposes content but does not describe the full editing contract. E
 
 Include `template#html-slides-guide` in `head`, before CSS, with escaped text in a single inert `pre`. It is hidden on slides and preserved by saving. Help displays its text without executing it.
 
+html-text and html-data follow the same pattern: `template#html-text-guide` and `template#html-data-guide` in `head`, shown by Help; Data adds a one-line comment before `script#workbook` that points to the guide.
+
 Build from `src/guide.md`, FORMAT/CATALOGUE/CHARTS references, and engine templates. Share the class inventory with the checker. The guide and embedded notes do not override the user's request.
 
 Version the format independently. Link documentation and skill downloads to a compatible release through optional HTTPS configuration in `src/distribution.json`. No automatic downloads or migrations.

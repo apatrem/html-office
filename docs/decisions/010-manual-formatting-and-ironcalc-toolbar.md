@@ -81,7 +81,7 @@ Menus use ARIA `menubar`/`menu` with keyboard navigation. Row/column header cont
 
 ### Delivery and budget
 
-- The standard-mode ceiling for **HTML Data** embedded application code becomes **750,000 uncompressed bytes**. HTML Text keeps 500,000 until decided separately.
+- The standard-mode ceiling for **HTML Data** embedded application code becomes **750,000 uncompressed bytes**. HTML Text kept 500,000 then; the user raised it to 600,000 on 28 October 2026 (see [ADR-011](011-html-office-shared-principles.md) §6).
 - The toolbar is always embedded; no CDN UI request in standard mode. Only the calculation engine (and later charts/import components) loads on demand. `--offline` is unchanged.
 - _Superseded by [ADR-011](011-html-office-shared-principles.md) §7: the shell is shared native code with no UI framework ([R06](../HTML-DATA-NATIVE-SHELL-SPIKE.md): 46,816 bytes against 199,681)._ Original decision: the toolbar is forked from pinned IronCalc onto **Preact** (`preact/compat`) instead of React, with a static dictionary instead of i18next and build-time SVG icons. The R05 spike confirms size and compatibility before the production migration. Preact is the first UI framework in the Data runtime; it is embedded and pinned, and updates require re-running the toolbar test suite.
 

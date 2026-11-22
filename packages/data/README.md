@@ -1,6 +1,6 @@
-# HTML Data — Phase A prototype
+# HTML Data
 
-Work authorised through T05b only. The user approved hybrid JSON storage and policy A in [ADR-005](../../docs/decisions/005-data-storage.md); T06 and later product features are out of scope for this PR. This package is independent of Slides and is not yet a distributed skill.
+Editable workbooks in one HTML file: a readable JSON workbook, IronCalc formulas in a worker, and a browser editor ([overview](../../README.md), [status](../../docs/STATUS.md)). The package is independent of Slides. Its skill is generated into [`plugin/skills/html-data/`](../../plugin/skills/html-data/SKILL.md) (`node packages/data/tools/skill.mjs`); it joins the plugin archive after the blind test ([protocol](../../docs/blind-tests/DATA-T22.md)). The storage decision is [ADR-005](../../docs/decisions/005-data-storage.md); the first experiment is kept in [PHASE-A-REPORT.md](PHASE-A-REPORT.md).
 
 The [html-data/0.2 document contract](model/FORMAT.md) uses compact JSON row arrays for declared dense raw-data tables, sparse cell records for freeform models, and JSON metadata. Every populated formula result is saved. Other encodings remain assessment candidates only.
 
@@ -10,7 +10,7 @@ The [html-data/0.2 document contract](model/FORMAT.md) uses compact JSON row arr
 
 A cell has an `input` or `formula`, optional typed formula `result`, `cellStyle` and `format`. Unknown structural fields are rejected. Arbitrary JSON metadata remains inert and survives bounded edits. Cell text may contain literal markup but is never HTML. JSON escaping prevents script termination and preserves Unicode. No executable content is accepted in model fields.
 
-The SHA-256 calculation fingerprint includes typed inputs, formulas, sheet identity/order/names, named ranges and the date system. It excludes results, formats and descriptive metadata. Snapshots identify engine, fingerprint and calculation time. Fingerprints detect stale results, not authenticity. Missing/stale snapshots must be visible in the prototype.
+The SHA-256 calculation fingerprint includes typed inputs, formulas, sheet identity/order/names, named ranges and the date system. It excludes results, formats and descriptive metadata. Snapshots identify engine, fingerprint and calculation time. Fingerprints detect stale results, not authenticity. Missing or stale snapshots are shown as such.
 
 Run model tests: `node --test packages/data/tests/model.test.mjs`.
 
@@ -38,7 +38,7 @@ node packages/data/tools/workbook.mjs validate dist/data/budget-2.html --since d
 
 See [FORMAT.md › Tools and patches](model/FORMAT.md#tools-and-patches).
 
-The prototype has cell/formula editing, formatting, undo and Save a copy. The grid is a bounded preview, with all workbook cells retained in the HTML. The P&L has 12 actual and 12 forecast months. Cash flow is simplified to net income; the annual discount rate is converted to a monthly rate, with the initial investment outside NPV. Basic pivot tables (T17, [ADR-014](../../docs/decisions/014-data-pivot-tables.md)) read in-workbook ranges or row tables and write readable typed output cells on explicit refresh. Charts (T18) are bound to typed ranges through the shared chart module and open with saved SVG previews; the P&L charts revenue and net income, the operating margin and a growth-scenario comparison. Imports and a distributable Data skill belong to later tasks.
+The prototype has cell/formula editing, formatting, undo and Save a copy. The grid is a bounded preview, with all workbook cells retained in the HTML. The P&L has 12 actual and 12 forecast months. Cash flow is simplified to net income; the annual discount rate is converted to a monthly rate, with the initial investment outside NPV. Basic pivot tables (T17, [ADR-014](../../docs/decisions/014-data-pivot-tables.md)) read in-workbook ranges or row tables and write readable typed output cells on explicit refresh. Charts (T18) are bound to typed ranges through the shared chart module and open with saved SVG previews; the P&L charts revenue and net income, the operating margin and a growth-scenario comparison. CSV and XLSX import with source refresh, print and the fictional acceptance workbook are merged; the skill is packaged, and joins the plugin after the blind test.
 
 The default document is hybrid JSON with every formula result saved. Declare raw-data sheets with `metadata.layout: "table"`; the writer uses bounded row blocks when dense enough and otherwise retains sparse cells. Freeform sheets remain sparse. The browser, builder and range tools share the same document codec, which derives the validated sparse 0.1 engine model and saves 0.2 documents. Legacy sparse files remain readable. `-0` is written as the valid JSON literal `-0`; native `JSON.stringify` would lose its sign. All display rounding stays separate from saved numbers. Runtime calculations use one IronCalc engine in a worker. A result delta avoids copying raw sheets back to the UI. Undo restores canonical values and results; edits made while a dependency is unavailable remain in the form for retry.
 

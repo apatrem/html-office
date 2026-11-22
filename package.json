@@ -2,7 +2,7 @@
   "name": "html-office",
   "version": "0.7.2",
   "private": true,
-  "description": "Portable LLM-native HTML documents; Slides available, Data and Text planned",
+  "description": "Portable LLM-native HTML documents; Slides released; Data and Text built and awaiting their blind tests",
   "license": "MIT",
   "type": "module",
   "scripts": {

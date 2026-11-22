@@ -297,6 +297,8 @@ export function setupPersistence({
     copy.querySelector("#status").textContent = "Checking saved results…";
     copy.querySelector("#save-status").textContent = "Saved file opened.";
     copy.querySelector("#recovery-message").textContent = "";
+    // Help fills this from the guide template when it opens: never saved.
+    copy.querySelector("#guide-text")?.replaceChildren();
     copy.querySelector("#paste-preview")?.replaceChildren();
     copy.querySelector("#sheet-context")?.replaceChildren();
     copy.querySelector("#dropdown-context")?.replaceChildren();

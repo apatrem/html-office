@@ -2,7 +2,13 @@
 
 Checks that the automated suites cannot settle: real browsers on a real desktop, other applications (Excel, Google Sheets, Word, Google Docs), file pickers, print previews, and how things look. CI runs Chromium, plus Firefox and WebKit for the clipboard and Text engine jobs. It never runs desktop Safari, Edge, a native file dialog or another office application.
 
-Use the three files in `dist/latest/`, rebuilt from `main`:
+Use the three files in `dist/latest/`, built from the checkout under test (`dist/` is not tracked). After `npm ci` and `npm ci --prefix packages/data --ignore-scripts` and `npm ci --prefix packages/text --ignore-scripts`:
+
+```bash
+bash tools/manual-check-files.sh
+```
+
+It builds the Text example (`packages/text/fixtures/valid/example.html`) and the Data P&L fixture (`packages/data/fixtures/pnl.json`), both as offline builds, and copies the committed Slides catalogue:
 
 | File | Product |
 | --- | --- |
@@ -140,7 +146,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
-- Copy a Slides chart into Data and into another deck.
+- Copy a Slides chart into another deck. (Pasting a chart into Data is not built: X02d.)
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
 
 ## 6. Text, from T07

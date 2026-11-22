@@ -1,6 +1,6 @@
 # html-text
 
-The html-office alternative to Word, in progress: [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). The html-text skill ([`plugin/skills/html-text/`](../../plugin/skills/html-text/SKILL.md), T18) ships in the html-slides plugin beside html-slides and html-data.
+The html-office alternative to Word, built and awaiting its blind test ([status](../../docs/STATUS.md)): [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). The html-text skill ([`plugin/skills/html-text/`](../../plugin/skills/html-text/SKILL.md), T18) is generated here and joins the plugin archive, which today holds html-slides only ([`plugin/README.md`](../../plugin/README.md)), after the blind test ([protocol](../../docs/blind-tests/TEXT-T20.md)).
 
 | Path | Contents |
 | --- | --- |
