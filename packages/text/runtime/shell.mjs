@@ -33,6 +33,7 @@ const SHORTCUTS = [
   ["Bulleted, numbered list", `${key("Shift+8")}, ${key("Shift+7")}`],
   ["List level down, up", "Tab, Shift+Tab"],
   ["Next, previous table cell", "Tab, Shift+Tab"],
+  ["Tab character in code", "Tab"],
   ["Page break", key("Enter")],
   ["Footnote (Escape leaves it)", alt("F")],
   ["Comment on the selection", alt("M")],

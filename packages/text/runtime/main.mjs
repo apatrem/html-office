@@ -324,9 +324,12 @@ function start() {
         "Mod-Shift-8": E.toggleList(N.bullet_list),
         "Mod-Shift-7": E.toggleList(N.ordered_list),
         // In a table Tab moves between cells (adding a row after the last); in a list it
-        // changes the level. It never leaves the document.
+        // changes the level; in code it inserts a tab.
         Tab: (s, d, v) =>
-          T.own(T.nextCell)(s, d, v) || (E.inList(s) && (E.indent(s, d), true)),
+          T.own(T.nextCell)(s, d, v) ||
+          (E.inList(s) && (E.indent(s, d), true)) ||
+          (s.selection.$from.parent.type.spec.code &&
+            (d?.(s.tr.insertText("\t")), true)),
         "Shift-Tab": (s, d) =>
           T.previousCell(s, d) || (E.inList(s) && (E.outdent(s, d), true)),
         "Mod-Enter": E.insertPageBreak,

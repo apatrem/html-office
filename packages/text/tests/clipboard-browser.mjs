@@ -376,6 +376,15 @@ async function run(engine) {
     }
     pass("in code, pasted text keeps indentation, tabs and blank lines");
 
+    // Tab in code inserts a tab (project review, optional item).
+    await caret("growth   = 0.12");
+    const beforeTab = await saved();
+    await page.keyboard.press("Tab");
+    assert.match(article(check(await saved())), /growth {3}= 0\.12\t/);
+    await undo();
+    assert.equal(await saved(), beforeTab);
+    pass("Tab in code inserts a tab");
+
     // ---- copy ----
     const copy = (select) =>
       page.evaluate((select) => {

@@ -43,8 +43,11 @@ export function assetStore(file) {
         urls.set(key, `data:${a.type || "image/png"};base64,${a.data}`);
       return urls.get(key);
     },
-    // Adds an image asset ({type, data}) under a fresh key: a1, a2…
+    // Adds an image asset ({type, data}) under a fresh key (a1, a2…), or returns the key of the
+    // same image already in the store: a picture pasted twice is stored once.
     add(asset) {
+      for (const [k, a] of Object.entries(all))
+        if (!a.kind && a.type === asset.type && a.data === asset.data) return k;
       let n = 1;
       while (all[`a${n}`]) n++;
       all[`a${n}`] = { type: asset.type, data: asset.data };
