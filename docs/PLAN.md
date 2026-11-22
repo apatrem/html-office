@@ -1,6 +1,6 @@
 # V1 plan — standalone, editable HTML presentations
 
-Status: implemented core, usage validation pending; approved V1 additions not yet implemented. Roadmap updated on 18 October 2026. The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since, each item with its pull request.
+Status, 22 November 2026: release 0.7.2 is published ([v0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2), 18 November 2026); usage validation is pending and the approved V1 additions are mostly open (see the backlog table). The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since (all of it in 0.7.2), each item with its pull request.
 
 This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The seven approved Slides additions below remain planned; an [ideas backlog](#ideas-backlog-not-approved) records candidates that are not approved.
 
@@ -36,11 +36,11 @@ Merged since 0.7.1:
 
 ## Approved V1 backlog
 
-The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. All are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
+The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. Unless the table says otherwise, they are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
 
 | ID | Feature | Status |
 | --- | --- | --- |
-| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Planned |
+| V1-01 | Copy/paste complete slides between documents in separate browser tabs | Implemented on 22 November 2026 (ADR-013 amendment, PR #123); manual browser checks pending |
 | V1-02 | Create reusable themes from reference files | Planned |
 | V1-03 | Confirm a short generation brief and default settings | Planned |
 | V1-04 | Copy/paste individual elements and selections | Started: tables and charts (ADR-013 X02b, X02c), merged in PRs #70 and #71 (27 October 2026) |
@@ -60,6 +60,14 @@ Acceptance goals:
 - Integrate with undo/redo, drafts and saving. After save and reopen, transferred images and chart snapshots remain available, including for offline reading.
 
 Before implementation, define compatible document versions, insertion location and browser support/fallbacks. Define how pasting handles unavailable ECharts so that chart JSON, SVG snapshots and destination colours remain consistent.
+
+Implemented on 22 November 2026 in PR #123 on the cross-product clipboard, as a third kind of envelope ([ADR-013, amendment](decisions/013-cross-product-clipboard.md#amendment-of-22-november-2026--whole-slides-kind-slide)). The points left open above were settled as defaults that the user may still overrule:
+
+- **Copy:** Slide › Copy slide, a thumbnail's Copy slide button, or Cmd/Ctrl+C after clicking a thumbnail. **Paste:** Cmd/Ctrl+V outside text editing, Edit › Paste or Slide › Paste slide; the slide goes after the current slide, in one undo step.
+- **Versions:** a slide from a later major format is refused with a notice; a layout the destination does not know becomes the default layout, with a notice.
+- **Browsers:** between tabs of Chrome, Edge and Firefox through the custom clipboard type, and between Safari documents or different browsers through `text/html`; a slide with very large images travels by the custom type only. The released 0.7.2 editor refuses a slide with a notice.
+- **Without ECharts:** the chart keeps its JSON and shows the source's preview, sanitised, until ECharts loads and redraws it in the destination's colours.
+- **Other applications** receive the slide's text as simple HTML and as an outline, without a picture.
 
 ### V1-02 — Create and retain reusable themes
 
@@ -97,7 +105,7 @@ Acceptance goals:
 - Remap identifiers, keep pasted elements within the destination slide, and support undo/redo, drafts and save/reopen.
 - Preserve normal text-selection copy/paste while editing text; define placement and repeated-paste behaviour before implementation.
 
-Tables come first, through the cross-product clipboard of [ADR-013](decisions/013-cross-product-clipboard.md) (X02b, 27 October 2026): one selected `table.t` is copied, and a pasted table becomes a new element on the current slide, placed like an inserted element (a repeated paste is offset by 16 px), in one undoable step. Charts followed in X02c: one selected chart is copied, with a picture for other applications. Other elements, multi-element selections and whole slides remain planned.
+Tables come first, through the cross-product clipboard of [ADR-013](decisions/013-cross-product-clipboard.md) (X02b, 27 October 2026): one selected `table.t` is copied, and a pasted table becomes a new element on the current slide, placed like an inserted element (a repeated paste is offset by 16 px), in one undoable step. Charts followed in X02c: one selected chart is copied, with a picture for other applications. Whole slides followed with V1-01. Other elements and multi-element selections remain planned.
 
 ### V1-05 — Crop and replace images
 

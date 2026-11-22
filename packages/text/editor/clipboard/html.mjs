@@ -949,6 +949,10 @@ function ownTable(node, model) {
   };
 }
 
+// Plain text for a code block, kept as written: indentation, tabs and blank lines.
+export const codeText = (text) =>
+  text.replace(/\r\n?/g, "\n").replace(CONTROLS, "");
+
 // Plain text as paragraphs, one per line (blank lines are not paragraphs).
 export function textBlocks(text) {
   return text

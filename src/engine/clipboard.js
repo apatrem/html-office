@@ -217,8 +217,9 @@ function colgroup(columns) {
 }
 
 // ---------- reading a paste ----------
-// Returns { table, notices } for a table, { chart } for a chart envelope, or null when the clipboard
-// holds no table. Throws a ClipboardError when the paste must be refused (deck unchanged).
+// Returns { html, columns, notices } for a table, { chart } for a chart envelope, { slide, source }
+// for a slide envelope (read by slide-clipboard.js), or null when the clipboard holds none of them.
+// Throws a ClipboardError when the paste must be refused (deck unchanged).
 export function readPaste(data, options = {}) {
   let read;
   // A chart's data table may exceed a slide table: the reader's bound is the text/html cell limit, and
@@ -229,6 +230,7 @@ export function readPaste(data, options = {}) {
   let table, dropped = 0;
   if (read.source === 'envelope') {
     const { envelope } = read;
+    if (envelope.kind === 'slide') return { slide: envelope.slide, source: envelope.source, notices };
     if (envelope.kind === 'chart') {
       if (envelope.source.stale) notices.push('The chart values were not recalculated in the source.');
       return { chart: readChart(envelope.chart), notices };

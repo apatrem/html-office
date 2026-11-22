@@ -16,10 +16,8 @@
 //   markdown  <file.html> [out.md]                  (markdown.mjs, T15)
 // Every command refuses invalid input with all its reasons and then writes nothing (exit code 1);
 // 2 is a usage error. FORMAT.md › Document tools.
-import { readFile, writeFile, access, mkdir } from "node:fs/promises";
-import { realpathSync } from "node:fs";
+import { readFile, access, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseFile } from "../model/parse.mjs";
 import { element, text, attr, elements } from "../model/html.mjs";
 import { serializeFile } from "../model/file.mjs";
@@ -40,6 +38,9 @@ import { guideZone } from "./guide.mjs";
 import { compactCSS } from "../theme/compact.mjs";
 import { rewrite, readPayloads, imageType, ConvertError } from "./convert.mjs";
 import { drawCharts, echartsBytes } from "./previews.mjs";
+import { isMain, writeWhole } from "./cli.mjs";
+import { Transform } from "prosemirror-transform";
+import { regenerate, fileFormat } from "../editor/numbering.mjs";
 import { sectionMarkdown } from "./section-markdown.mjs";
 
 const N = schema.nodes;
@@ -190,7 +191,7 @@ async function writeChecked(path, html) {
       report.errors.map((f) => `${f.code}: ${f.message} (${f.line}:${f.col})`),
     );
   await mkdir(dirname(resolve(path)), { recursive: true });
-  await writeFile(path, html);
+  await writeWhole(path, html);
   return report;
 }
 const sizeLine = (html) => {
@@ -380,8 +381,11 @@ export async function packDocument(args, log = console.log) {
     put(style("charte", await charteCSS(args.charte, notes)), () => false);
   if (args.layout)
     put(style("theme", await readFile(args.layout, "utf8")), () => false);
-  const { doc: opened } = openFile(file);
-  const { doc, drawn, failed } = await drawCharts(file, opened, {
+  // Labels and contents follow the layout written (a new heading format numbers differently).
+  const relabel = new Transform(openFile(file).doc);
+  const regenerated =
+    regenerate(relabel, { format: fileFormat(file) }) || packed.regenerated;
+  const { doc, drawn, failed } = await drawCharts(file, relabel.doc, {
     redraw: !!args.redraw,
   });
   for (const id of failed)
@@ -393,7 +397,7 @@ export async function packDocument(args, log = console.log) {
   for (const w of report.warnings)
     log(`warning  ${w.line}:${w.col}  ${w.code}: ${w.message}`);
   log(
-    `${packed.changes.length} line(s) rewritten into canonical form, ${drawn} chart preview(s) drawn; wrote ${out} (html-text ${engine.version}, ${offline ? "offline" : "standard"}): ${sizeLine(html)}.`,
+    `${packed.changes.length} line(s) rewritten into canonical form${regenerated ? " (labels and contents rewritten)" : ""}, ${drawn} chart preview(s) drawn; wrote ${out} (html-text ${engine.version}, ${offline ? "offline" : "standard"}): ${sizeLine(html)}.`,
   );
 }
 
@@ -420,6 +424,16 @@ export async function addImage(args, log = console.log) {
   const store = assetStore(file);
   const key = store.add({ type, data: bytes.toString("base64") });
   const all = old ? JSON.parse(old.children.map((c) => c.value).join("")) : {};
+  // The same picture is stored once: its key is printed, and nothing is written.
+  if (Object.hasOwn(all, key)) {
+    if (args.out && resolve(args.out) !== resolve(input))
+      await writeChecked(args.out, source);
+    log(key);
+    log(
+      `${image} is already in the file as asset "${key}"; refer to it as "asset": "${key}" in a payload. ${args.out ? `Wrote ${args.out} unchanged.` : "Nothing was written."}`,
+    );
+    return;
+  }
   all[key] = { type, data: bytes.toString("base64") };
   const json = JSON.stringify(all).replace(/</g, "\\u003c");
   const line = `<script id="assets" type="application/json">${json}</script>`;
@@ -503,7 +517,7 @@ async function convertCommand(args, log) {
       drop: args.drop ? args.drop.split(",").map((s) => s.trim()) : [],
     },
   );
-  if (args.out) await writeFile(args.out, html);
+  if (args.out) await writeWhole(args.out, html);
   else process.stdout.write(html);
   const say = args.out ? log : (m) => console.error(m);
   for (const n of notes) say(`note     ${n}`);
@@ -562,12 +576,5 @@ export async function main(argv, log = console.log) {
   }
 }
 
-// Run as a command, also through a symbolic link or a path with escaped characters.
-const isMain = () => {
-  try {
-    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return false;
-  }
-};
-if (isMain()) process.exitCode = await main(process.argv.slice(2));
+if (isMain(import.meta.url))
+  process.exitCode = await main(process.argv.slice(2));

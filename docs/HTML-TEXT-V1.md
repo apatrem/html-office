@@ -1,6 +1,6 @@
 # HTML Text V1 specification
 
-Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text implementation has not started; task order and verification are in the [Text implementation plan](HTML-TEXT-PLAN.md). Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
+Status: product and architecture decisions from the 15 October 2026 grilling sessions, reconciled into one set. Text is implemented (T01–T19 merged); only the blind test and release review (T20) remain, run by the owner. Task order and verification are in the [Text implementation plan](HTML-TEXT-PLAN.md); current state in [STATUS.md](STATUS.md). Rationale for the format and editor choices is in [ADR-004](decisions/004-html-text-format-and-editor.md); family-wide constraints are in the [Office V1 specification](HTML-OFFICE-V1.md).
 
 ## Purpose and boundaries
 
@@ -44,7 +44,7 @@ Rules:
 
 - Headings carry stable IDs. A section runs from its heading to the next heading of the same or a higher level; tooling and the guide address sections by these IDs.
 - No `style` attributes, scripts, event handlers, executable URLs or external resources in content. Formatting is expressed by elements, classes and data attributes defined in the format reference.
-- Opening and saving an unchanged canonical document must produce byte-identical content. Any normalisation is an explicit tooling step (as with Slides `pack`), never a side effect of a later save.
+- Opening and saving an unchanged canonical document must produce byte-identical content. Any normalisation is an explicit step (a tooling step, as with Slides `pack`, or the editor's confirmation before its first save rewrites a non-canonical file), never a side effect of a later save.
 - Content outside the schema is rejected by validation before editing or kept as a protected, uneditable block. It is never silently dropped.
 - A **read-only Markdown view** shows the document as Markdown for reading and copying. It is a projection, not a second source; editing in Markdown is deferred.
 

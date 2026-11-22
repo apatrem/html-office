@@ -266,6 +266,19 @@ try {
     ],
     [
       {
+        [MIME]: JSON.stringify({
+          schema: "html-office-clip/1",
+          kind: "slide",
+          slide: { html: '<section class="slide"><h1>Title</h1></section>' },
+        }),
+        "text/html":
+          "<section><h1>Title</h1><table><tr><td>1</td></tr></table></section>",
+        "text/plain": "Title\n1",
+      },
+      "A slide cannot be pasted into a workbook; copy one of its tables instead",
+    ],
+    [
+      {
         "text/html":
           '<table><tr><td colspan="1000" rowspan="65534">x</td></tr>' +
           "<tr><td>y</td></tr>".repeat(2100) +

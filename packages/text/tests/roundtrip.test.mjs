@@ -356,7 +356,7 @@ test("the guard repairs footnotes inserted in links, repeated IDs and short tabl
   assert.match(table.reopen(deleted), /<tr><td>z<\/td><td><\/td><\/tr>/);
 });
 
-test("a comment thread that text refers to cannot be deleted; with its anchors it can", () => {
+test("a comment thread that text refers to cannot be deleted; with its anchors it stays, orphaned", () => {
   const source = article(
     '<p><mark class="comment" data-ref="c1">Quoted</mark> text.</p>\n<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="Quoted">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>',
   );
@@ -372,7 +372,8 @@ test("a comment thread that text refers to cannot be deleted; with its anchors i
     state.tr.delete(at, state.doc.content.size),
   );
   assert.equal(alone.state.doc, state.doc);
-  // Deleting the paragraph too removes the anchor: allowed, and the file reopens.
+  // Deleting the paragraph too removes the anchor: allowed, the thread stays as an orphan (only
+  // deleteThread removes one), and the file reopens.
   const both = state.applyTransaction(
     state.tr
       .delete(at, state.doc.content.size)
@@ -383,6 +384,8 @@ test("a comment thread that text refers to cannot be deleted; with its anchors i
       ),
   );
   assert.notEqual(both.state.doc, state.doc);
+  assert.equal(both.state.doc.lastChild.child(0).attrs.id, "c1");
+  assert.deepEqual(lostThreads(both.state.doc), []);
   const saved = saveFile(file, both.state.doc);
   assert.ok(open(saved).doc.eq(both.state.doc));
 });
@@ -417,4 +420,43 @@ test("a thread anchored inside a protected block cannot be deleted, whatever its
     );
     assert.equal(result.state.doc, state.doc, cls);
   }
+});
+
+// Project review, 22 Nov 2026: a copy of a heading or figure pasted above its original took the
+// original's ID away, so cross-references and comment sections then pointed at the copy. The node
+// that keeps the ID is the one that was already there; the inserted copy is renamed.
+test("a copy inserted above its original gets the fresh ID; references keep their target", () => {
+  const thread =
+    '<section class="comments">\n<aside class="comment-thread" id="c1" data-status="open" data-quote="See" data-section="sec-a">\n<p class="comment" data-author="A" data-date="2026-10-15T14:02Z">Check.</p>\n</aside>\n</section>';
+  const file = parseFile(
+    article(
+      `<h1 id="sec-a">Heading</h1>\n<p><mark class="comment" data-ref="c1">See</mark> <a class="xref" href="#sec-a">Heading</a>.</p>\n<h1 id="sec-b">Other</h1>\n${thread}`,
+    ),
+  );
+  let state = EditorState.create({
+    doc: openFile(file).doc,
+    plugins: [subsetGuard()],
+  });
+  const heading = state.doc.child(0);
+  // Above the original, as a paste at the start of the document does.
+  let above = state.apply(state.tr.insert(0, heading));
+  let saved = saveFile(file, above.doc);
+  assert.match(
+    saved,
+    /<h1 id="sec-a-2">Heading<\/h1>\n<h1 id="sec-a">Heading<\/h1>/,
+  );
+  // Below it, and then above it again with the first copy still there.
+  const end = state.doc.child(0).nodeSize + state.doc.child(1).nodeSize;
+  const below = state.apply(state.tr.insert(end, heading));
+  assert.match(
+    saveFile(file, below.doc),
+    /<h1 id="sec-a">Heading<\/h1>\n<p>[^\n]*\n<h1 id="sec-a-2">Heading<\/h1>/,
+  );
+  above = above.apply(above.tr.insert(0, heading));
+  saved = saveFile(file, above.doc);
+  assert.match(
+    saved,
+    /<h1 id="sec-a-3">Heading<\/h1>\n<h1 id="sec-a-2">Heading<\/h1>\n<h1 id="sec-a">Heading<\/h1>/,
+  );
+  assert.ok(open(saved).doc.eq(above.doc));
 });

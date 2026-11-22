@@ -1,6 +1,6 @@
 # ADR-014 — Basic editable pivot tables (Data T17)
 
-Status: accepted for implementation, 24 October 2026. Scope from the [Office specification](../HTML-OFFICE-V1.md): row and column fields, filters, SUM/COUNT/AVERAGE, totals and an explicit refresh. Calculated fields, slicers, subtotals, date grouping and "show values as" are deferred.
+Status: accepted 24 October 2026; implemented (T17). Scope from the [Office specification](../HTML-OFFICE-V1.md): row and column fields, filters, SUM/COUNT/AVERAGE, totals and an explicit refresh. Calculated fields, slicers, subtotals, date grouping and "show values as" are deferred.
 
 ## Context
 

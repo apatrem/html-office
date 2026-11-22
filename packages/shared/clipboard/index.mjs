@@ -25,6 +25,7 @@ export {
 export {
   tableHTML,
   figureHTML,
+  sectionHTML,
   writeClipboard,
   excelFormat,
   escapeAttribute,

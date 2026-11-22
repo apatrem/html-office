@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// html-text pack: rewrites a valid document into canonical form (FORMAT.md › Canonical form)
-// and lists every changed line. This is the only normalisation step: the editor never applies it silently.
+// html-text pack: rewrites a valid document into canonical form (FORMAT.md › Canonical form),
+// with its generated labels and contents current, and lists every changed line. This is the only
+// normalisation step: the editor asks before applying it.
 //   node pack.mjs <document.html> [<output.html>]   (default: rewrite in place)
 // Refuses a document with errors (exit 1) and leaves it unchanged.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { isMain, writeWhole } from "./cli.mjs";
 import { parseFile } from "../model/parse.mjs";
-import { canonicalize } from "../editor/schema/document.mjs";
+import { Transform } from "prosemirror-transform";
+import { canonicalize, saveFile } from "../editor/schema/document.mjs";
+import { regenerate, fileFormat } from "../editor/numbering.mjs";
 
 // Shortest edit script on lines: [{op: " " | "-" | "+", line, text}], line numbers 1-based in
 // the old text for " " and "-", in the new text for "+". Common leading and trailing lines are
@@ -86,18 +90,23 @@ function middle(a, b, start, endA, endB) {
   return edits.reverse();
 }
 
+// regenerated: whether cross-reference labels or contents were out of date.
 export function pack(source) {
-  const { canonical, difference, unstable } = canonicalize(source, parseFile);
+  const { file, doc, unstable, ...rest } = canonicalize(source, parseFile);
   if (unstable) throw new Error(`Cannot be saved faithfully: ${unstable}`);
-  const changes = difference
-    ? diffLines(source.split("\n"), canonical.split("\n")).filter(
-        (e) => e.op !== " ",
-      )
-    : [];
-  return { canonical, changes };
+  const tr = new Transform(doc);
+  const regenerated = regenerate(tr, { format: fileFormat(file) });
+  const canonical = regenerated ? saveFile(file, tr.doc) : rest.canonical;
+  const changes =
+    canonical !== source
+      ? diffLines(source.split("\n"), canonical.split("\n")).filter(
+          (e) => e.op !== " ",
+        )
+      : [];
+  return { canonical, changes, regenerated };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const [input, output = input] = process.argv.slice(2);
   if (!input) {
     console.error("usage: pack.mjs <document.html> [<output.html>]");
@@ -108,7 +117,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     result = pack(await readFile(input, "utf8"));
   } catch (error) {
     console.error(
-      `${error.message}. Run check.mjs for every location; nothing was written.`,
+      `${error.message}. Run check for every location; nothing was written.`,
     );
     process.exit(1);
   }
@@ -117,7 +126,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!result.changes.length && output === input)
     console.log("Already canonical; nothing to write.");
   else {
-    await writeFile(output, result.canonical);
+    await writeWhole(output, result.canonical);
     console.log(`${result.changes.length} line(s) changed; wrote ${output}.`);
   }
 }

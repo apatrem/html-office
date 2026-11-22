@@ -1,0 +1,15 @@
+# Status
+
+As of 22 November 2026. One page for what each product has released, what is merged on `main`, what is open and who takes the next step. Update it in the pull request that changes any of these; the task-by-task evidence stays in the plans and the [Data progress ledger](HTML-DATA-PROGRESS.md). For the open work of the moment, run `gh pr list --state open` first ([AGENTS.md](../AGENTS.md)).
+
+| Product | Released | Merged on `main` | Open | Next step and owner |
+| --- | --- | --- | --- | --- |
+| **html-slides** | [0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2), 18 November 2026: the plugin archive, with the `html-slides` skill only | The 0.7.0–0.7.2 baseline, shared shell, table and chart copy and paste (V1-04 started), copy and paste of whole slides (V1-01, PR #123), save in place, column widths ([PLAN](PLAN.md)) | V1-02, V1-03, V1-05, V1-06 and V1-07 are planned; the Slides defects of the 22 November 2026 project review (draft recovery, checker gaps, Enter in a paragraph, printing from edit mode) are open. Usage validation (cross-device checks, five comparisons, the context-free LLM test) is pending ([VALIDATION-V1.md](VALIDATION-V1.md)) | The owner runs the manual checks, including whole-slide paste between real browser tabs ([MANUAL-CHECKS.md](MANUAL-CHECKS.md)) |
+| **html-data** | Not released. The skill is in `plugin/skills/html-data/` and not in the archive | T01–T21 and the R, F, L and U04 tasks: workbook format, IronCalc worker, editor, formatting, scenarios, conditional formats, pivots, charts, CSV and XLSX import with refresh, print, CSV export, the fictional acceptance workbook ([plan](HTML-DATA-PLAN.md), [ledger](HTML-DATA-PROGRESS.md)). The blind-test kit ([protocol](blind-tests/DATA-T22.md)) | T22 (blind test and release review) has not been run. Data–Slides and Data–Text chart copy and paste (X02d, X02f) is not built ([ADR-013](decisions/013-cross-product-clipboard.md)) | **The owner** runs the T22 sessions and browser steps and records them in [RESULTS-T22.md](blind-tests/RESULTS-T22.md); a release pull request then adds the skill to the archive |
+| **html-text** | Not released. The skill is in `plugin/skills/html-text/` and not in the archive | T01–T19: format, ProseMirror editor, tables, charts, comments, Markdown view and export, print, section tools, the skill, the acceptance report, measurements. The blind-test kit ([protocol](blind-tests/TEXT-T20.md)) | T20 (blind test and release review) has not been run | **The owner** runs T20 and records it in [RESULTS-T20.md](blind-tests/RESULTS-T20.md); then the release pull request |
+
+Both blind tests are release gates: the Data and Text skills join the plugin only after they pass, with the evidence attached to the release pull request ([method](blind-tests/README.md)). Decisions are indexed in [decisions/README.md](decisions/README.md).
+
+## Stale statements
+
+A status sentence that contradicts `main` is a defect: fix it where you find it, or tell the owner. The plans keep their original task text; their first lines say what is current, and old checkpoints sit under a **History** heading.

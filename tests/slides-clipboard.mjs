@@ -233,7 +233,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
         ok(/failed|cannot be pasted/.test(msg) && await mainHTML(b) === unchanged, `refused, deck unchanged: ${what} ("${msg}")`);
       }
       const oversize = await paste(b, 's05', { 'text/html': '<table><tr><td>x</td></tr></table>' + ' '.repeat(8 * 2 ** 20), 'text/plain': 'x' });
-      ok(/no table/.test(oversize) && await mainHTML(b) === unchanged, `text/html over 8 Mi code units is ignored ("${oversize}")`);
+      ok(/holds no slide, table or chart/.test(oversize) && await mainHTML(b) === unchanged, `text/html over 8 Mi code units is ignored ("${oversize}")`);
       const newer = await paste(b, 's05', { [MIME]: '{"schema":"html-office-clip/2","kind":"table"}', 'text/html': valid });
       ok(/unsupported format \(html-office-clip\/2\)/.test(newer) && /<td>Safe<\/td><td>1<\/td>/.test(await last(b, 's05')),
         `an unknown envelope version falls through to the semantic table ("${newer}")`);
@@ -244,7 +244,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       ok(deep.startsWith('Table pasted') && /<td>deep<\/td>/.test(await last(b, 's05')), `a table nested 400 elements deep is read without recursion ("${deep}")`);
       await b.keyboard.press('ControlOrMeta+z');
       const deeper = await nested(20000);
-      ok(/^(Table pasted|The clipboard holds no table)/.test(deeper) && !b.errors.length, `20,000 nested elements: no error ("${deeper}")`);
+      ok(/^(Table pasted|The clipboard holds no slide, table)/.test(deeper) && !b.errors.length, `20,000 nested elements: no error ("${deeper}")`);
       if (deeper.startsWith('Table pasted')) await b.keyboard.press('ControlOrMeta+z');
       hits = [];
       const neutral = await paste(b, 's05', { 'text/html': hostile, 'text/plain': 'a\t2' });

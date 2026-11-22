@@ -208,6 +208,35 @@ async function run(name) {
     pass("reopened after an edit, the panel shows the document as it is");
     await page.close();
 
+    // ---- Select all, then type or delete: every thread stays, orphaned (project review) ----
+    page = await open(url);
+    const threadIds = (text) =>
+      [...text.matchAll(/<aside class="comment-thread" id="(\w+)"/g)].map(
+        (m) => m[1],
+      );
+    const all = threadIds(await saved(page));
+    assert.ok(all.length >= 2);
+    for (const key of ["x", "Backspace"]) {
+      await page.click("#doc p.lead");
+      await page.keyboard.press(`${mod}+a`);
+      await page.keyboard.press(key);
+      const text = await saved(page);
+      check(text);
+      assert.deepEqual(threadIds(text), all, key);
+      assert.doesNotMatch(text, /<mark class="comment"/);
+      await page.click(".tx-float button:has-text('Comments')");
+      for (const id of all)
+        assert.equal(
+          await page.textContent(`${panel} [data-thread="${id}"] .tx-status`),
+          "Orphaned",
+        );
+      await page.click(".tx-float button:has-text('Comments')");
+      await page.keyboard.press(`${mod}+z`);
+      assert.match(await saved(page), /<mark class="comment"/, "undone");
+    }
+    await page.close();
+    pass("Select all, then typing or deleting, keeps every thread, orphaned");
+
     // ---- the name is kept by the browser ----
     page = await open(url);
     await page.click(".tx-float button:has-text('Comments')");

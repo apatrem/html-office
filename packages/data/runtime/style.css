@@ -3,6 +3,7 @@
 [hidden]{display:none!important}*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:#fff;color:var(--ink);font-family:var(--font);font-size:14px;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh;height:100dvh}.app-bar{flex:none}
 .sh-state p{font-size:inherit}
+#status-recalculate{flex:none;min-height:0;height:20px;padding:0 8px;font-size:11px}
 /* Formula bar: one 36 px row. */
 .formula-bar{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px;border-bottom:1px solid var(--sh-line);background:#fff;flex:none;min-width:0}
 .formula-bar input,.formula-bar select{height:26px;border:1px solid var(--sh-line);border-radius:5px;padding:0 6px;background:#fff;color:var(--sh-ink);font:12.5px system-ui,-apple-system,"Segoe UI",Arial,sans-serif;min-width:0}

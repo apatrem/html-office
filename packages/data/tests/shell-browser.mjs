@@ -42,6 +42,7 @@ const MENUS = {
     "Delete columns",
     "Duplicate chart",
     "Delete chart",
+    "Clear contents",
     "Clear formatting",
   ],
   Insert: [
@@ -234,6 +235,16 @@ try {
       "",
     );
     assert.equal(await active(page), "Embedded format guide");
+    // Help shows the text of template#html-data-guide: the file holds one copy.
+    assert.equal(
+      await page.evaluate(
+        () =>
+          document.getElementById("guide-text").textContent ===
+            document.getElementById("html-data-guide").content.textContent &&
+          document.getElementById("guide-text").textContent.length > 4000,
+      ),
+      true,
+    );
     await page.keyboard.press("Escape");
     await page
       .locator("#save-status")
@@ -254,6 +265,9 @@ try {
     for (const id of ["shell-menus", "shell-toolbar", "sheet-actions"])
       assert.match(text, new RegExp(`id="${id}"[^>]*></`), id);
     assert.doesNotMatch(text, /<div[^>]*class="[^"]*no-grid-lines/);
+    // The guide stays in its template only: Help's copy is filled on open and never saved.
+    assert.match(text, /<pre id="guide-text"><\/pre>/);
+    assert.equal(text.split("WHAT YOU MAY CHANGE").length, 2);
     await context.setOffline(true);
     await page.goto(pathToFileURL(saved).href);
     await page

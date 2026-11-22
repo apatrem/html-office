@@ -63,6 +63,26 @@ node $T/workbook.mjs validate budget-2.html --since budget.html --allow "Inputs!
 
 The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` reports whether the committed copy still matches its sources. `packages/data/tests/skill.test.mjs` packages the skill afresh, zips the plugin and tests the extracted archive, so other Data changes never fail on a stale committed copy. Only `SKILL.md` is written by hand; regenerate the rest before a release (release.sh does it).
 
+### html-text
+
+The `html-text` skill likewise needs only Node.js 18+: `plugin/skills/html-text/tools/document.mjs` is bundled. See its [SKILL.md](../plugin/skills/html-text/SKILL.md) for the passes.
+
+```bash
+T=plugin/skills/html-text/tools
+node $T/document.mjs new report.html --markdown body.md --payloads payloads.json --title "Report" --contents 2 --numbers
+node $T/document.mjs outline report.html
+node $T/document.mjs show report.html sec-regions --markdown > section.md
+node $T/document.mjs convert report.html sec-regions section.md --out section.html
+node $T/document.mjs replace report.html sec-regions section.html --output edited.html
+node $T/document.mjs check edited.html
+```
+
+`pack` and `add-image` are described in the skill. The skill is generated from `packages/text` by `node packages/text/tools/skill.mjs` (`--check` compares it with the committed copy); regenerate it after changing the Text tools, runtime or shared charts.
+
+### Manual checks
+
+`bash tools/manual-check-files.sh` builds the files that [MANUAL-CHECKS.md](MANUAL-CHECKS.md) opens into `dist/latest/`.
+
 ## Network and offline use
 
 Cached chart SVGs remain readable offline. Without an embedded library, a deck with charts requests **ECharts 6.1.0 from jsDelivr** when opened. The browser checks the pinned SHA-384 SRI digest using anonymous CORS before executing it. A rejected or unavailable response leaves cached SVGs visible; chart recalculation then requires the library.
@@ -96,7 +116,9 @@ The checker trusts the engines listed in `src/released-engines.json` plus the en
 | `tests/` | Chart, preservation, persistence, thumbnails, guide, SRI, and editor checks |
 | `plugin/` | Distributable skill/plugin with built assets and the generated examples |
 | `decks/` | Source content of the fictional examples; `npm run release` generates their HTML, PDF and screenshots here (not tracked) |
-| `docs/` | [Office V1 specification](HTML-OFFICE-V1.md), [Data implementation plan](HTML-DATA-PLAN.md), [Text V1 specification](HTML-TEXT-V1.md), [Text implementation plan](HTML-TEXT-PLAN.md), [engine stress test](ENGINE-STRESS-TEST.md), [Slides V1 plan](PLAN.md), decisions, and [Slides validation status](VALIDATION-V1.md) |
+| `packages/data/` | html-data: model, runtime, tools, engine, acceptance workbook; skill generated into `plugin/skills/html-data/` ([README](../packages/data/README.md)) |
+| `packages/text/` | html-text: format, editor, tools, acceptance report; skill generated into `plugin/skills/html-text/` ([README](../packages/text/README.md)) |
+| `docs/` | [Status per product](STATUS.md), [decisions and their index](decisions/README.md), [blind tests](blind-tests/README.md), [manual checks](MANUAL-CHECKS.md), [Office V1 specification](HTML-OFFICE-V1.md), [Data implementation plan](HTML-DATA-PLAN.md), [Text V1 specification](HTML-TEXT-V1.md), [Text implementation plan](HTML-TEXT-PLAN.md), [engine stress test](ENGINE-STRESS-TEST.md), [Slides V1 plan](PLAN.md), decisions, and [Slides validation status](VALIDATION-V1.md) |
 
 Add a chart in `packages/shared/charts/types/<type>.mjs` with `label`, `validate`, `table`, and `toOption`; register it in `packages/shared/charts/index.mjs`, document it in `references/CHARTS.md`, and test invalid inputs. To customise branding, copy `src/theme/default.css` and pass `--charte your-theme.css`. Do not use `--x`, `--y`, `--w`, or `--h` as theme variable names: they store element geometry.
 
@@ -107,5 +129,5 @@ Distribution links are versioned in `src/distribution.json`; documentation and d
 - Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file; choosing the opened file remembers it, and later saves (also after reopening it) reuse it only while it still holds the opened document.
 - Drafts include content, deck metadata, and assets. Edits made during a save remain dirty; cancelled or failed saves retain the draft. The download fallback (Safari/Firefox) leaves the opened file unchanged, so its draft is kept. A draft recognises the opened file and the content actually written by a successful save, including Save As and edits made during writing. After an unrelated version replaces the file at the same path, restoring is offered with an explicit warning. Restored drafts are stripped of code and external resources. Large drafts may exceed browser storage capacity.
 - The V1 model uses DOM operations and HTML snapshots. Collaboration requires a new mutation model in V2.
-- No attached connectors, rotation, merged table cells, arbitrary fonts/colours, or PPTX export. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.
+- No attached connectors, rotation, arbitrary fonts/colours, or PPTX export. Merged table cells arrive by pasting a table and can be unmerged; the editor has no merge command. Outline-only shapes work on rectangles, rounded rectangles, and ellipses.
 - Cross-device manual tests, five real-use comparisons, and the context-free LLM test are still pending. See the validation log; automated checks do not establish these outcomes.

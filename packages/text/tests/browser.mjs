@@ -367,34 +367,76 @@ try {
   );
   await enter.context.close();
 
-  // ---- a non-canonical source is never rewritten silently ----
-  const loose = built.replace(
-    "<p>Prepared by the planning team, October 2026</p>",
-    "<p>Prepared by the planning team,\nOctober 2026</p>",
-  );
+  // ---- a non-canonical source: Save asks before rewriting it in canonical form ----
+  // As an LLM hand edit leaves it: attributes in another order, a paragraph over two lines.
+  const loose = built
+    .replace(
+      "<p>Prepared by the planning team, October 2026</p>",
+      "<p>Prepared by the planning team,\nOctober 2026</p>",
+    )
+    .replace(
+      '<h1 class="new-page" id="sec-plan">',
+      '<h1 id="sec-plan" class="new-page">',
+    );
+  assert.notEqual(loose, built);
   const noncanonical = await open(
     await write("noncanonical.html", loose),
     loose,
   );
-  await noncanonical.page.waitForFunction(() => window.htmlText);
+  const np = noncanonical.page;
+  await np.waitForFunction(() => window.htmlText);
   assert.match(
-    await noncanonical.page.locator(".tx-shell .sh-state").textContent(),
+    await np.locator(".tx-shell .sh-state").textContent(),
     /Not in canonical form/,
   );
-  await noncanonical.page.click(".tx-shell .sh-primary");
-  await noncanonical.page.waitForFunction(() =>
-    /Save failed/.test(
+  // Cancelled: nothing is written, and the file stays as it is.
+  await np.click(".tx-shell .sh-primary");
+  const ask = np.locator("dialog.sh-dialog[open]");
+  await ask.waitFor();
+  assert.match(
+    await ask.textContent(),
+    /Rewrite this file in canonical form\?/,
+  );
+  assert.match(await ask.textContent(), /document\.mjs pack/);
+  await ask.locator("button:text-is('Cancel')").click();
+  await np.waitForFunction(() =>
+    /Save cancelled/.test(
       document.querySelector(".tx-shell [role=status]").textContent,
     ),
   );
-  await noncanonical.page.click(".tx-shell [role=menubar] button:text('File')");
-  await noncanonical.page.click("[role=menuitem]:has-text('Save a copy')");
-  assert.match(
-    await status(noncanonical.page),
-    /Copy failed: this file is not in canonical form/,
+  assert.equal(await np.evaluate(() => window.disk.writes), 0);
+  // Save a copy never rewrites the opened file: it is not refused.
+  await np.click(".tx-shell [role=menubar] button:text('File')");
+  const [canonicalCopy] = await Promise.all([
+    np.waitForEvent("download"),
+    np.click("[role=menuitem]:has-text('Save a copy')"),
+  ]);
+  assert.match(await status(np), /^Copy download requested/);
+  assert.equal(
+    await readFile(await canonicalCopy.path(), "utf8"),
+    built,
+    "the copy is the canonical file",
   );
-  assert.equal(await noncanonical.page.evaluate(() => window.disk.writes), 0);
-  pass("a non-canonical source is neither saved nor copied without pack.mjs");
+  assert.equal(await np.evaluate(() => window.disk.writes), 0);
+  // Accepted: the file is written in canonical form, then Save works as for any file.
+  await np.click(".tx-shell .sh-primary");
+  await ask.waitFor();
+  await ask.locator("button:text-is('Rewrite and save')").click();
+  await np.waitForFunction(() => window.disk.writes === 1);
+  assert.equal(await np.evaluate(() => window.disk.text), built);
+  assert.doesNotMatch(
+    await np.locator(".tx-shell .sh-state").textContent(),
+    /Not in canonical form/,
+  );
+  await np.click("#doc p.lead");
+  await np.keyboard.type("x");
+  await np.keyboard.press(`${mod}+s`);
+  await np.waitForFunction(() => window.disk.writes === 2);
+  assert.equal(await np.locator("dialog.sh-dialog[open]").count(), 0);
+  assert.deepEqual(noncanonical.errors, []);
+  pass(
+    "a non-canonical source: Save asks before rewriting it, then saves; Save a copy is canonical",
+  );
   await noncanonical.context.close();
 
   // ---- whitespace the browser keeps is checked too; a misplaced engine refuses to edit ----

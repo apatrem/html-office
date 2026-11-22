@@ -2,7 +2,7 @@
 
 The single `script#workbook[type="application/json"]` is the authoritative saved workbook. `model/document.mjs` is its reader/writer, shared by the browser and authoring tools. Formula strings, typed values/results and all metadata remain readable JSON; engine objects are disposable derived state.
 
-The document header and sparse cell schema are those of the validated `html-data/0.1` logical model in `workbook.mjs`, with document `version: "html-data/0.2"`. A reader derives that sparse logical model for calculation and fingerprints; it does not save a second copy alongside the document. Legacy sparse 0.1 files remain readable and save as 0.2. Unknown structural fields/versions fail validation rather than being discarded. This is a prototype contract, not the complete V1 schema.
+**Versions.** Authors write `html-data/0.1` (the logical model in `workbook.mjs`, as in `examples/valid`); the tools and the editor read 0.1 and 0.2, and every file they save carries `version: "html-data/0.2"`. A reader derives the sparse logical model from the document for calculation and fingerprints; it does not save a second copy alongside the document. Unknown structural fields or versions fail validation rather than being discarded.
 
 ## Sheet representations
 
@@ -41,15 +41,15 @@ Example sheet:
 }
 ```
 
-Appending a raw record updates both `data` and `height`; width, column types, exceptions and metadata must remain consistent. Inserting/deleting model rows or columns requires formula/reference rewrites through the engine-backed structural tooling, not merely splicing an array. Named-range structural edits remain blocked pending T10.
+Appending a raw record updates both `data` and `height`; width, column types, exceptions and metadata must remain consistent. Inserting/deleting model rows or columns requires formula/reference rewrites through the engine-backed structural tooling, not merely splicing an array.
 
 ## Precision, safety and saved results
 
 Numbers are finite IEEE-754 doubles, independent of displayed rounding. Preserve literal `-0`; ordinary `JSON.stringify` converts it to `0`. Use the supplied serializer, which also escapes HTML delimiters, U+2028 and U+2029 for safe script embedding. Text remains literal data. Dates are Excel 1900 serials; typed spreadsheet errors remain errors. Generic metadata is inert JSON and must survive unrelated edits.
 
-Policy A saves every populated formula result without a rectangular position cutoff. Snapshots identify engine/version, time and the calculation-relevant fingerprint. An input/formula edit invalidates the matching snapshot; retain the old fingerprint or remove the snapshot until recalculation. Do not invent or round saved results. Formatting does not invalidate calculations. The browser displays externally stale results as stale and recalculates with the same IronCalc worker. Standard mode loads the verified engine when needed; offline mode embeds it. There is no second formula evaluator.
+The document saves every populated formula result without a rectangular position cutoff. Snapshots identify engine/version, time and the calculation-relevant fingerprint. An input/formula edit invalidates the matching snapshot; retain the old fingerprint or remove the snapshot until recalculation. Do not invent or round saved results. Formatting does not invalidate calculations. The browser displays externally stale results as stale and recalculates with the same IronCalc worker. Standard mode loads the verified engine when needed; offline mode embeds it. There is no second formula evaluator.
 
-See [ADR-005](https://github.com/apatrem/html-office/blob/main/docs/decisions/005-data-storage.md) for the decision, [Phase A evidence](https://github.com/apatrem/html-office/blob/main/packages/data/PHASE-A-REPORT.md) for limits, and [the storage review](https://github.com/apatrem/html-office/blob/main/packages/data/bench/storage/REVIEW.md) for the isolated HTML-only trials. Later T06–T22 work remains separate.
+See [ADR-005](https://github.com/apatrem/html-office/blob/main/docs/decisions/005-data-storage.md) for the decision, [Phase A evidence](https://github.com/apatrem/html-office/blob/main/packages/data/PHASE-A-REPORT.md) for limits, and [the storage review](https://github.com/apatrem/html-office/blob/main/packages/data/bench/storage/REVIEW.md) for the isolated HTML-only trials.
 
 ## Spilled array results
 
@@ -90,6 +90,7 @@ Not supported by the pinned engine or the format:
 
 - `GROUPBY` and `PIVOTBY` return `#NAME?`: use a pivot table (Pivot tables) or `UNIQUE` with `MAP`/`SUMIFS`.
 - Structured table references such as `Orders[Amount]` return `#ERROR!`: use named ranges.
+- A formula with a stray or missing bracket, a `,` or `;` outside an argument list, or two values in a row (`=SUM(A1:A2))+5`, `=A1*1,2`, `=10 000*2`) is refused with its position: the engine would otherwise ignore everything after the first complete expression and calculate a different number without an error. Separate arguments with `,`, write decimals with `.` and no spaces inside numbers.
 - Named `LAMBDA` functions: a workbook name is a cell rectangle, so a `LAMBDA` cannot be saved as a name. Name it inside the formula with `LET`.
 - A `LET` or `LAMBDA` name equal to a function (`price` is `PRICE`) or to a named range fails (`#ERROR!`, `#VALUE!`): choose other names.
 - `SUMIFS`/`COUNTIFS` criteria given as an array return one value, not an array: wrap them in `MAP` as above.
@@ -98,7 +99,7 @@ Not supported by the pinned engine or the format:
 
 ## Structural edits and named references
 
-Named ranges retain `{name, sheetId, ref}`. `ref` is an A1 rectangle or the explicit string `"#REF!"` when a structural edit removes every referenced cell. Partial deletion shrinks the range; insertion relocates or expands it. Stable sheet IDs remain unchanged. Row/column operations obtain formula rewrites from IronCalc and return them to the readable model. A generated filename or opaque engine state is never required to restore references.
+Named ranges retain `{name, sheetId, ref}`. A name starts with a letter and uses letters, digits and `_`; the engine refuses `-`, `R`, `C`, `TRUE`, `FALSE`, an R1C1-style address and anything that reads as a cell address in any letter case (`Q1`, `FY25`, `TAX2`), and the validator names the offending name. `ref` is an A1 rectangle or the explicit string `"#REF!"` when a structural edit removes every referenced cell. Partial deletion shrinks the range; insertion relocates or expands it. Stable sheet IDs remain unchanged. Row/column operations obtain formula rewrites from IronCalc and return them to the readable model. Where IronCalc breaks a range whose first or last row or column is deleted (`A2:#REF!`), Data writes the range again as Excel does: `A2:A3` without row 3 is `A2`, and a range becomes `#REF!` only when all of it is deleted. A generated filename or opaque engine state is never required to restore references.
 
 IronCalc's current structural methods do not reliably relocate defined names, and its public binding accepts only range-shaped name definitions. The adapter therefore rebinds the canonical names after a structural operation. Broken names point to a derived typed `#REF!` cell in a temporary engine-only sheet. That helper contains no workbook inputs, is omitted from the document/model/results, and is recreated from the canonical broken binding on load. Formula strings such as `=Metric` stay readable and return a typed reference error after save/reopen. There is still one evaluator.
 
@@ -106,7 +107,7 @@ Structural input movement is lossless: an insertion that would push populated ce
 
 ## Display and shared branding
 
-`locale` is a supported Intl locale for number/date display only; all formulas retain English names and decimal syntax. Number, currency, accounting and percent formats round only the displayed value. Dates are Gregorian Excel 1900 serials, including the fictitious leap day at 60; date format hides fractions and displays `####` for negative serials or dates after 9999-12-31. Zero displays 1899-12-31. The original number/date scalar is never replaced by a formatted string. The 1900 compatibility convention follows [Microsoft documentation](https://learn.microsoft.com/en-US/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year).
+`locale` is a supported Intl locale for number/date display only; all formulas retain English names and decimal syntax. Text typed in the formula bar is read with the same locale's conventions, with the CSV import's readers: in `fr-FR`, `1,5` is the number 1.5 and `04/03/2026` is 4 March, `50%` is 0.5 shown as a percent, and a leading zero or a value that does not read as a number, date or Boolean stays text; an empty entry, Delete and Edit › Clear contents clear a cell and keep its formatting. `TODAY` and `NOW` use the time zone of the machine that calculates. A workbook whose formulas use `TODAY`, `NOW`, `RAND` or `RANDBETWEEN` is marked in the editor, with a Recalculate button, when its saved results date from an earlier day; the saved file is unchanged. Number, currency, accounting and percent formats round only the displayed value. Dates are Gregorian Excel 1900 serials, including the fictitious leap day at 60; date format hides fractions and displays `####` for negative serials or dates after 9999-12-31. Zero displays 1899-12-31. The original number/date scalar is never replaced by a formatted string. The 1900 compatibility convention follows [Microsoft documentation](https://learn.microsoft.com/en-US/office/troubleshoot/excel/wrongly-assumes-1900-is-leap-year).
 
 `style#charte` embeds the same CSS brand tokens as Slides; Data builds accept `--charte FILE`; a charte that leaves out any of the core tokens (`--ink`, `--acc`, `--mid`, `--lig`, `--alert`, `--tint`, `--callout`, `--bd`, `--t2`, `--bg`, `--font`) gets the default charte's value for each, in a cascade layer (`charte-defaults`) named before anything else, so every declaration of the charte, imported ones included, wins over it; `new` names them. Chart previews read the tokens of `:root`, `html` and `*` rules at the top level or in `@layer` blocks; tokens set only in an `@import`, in `@media` or on other elements are not read, and the editor marks such a preview out of date when the drawn colours differ. Optional semantic role tokens in the default shared brand are `--header-bg/--header-ink`, `--row-label-bg/--row-label-ink`, `--assumption-bg/--assumption-ink`, and `--calculation-bg`. Existing custom Slides themes without these tokens fall back to their `--ink`, `--bg`, `--acc`, `--lig`, `--alert`, `--callout`, `--tint`, and `--font` values. Formatting a selected rectangle is undoable and does not download the calculation engine or invalidate its fingerprint.
 
@@ -145,7 +146,7 @@ Structural input movement is lossless: an insertion that would push populated ce
 
   Custom Excel format codes are not accepted.
 
-**Rendering (F02).** The grid resolves each property in layer order and draws every field without the calculation engine:
+**Rendering.** The grid resolves each property in layer order and draws every field without the calculation engine:
 - fills and text colours with charte tokens; white text on dark fills unless a colour is given;
 - borders once per shared edge: the heavier line wins (`double` over `medium` over `thin`), the lower or right cell on a tie; `total` and `output` borders come from their cell styles;
 - general alignment by value (numbers and dates right, text left, booleans and errors centred), explicit alignment, and text at the bottom of the cell;
@@ -153,7 +154,7 @@ Structural input movement is lossless: an insertion that would push populated ce
 - column widths and stored row heights; the workbook `font` over the whole grid;
 - the `dateStyle`, `scale` (k and M suffixes) and `negative` presets.
 
-**Commands (F03).** Formatting commands write these fields without the engine, one undoable entry each:
+**Commands.** Formatting commands write these fields without the engine, one undoable entry each:
 - bold and italic toggles, text and fill colours, borders (all, outer, inner, one side or none, in `thin`, `medium` or `double` and a text-colour token), alignment, centre across selection and wrap; a value equal to what the cell inherits is removed rather than stored, and turning off an inherited property stores it explicitly (for example `bold: false` on a header);
 - whole rows or columns (header click, Shift+Space, Ctrl+Space) write `rows`/`columns` styles and update their populated cells; a rectangle of more than 50,000 cells is refused;
 - column widths by dragging a header edge, a width dialog or auto-fit; wrap, width and value edits re-measure the affected rows and store `rows.N.height`;
@@ -161,9 +162,9 @@ Structural input movement is lossless: an insertion that would push populated ce
 - links (`Ctrl/Cmd+K`) are stored in `links`; a click shows the target, Ctrl/Cmd-click opens a web link in a new tab with `noopener`, and an internal link selects its range;
 - Clear formatting removes `cellStyle`, `format` and `style` (and row or column styles for whole rows or columns), keeping values, links and widths.
 
-**Panels (F05) and built-in chartes (TH01).** The Styles toolbar toggle and Format › Cell styles… open the fixed catalogue; the sheet bar's settings button and File › Document settings… open the theme and font pickers; File › Regional settings… sets the display `locale`. Panels open on the right (a bottom sheet below 720 px), one at a time. `theme` selects one of four built-in chartes embedded in the editor (blue is the html-slides default; red, green and black are checked for contrast), applied as an overlay; the document's `style#charte` is never rewritten and "Document charte" removes the field. `font` picks one of six fonts for the whole grid; "Charte font" removes it. Each change is one undoable entry and needs no network.
+**Panels and built-in chartes.** The Styles toolbar toggle and Format › Cell styles… open the fixed catalogue; the sheet bar's settings button and File › Document settings… open the theme and font pickers; File › Regional settings… sets the display `locale`. Panels open on the right (a bottom sheet below 720 px), one at a time. `theme` selects one of four built-in chartes embedded in the editor (blue is the html-slides default; red, green and black are checked for contrast), applied as an overlay; the document's `style#charte` is never rewritten and "Document charte" removes the field. `font` picks one of six fonts for the whole grid; "Charte font" removes it. Each change is one undoable entry and needs no network.
 
-**Download PNG (F06).** File › Download selection as PNG (also in the cell menu) draws the selected rectangle from the model at 2×: displayed values in the workbook locale, catalogue and direct formatting, borders with the shared-edge rule, alignment, wrap and overflow, conditional highlights and data bars, row heights and column widths, and grid lines when they are shown; no headers. Whole rows or columns are cut to the used range. Colours and fonts are read from cells styled exactly like the grid's, then drawn on a canvas (no `foreignObject`), so built-in chartes and the charte font apply. It needs no engine: saved results are drawn, and when they are stale (or an edit is pending) a warning band is added at the top of the image. Selections over 5,000 cells or 8,000 px on a side are refused with guidance to print to PDF; past 16 megapixels at 2× the picture is drawn at 1×. Text overflowing from cells outside the selection is not drawn. Nothing is written to the workbook.
+**Download PNG.** File › Download selection as PNG (also in the cell menu) draws the selected rectangle from the model at 2×: displayed values in the workbook locale, catalogue and direct formatting, borders with the shared-edge rule, alignment, wrap and overflow, conditional highlights and data bars, row heights and column widths, and grid lines when they are shown; no headers. Whole rows or columns are cut to the used range. Colours and fonts are read from cells styled exactly like the grid's, then drawn on a canvas (no `foreignObject`), so built-in chartes and the charte font apply. It needs no engine: saved results are drawn, and when they are stale (or an edit is pending) a warning band is added at the top of the image. Selections over 5,000 cells or 8,000 px on a side are refused with guidance to print to PDF; past 16 megapixels at 2× the picture is drawn at 1×. Text overflowing from cells outside the selection is not drawn. Nothing is written to the workbook.
 
 ## Sheet navigation
 
@@ -191,7 +192,7 @@ Optional `conditionalFormats` is an ordered array of at most 100 rules. Shared f
 
 A highlight adds `condition:{operator,values:[typedValue,...]}` and `style:{fill?,color?,bold?,italic?}` (at least one style field), using the same tokens as cell `style`. Operators `eq/ne` take one typed value; ordered `gt/gte/lt/lte` take one number/date; inclusive `between/notBetween` take two ordered same-type numbers/dates; `contains` takes one case-sensitive text value; `isBlank/isError` take an empty values array. Typed comparisons do not coerce. Empty text differs from blank; missing formula results do not satisfy blank tests. Error cells match explicit error predicates/comparisons rather than ordinary numeric/text conditions. Browser formula highlights require a verified current snapshot; raw input highlights are available before engine loading. Cached stale/unverified formulas retain their displayed value but receive no highlight. Format > Conditional formatting manages highlights without recalculation; priority changes require saving any rule edits first. Data bar rendering uses derived worker summaries. The same Conditional formatting manager creates, edits, removes and reorders both kinds, with automatic or fixed bounds and separate positive/negative colours. Changing kind explicitly preserves rule identity/order while replacing its kind-specific fields. Automatic bounds exclude stale/unverified formula results. Summary replies apply only to the current document revision; pending edits use the committed cells for scale analysis. Storage failure preserves analysis; an actual worker failure removes automatic bars until reopening, while fixed bars and editing remain available. No derived scale or geometry is persisted.
 
-A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus required `positive` and `negative` text-colour tokens (the dialog proposes `acc` and `alert`). Fixed finite bounds must satisfy `min <= 0 <= max` and `min < max`. Automatic bounds include zero and ignore text/booleans/blanks/errors/missing results. Numbers and dates, including saved formula results, supply full-precision values. Positive/negative bars share a zero axis; fixed-range overflow clips visually; constant nonzero data fills its side, and all-zero data produces zero width. Scale summaries are derived, not another saved source of cell values. Core definitions currently precede browser rendering/authoring under T14.
+A data bar adds `scale:{kind:"auto"}` or `scale:{kind:"fixed",min,max}`, plus required `positive` and `negative` text-colour tokens (the dialog proposes `acc` and `alert`). Fixed finite bounds must satisfy `min <= 0 <= max` and `min < max`. Automatic bounds include zero and ignore text/booleans/blanks/errors/missing results. Numbers and dates, including saved formula results, supply full-precision values. Positive/negative bars share a zero axis; fixed-range overflow clips visually; constant nonzero data fills its side, and all-zero data produces zero width. Scale summaries are derived, not another saved source of cell values.
 
 ## Pivot tables
 
@@ -239,7 +240,7 @@ Optional `pivots` holds at most 50 definitions ([ADR-014](https://github.com/apa
 
 ## Charts
 
-Optional `charts` holds at most 50 charts (T18, [ADR-013](https://github.com/apatrem/html-office/blob/main/docs/decisions/013-cross-product-clipboard.md) §4). A chart stores the chart-level options of the shared Slides chart contract (`packages/shared/charts/`) plus one binding:
+Optional `charts` holds at most 50 charts ([ADR-013](https://github.com/apatrem/html-office/blob/main/docs/decisions/013-cross-product-clipboard.md) §4). A chart stores the chart-level options of the shared Slides chart contract (`packages/shared/charts/`) plus one binding:
 
 ```json
 {
@@ -270,7 +271,7 @@ Optional `charts` holds at most 50 charts (T18, [ADR-013](https://github.com/apa
 
 ## Imported sources
 
-Optional `sources` holds at most 100 descriptions of imported files (T15). The imported values are ordinary cells of a `table` sheet; a source only says where they came from, so the file reopens and stays editable without the original file or its path.
+Optional `sources` holds at most 100 descriptions of imported files. The imported values are ordinary cells of a `table` sheet; a source only says where they came from, so the file reopens and stays editable without the original file or its path.
 
 ```json
 {
@@ -287,7 +288,7 @@ Optional `sources` holds at most 100 descriptions of imported files (T15). The i
 
 - **File.** `name` is the file name only, never a path (browsers do not give one). `bytes`, the optional `modified` time and `sha256` of the bytes identify the version that was read.
 - **Kind.** `csv` or `xlsx`. An `xlsx` source is one worksheet of the file: `options` is `{"sheet": "<its name in the file>", "header": true|false}` and every column type is `auto`.
-- **Options.** How a CSV file was read: `encoding` (`utf-8`, `windows-1252`, `macintosh`, `iso-8859-15`, `utf-16le`, `utf-16be`), `delimiter` (`,` `;` tab `|`), whether the first row held column names, the decimal separator (`point` or `comma`) and the date order (`dmy` or `mdy`; ISO dates read the same in both). A refresh (T16) reads a replacement file the same way.
+- **Options.** How a CSV file was read: `encoding` (`utf-8`, `windows-1252`, `macintosh`, `iso-8859-15`, `utf-16le`, `utf-16be`), `delimiter` (`,` `;` tab `|`), whether the first row held column names, the decimal separator (`point` or `comma`) and the date order (`dmy` or `mdy`; ISO dates read the same in both). A refresh reads a replacement file the same way.
 - **Columns.** One entry per source column, left to right: the header text (or the column letter without a header row), the type the person chose (`auto`, `text`, `number`, `date`, `boolean`), and a SHA-256 `fingerprint` of the column's typed inputs at import, header included. A refresh compares fingerprints to tell which columns were edited by hand since.
 - **Range.** `ref` shifts and shrinks with row and column operations like a dropdown source; a deleted range becomes `"#REF!"`. A column inserted inside the range is recorded in `columns` as `{"inserted": true}` (the person's own column, which a refresh leaves alone); a deleted column leaves the list.
 
@@ -308,7 +309,7 @@ Reading an XLSX workbook (Data › Import XLSX…, ADR-015):
 - Formulas are imported and recalculated by IronCalc. A formula Data cannot run is imported as the value the file saved, with the reason counted: another workbook (external link), an Excel table reference, a range across sheets, a sheet not imported, an array formula, or a named range the file defines that is not imported (it must not read a workbook name of the same name). Such a formula without a saved value is left empty, and that is named separately. In a 1904 workbook, a formula showing a date keeps the (converted) date it saved, since its date arithmetic counts from 1904. Names follow Excel's scopes: a name local to a sheet blocks only formulas on that sheet (or qualified with it). After the import, formulas whose recalculated result differs from the file's saved value (a function or name Data lacks) are reported with an example.
 - Not imported, and named before anything changes: macros (never run), data connections and queries (never run), ActiveX controls, links to other workbooks, pivot tables (their saved cells are imported), charts, pictures, embedded objects, slicers, comments, hyperlinks, merged ranges, conditional formats, data validation, sheet protection, fonts, colours, borders, widths and heights.
 
-Refreshing a source (Data › Refresh source…, T16):
+Refreshing a source (Data › Refresh source…):
 
 - The person picks a replacement file for the source of the current sheet; there is no live link, and the workbook never needs the original file. The file is read like the source was (saved options and column types by name), and the options can be changed in the dialog.
 - Columns match by header text (by position without a header row). An existing column the new file lacks blocks the refresh until the person chooses: take another column of the new file (a rename), clear the column, or keep its current values. Columns of the new file nobody takes are added on the right. Existing columns keep their positions, so formulas reading them by position stay right. A column cleared by a refresh is recorded with an empty name and stays cleared.

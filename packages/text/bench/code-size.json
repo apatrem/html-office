@@ -1,12 +1,12 @@
 {
   "ceiling": 600000,
   "document": "fixtures/valid/example.html",
-  "applicationCode": 579723,
-  "headroom": 20277,
-  "engineGzip": 189782,
+  "applicationCode": 582047,
+  "headroom": 17953,
+  "engineGzip": 190634,
   "file": {
-    "total": 585203,
-    "engine": 568328,
+    "total": 587527,
+    "engine": 570652,
     "content": 5092,
     "assets": 186
   },
@@ -48,7 +48,7 @@
     },
     {
       "component": "prosemirror-history 1.5.1",
-      "bytes": 9235,
+      "bytes": 9277,
       "share": 1.5
     },
     {
@@ -63,42 +63,42 @@
     },
     {
       "component": "Editor UI: shell, saving, print, figures, comments",
-      "bytes": 75976,
-      "share": 12.7
+      "bytes": 77070,
+      "share": 12.8
     },
     {
       "component": "Editing: commands, numbering, footnotes, tables, figures, comments, Markdown projection",
-      "bytes": 55097,
+      "bytes": 55112,
       "share": 9.2
     },
     {
       "component": "Text model: HTML tree, file layout, validator",
-      "bytes": 28020,
+      "bytes": 28107,
       "share": 4.7
     },
     {
       "component": "Paste mapping and Markdown import",
-      "bytes": 23156,
+      "bytes": 23205,
       "share": 3.9
     },
     {
       "component": "Shared: charts",
-      "bytes": 21942,
+      "bytes": 22004,
       "share": 3.7
     },
     {
       "component": "Schema, parser, serialiser, editing guard",
-      "bytes": 18329,
-      "share": 3.1
+      "bytes": 18939,
+      "share": 3.2
+    },
+    {
+      "component": "Shared: clipboard",
+      "bytes": 16955,
+      "share": 2.8
     },
     {
       "component": "CSS: shell, panels and editor styles",
       "bytes": 16669,
-      "share": 2.8
-    },
-    {
-      "component": "Shared: clipboard",
-      "bytes": 16590,
       "share": 2.8
     },
     {

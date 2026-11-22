@@ -125,3 +125,23 @@ test("one sign policy: accounting parentheses by default, explicit minus, unsign
   );
   assert.equal(display(accounting(-0)), "$0.00");
 });
+test("unformatted numbers show 15 significant digits in the locale's own decimal mark", () => {
+  const general = (value, locale) => display(number(value), locale);
+  assert.equal(general(0.1 + 0.2), "0.3");
+  assert.equal(general(0.30000000000000004, "fr-FR"), "0,3");
+  assert.equal(general(1234.5, "fr-FR"), "1234,5");
+  assert.equal(general(1 / 3), "0.333333333333333");
+  assert.equal(general(-0.5, "de-DE"), "-0,5");
+  assert.equal(general(2500), "2500");
+  assert.equal(general(1e21), "1e+21");
+  assert.equal(general(123456789012345.6), "123456789012346");
+  // The cell keeps what it was given.
+  const cell = number(0.30000000000000004);
+  display(cell);
+  assert.equal(cell.input.value, 0.30000000000000004);
+});
+test("unformatted numbers at the edge of the double range stay finite", () => {
+  assert.equal(display(number(Number.MAX_VALUE)), "1.79769313486232e+308");
+  assert.equal(display(number(-Number.MAX_VALUE)), "-1.79769313486232e+308");
+  assert.equal(display(number(Number.MIN_VALUE)), "5e-324");
+});

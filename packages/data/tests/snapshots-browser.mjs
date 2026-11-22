@@ -66,6 +66,19 @@ try {
         { exact: true },
       )
       .waitFor();
+    // The stale line offers Recalculate itself; it goes with the message.
+    await page.locator("#status-recalculate").waitFor();
+    if (mode === "missing-result") {
+      await page.locator("#status-recalculate").click();
+      await page
+        .getByText("Calculated locally. Unsaved changes.", { exact: true })
+        .waitFor();
+      assert.equal(
+        await page.locator("#status-recalculate").isHidden(),
+        true,
+        "hidden once the message is replaced",
+      );
+    }
     await page.getByLabel("Cell value").fill("987654");
     await command(page, "Recalculate");
     await page
@@ -93,6 +106,64 @@ try {
     await page.close();
     console.log(
       `PASS snapshots: ${mode}, explicit recalc preserves attempted form input and saves precise results`,
+    );
+  }
+  {
+    // Review defect 6: results that use TODAY() and were saved on an earlier
+    // day are current by fingerprint but not by the clock; the editor says so.
+    const book = structuredClone(source);
+    book.sheets[1].cells.B4 = { formula: "=TODAY()" };
+    const built = await buildWorkbook(book, { offline: true }),
+      parsed = readHTML(built),
+      old = parsed.book;
+    old.sheets[1].cells.B4.result = { type: "number", value: 43831 };
+    old.snapshot.calculatedAt = "2020-01-01T12:00:00.000Z";
+    const file = resolve(out, "snapshot-volatile.html");
+    await writeFile(file, replaceHTML(built, parsed, old));
+    const page = await browser.newPage(),
+      errors = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(pathToFileURL(file).href);
+    await page
+      .locator("#status")
+      .filter({
+        hasText:
+          /^Saved results are current, but TODAY\(\) shows the value calculated on Jan 1, 2020\./,
+      })
+      .waitFor();
+    assert.equal(
+      await page.locator("#calc-state").textContent(),
+      "Results dated",
+    );
+    await page.locator("#status-recalculate").click();
+    await page
+      .getByText("Calculated locally. Unsaved changes.", { exact: true })
+      .waitFor();
+    assert.equal(await page.locator("#calc-state").textContent(), "Calculated");
+    const download = page.waitForEvent("download");
+    await command(page, "Save a copy");
+    const saved = resolve(out, "snapshot-volatile-saved.html");
+    await (await download).saveAs(saved);
+    const fresh = readHTML(await readFile(saved, "utf8")).book;
+    // Today's date in the browser's own time zone, as a serial number.
+    const today = await page.evaluate(() => {
+      const d = new Date();
+      return Math.round(
+        (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
+          Date.UTC(1899, 11, 30)) /
+          86400000,
+      );
+    });
+    assert.equal(fresh.sheets[1].cells.B4.result.value, today);
+    // Reopened the same day, the saved results are simply current.
+    await page.goto(pathToFileURL(saved).href);
+    await page
+      .getByText("Saved results are current.", { exact: true })
+      .waitFor();
+    assert.deepEqual(errors, []);
+    await page.close();
+    console.log(
+      "PASS snapshots: volatile results from an earlier day are marked, recalculated with the local date",
     );
   }
   const file = resolve(out, "snapshot-late-startup.html");

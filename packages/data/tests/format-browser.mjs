@@ -79,7 +79,8 @@ try {
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   assert.equal(
     await page.locator('[data-cell="C2"]').textContent(),
-    "-1234.56789",
+    // General shows the workbook locale's decimal mark.
+    "-1234,56789",
   );
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   assert.match(

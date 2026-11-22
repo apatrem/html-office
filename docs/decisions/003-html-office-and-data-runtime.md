@@ -1,6 +1,6 @@
 # ADR-003 — HTML Office and the Data runtime
 
-Status: accepted product direction on 15 October 2026; IronCalc selection is provisional pending the gates in the [implementation plan](../HTML-DATA-PLAN.md). An experimental Phase A prototype exists; the complete Data product is not implemented.
+Status: accepted product direction on 15 October 2026; IronCalc is the engine in use, pinned and patched ([ADR-006](006-formula-compatibility-patches.md)). Implemented: Data T01–T21 are merged ([implementation plan](../HTML-DATA-PLAN.md)); the blind test (T22) remains.
 
 ## Context
 

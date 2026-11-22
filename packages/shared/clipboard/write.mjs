@@ -187,12 +187,17 @@ export function figureHTML({ envelope, png, caption }) {
   );
 }
 
+// Other content for other applications (a slide, V1-01): simple HTML inside one
+// rendered element that carries the envelope.
+export const sectionHTML = ({ envelope, body }) =>
+  `<html><head><meta charset="utf-8"></head><body><section ${ATTRIBUTE}="${escapeAttribute(envelope)}">${body}</section>`;
+
 // Writes every flavour from one synchronous copy event. text/html is left out
 // above its limits (a figure first loses its picture); the envelope and
 // text/plain cannot be, so the copy fails.
 export function writeClipboard(
   data,
-  { envelope, table, figure, text, stringify, html: options },
+  { envelope, table, figure, section, text, stringify, html: options },
 ) {
   const json = encodeEnvelope(envelope, stringify);
   if (text.length > LIMITS.text)
@@ -205,6 +210,9 @@ export function writeClipboard(
     html = figureHTML({ ...figure, envelope: json });
     if (html.length > LIMITS.html)
       html = figureHTML({ ...figure, png: null, envelope: json });
+    if (html.length > LIMITS.html) html = null;
+  } else if (section !== undefined) {
+    html = sectionHTML({ envelope: json, body: section });
     if (html.length > LIMITS.html) html = null;
   } else if (table && cells <= LIMITS.htmlCells) {
     html = tableHTML(table, { ...options, envelope: json });

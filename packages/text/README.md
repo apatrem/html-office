@@ -1,6 +1,6 @@
 # html-text
 
-The html-office alternative to Word, in progress: [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). The html-text skill ([`plugin/skills/html-text/`](../../plugin/skills/html-text/SKILL.md), T18) ships in the html-slides plugin beside html-slides and html-data.
+The html-office alternative to Word, built and awaiting its blind test ([status](../../docs/STATUS.md)): [specification](../../docs/HTML-TEXT-V1.md), [plan](../../docs/HTML-TEXT-PLAN.md), [ADR-004](../../docs/decisions/004-html-text-format-and-editor.md). The html-text skill ([`plugin/skills/html-text/`](../../plugin/skills/html-text/SKILL.md), T18) is generated here and joins the plugin archive, which today holds html-slides only ([`plugin/README.md`](../../plugin/README.md)), after the blind test ([protocol](../../docs/blind-tests/TEXT-T20.md)).
 
 | Path | Contents |
 | --- | --- |
@@ -19,7 +19,8 @@ The html-office alternative to Word, in progress: [specification](../../docs/HTM
 | `theme/` | Default look (T04): `layout.css` is the default `style#theme` (page format, margins, type scale, blocks, tables); `index.mjs` gives it and the default charte to tools and tests |
 | `tools/build.mjs` | `node tools/build.mjs <document.html> [<output.html>] [--json]`: builds the editor with its notices into `script#engine` and reports bytes by zone |
 | `tools/check.mjs` | `node tools/check.mjs <document.html> [--section <id>] [--json]`; also reports a valid document that is not in canonical form, names each finding's section and what it checked (IDs, cross-references, assets, comment anchors) |
-| `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form and lists changed lines |
+| `tools/pack.mjs` | `node tools/pack.mjs <document.html> [<output.html>]`: rewrites into canonical form, with labels and contents current, and lists changed lines |
+| `tools/cli.mjs` | What the command lines share: `isMain()` (run as the main script, also from a path with spaces or through a link) and `writeWhole()` (a new file renamed over the destination) |
 | `tools/markdown.mjs` | `node tools/markdown.mjs <document.html> [<output.md>]`: the Markdown export, as the editor writes it (T15) |
 | `tools/sections.mjs` | Section tooling (T16): `outline`, `show <id>` and `replace <id> <file>` (FORMAT.md › Section tools); `model/sections.mjs` finds the sections in a source |
 | `tools/document.mjs` | The html-text skill's command line (T18): `new`, `pack`, `add-image`, `convert` and `show --markdown` (FORMAT.md › Document tools), with `outline`, `show`, `replace`, `check` and `markdown`. `convert.mjs` (Markdown with block placeholders to the subset), `section-markdown.mjs` (a section as editable Markdown), `previews.mjs` (chart previews drawn in Node), `guide.mjs` (the embedded guide), `node-dom.mjs` (the small DOM they need in Node) |

@@ -114,6 +114,7 @@ export function createGrid(
     busy,
     onSelect,
     onEdit,
+    onClear,
     onCommand,
     decorateCell,
     // F03 hooks: intercept(event) handles a key first; onSelectEnd(event,
@@ -635,6 +636,13 @@ export function createGrid(
     } else if (event.key === "F2") {
       event.preventDefault();
       onEdit();
+    } else if (
+      (event.key === "Delete" || event.key === "Backspace") &&
+      !command &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      onClear?.();
     } else if (!command && !event.altKey && event.key.length === 1) {
       event.preventDefault();
       onEdit(event.key);

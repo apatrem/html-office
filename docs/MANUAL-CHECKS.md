@@ -2,7 +2,13 @@
 
 Checks that the automated suites cannot settle: real browsers on a real desktop, other applications (Excel, Google Sheets, Word, Google Docs), file pickers, print previews, and how things look. CI runs Chromium, plus Firefox and WebKit for the clipboard and Text engine jobs. It never runs desktop Safari, Edge, a native file dialog or another office application.
 
-Use the three files in `dist/latest/`, rebuilt from `main`:
+Use the three files in `dist/latest/`, built from the checkout under test (`dist/` is not tracked). After `npm ci` and `npm ci --prefix packages/data --ignore-scripts` and `npm ci --prefix packages/text --ignore-scripts`:
+
+```bash
+bash tools/manual-check-files.sh
+```
+
+It builds the Text example (`packages/text/fixtures/valid/example.html`) and the Data P&L fixture (`packages/data/fixtures/pnl.json`), both as offline builds, and copies the committed Slides catalogue:
 
 | File | Product |
 | --- | --- |
@@ -113,6 +119,17 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 - Narrow window: the menus fold into ☰, and the grid stays usable.
 - Safari and Firefox: open, edit, recalculate, and Save a copy.
 
+### 2.6 Formulas, ranges, typing, clearing and the clock (review fixes)
+
+Run this on a copy of `data-pnl.html`, in Chrome, then Safari and Firefox for steps 3 to 5.
+
+1. **Formulas the engine would half read.** In an empty cell type `=SUM(B2:B3))+5`, then `=B2*1,2`, then `=10 000*2`, each followed by Enter. Each is refused: the status line names the position (`Unexpected ")" at position …`), says to write the number with `.`, or says numbers cannot contain spaces. The cell is unchanged, and Escape restores the formula bar.
+2. **Deleting the end of a range.** In an empty area type `=SUM(B2:B4)` in one cell. Select row 4 (click its header) and use Edit › Delete rows: the formula reads `=SUM(B2:B3)` and shows a number, not `#REF!` or `#VALUE!`. Undo restores `=SUM(B2:B4)`; Redo shrinks it again. Repeat with a formula over a row range and Edit › Delete columns, and with a range on another sheet.
+3. **Typing into an empty cell.** Press F2, or double-click, on empty cells and type `42`, `50%`, `3 apples`, `2026-03-04` and `=B2*2`: a number, 50% shown as a percent, text, a date shown as a date, and a formula with its result. Typing `0x10` gives text. Then regional settings › `fr-FR` (File › Regional settings…): `1,5` is the number 1,5 (the formula bar shows `1,5` again when you return to the cell) and `04/03/2026` is 4 March 2026.
+4. **Clearing.** Select a block with formatted cells (the P&L header and a few figures), press Delete (Backspace on a Mac keyboard works too): contents go, while fills, borders and number formats stay; one Undo brings everything back, one Redo clears again. Do the same with Edit › Clear contents and from the cell's right-click menu. A formula that read a cleared cell recalculates without `#VALUE!`. In the formula bar, empty a text cell and a number cell and press Enter: both clear.
+5. **Dates and the clock.** With the computer's time zone set well away from UTC, in the evening or early morning there (for example Pacific/Auckland or America/Los_Angeles), enter `=TODAY()` and `=NOW()`: they show the local date and time. Open a copy that was saved on an earlier day with these functions: the status line says the results are current but `TODAY()` shows the value of that day, the chip reads "Results dated", and Recalculate (in the status line) refreshes them.
+6. **Plain numbers.** Enter `=0.1+0.2`: the cell shows 0.3. In `fr-FR`, `=1/3` shows `0,333333333333333`; the formula bar shows the number with a comma.
+
 ## 3. Slides (`slides-catalogue.html`)
 
 1. **Shell (U04)**
@@ -128,6 +145,17 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 4. **Table column widths**: Insert › Table, then Table › Column width… with the caret in the first column: 50. The column takes half the table's width at once (Chrome, Safari and Firefox). Undo removes it. Distribute columns evenly gives equal columns; Insert column right and Delete column keep the others' widths. Resize the table's frame: the columns keep their proportions. Copy the table and paste it on another slide, and into `text-example.html`: the widths come with it. Save and reopen: the widths are kept.
 5. **Drag a column border** (mouse, then a trackpad): hovering the border between two columns shows the resize cursor. Drag it to the right: only the column on its left widens and the table's frame widens by as much; the slide is detached, as when resizing. Keep dragging: the frame stops at the slide's right edge. One Undo reverts the drag and the detachment; Escape during a drag cancels it. A click on a border selects nothing and changes nothing.
 
+6. **Copy and paste a whole slide (V1-01)**: open two copies of `slides-catalogue.html` in two tabs and give them different themes (Theme & font). In the first, click a thumbnail and press ⌘C / Ctrl+C; in the second, click a thumbnail and press ⌘V / Ctrl+V. Do it in **Chrome**, **Safari** and **Firefox**, then from Chrome to Safari and from Safari to Chrome (only the HTML carrier works there).
+   - The slide appears after the clicked slide and is the current one. Its colours, fonts, footer text and page number are the destination's; a chart is redrawn in the destination's colours.
+   - Text, shapes, tables, images and speaker notes are there and editable; a detached slide keeps its positions. One Undo removes the slide; Redo brings it back with its image.
+   - Slide › Copy slide and the Copy slide button on a thumbnail copy the same slide. Slide › Paste slide pastes it in Chrome and, after the browser's Paste prompt, in Safari and Firefox; where the browser refuses, the notice asks for ⌘V / Ctrl+V.
+   - A slide with an image: save the destination, close it and reopen it with the network off. The image and the chart are shown.
+   - Paste a slide whose text is long into a deck with a larger body font (Georgia): the notice counts the elements that no longer fit and selects them; nothing is cut.
+   - A deck without charts, network off: paste a slide that has a chart. The chart shows a "Preview" badge in the source's colours; with the network back it is redrawn in the deck's colours.
+   - With a table or chart selected, ⌘C / Ctrl+C still copies that element; while typing, it copies the selected text.
+   - Paste the copied slide into Word, Google Docs and a plain text editor: the title, text, lists and tables arrive as an outline; there is no picture and no speaker note. Paste it into `text-example.html`: the same outline, in the document's styles. Paste it into `data-pnl.html`: refused with a message, workbook unchanged.
+   - Paste it into a deck that still has the 0.7.2 editor (for example the example deck of the released plugin): refused with a notice, deck unchanged.
+
 ## 4. All three products
 
 1. **Third-party notices (L01)**: Help › Third-party notices opens collapsed, readable text, with no external link, in each product.
@@ -140,7 +168,7 @@ If Excel or Sheets shows a wrong value in step 1 or 2, note the cell and value i
 Merged in [#70](https://github.com/apatrem/html-office/pull/70) and [#71](https://github.com/apatrem/html-office/pull/71).
 
 - Copy a table between Slides and Data, both ways, in Chrome and Safari.
-- Copy a Slides chart into Data and into another deck.
+- Copy a Slides chart into another deck. (Pasting a chart into Data is not built: X02d.)
 - Paste a Slides table and a Slides chart into Word, Google Docs, Excel and Google Sheets.
 
 ## 6. Text, from T07
@@ -359,6 +387,17 @@ Use `text-example.html`, in Chrome, then Safari and Firefox. Put the caret in th
 8. **Drag a column border** (mouse, then a trackpad): hovering a border between two columns shows the resize cursor. Drag the border between *Region* and *2025* to the left: only *Region* narrows, the other columns keep their widths, and the table narrows by as much. Drag it back to the right: the table widens until it reaches the text column, then the border stops. One Undo reverts each drag; Escape during a drag cancels it.
 9. **Centred and right-aligned**: set 60 % and Centre, drag a border: it follows the pointer and the table stays centred. Set Right: borders change the column to their right, and the table's left edge can be dragged.
 10. **Then save and reopen**: the widths after dragging are kept; Table › Column width… shows the dragged column's new percentage.
+
+### Project review fixes (November 2026)
+
+Use copies of `text-example.html`, in Chrome, then Safari and Firefox where a step says so.
+
+1. **Non-canonical file**: in a text editor, change `<h1 class="new-page" id="sec-plan">` to `<h1 id="sec-plan" class="new-page">` and wrap one cover line over two lines. Open the file: it edits normally, and the state line says "Not in canonical form: Save asks before rewriting it". Type a word, then File › Save: the dialog *Rewrite this file in canonical form?* opens, with Cancel focused. Escape or Cancel: the status says "Save cancelled", and the file on disk is unchanged. Save again and choose **Rewrite and save**: the native picker opens on the file; after saving, the state line no longer mentions canonical form, the file's attributes are back in canonical order, and later saves go straight to the file. In Safari and Firefox, Save a copy downloads the canonical file with no question.
+2. **Stale labels open clean**: in a text editor, change `>Figure 1</a>` to `>Figure 7</a>`. Open the file: the reference reads *Figure 1*, the status says "No unsaved changes", and closing the tab does not warn. Reopen it: no "Recover unsaved changes?" dialog.
+3. **Select all keeps comments**: open the Comments panel, then Ctrl/Cmd+A in the document and type a letter: every thread is still listed, marked *Orphaned*. Undo brings back the text and the anchors. Repeat with Backspace and with a paste.
+4. **Copy above the original**: select the *2027 plan* heading, copy, put the caret at the start of the document's first paragraph and paste: the pasted heading gets a new ID, and the cross-references to *2027 plan* still scroll to the original. Save and look at the HTML: the original keeps `id="sec-plan"`.
+5. **Code from an editor**: copy a few indented lines with a blank line and a tab from VS Code (or another code editor) and paste into the example's code block: indentation, the tab and the blank line are kept. Edit › Paste as plain text does the same. Tab inside the code block inserts a tab.
+6. **Paths with spaces**: copy the skill to a folder whose name has a space and an accent (`~/Documents/Mes outils é/`), then `node ".../tools/document.mjs" check file.html` and `pack file.html --out packed.html`: both print their report and write the file.
 
 ## 7. Data, from T15
 

@@ -8,6 +8,7 @@ html-office produces single-file HTML documents that carry their content, a brow
 
 ## Before starting a task
 
+- Current state per product (released, merged, open, next step): [docs/STATUS.md](docs/STATUS.md). Update it in a PR that changes any of these, and fix a status sentence that contradicts `main`.
 - Several sessions and worktrees work on this repository at the same time. Run `gh pr list --state open` and `git branch -r` and look for the task ID (F01, T15, …) first. If a PR or branch already covers it, extend or review that work instead of starting again.
 - Branch from an up-to-date `main`; never commit to `main` directly.
 

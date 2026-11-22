@@ -7,10 +7,8 @@
 // replace swaps that slice for the given HTML: everything outside it stays byte for byte as it
 // was, and the result must pass check.mjs. Anything else is refused and nothing is written.
 // Exit code 1 on a refusal or an unknown ID, 2 on a usage error.
-import { realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { readFile, writeFile, rename, rm } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { isMain, writeWhole } from "./cli.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { sectionsOf, articleOf } from "../model/sections.mjs";
 import { canonicalize } from "../editor/schema/document.mjs";
@@ -34,7 +32,7 @@ export function outline(source, { report, numbers: wanted = true } = {}) {
   const found = sectionsOf(article);
   if (!found)
     throw new SectionError(
-      "The article holds markup the HTML parser repaired (such as a stray </p> or a missing </article>): run check.mjs and pack.mjs",
+      "The article holds markup the HTML parser repaired (such as a stray </p> or a missing </article>): run check, then pack",
     );
   const { blocks, sections } = found;
   report ??= checkSource(source);
@@ -92,13 +90,13 @@ export function replace(source, id, html) {
   const before = outline(source, { numbers: false });
   if (!before.report.ok)
     throw new SectionError(
-      "The document has errors: run check.mjs",
+      "The document has errors: run check",
       before.report.errors,
     );
   const odd = before.report.warnings.find((w) => w.code === "not-canonical");
   if (odd)
     throw new SectionError(
-      `The document is not in canonical form at line ${odd.line}: run pack.mjs first`,
+      `The document is not in canonical form at line ${odd.line}: run pack first`,
     );
   const target = find(before.sections, id);
   if (!html.trim()) throw new SectionError("The replacement is empty");
@@ -210,14 +208,6 @@ function printOutline({ sections }) {
   return lines.join("\n");
 }
 
-// Run as a command, also through a symbolic link or a path with escaped characters.
-const main = () => {
-  try {
-    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
-  } catch {
-    return false; // standard input, or no script at all
-  }
-};
 // The command line, also run by document.mjs (T18). Returns the exit code.
 export async function run(argv) {
   const args = [...argv];
@@ -270,17 +260,8 @@ export async function run(argv) {
       )
         throw new SectionError("The file would change outside the section");
       const out = target ?? path;
-      // Written to a new file of its own next to the destination (never an existing one, never
-      // through a link), then renamed over it: never a half-written file.
-      const temporary = `${out}.${randomBytes(6).toString("hex")}.tmp`;
-      await writeFile(temporary, written, { flag: "wx" });
-      try {
-        await rename(temporary, out);
-      } catch (error) {
-        // Only the file this run created is removed.
-        await rm(temporary, { force: true });
-        throw error;
-      }
+      // Never a half-written file (cli.mjs).
+      await writeWhole(out, written);
       const lines = (a, b) => `${lineOf(source, a)}–${lineOf(source, b) - 1}`;
       console.log(
         `Replaced section "${id}" (lines ${lines(result.start, result.end)}, now ${lineOf(result.output, result.start)}–${lineOf(result.output, result.start + result.length) - 1})${result.normalised ? ", rewritten into canonical form" : ""}; everything else is unchanged. Wrote ${out}.`,
@@ -300,4 +281,5 @@ export async function run(argv) {
   return 0;
 }
 
-if (main()) process.exitCode = await run(process.argv.slice(2));
+if (isMain(import.meta.url))
+  process.exitCode = await run(process.argv.slice(2));
