@@ -32,6 +32,7 @@ import { FORMAT_VERSION } from "../model/format.mjs";
 import {
   fromHTML,
   textBlocks,
+  codeText,
   inlineLines,
   describeLost,
   placeholder,
@@ -119,11 +120,12 @@ function imageFiles(data) {
 
 // images: whether images whose data is in the clipboard become placeholder figures (T12b), listed
 // in `images` for the runtime to resolve; image files are read when the HTML gives no content of
-// its own (a screenshot, a picture whose HTML only links it), before plain text.
+// its own (a screenshot, a picture whose HTML only links it), before plain text. code: the paste
+// lands in code, which takes the plain text as written (`code`) whenever there is one.
 export function readTransfer(
   data,
   doc,
-  { plain = false, images = false } = {},
+  { plain = false, images = false, code = false } = {},
 ) {
   const types = Array.from(data.types ?? []),
     get = (type) => (types.includes(type) ? data.getData(type) : ""),
@@ -137,6 +139,8 @@ export function readTransfer(
       throw new ClipboardError("the clipboard text is too large");
     return value;
   };
+  if (code && types.includes("text/plain"))
+    return { blocks: [], code: codeText(text()), lost: none, notices };
   let files = null;
   if (!plain) {
     let envelope = null;
@@ -201,16 +205,19 @@ export function readTransfer(
 }
 
 // The blocks as a slice for the selection: blocks in the document's body, quotes, callouts and
-// lists; lines in a textblock that holds one paragraph; text in code.
-function sliceFor($from, blocks, plain) {
-  if (!blocks.length) return Slice.empty;
+// lists; lines in a textblock that holds one paragraph; text in code (`code`, the plain text as
+// written, when there is one).
+function sliceFor($from, blocks, plain, code) {
   const parent = $from.parent;
   if (parent.type.spec.code) {
-    const text = blocks
-      .map((b) => b.textBetween(0, b.content.size, "\n", "\n"))
-      .join("\n");
+    const text =
+      code ??
+      blocks
+        .map((b) => b.textBetween(0, b.content.size, "\n", "\n"))
+        .join("\n");
     return new Slice(Fragment.from(text ? schema.text(text) : []), 0, 0);
   }
+  if (!blocks.length) return Slice.empty;
   // Plain text takes the marks where it lands, as typing does, but not a link or a comment
   // anchor (the pasted text was not commented).
   const marks = plain ? $from.marks() : null;
@@ -524,6 +531,7 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
       point === null ? tr.selection.$from : tr.doc.resolve(point),
       read.blocks,
       read.plain,
+      read.code,
     );
     if (!slice.size) {
       const message = describeLost(read.lost);
@@ -857,7 +865,11 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
       attempt(view, () =>
         deliver(
           view,
-          readTransfer(data, view.state.doc, { plain, images: !plain }),
+          readTransfer(data, view.state.doc, {
+            plain,
+            images: !plain,
+            code: !!parent.spec.code,
+          }),
         ),
       );
       return true;
@@ -931,6 +943,7 @@ export function setupClipboard(notify, { internal, chart, assets } = {}) {
         throw new ClipboardError("the clipboard text is too large");
       insert(view, {
         blocks: textBlocks(text),
+        code: codeText(text),
         lost: new Map(),
         notices: [],
         plain: true,
