@@ -419,6 +419,14 @@ export async function addImage(args, log = console.log) {
   const store = assetStore(file);
   const key = store.add({ type, data: bytes.toString("base64") });
   const all = old ? JSON.parse(old.children.map((c) => c.value).join("")) : {};
+  // The same picture is stored once: its key is printed, and nothing is written.
+  if (Object.hasOwn(all, key)) {
+    log(key);
+    log(
+      `${image} is already in the file as asset "${key}"; refer to it as "asset": "${key}" in a payload. Nothing was written.`,
+    );
+    return;
+  }
   all[key] = { type, data: bytes.toString("base64") };
   const json = JSON.stringify(all).replace(/</g, "\\u003c");
   const line = `<script id="assets" type="application/json">${json}</script>`;

@@ -91,6 +91,13 @@ export async function score(kit, { only } = {}) {
   return results;
 }
 
+// Generated content (cross-reference labels, contents entries) follows the numbering of the
+// whole document, which pack rewrites: whether a section is kept is judged without it.
+export const withoutGenerated = (html) =>
+  html
+    .replace(/(<a class="xref" href="[^"]*">)[^<]*(<\/a>)/g, "$1$2")
+    .replace(/(<nav class="toc"[^>]*>)[\s\S]*?(<\/nav>)/g, "$1$2");
+
 const firstLine = (r) => (r.stderr || r.stdout).trim().split("\n")[0];
 const label = (c) =>
   [c.kind, c.section, c.id ?? c.target ?? c.thread ?? c.what]
@@ -278,7 +285,11 @@ export const CHECKS = {
     const changed = [];
     for (const [key, value] of a) {
       if (!b.has(key)) changed.push(`${key} removed`);
-      else if (b.get(key) !== value && !allowed.has(key)) changed.push(key);
+      else if (
+        withoutGenerated(b.get(key)) !== withoutGenerated(value) &&
+        !allowed.has(key)
+      )
+        changed.push(key);
     }
     for (const key of b.keys()) if (!a.has(key)) changed.push(`${key} added`);
     // The same sections in the same order, at the same levels and under the same parents.
@@ -309,7 +320,7 @@ export const CHECKS = {
     const [a, b] = [await load(before), await load(file)];
     const changed = check.sections.filter((id) => {
       try {
-        return own(a, id) !== own(b, id);
+        return withoutGenerated(own(a, id)) !== withoutGenerated(own(b, id));
       } catch {
         return true;
       }

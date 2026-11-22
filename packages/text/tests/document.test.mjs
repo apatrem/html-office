@@ -72,6 +72,15 @@ const NEW_ARGS = [
   "--numbers",
 ];
 const created = run("new", REPORT, ...NEW_ARGS);
+// A picture the report does not hold yet (a 1 × 1 grey PNG).
+const GREY = join(dir, "grey.png");
+await writeFile(
+  GREY,
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGNoAAAAggCBd81ytgAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
 const report = await readFile(REPORT, "utf8");
 
 test("new: a valid, canonical, current document from Markdown and payloads", async () => {
@@ -276,7 +285,12 @@ test("pack: draws a missing chart preview, --redraw draws every one", async () =
 test("add-image: one asset more, every other byte unchanged", async () => {
   const file = join(dir, "with-image.html");
   await writeFile(file, report);
-  const r = run("add-image", file, join(EXAMPLES, "valid/site.png"));
+  // The report's own picture is already there: its key, and nothing written.
+  const same = run("add-image", file, join(EXAMPLES, "valid/site.png"));
+  assert.equal(same.status, 0, same.stderr);
+  assert.match(same.stdout, /^a1\n.*already in the file as asset "a1"/);
+  assert.equal(await readFile(file, "utf8"), report);
+  const r = run("add-image", file, GREY);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /^a2\n/);
   const html = await readFile(file, "utf8");
@@ -833,7 +847,7 @@ test("pack, pack.mjs, add-image and new --force replace the file by renaming", a
           encoding: "utf8",
         }),
     ],
-    ["add-image", (f) => run("add-image", f, join(EXAMPLES, "valid/site.png"))],
+    ["add-image", (f) => run("add-image", f, GREY)],
     ["new --force", (f) => run("new", f, "--force", "--title", "Other")],
   ];
   for (const [name, command] of cases) {
