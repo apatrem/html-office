@@ -51,15 +51,20 @@ function boot() {
 
   const serialize = written => M.serialize(() => C.refreshCaches(main), written);
 
-  // The file Save writes: the opened one (remembered between openings), or a new one.
+  // The file Save writes: the opened one (remembered between openings), or a new one. After a
+  // draft of another version of the file is restored, Save never writes over that newer file: the
+  // picker suggests a -recovered name, as in Text and Data.
+  let recovered = false;
   const file = new FileBinding({
     purpose: 'html-slides-save',
     description: 'Deck HTML',
     fallbackName: 'deck.html',
-    matches: text => new DOMParser().parseFromString(text, 'text/html').documentElement.outerHTML === opened
+    matches: text => new DOMParser().parseFromString(text, 'text/html').documentElement.outerHTML === opened,
+    recovered: () => recovered
   });
   let saveChain = Promise.resolve();
   function save() {
+    if (M.state.recovery) { V.banner(M.PENDING, [], 4000); return saveChain; }
     saveChain = saveChain.then(saveOnce).catch(e => V.banner('Save failed: ' + e.message, [], 8000));
     return saveChain;
   }
@@ -67,6 +72,10 @@ function boot() {
     E.stopText();
     const written = {};
     const html = serialize(written);
+    // Reopening parses the file again: markup that the parse would change (and might make active)
+    // is not written.
+    const unstable = M.unstableSlide(written.main);
+    if (unstable) return V.banner(`Save failed: slide ${unstable} holds markup that changes when the file is reopened; nothing was written. Undo the last change there or delete the element. Your changes and draft are retained.`, [], 10000);
     const revision = M.state.revision;
     const name = file.name;
     if (canSaveInPlace()) {
@@ -114,7 +123,11 @@ function boot() {
     M.on('deck', () => side.rebuild());
     addEventListener('beforeunload', e => { if (M.state.dirty) { e.preventDefault(); e.returnValue = ''; } });
     const draft = M.readDraft();
+    // Until the offer is answered, editing and Save wait: an edit would overwrite the stored draft
+    // and a save would delete it. The offer stays above other notices.
+    const answered = () => { M.state.recovery = false; };
     if (draft) {
+      M.state.recovery = true;
       const when = new Date(draft.t).toLocaleString('en-US');
       V.banner(draft.foreign
         ? `Unsaved changes from a different version of this file found (${when}). Restoring replaces the current content with that older draft.`
@@ -122,11 +135,15 @@ function boot() {
           ? `Unsaved changes found (${when}). They were kept by an earlier version of the editor, which did not record the file version; check them after restoring.`
           : `Unsaved changes found (${when}).`, [
         [draft.foreign ? 'Restore older draft' : 'Restore', () => {
+          answered();
           M.restoreDraft(draft);
+          // A file bound before the choice belongs to the document replaced; Save asks again.
+          recovered = !!draft.foreign; file.reset();
           E.currentSlide(); V.fit();
+          if (recovered) V.banner('Older draft restored. Save asks for a file name, so the newer file is not replaced.', [], 6000);
         }],
-        ['Discard', M.dropDraft]
-      ]);
+        ['Discard', () => { answered(); M.dropDraft(); if (M.state.dirty) M.persistDraft(); }]
+      ], 0, true);
     }
   }
 

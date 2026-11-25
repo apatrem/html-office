@@ -3,7 +3,7 @@
 import Moveable from 'moveable';
 import Selecto from 'selecto';
 import { state, on, slides, items, isContent, slideOf, begin, commit, apply, detach, getPos, setPos, measure, undo, redo,
-  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlide, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, readAssets, markDirty, persistDraft, jsonForScript, look } from './model.js';
+  setClass, sanitize, FORMAT_GROUPS, newId, applyDeck, setDeckData, insertSlide, insertSlideHTML, cleanSlideHTML, emit, resolveAssets, readAssets, markDirty, persistDraft, jsonForScript, look, PENDING } from './model.js';
 import { slideHTML, ELEMENTS, chartHTML, SHAPES, shapeHTML } from './templates.js';
 import { registry, readData, renderChart, echartsReady, loadECharts, refreshCaches, previewOf, theme } from '../../packages/shared/charts/index.mjs';
 import { sanitizeSVG } from '../../packages/shared/charts/clipboard.mjs';
@@ -159,13 +159,25 @@ function startText(el, e) {
   el.setAttribute('contenteditable', 'true');
   el.setAttribute('spellcheck', 'true');
   el.focus();
-  if (e && document.caretRangeFromPoint) {
-    const r = document.caretRangeFromPoint(e.clientX, e.clientY);
-    if (r) { const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-  }
+  if (e) caretAt(e);
   el.addEventListener('blur', stopText, { once: true });
   el.addEventListener('input', markDirty);
+  el.addEventListener('beforeinput', lineBreak);
   notify();
+}
+// Places the caret at a pointer event's position.
+function caretAt(e) {
+  let r = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+  const p = !r && document.caretPositionFromPoint?.(e.clientX, e.clientY);
+  if (p) { r = document.createRange(); r.setStart(p.offsetNode, p.offset); }
+  if (r) { const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+}
+// Enter in a paragraph or a title (lead, kpi, source, h1…) is a line break: a new paragraph there
+// would be a block inside the p, or a second h1, which the next parse splits off the element.
+function lineBreak(e) {
+  if (e.inputType !== 'insertParagraph' || !editing?.el.matches('p, h1, h2, h3, h4, h5, h6')) return;
+  e.preventDefault();
+  document.execCommand('insertLineBreak');
 }
 // Typing context kept across a menu, which takes focus (and so ends typing) when it opens.
 export function textContext() {
@@ -185,6 +197,7 @@ export function stopText(select = true) {
   const { el, tok } = editing;
   editing = null;
   el.removeEventListener('input', markDirty);
+  el.removeEventListener('beforeinput', lineBreak);
   el.removeAttribute('contenteditable');
   el.removeAttribute('spellcheck');
   // Firefox keeps the text selected in a box that is no longer editable: the next Cmd/Ctrl+C would
@@ -319,7 +332,7 @@ export function zorder(dir) {
 }
 export function relayout() {
   const slide = selSlide || state.current;
-  if (!slide) return banner('Cliquez d\'abord dans une slide.', [], 2500);
+  if (!slide) return banner('Click a slide first.', [], 2500);
   if (!slide.hasAttribute('data-detached')) return banner('This slide already follows its layout.', [], 2500);
   clearSel();
   apply({ type: 'relayout', slide });
@@ -652,6 +665,16 @@ export function copySel(slide) {
   }
   wholeSlide = false;
 }
+// Dropped content is plain text, as pasted content is (links and remote images would load or
+// leave the deck). A drag inside the box being edited keeps the browser's own move.
+let dragFrom = null;
+function onDrop(e) {
+  if (!editing || !editing.el.contains(e.target) || dragFrom === editing.el) return;
+  e.preventDefault();
+  caretAt(e);
+  const text = e.dataTransfer?.getData('text/plain');
+  if (text) document.execCommand('insertText', false, text);
+}
 function onPaste(e) {
   if (editing) {
     e.preventDefault();
@@ -801,8 +824,16 @@ export function deleteSlide() {
   if (!cur) return;
   if (slides().length < 2) return banner('Cannot delete the last slide.', [], 2500);
   const next = cur.nextElementSibling && cur.nextElementSibling.matches('section.slide') ? cur.nextElementSibling : slides()[slides().indexOf(cur) - 1];
+  const at = slides().indexOf(cur), html = cleanSlideHTML(cur);
   deckOp(() => { cur.remove(); return next; });
-  banner('Slide deleted.', [['Cancel', () => { clearSel(); undo(); }]], 5000);
+  const deletion = state.undo.at(-1);
+  // Cancel undoes the deletion while it is the last change; after a later change (text being
+  // typed is committed when the button takes focus) it puts the slide back as a new change.
+  banner('Slide deleted.', [['Cancel', () => {
+    clearSel();
+    if (state.undo.at(-1) === deletion) return undo();
+    deckOp(() => { const s = insertSlideHTML(html, slides()[at - 1]); if (!at) slides()[0].before(s); return s; });
+  }]], 5000);
 }
 export function moveSlide(dir) {
   const cur = currentSlide(), all = slides(), i = all.indexOf(cur), j = i + dir;
@@ -994,6 +1025,7 @@ function onKey(e) {
 
 export function toggleEdit() {
   const on = !editingMode();
+  if (on && state.recovery) return banner(PENDING, [], 4000);
   if (!on) { stopText(); clearSel(); }
   document.body.classList.toggle('hs-editing', on);
   if (on) currentSlide();
@@ -1028,6 +1060,9 @@ export function init(handlers) {
   on('deck', () => queueMicrotask(markPreviews));
   document.addEventListener('copy', onCopy);
   document.addEventListener('paste', onPaste);
+  document.addEventListener('drop', onDrop);
+  document.addEventListener('dragstart', e => { dragFrom = editing?.el.contains(e.target) ? editing.el : null; });
+  document.addEventListener('dragend', () => { dragFrom = null; });
   addEventListener('pointerdown', () => { buttonDown = true; }, true);
   state.main.addEventListener('pointerdown', e => { picked = false; const sl = e.target.closest('section.slide'); if (sl) setCurrent(sl); }, true);
   addEventListener('pointerup', () => { buttonDown = false; }, true);

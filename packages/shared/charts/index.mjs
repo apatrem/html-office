@@ -26,8 +26,8 @@ export function echartsReady() { return !!window.echarts; }
 export function loadECharts(timeout = 8000) {
   if (window.echarts) return Promise.resolve(window.echarts);
   if (loading) return loading;
+  const s = document.createElement('script');
   loading = new Promise(resolve => {
-    const s = document.createElement('script');
     s.integrity = ECHARTS_INTEGRITY;
     s.crossOrigin = 'anonymous';
     s.src = ECHARTS_URL;
@@ -36,6 +36,10 @@ export function loadECharts(timeout = 8000) {
     s.onerror = () => resolve(null);
     setTimeout(() => resolve(window.echarts || null), timeout);
     document.head.appendChild(s);
+  }).then(ec => {
+    // A failed load is not kept for the session: the next caller tries again (back online).
+    if (!ec) { loading = null; s.remove(); }
+    return ec;
   });
   return loading;
 }

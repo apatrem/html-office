@@ -17,8 +17,10 @@ export const state = {
   base: '',
   savedBase: null,
   draftRevision: -1,
+  recovery: false, // a found draft awaits Restore or Discard
   listeners: {}
 };
+export const PENDING = 'Restore or discard the unsaved changes found first.';
 
 export function on(evt, fn) { (state.listeners[evt] ||= []).push(fn); }
 export function emit(evt, arg) { (state.listeners[evt] || []).forEach(fn => fn(arg)); }
@@ -36,8 +38,11 @@ export function ensureIds() {
     const m = /^e(\d+)$/.exec(el.dataset.id);
     if (m) maxId = Math.max(maxId, +m[1]);
   }
-  slides().forEach((s, i) => {
-    if (!s.id) s.id = 's' + String(i + 1).padStart(2, '0');
+  // A slide without an id, or with one already used, gets a free one: undo finds slides by id.
+  const seen = new Set();
+  slides().forEach(s => {
+    if (!s.id || seen.has(s.id)) s.id = nextSlideId();
+    seen.add(s.id);
     items(s).forEach(el => { if (!el.dataset.id) el.dataset.id = newId(); });
   });
 }
@@ -188,7 +193,7 @@ export function commitDeck(tok) {
 export function applyDeck(fn) { const tok = beginDeck(); const r = fn(); commitDeck(tok); return r; }
 // An attribute-only entry (theme, font, footer text) keeps the slides and the current slide.
 function restoreDeck(d, attributesOnly) {
-  if (!attributesOnly) state.main.innerHTML = d.html;
+  if (!attributesOnly) state.main.replaceChildren(...parseSafe(d.html).childNodes);
   for (const k of DECK_DATA) setDeckData(k, d[k]);
   emit('deck');
 }
@@ -217,9 +222,7 @@ export function insertSlide(s, after) {
   return s;
 }
 export function insertSlideHTML(html, after) {
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  return insertSlide(t.content.firstElementChild, after);
+  return insertSlide(parseSafe(html.trim()).firstElementChild, after);
 }
 
 // ---------- undo / redo ----------
@@ -235,9 +238,7 @@ function step(from, to, key) {
 export function replaceSlide(id, html) {
   const old = state.main.querySelector('#' + CSS.escape(id));
   if (!old) return;
-  const t = document.createElement('template');
-  t.innerHTML = html.trim();
-  const fresh = t.content.firstElementChild;
+  const fresh = parseSafe(html.trim()).firstElementChild;
   old.replaceWith(fresh);
   emit('replaced', fresh);
 }
@@ -266,6 +267,7 @@ export function captureBase() {
   state.base = draftFingerprint(draftState());
 }
 export function persistDraft() {
+  if (state.recovery) return; // the stored draft is kept until Restore or Discard
   try {
     localStorage.setItem(draftKey(), JSON.stringify({ t: Date.now(), base: state.base, savedBase: state.savedBase, ...draftState() }));
     state.draftRevision = state.revision;
@@ -325,9 +327,12 @@ export function dropDraft() { try { localStorage.removeItem(draftKey()); } catch
 // Another local page can write this storage: a draft is untrusted input. It is parsed in an inert
 // template and stripped of code and external resources before it reaches the document.
 // Scripts and styles are removed in every namespace (SVG runs scripts and loads style URLs);
-// title, meta and noscript only in HTML, so accessible SVG titles survive.
-function scrubDraft(root) {
-  for (const el of [root, ...root.querySelectorAll('*')]) {
+// title, meta and noscript only in HTML, so accessible SVG titles survive. Templates go as a whole
+// (their content is never walked, and a declarative shadow root would run once saved).
+// Undo, redo, duplicate and a restored structure parse serialised slides again: the same rules
+// apply there, as markup that was inert when opened can parse into active content (mutation XSS).
+function scrub(root) {
+  for (const el of [...(root.nodeType === 1 ? [root] : []), ...root.querySelectorAll('*')]) {
     const tag = el.localName.toLowerCase(), html = el.namespaceURI === 'http://www.w3.org/1999/xhtml';
     const chartData = tag === 'script' && el.getAttribute('type') === 'application/json' && el.parentElement?.matches('figure.chart');
     if (ACTIVE_TAGS.includes(tag) || ['script', 'style'].includes(tag) && !chartData || html && ['meta', 'title', 'noscript'].includes(tag) ||
@@ -339,6 +344,23 @@ function scrubDraft(root) {
       if (attributeProblem(a.name, a.value, html)) el.removeAttribute(a.name);
   }
 }
+// Serialised deck HTML parsed in an inert template, scrubbed before it reaches the document.
+function parseSafe(html) {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  scrub(t.content);
+  return t.content;
+}
+// The slide (from 1) whose markup the next parse would change, as reopening the saved file would,
+// or 0 when the main HTML written by serialize() parses back to itself.
+export function unstableSlide(mainHTML) {
+  const t = document.createElement('template');
+  t.innerHTML = mainHTML;
+  const again = t.content.firstElementChild;
+  if (again?.outerHTML === mainHTML) return 0;
+  const parsed = [...(again?.children || [])];
+  return slides().findIndex((s, i) => parsed[i]?.outerHTML !== cleanSlideHTML(s)) + 1 || 1;
+}
 const safeAssets = assets => Object.fromEntries(Object.entries(assets && typeof assets === 'object' ? assets : {})
   .filter(([k, a]) => !assetProblem(k, a)));
 export function restoreDraft(d) {
@@ -346,14 +368,14 @@ export function restoreDraft(d) {
   t.innerHTML = d.format === 1 ? d.main : `<main id="deck">${d.html}</main>`;
   const saved = t.content.firstElementChild;
   if (!saved?.matches('main#deck')) throw new Error('Invalid draft');
-  scrubDraft(saved);
+  scrub(saved);
   if (d.format === 1) {
     [...state.main.attributes].filter(a => a.name !== 'style').forEach(a => state.main.removeAttribute(a.name));
     [...saved.attributes].forEach(a => state.main.setAttribute(a.name, a.value));
     document.getElementById('assets').textContent = jsonForScript(safeAssets(d.assets));
   }
   // Move the scrubbed nodes themselves: serialising and parsing them again could produce a tree
-  // that scrubDraft never inspected.
+  // that scrub never inspected.
   state.main.replaceChildren(...saved.childNodes);
   state.undo = []; state.redo = []; state.current = null;
   ensureIds(); emit('deck'); markDirty();

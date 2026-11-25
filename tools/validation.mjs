@@ -1,11 +1,11 @@
 // Parses without a browser: no tag or resource of the document is executed.
 // build.mjs bundles this module and parse5 into the plugin.
-import { parse } from 'parse5';
+import { parse, serialize, serializeOuter } from 'parse5';
 import { createHash } from 'node:crypto';
 import {FORMAT_VERSION, ACTIVE_TAGS, attributeProblem, styleProblem, assetProblem} from '../src/format.js';
 
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
-const attr = (n, k) => n.attrs?.find(a => a.name === k)?.value;
+const attr = (n, k) => n?.attrs?.find(a => a.name === k)?.value;
 const children = n => (n.childNodes || []).filter(n => n.tagName);
 const text = n => (n.childNodes || []).map(n => n.value || text(n)).join('');
 const classes = n => (attr(n, 'class') || '').split(/\s+/);
@@ -55,7 +55,7 @@ export function inspectHTML(html, trusted) {
       const problem = attributeProblem(a.prefix ? `${a.prefix}:${a.name}` : a.name, a.value, n.namespaceURI === HTML_NS);
       if (problem) add(n, problem);
     }
-    if (ACTIVE_TAGS.includes(n.tagName.toLowerCase())) add(n,`Forbidden tag <${n.tagName}>`);
+    if (ACTIVE_TAGS.includes(n.tagName.toLowerCase()) && !guides.includes(n)) add(n,`Forbidden tag <${n.tagName}>`);
     if (n.tagName==='meta' && attr(n,'http-equiv')) add(n,'meta http-equiv is forbidden');
     if (inDeck(n) && attr(n,'data-ui') !== undefined) add(n,'data-ui is reserved for the engine');
     if (n.tagName==='style' && !(n.parentNode?.tagName==='head' && ['theme','charte'].includes(attr(n,'id')))) add(n,'Styles outside theme zones are forbidden');
@@ -80,7 +80,45 @@ export function inspectHTML(html, trusted) {
     }
     if (n.parentNode?.tagName==='body' && !['main','script'].includes(n.tagName)) add(n,'Element outside deck zones');
   }
+  // Reopening a saved file, an undo and a restored structure parse serialised markup again: it
+  // must give the same tree, or content that was inert when checked can become active.
+  const once=serialize(doc), again=parse(once);
+  if (serialize(again)!==once) {
+    const slides=d=>children([...walk(d)].find(n=>attr(n,'id')==='deck') || {});
+    const before=slides(doc), after=slides(again);
+    const i=Math.max(0,before.findIndex((s,i)=>!after[i] || serializeOuter(s)!==serializeOuter(after[i])));
+    add(before[i] || doc,'Markup changes when the file is parsed again (a save or an undo would alter it): remove the misnested or raw-text elements');
+  }
   return {doc, main, out, n:children(main || {}).filter(n=>classes(n).includes('slide')).length};
+}
+
+// Rules on the deck's raw HTML, which the browser repairs before the rendering checks see it:
+// slide identifiers, the four coordinates of a detached slide's elements, block elements in p.
+export function structureProblems(html) {
+  const doc=parse(html,{sourceCodeLocationInfo:true});
+  const main=[...walk(doc)].find(n=>attr(n,'id')==='deck');
+  const out=[], seen=new Set();
+  const add=(slide,n,msg)=>out.push({level:'error',slide,id:n && attr(n,'data-id') || null,msg});
+  children(main || {}).filter(n=>n.tagName==='section' && classes(n).includes('slide')).forEach((s,i)=>{
+    const id=attr(s,'id'), sid=id || `#${i+1}`;
+    if (!id) add(sid,null,`Slide ${i+1} has no id: give it a new unique id (s01, s02, …)`);
+    else if (seen.has(id)) add(sid,null,`Duplicate slide id "${id}": a new slide needs a new unique id`);
+    seen.add(id);
+    if (attr(s,'data-detached')!==undefined) for (const n of children(s)) {
+      if (n.tagName==='aside' || attr(n,'data-ui')!==undefined) continue;
+      const style=attr(n,'style') || '';
+      if (!['x','y','w','h'].every(k=>new RegExp(`(^|;)\\s*--${k}\\s*:`).test(style)))
+        add(sid,n,'An element of a detached slide needs --x, --y, --w and --h');
+    }
+    // A p closed by another start tag (its end tag then stands alone): the block was inside it.
+    for (const n of walk(s)) {
+      if (n.tagName!=='p' || !n.sourceCodeLocation || n.sourceCodeLocation.endTag) continue;
+      const siblings=children(n.parentNode), next=siblings[siblings.indexOf(n)+1];
+      if (next && next.tagName!=='p') add(sid,n.parentNode===s ? n : s.childNodes.find(c=>c.tagName && [...walk(c)].includes(n)) || n,
+        `Block element <${next.tagName}> inside <p>: use <br> for a line break, or a div for blocks`);
+    }
+  });
+  return out;
 }
 
 // Compares structure and explicit positions independently of attribute order.
@@ -105,7 +143,8 @@ export function snapshot(html) {
 }
 export function compareSnapshots(a,b,allow=new Set()) {
   const out=[];
-  const add=(slide,id,msg)=>out.push({level:'error',slide,id,msg:msg+'; if intended: --allow '+(id || slide)});
+  // Errors of the snapshots themselves (no slide, no element) cannot be allowed.
+  const add=(slide,id,msg)=>out.push({level:'error',slide,id,msg:id || slide!=='-' ? msg+'; if intended: --allow '+(id || slide) : msg});
   const permitted=(id,sid)=>allow.has(id) || allow.has(sid);
   for (const msg of [...a.errors,...b.errors]) add('-',null,msg);
   for (const [sid,s] of Object.entries(a.slides)) {

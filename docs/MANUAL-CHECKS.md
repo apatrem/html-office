@@ -155,6 +155,14 @@ Run this on a copy of `data-pnl.html`, in Chrome, then Safari and Firefox for st
    - With a table or chart selected, ⌘C / Ctrl+C still copies that element; while typing, it copies the selected text.
    - Paste the copied slide into Word, Google Docs and a plain text editor: the title, text, lists and tables arrive as an outline; there is no picture and no speaker note. Paste it into `text-example.html`: the same outline, in the document's styles. Paste it into `data-pnl.html`: refused with a message, workbook unchanged.
    - Paste it into a deck that still has the 0.7.2 editor (for example the example deck of the released plugin): refused with a notice, deck unchanged.
+7. **Project review fixes (November 2026)**, on a copy of `slides-catalogue.html`, in Chrome, then Safari and Firefox where a step says so.
+   - **Draft offer offline**: edit the footer, close the tab without saving (leave the page anyway), turn the network off and reopen the file. "Unsaved changes found" stays on screen after "ECharts could not be loaded" appears (the offer sits above it). Press E and Cmd/Ctrl+S: both answer "Restore or discard the unsaved changes found first", and nothing is saved. Restore: the footer comes back and E enters edit mode.
+   - **Older draft**: edit and save once (Chrome: choose the opened file), edit again and close without saving. Change the file elsewhere (another copy saved over it) and reopen it: choose *Restore older draft*, then Save. The native picker opens with the name `…-recovered.html`; the newer file is not replaced.
+   - **Lost file** (Chrome): save once to the opened file, then rename or delete it in Finder or Explorer. The next Save fails with "The file was moved or deleted; nothing was written. Save again to choose a file"; Save again opens the picker. Do the same after changing the saved file in a text editor: "The file changed externally…", then the picker.
+   - **Enter in a paragraph**: double-click a lead paragraph or a title, press Enter in the middle and type: a new line in the same paragraph. Save, reopen, Undo and Redo: still one paragraph, with the line break (Chrome, Safari, Firefox).
+   - **Drop**: select a link and an image on a web page and drag them into a text being edited: only their text arrives, no image and no link. Dragging words within the same box still moves them.
+   - **Print from edit mode**: in edit mode, File › Print (or Cmd/Ctrl+P): one page per slide, each slide filling its page from the top left, no blank page at the end; the same in reading mode (Chrome, Safari, Firefox).
+   - **Delete slide, then Cancel**: delete a slide, type in another slide's title, then click *Cancel* in the "Slide deleted" notice: the slide comes back in its place, and the typed text stays.
 
 ## 4. All three products
 

@@ -38,8 +38,9 @@ export class FileWriter {
       (await digestText(await (await this.handle.getFile()).text())) !==
       this.baseline
     )
-      throw new Error(
-        "The file changed externally. Reopen it or use Save a copy; nothing was overwritten.",
+      throw Object.assign(
+        new Error("The file changed externally; nothing was overwritten"),
+        { conflict: true },
       );
   }
   async save(text) {
@@ -233,7 +234,23 @@ export class FileBinding {
         announced: false,
       };
     }
-    await this.writer.save(text);
+    try {
+      await this.writer.save(text);
+    } catch (error) {
+      // The bound file was moved, deleted, refused or changed elsewhere: every later write would
+      // fail the same way, so the next Save binds a file again.
+      const lost =
+        error?.name === "NotFoundError"
+          ? "The file was moved or deleted; nothing was written"
+          : error?.name === "NotAllowedError"
+            ? "The browser no longer allows writing to the file; nothing was written"
+            : error?.conflict
+              ? error.message
+              : null;
+      if (!lost) throw error;
+      this.reset();
+      throw new Error(`${lost}. Save again to choose a file`);
+    }
     const { opened, announced } = this.chosen;
     this.chosen.announced = true;
     // Only the opened file itself is remembered for its address (never a new name). Storage

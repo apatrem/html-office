@@ -244,3 +244,54 @@ test('a draft from an engine that did not record versions is not called foreign'
   await banner.locator('button',{hasText:'Restore'}).click();
   assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Earlier engine');
 });
+
+// ---- review of 22 November 2026 ----
+// A declarative shadow root is inert in a draft parsed with innerHTML, but saved as it is it
+// becomes active when the file is reopened; raw-text and MathML markup becomes active when parsed
+// again. Restoring removes both.
+test('a restored draft cannot carry a template or re-parsing markup into the saved file', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{
+    const main='<main id="deck"><section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Draft</h1>'+
+      '<div class="body" data-id="e2"><template shadowrootmode="open"><img src="x" onerror="window.pwned=1"></template>Body</div>'+
+      '<math><mtext><table><mglyph><xmp><img src=x onerror="window.pwned=2"></xmp></mglyph></table></mtext></math></section></main>';
+    localStorage.setItem('html-slides:'+location.pathname,JSON.stringify({t:Date.now(),format:1,main,assets:{}}));
+  });
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  assert.equal(await p.evaluate(()=>document.querySelectorAll('#deck template, #deck math, #deck xmp').length),0);
+  await p.evaluate(()=>{delete window.showSaveFilePicker;});
+  const dl=p.waitForEvent('download');await p.keyboard.press('Control+s');
+  const saved=path.join(dir,'draft-template.html');await (await dl).saveAs(saved);
+  assert.doesNotMatch(fs.readFileSync(saved,'utf8').match(/<main[\s\S]*?<\/main>/)[0],/<template|<math|<xmp|onerror/);
+  const q=await open(t,saved);
+  await q.waitForTimeout(200);
+  assert.equal(await q.evaluate(()=>window.pwned),undefined);
+  assert.equal(await q.evaluate(()=>[...document.querySelectorAll('#deck *')].filter(e=>e.shadowRoot).length),0);
+});
+// Offline, "ECharts could not be loaded" used to replace the offer to restore a draft; the first
+// edit then overwrote the draft and Save deleted it.
+test('the draft offer stays until answered; editing and saving wait for the answer', async t => {
+  const file=path.join(dir,'offline-draft.html');fs.copyFileSync(path.join(dir,'charts.html'),file);
+  const ctx=await browser.newContext({viewport:{width:1100,height:850}});t.after(()=>ctx.close());
+  const p=await ctx.newPage();
+  await p.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/,r=>r.abort());
+  await p.goto(pathToFileURL(file).href);await p.waitForFunction(()=>window.deckEngine);await p.evaluate(()=>window.deckEngine.ready);
+  await p.keyboard.press('e');await footer(p,'Draft footer');
+  const stored=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('html-slides:'+location.pathname)||'null')?.main.match(/data-footer="([^"]*)"/)?.[1]);
+  assert.equal(await stored(),'Draft footer');
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);await p.evaluate(()=>window.deckEngine.ready);
+  await p.waitForTimeout(100);
+  assert.equal(await p.locator('.hs-banner',{hasText:/Unsaved changes found \(/}).count(),1,'the offer is still shown after the ECharts notice');
+  await p.evaluate(()=>{window.__picks=0;window.showSaveFilePicker=async()=>{window.__picks++;throw new DOMException('cancel','AbortError');};});
+  await p.keyboard.press('e');
+  assert.equal(await p.evaluate(()=>document.body.classList.contains('hs-editing')),false,'edit mode waits for the answer');
+  await p.keyboard.press('Control+s');await p.waitForTimeout(100);
+  assert.equal(await p.evaluate(()=>window.__picks),0,'Save waits for the answer');
+  assert.equal(await stored(),'Draft footer');
+  assert.equal(await p.locator('.hs-banner',{hasText:/Unsaved changes found \(/}).count(),1);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Draft footer');
+  await p.keyboard.press('e');
+  assert.equal(await p.evaluate(()=>document.body.classList.contains('hs-editing')),true);
+});

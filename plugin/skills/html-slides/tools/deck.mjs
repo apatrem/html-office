@@ -143,8 +143,8 @@ const cmds = {
     if (!file) die('Missing deck path');
     const target = second || file.replace(/\.html$/, '.pdf');
     const { browser, page } = await openDeck(file);
-    await pdf(page, target);
-    await browser.close();
+    try { await pdf(page, target); }
+    finally { await browser.close(); }
     console.log(`PDF : ${target}`);
   },
 
