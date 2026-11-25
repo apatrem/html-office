@@ -10,12 +10,13 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import * as playwright from 'playwright';
 import { ASSETS, upgrade } from '../plugin/skills/html-slides/tools/lib.mjs';
 import { ECHARTS_URL } from '../plugin/skills/html-slides/tools/echarts.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-tables');
 fs.rmSync(DIR, { recursive: true, force: true });
 fs.mkdirSync(DIR, { recursive: true });
-const ENGINES = (process.env.SLIDES_ENGINES || 'chromium').split(',');
+const ENGINES = engineList('SLIDES_ENGINES');
 let fails = 0;
 const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' ' + m); if (!c) fails++; };
 

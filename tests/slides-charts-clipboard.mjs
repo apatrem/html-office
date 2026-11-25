@@ -18,6 +18,7 @@ import { ASSETS, upgrade, zone, setZone } from '../plugin/skills/html-slides/too
 import { MIME, SCHEMA } from '../packages/shared/clipboard/index.mjs';
 import { strictValidate } from '../packages/shared/charts/schema.mjs';
 import { chartTable } from '../packages/shared/charts/clipboard.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-charts-clipboard');
@@ -60,6 +61,12 @@ const initScript = () => {
     return event;
   };
   addEventListener('copy', e => { globalThis.copied = Object.fromEntries([...e.clipboardData.types].map(t => [t, e.clipboardData.getData(t)])); });
+  // Pictures being drawn: packages/shared/charts/picture.mjs holds an object URL of the SVG from the
+  // moment a picture is asked for until it is drawn or refused.
+  const create = URL.createObjectURL, revoke = URL.revokeObjectURL, drawing = new Set();
+  URL.createObjectURL = function (object) { const url = create.call(URL, object); if (object?.type === 'image/svg+xml') drawing.add(url); return url; };
+  URL.revokeObjectURL = function (url) { drawing.delete(url); return revoke.call(URL, url); };
+  globalThis.picturesDrawing = () => drawing.size;
 };
 async function context(browser, { offline = false, grant = false, init } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -92,9 +99,13 @@ async function select(page, sel) {
   await page.locator(sel).click({ position: { x: 120, y: 12 } });
 }
 let lastCopy = null, realPaste = false;
-async function copy(page, type, { wait = 600 } = {}) {
+// The picture is drawn on selection: a copy waits for it, unless the case is a copy made before it is ready.
+const pictureDrawn = (page, type) => page.waitForFunction(sel => window.deckEngine.selection().includes(document.querySelector(sel).dataset.id) && picturesDrawing() === 0,
+  `#${SLIDE[type]} > figure.chart`);
+const withPicture = page => page.waitForFunction(() => /with a picture/.test(document.querySelector('.hs-banner')?.textContent || ''), null, { timeout: 10000 }).then(() => true, () => false);
+async function copy(page, type, { early = false } = {}) {
   await select(page, `#${SLIDE[type]} > figure.chart`);
-  await page.waitForTimeout(wait); // the picture is drawn on selection
+  if (!early) await pictureDrawn(page, type);
   await page.evaluate(() => { globalThis.copied = null; document.querySelector('.hs-banner')?.remove(); });
   await page.keyboard.press('ControlOrMeta+c');
   await page.waitForFunction(() => globalThis.copied);
@@ -131,7 +142,7 @@ const clipboardPicture = page => page.evaluate(async () => {
 });
 
 const engines = { chromium, firefox, webkit };
-for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
+for (const name of engineList('CLIPBOARD_ENGINES')) {
   const full = name === 'chromium';
   realPaste = full;
   const browser = await engines[name].launch();
@@ -222,7 +233,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       `<text style="${style}" x="4">d</text><text style="font-size:9999px;font-family:url(x)" x="5">e</text></g></svg>`;
     hits = [];
     const hostileMsg = await paste(c, 's05', { [MIME]: envelope({ type: 'column', data: CHARTS.column, svg: hostileSVG }) });
-    await c.waitForTimeout(800);
+    await c.waitForTimeout(800); // deliberate: time for a request or a script of the pasted SVG to show itself
     const cleaned = await c.evaluate(() => { const s = [...document.querySelectorAll('#s05 > figure.chart')].pop().querySelector(':scope > svg.render'); return s.outerHTML; });
     const elements = [...cleaned.matchAll(/<([a-zA-Z]+)/g)].map(m => m[1]);
     ok(hostileMsg.startsWith('Chart pasted') && elements.every(e => ['svg', 'defs', 'clipPath', 'rect', 'g', 'path', 'text'].includes(e)) &&
@@ -299,8 +310,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       const g = await context(browser);
       const a2 = await open(g, A), b2 = await open(g, B);
       await copy(a2, 'hbar');
-      await a2.waitForTimeout(1500);
-      const upgraded = /with a picture/.test(await banner(a2));
+      const upgraded = await withPicture(a2);
       await paste(b2, 's05');
       ok(upgraded && (await last(b2, 's05'))?.json === JSON.stringify(CHARTS.hbar), `not granted: user activation alone adds the picture, and the paste works (${upgraded ? 'async write accepted' : 'event strings kept'})`);
       await g.close();
@@ -312,8 +322,8 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       const huge = { ...CHARTS.column, title: '&'.repeat(900000) };
       await a2.evaluate(json => { const f = document.querySelector('#s90 > figure.chart'); f.querySelector('script').textContent = json; }, JSON.stringify(huge));
       await a2.evaluate(() => window.deckEngine.renderAll());
-      const f = await copy(a2, 'column', { wait: 1500 });
-      await a2.waitForTimeout(1500);
+      const f = await copy(a2, 'column');
+      await a2.waitForTimeout(1500); // deliberate: an async write, if one were made, would have landed
       const types = await b2.evaluate(async () => (await navigator.clipboard.read()).flatMap(i => i.types));
       await paste(b2, 's05');
       ok(!('text/html' in f) && !types.includes('image/png') && (await last(b2, 's05'))?.json === JSON.stringify(huge), `HTML over 8 Mi is left out, and so is the async write (${Object.keys(f)}; ${types})`);
@@ -329,7 +339,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       await paste(c2, 's05');
       await c2.keyboard.press('ControlOrMeta+z');
       await c2.keyboard.press('ControlOrMeta+Shift+z');
-      await c2.waitForTimeout(4000);
+      await c2.waitForFunction(() => document.querySelector('#s05 > figure.chart.live'), null, { timeout: 15000 }).catch(() => {});
       const drawn = await c2.evaluate(() => [...document.querySelectorAll('#s05 > figure.chart')].map(f => f.classList.contains('live')));
       ok(drawn.length === 1 && drawn[0], `undo and redo while ECharts loads: the chart is drawn when it arrives (${drawn})`);
       await g.close();
@@ -339,7 +349,7 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
       const g = await context(browser, { grant: true, init: () => { HTMLCanvasElement.prototype.toBlob = function (cb) { setTimeout(() => cb(null)); }; } });
       const a2 = await open(g, A), b2 = await open(g, B);
       const f = await copy(a2, 'waterfall');
-      await a2.waitForTimeout(800);
+      await a2.waitForTimeout(800); // deliberate: an async write, if one were made, would have landed
       const types = await b2.evaluate(async () => (await navigator.clipboard.read()).flatMap(i => i.types));
       await paste(b2, 's05');
       ok(!/<img/.test(f['text/html']) && !types.includes('image/png') && (await last(b2, 's05'))?.json === JSON.stringify(CHARTS.waterfall),
@@ -353,12 +363,14 @@ for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
         HTMLCanvasElement.prototype.toBlob = function (cb, ...rest) { toBlob.call(this, b => setTimeout(() => cb(b), 1500), ...rest); };
       } });
       const a2 = await open(g, A), b2 = await open(g, B);
-      await copy(a2, 'bubble', { wait: 0 });
+      await copy(a2, 'bubble', { early: true });
       await paste(b2, 's05');
       ok((await last(b2, 's05'))?.json === JSON.stringify(CHARTS.bubble), 'a paste before the picture resolves reads the copy event\'s flavours');
-      await copy(a2, 'gantt', { wait: 0 });
-      await copy(a2, 'stacked', { wait: 0 });
-      await a2.waitForTimeout(4000);
+      await copy(a2, 'gantt', { early: true });
+      await copy(a2, 'stacked', { early: true });
+      // both pictures drawn (the earlier one first) and the later copy's async write finished
+      await withPicture(a2);
+      await a2.waitForFunction(() => picturesDrawing() === 0);
       const html = await b2.evaluate(async () => { const i = (await navigator.clipboard.read()).find(i => i.types.includes('text/html')); return i ? (await i.getType('text/html')).text() : ''; });
       await paste(b2, 's05');
       ok((await last(b2, 's05'))?.type === 'stacked' && !/&quot;type&quot;:&quot;gantt&quot;/.test(html), 'of two quick copies, the later one stays on the clipboard');

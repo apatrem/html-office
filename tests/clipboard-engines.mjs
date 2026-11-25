@@ -17,6 +17,7 @@ import { buildWorkbook } from '../packages/data/tools/build.mjs';
 import { copyRange, rangeTable } from '../packages/data/model/clipboard.mjs';
 import { display, negativeRed } from '../packages/data/runtime/view.mjs';
 import { jsonStringify } from '../packages/data/model/json.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const root = new URL('../', import.meta.url);
 const fixtures = ['excel-macos', 'sheets-fr', 'word-macos', 'docs'];
@@ -71,7 +72,7 @@ const pasteEventScript = () => {
   };
 };
 const engines = { chromium, firefox, webkit };
-for (const type of (process.env.CLIPBOARD_ENGINES ?? 'chromium,firefox,webkit').split(',').map(name => engines[name])) {
+for (const type of engineList('CLIPBOARD_ENGINES', 'chromium,firefox,webkit').map(name => engines[name])) {
   const browser = await type.launch();
   try {
     const page = await browser.newPage();

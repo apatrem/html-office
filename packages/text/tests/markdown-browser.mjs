@@ -10,8 +10,9 @@ import { pathToFileURL } from "node:url";
 import * as playwright from "playwright";
 import { buildEngine, buildDocument } from "../tools/build.mjs";
 import { markdownSource } from "../tools/markdown.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
 );

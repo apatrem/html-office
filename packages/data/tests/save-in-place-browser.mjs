@@ -11,8 +11,9 @@ import {
   saveInPlaceScenarios,
   copyOnlyScenario,
 } from "../../../tests/save-in-place.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.SAVE_ENGINES || "chromium").split(",");
+const ENGINES = engineList("SAVE_ENGINES");
 const out = resolve("dist/data-test");
 await mkdir(out, { recursive: true });
 const dir = await mkdtemp(join(out, "save-in-place-"));

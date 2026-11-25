@@ -19,6 +19,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { chromium, firefox, webkit } from 'playwright';
 import { ASSETS, VERSION, upgrade, zone, setZone } from '../plugin/skills/html-slides/tools/lib.mjs';
 import { MIME, SCHEMA, ATTRIBUTE } from '../packages/shared/clipboard/index.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-slide-clipboard');
@@ -191,7 +192,7 @@ const save = async (page, file) => { fs.writeFileSync(file, await page.evaluate(
 const envelope = (slide, source = { product: 'slides', format: '1' }) => JSON.stringify({ schema: SCHEMA, kind: 'slide', source, slide });
 
 const engines = { chromium, firefox, webkit };
-for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
+for (const name of engineList('CLIPBOARD_ENGINES')) {
   const full = name === 'chromium';
   realPaste = full;
   const browser = await engines[name].launch();
