@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   FileWriter,
+  FileBinding,
   DirtyState,
   digestText,
 } from "../../shared/persistence.mjs";
@@ -94,4 +95,36 @@ test("Save binds only an explicitly selected handle and can validate its origina
   );
   await writer.save("new document");
   assert.equal(await digestText("same"), await digestText("same"));
+});
+
+// Review (Codex, Slides review fixes): a remembered file that loads after the first Save (to
+// another file) must not be reused once that file is lost: the next Save opens the picker.
+test("a lost bound file never falls back to a remembered file that loaded late", async () => {
+  globalThis.location ??= { origin: "file://", pathname: "/decks/a.html" };
+  const a = { ...file("opened"), name: "a.html" };
+  const b = { ...file(""), name: "b.html" };
+  let picks = 0;
+  globalThis.showSaveFilePicker = async () => {
+    picks++;
+    return b;
+  };
+  const binding = new FileBinding({
+    purpose: "test",
+    description: "Test",
+    fallbackName: "a.html",
+    matches: (text) => text === "opened",
+    address: Promise.resolve("key"),
+  });
+  await binding.save("first");
+  assert.equal(picks, 1);
+  binding.remembered = a; // the remembered handle arrives late
+  b.getFile = async () => {
+    throw new DOMException("gone", "NotFoundError");
+  };
+  await assert.rejects(binding.save("second"), /moved or deleted/);
+  b.getFile = async () => ({ text: async () => b.read() });
+  await binding.save("third");
+  assert.equal(picks, 2, "the picker opened");
+  assert.equal(a.read(), "opened", "the remembered file was not written");
+  delete globalThis.showSaveFilePicker;
 });

@@ -295,3 +295,18 @@ test('the draft offer stays until answered; editing and saving wait for the answ
   await p.keyboard.press('e');
   assert.equal(await p.evaluate(()=>document.body.classList.contains('hs-editing')),true);
 });
+
+// Review (Codex): a draft whose main carries data-ui was removed by the scrubber without its
+// attributes being checked, and those attributes were then copied onto the live deck.
+test('a draft main marked data-ui does not bring its event handlers', async t => {
+  const p=await open(t);
+  await p.evaluate(()=>{
+    const main='<main id="deck" data-ui onmouseover="window.pwned=1" data-footer="Root"><section class="slide" id="s01" data-layout="default"><h1 data-id="e1">Draft</h1></section></main>';
+    localStorage.setItem('html-slides:'+location.pathname,JSON.stringify({t:Date.now(),format:1,main,assets:{}}));
+  });
+  await p.reload();await p.waitForFunction(()=>window.deckEngine);
+  await p.locator('.hs-banner button',{hasText:'Restore'}).click();
+  const deck=await p.evaluate(()=>[...document.getElementById('deck').attributes].map(a=>a.name));
+  assert.ok(!deck.includes('onmouseover') && !deck.includes('data-ui'),deck.join(','));
+  assert.equal(await p.locator('#deck').getAttribute('data-footer'),'Root');
+});

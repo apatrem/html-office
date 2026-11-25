@@ -197,3 +197,19 @@ test('a chart insertion retries ECharts after a failed load', async t => {
   await insert();
   await page.waitForFunction(() => document.querySelector('#deck figure.chart'), null, { timeout: 15000 });
 });
+
+// Review (Codex): Undo, then Cancel on the notice still shown, added a second copy.
+test('Cancel after Undo does not add the slide twice', async t => {
+  const file = deck('cancel-undo', [S('s01', '<h1 data-id="e1">One</h1>'), S('s02', '<h1 data-id="e2">Two</h1>')]);
+  const page = await open(t, file);
+  await page.evaluate(() => document.querySelector('#s02').scrollIntoView());
+  await page.locator('#s02 > h1').click();
+  await slideMenu(page, 'Delete slide');
+  await page.waitForFunction(() => !document.querySelector('#s02'));
+  await page.locator('#s01 > h1').click();
+  await undoKey(page);
+  await page.waitForFunction(() => document.querySelectorAll('#deck > section.slide').length === 2);
+  await page.locator('.hs-banner button', { hasText: 'Cancel' }).click();
+  await page.waitForTimeout(100);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('#deck > section.slide').length), 2);
+});

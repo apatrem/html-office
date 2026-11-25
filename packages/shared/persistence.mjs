@@ -249,6 +249,9 @@ export class FileBinding {
               : null;
       if (!lost) throw error;
       this.reset();
+      // Nor is the remembered file reused, even one loaded after the first Save: it may be
+      // another file than the one just lost.
+      this.checked = true;
       throw new Error(`${lost}. Save again to choose a file`);
     }
     const { opened, announced } = this.chosen;

@@ -218,7 +218,8 @@ test('the checker reports slide ids, detached coordinates and block elements ins
  assert.equal(check('detached-ok',detached.replace('data-id="e2"','data-id="e2" style="--x:64;--y:180;--w:1000;--h:40"')).status,0);
  r=check('block-in-p',base.replace('<div class="body" data-id="e2">Text.</div>','<p class="lead" data-id="e2">Text.<div>More</div></p>'));
  assert.equal(r.status,1);assert.ok(r.msgs.some(m=>/Block element <div> inside <p>/.test(m)),r.msgs.join('\n'));
- // A paragraph closed by the next paragraph is ordinary HTML.
+ // A paragraph closed by the next paragraph, or by a block, without </p> is ordinary HTML (review).
+ assert.equal(check('p-div',base.replace('<div class="body" data-id="e2">Text.</div>','<div class="body" data-id="e2"><p>Intro<div>Body</div></div>')).status,0);
  assert.equal(check('p-p',base.replace('<div class="body" data-id="e2">Text.</div>','<p class="lead" data-id="e2">Text.<p class="body" data-id="e3">More</p>')).status,0);
 });
 test('a snapshot error carries no --allow hint that does nothing',()=>{

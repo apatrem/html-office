@@ -824,7 +824,7 @@ export function deleteSlide() {
   if (!cur) return;
   if (slides().length < 2) return banner('Cannot delete the last slide.', [], 2500);
   const next = cur.nextElementSibling && cur.nextElementSibling.matches('section.slide') ? cur.nextElementSibling : slides()[slides().indexOf(cur) - 1];
-  const at = slides().indexOf(cur), html = cleanSlideHTML(cur);
+  const at = slides().indexOf(cur), html = cleanSlideHTML(cur), id = cur.id;
   deckOp(() => { cur.remove(); return next; });
   const deletion = state.undo.at(-1);
   // Cancel undoes the deletion while it is the last change; after a later change (text being
@@ -832,6 +832,7 @@ export function deleteSlide() {
   banner('Slide deleted.', [['Cancel', () => {
     clearSel();
     if (state.undo.at(-1) === deletion) return undo();
+    if (document.getElementById(id)?.matches('main#deck > section.slide')) return; // already back (Undo)
     deckOp(() => { const s = insertSlideHTML(html, slides()[at - 1]); if (!at) slides()[0].before(s); return s; });
   }]], 5000);
 }

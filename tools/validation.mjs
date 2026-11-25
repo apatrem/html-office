@@ -110,12 +110,13 @@ export function structureProblems(html) {
       if (!['x','y','w','h'].every(k=>new RegExp(`(^|;)\\s*--${k}\\s*:`).test(style)))
         add(sid,n,'An element of a detached slide needs --x, --y, --w and --h');
     }
-    // A p closed by another start tag (its end tag then stands alone): the block was inside it.
+    // A </p> left without its p (the parser adds an empty p for it, with no source location): a
+    // block element closed the paragraph it was written in. An omitted </p> is valid HTML.
     for (const n of walk(s)) {
-      if (n.tagName!=='p' || !n.sourceCodeLocation || n.sourceCodeLocation.endTag) continue;
-      const siblings=children(n.parentNode), next=siblings[siblings.indexOf(n)+1];
-      if (next && next.tagName!=='p') add(sid,n.parentNode===s ? n : s.childNodes.find(c=>c.tagName && [...walk(c)].includes(n)) || n,
-        `Block element <${next.tagName}> inside <p>: use <br> for a line break, or a div for blocks`);
+      if (n.tagName!=='p' || n.sourceCodeLocation) continue;
+      const siblings=children(n.parentNode), block=siblings[siblings.indexOf(n)-1];
+      add(sid,s.childNodes.find(c=>c.tagName && [...walk(c)].includes(n)),
+        `Block element <${block?.tagName || '…'}> inside <p>: use <br> for a line break, or a div for blocks`);
     }
   });
   return out;

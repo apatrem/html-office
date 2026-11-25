@@ -368,6 +368,7 @@ export function restoreDraft(d) {
   t.innerHTML = d.format === 1 ? d.main : `<main id="deck">${d.html}</main>`;
   const saved = t.content.firstElementChild;
   if (!saved?.matches('main#deck')) throw new Error('Invalid draft');
+  saved.removeAttribute('data-ui'); // scrub would remove the root without checking its attributes
   scrub(saved);
   if (d.format === 1) {
     [...state.main.attributes].filter(a => a.name !== 'style').forEach(a => state.main.removeAttribute(a.name));
