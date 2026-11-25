@@ -125,6 +125,38 @@ test('checker trusts only published engines and the current build',()=>{
  assert.equal(trusted.echarts.length,1);
 });
 
+// One version wherever it is written by hand. A published engine is recorded after publication
+// (npm run record-release), so the version being prepared may be absent from
+// src/released-engines.json, but only as the next version after the newest recorded one: two
+// unrecorded versions mean the previous release was never recorded, and a later checker would
+// refuse the decks made with it.
+const releaseRecord=(version,recorded)=>{
+ const parse=v=>/^\d+\.\d+\.\d+$/.test(v)?v.split('.').map(Number):null;
+ const [major,minor,patch]=parse(version)??[];
+ if(major===undefined)return `"${version}" is not a major.minor.patch version`;
+ if(recorded.includes(version))return '';
+ const newest=recorded.map(parse).filter(Boolean).sort((a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2]).pop();
+ if(!newest)return 'no released engine is recorded';
+ const next=[[newest[0],newest[1],newest[2]+1],[newest[0],newest[1]+1,0],[newest[0]+1,0,0]].map(v=>v.join('.'));
+ return next.includes(version)?'':`${version} is not recorded and is not the version after ${newest.join('.')}, the newest recorded one: run "npm run record-release" for the published version first (docs/DEVELOPMENT.md)`;
+};
+test('the package, the plugin, the lock file and the distribution URLs carry one version, and the previous release is recorded',()=>{
+ const json=file=>JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
+ const {version}=json('package.json'),lock=json('package-lock.json'),distribution=json('src/distribution.json');
+ assert.equal(json('plugin/.claude-plugin/plugin.json').version,version,'plugin/.claude-plugin/plugin.json');
+ assert.equal(lock.version,version,'package-lock.json');
+ assert.equal(lock.packages[''].version,version,'package-lock.json, root package');
+ assert.ok(distribution.documentationUrl.includes(`/blob/v${version}/`),`src/distribution.json documentationUrl: ${distribution.documentationUrl}`);
+ assert.ok(distribution.skillDownloadUrl.includes(`/releases/download/v${version}/`),`src/distribution.json skillDownloadUrl: ${distribution.skillDownloadUrl}`);
+ assert.equal(releaseRecord(version,Object.keys(json('src/released-engines.json'))),'');
+ // the rule itself: a recorded version; a release being prepared (patch, minor, major); a release never recorded
+ const recorded=['0.4.x','0.7.1','0.7.2','0.10.0'];
+ for(const v of ['0.7.2','0.10.0','0.10.1','0.11.0','1.0.0'])assert.equal(releaseRecord(v,recorded),'',v);
+ for(const v of ['0.10.2','0.12.0','0.9.0','2.0.0','0.11.1'])assert.match(releaseRecord(v,recorded),/is not recorded and is not the version after 0\.10\.0/,v);
+ assert.match(releaseRecord('0.8',recorded),/not a major\.minor\.patch version/);
+ assert.match(releaseRecord('0.5.0',['0.4.x']),/no released engine is recorded/);
+});
+
 test('CSS checks decode escapes and inspect every image candidate',()=>{
  const external=[
   String.raw`.x{background:u\72l("https://example.invalid/escaped.png")}`,
