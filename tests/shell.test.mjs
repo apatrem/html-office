@@ -25,9 +25,19 @@ const stubs = () => {
   const click = HTMLInputElement.prototype.click;
   HTMLInputElement.prototype.click = function () { if (this.type === 'file') window.__files++; else click.call(this); };
 };
+// Everything a command can change: the saved deck, modes, panels, popovers, banners, file actions, selection.
+const signatureInPage = () => {
+  window.__signature = () => JSON.stringify({
+    html: window.deckEngine.serialize(), body: document.body.className, sel: window.deckEngine.selection(),
+    panels: [...document.querySelectorAll('.hs-panel h2, .sh-drawer h2, dialog[open] h2')].map(e => e.textContent),
+    pops: [...document.querySelectorAll('.sh-pop, .sh-pop [aria-label]')].map(e => e.getAttribute('aria-label')),
+    banner: document.querySelector('.hs-banner')?.textContent || '', files: [window.__saves, window.__prints, window.__files]
+  });
+};
 async function open({ width = 1280, height = 860, file = tmp, stub = true } = {}) {
   const ctx = await browser.newContext({ viewport: { width, height }, acceptDownloads: true });
   if (stub) await ctx.addInitScript(stubs);
+  await ctx.addInitScript(signatureInPage);
   const page = await ctx.newPage();
   await page.route(/echarts@[^/]+\/dist\/echarts(\.min)?\.js/, r => r.fulfill({ path: path.join(ASSETS, 'echarts.min.js'),
     contentType: 'application/javascript', headers: { 'access-control-allow-origin': '*' } }));
@@ -65,19 +75,34 @@ const STATES = {
     await page.mouse.move(b.x + 640 * k, b.y + 400 * k, { steps: 5 }); await page.mouse.move(b.x + 1274 * k, b.y + 714 * k, { steps: 5 }); await page.mouse.up();
   }
 };
-// Everything a command can change: the saved deck, modes, panels, popovers, banners, file actions, selection.
-const signature = page => page.evaluate(() => JSON.stringify({
-  html: window.deckEngine.serialize(), body: document.body.className, sel: window.deckEngine.selection(),
-  panels: [...document.querySelectorAll('.hs-panel h2, .sh-drawer h2, dialog[open] h2')].map(e => e.textContent),
-  pops: [...document.querySelectorAll('.sh-pop, .sh-pop [aria-label]')].map(e => e.getAttribute('aria-label')),
-  banner: document.querySelector('.hs-banner')?.textContent || '', files: [window.__saves, window.__prints, window.__files]
-}));
+const signature = page => page.evaluate(() => window.__signature());
+// The state is set up once what a command can change has stopped changing: the same signature two
+// animation frames apart (scrolling picks the current slide in a frame of its own).
+async function settled(page) {
+  const frames = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(done)))));
+  let before = await signature(page);
+  for (const end = Date.now() + 2000; Date.now() < end;) {
+    await frames();
+    const now = await signature(page);
+    if (now === before) return;
+    before = now;
+  }
+}
 async function setup(state) {
   const o = await open();
   await STATES[state](o.page);
-  await o.page.waitForTimeout(150);
+  await settled(o.page);
   return o;
 }
+// A command worked if the signature changes within 250 ms of the click; the wait ends as soon as it does.
+const changes = (page, before) => page.waitForFunction(b => window.__signature() !== b, before, { timeout: 250, polling: 20 }).then(() => true, () => false);
+// Page errors are still collected for 250 ms after the click, while the sweep opens its next page.
+const closing = [];
+const closeAfterErrors = (o, what) => closing.push((async () => {
+  await new Promise(done => setTimeout(done, 250));
+  if (o.errs.length) ok(false, `${what}: no JavaScript error (${o.errs.join(' | ')})`);
+  await o.ctx.close();
+})());
 const menuNames = ['File', 'Edit', 'Insert', 'Format', 'Slide', 'Arrange', 'Table', 'View', 'Help'];
 const listMenu = async (page, name) => {
   await page.getByRole('menubar').getByRole('menuitem', { name, exact: true }).click();
@@ -104,14 +129,13 @@ const listMenu = async (page, name) => {
       const before = await signature(o.page);
       await o.page.getByRole('menubar').getByRole('menuitem', { name: m, exact: true }).click();
       await o.page.locator(`.sh-pop [role=${it.role}]`).filter({ has: o.page.locator('.sh-mlabel').getByText(it.name, { exact: true }) }).click();
-      await o.page.waitForTimeout(250);
-      const after = await signature(o.page);
-      seen.set(id, before !== after);
-      if (before === after) console.log(`      ${id} did nothing in state "${state}"`);
-      if (o.errs.length) ok(false, `${id}: no JavaScript error (${o.errs.join(' | ')})`);
-      await o.ctx.close();
+      const changed = await changes(o.page, before);
+      seen.set(id, changed);
+      if (!changed) console.log(`      ${id} did nothing in state "${state}"`);
+      closeAfterErrors(o, id);
     }
   }
+  await Promise.all(closing);
   const inert = [...seen].filter(([, v]) => !v).map(([k]) => k);
   ok(seen.size >= 60 && inert.length === 0, `every menu entry works in some state (${seen.size} entries)` + (inert.length ? ': inert ' + inert.join(', ') : ''));
 }
@@ -132,13 +156,13 @@ const listMenu = async (page, name) => {
       const before = await signature(o.page);
       await o.page.locator('.hs-shell button, .hs-float button').filter({ visible: true })
         .and(o.page.getByRole('button', { name, exact: true })).first().click();
-      await o.page.waitForTimeout(250);
-      const after = await signature(o.page);
-      seen.set(name, before !== after);
-      if (before === after) console.log(`      button "${name}" did nothing in state "${state}"`);
-      await o.ctx.close();
+      const changed = await changes(o.page, before);
+      seen.set(name, changed);
+      if (!changed) console.log(`      button "${name}" did nothing in state "${state}"`);
+      closeAfterErrors(o, `button "${name}"`);
     }
   }
+  await Promise.all(closing);
   const inert = [...seen].filter(([, v]) => !v).map(([k]) => k);
   ok(seen.size > 30 && inert.length === 0, `every chrome button works (${seen.size} buttons)` + (inert.length ? ': inert ' + inert.join(', ') : ''));
 }
