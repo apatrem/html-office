@@ -61,7 +61,7 @@ node $T/workbook.mjs apply budget.html patch.json --out budget-2.html
 node $T/workbook.mjs validate budget-2.html --since budget.html --allow "Inputs!B4"
 ```
 
-The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` reports whether the committed copy still matches its sources. `packages/data/tests/skill.test.mjs` packages the skill afresh, zips the plugin and tests the extracted archive, so other Data changes never fail on a stale committed copy. Only `SKILL.md` is written by hand; regenerate the rest before a release (release.sh does it).
+The skill is generated from `packages/data` by `node packages/data/tools/skill.mjs` (also run by `npm run release`); `--check` reports whether the committed copy still matches its sources. `packages/data/tests/skill.test.mjs` packages the skill afresh, zips the plugin and tests the extracted archive. CI also runs `--check`, so a change to the Data runtime, tools or shared charts must come with the regenerated copy. Only `SKILL.md` is written by hand.
 
 ### html-text
 
@@ -77,7 +77,7 @@ node $T/document.mjs replace report.html sec-regions section.html --output edite
 node $T/document.mjs check edited.html
 ```
 
-`pack` and `add-image` are described in the skill. The skill is generated from `packages/text` by `node packages/text/tools/skill.mjs` (`--check` compares it with the committed copy); regenerate it after changing the Text tools, runtime or shared charts.
+`pack` and `add-image` are described in the skill. The skill is generated from `packages/text` by `node packages/text/tools/skill.mjs` (`--check` compares it with the committed copy, and CI runs it); regenerate it after changing the Text tools, runtime or shared charts.
 
 ### Manual checks
 

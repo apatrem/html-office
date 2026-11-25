@@ -94,15 +94,19 @@ async function setup(state) {
   await settled(o.page);
   return o;
 }
-// A command worked if the signature changes within 250 ms of the click; the wait ends as soon as it does.
+// A command worked if the signature differs 250 ms after the click, as when the sweep slept 250 ms.
+// The sweep waits only until it sees the change, then opens its next page; when the 250 ms are over
+// the page is read again (a change that was undone in between does not count), with its errors.
 const changes = (page, before) => page.waitForFunction(b => window.__signature() !== b, before, { timeout: 250, polling: 20 }).then(() => true, () => false);
-// Page errors are still collected for 250 ms after the click, while the sweep opens its next page.
 const closing = [];
-const closeAfterErrors = (o, what) => closing.push((async () => {
-  await new Promise(done => setTimeout(done, 250));
+const settle = (o, what, before, clicked, changed, record) => closing.push((async () => {
+  await new Promise(done => setTimeout(done, Math.max(0, clicked + 250 - Date.now())));
+  record(changed && await signature(o.page) !== before);
   if (o.errs.length) ok(false, `${what}: no JavaScript error (${o.errs.join(' | ')})`);
   await o.ctx.close();
 })());
+// Results are in before the next state reads them.
+const verdicts = () => Promise.all(closing.splice(0));
 const menuNames = ['File', 'Edit', 'Insert', 'Format', 'Slide', 'Arrange', 'Table', 'View', 'Help'];
 const listMenu = async (page, name) => {
   await page.getByRole('menubar').getByRole('menuitem', { name, exact: true }).click();
@@ -129,13 +133,14 @@ const listMenu = async (page, name) => {
       const before = await signature(o.page);
       await o.page.getByRole('menubar').getByRole('menuitem', { name: m, exact: true }).click();
       await o.page.locator(`.sh-pop [role=${it.role}]`).filter({ has: o.page.locator('.sh-mlabel').getByText(it.name, { exact: true }) }).click();
-      const changed = await changes(o.page, before);
-      seen.set(id, changed);
-      if (!changed) console.log(`      ${id} did nothing in state "${state}"`);
-      closeAfterErrors(o, id);
+      const clicked = Date.now();
+      settle(o, id, before, clicked, await changes(o.page, before), worked => {
+        seen.set(id, worked);
+        if (!worked) console.log(`      ${id} did nothing in state "${state}"`);
+      });
     }
+    await verdicts();
   }
-  await Promise.all(closing);
   const inert = [...seen].filter(([, v]) => !v).map(([k]) => k);
   ok(seen.size >= 60 && inert.length === 0, `every menu entry works in some state (${seen.size} entries)` + (inert.length ? ': inert ' + inert.join(', ') : ''));
 }
@@ -156,15 +161,29 @@ const listMenu = async (page, name) => {
       const before = await signature(o.page);
       await o.page.locator('.hs-shell button, .hs-float button').filter({ visible: true })
         .and(o.page.getByRole('button', { name, exact: true })).first().click();
-      const changed = await changes(o.page, before);
-      seen.set(name, changed);
-      if (!changed) console.log(`      button "${name}" did nothing in state "${state}"`);
-      closeAfterErrors(o, `button "${name}"`);
+      const clicked = Date.now();
+      settle(o, `button "${name}"`, before, clicked, await changes(o.page, before), worked => {
+        seen.set(name, worked);
+        if (!worked) console.log(`      button "${name}" did nothing in state "${state}"`);
+      });
     }
+    await verdicts();
   }
-  await Promise.all(closing);
   const inert = [...seen].filter(([, v]) => !v).map(([k]) => k);
   ok(seen.size > 30 && inert.length === 0, `every chrome button works (${seen.size} buttons)` + (inert.length ? ': inert ' + inert.join(', ') : ''));
+}
+
+// 2a. The sweeps' own rule (review of the CI changes): a change that is undone within the 250 ms is
+// seen at once, and does not count as a working command.
+{
+  const o = await setup('text');
+  const before = await signature(o.page);
+  await o.page.evaluate(() => { document.body.classList.add('passing'); setTimeout(() => document.body.classList.remove('passing'), 100); });
+  const clicked = Date.now(), seenAtOnce = await changes(o.page, before);
+  let counted;
+  settle(o, 'a change undone at once', before, clicked, seenAtOnce, worked => { counted = worked; });
+  await verdicts();
+  ok(seenAtOnce && counted === false, 'the sweeps do not count a change that is undone within 250 ms');
 }
 
 // 3. Keyboard: menu bar, menus, toolbar roving focus, focus return, shortcuts kept for the slides.

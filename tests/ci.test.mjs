@@ -20,7 +20,8 @@ const jobs = Object.fromEntries(workflow.slice(workflow.indexOf('\njobs:\n')).sp
   .map(text => [/^  ([\w-]+):/.exec(text)[1], text]));
 // The job's own env: block (four spaces), not the env: of a step (eight).
 const jobEnv = job => Object.fromEntries([...(/\n    env:\n((?:      .*\n)+)/.exec(jobs[job])?.[1] ?? '').matchAll(/^      (\w+): (.*)$/gm)].map(m => [m[1], m[2]]));
-const scripts = file => Object.values(JSON.parse(read(file)).scripts).join('\n');
+// One npm script, by name: a file named only in a script CI never calls is not run.
+const script = (file, name) => JSON.parse(read(file)).scripts[name] ?? '';
 const list = (dir, test) => fs.readdirSync(path.join(ROOT, dir)).filter(test).map(name => `${dir}/${name}`);
 
 test('the workflow has the jobs this file knows', () => {
@@ -44,22 +45,29 @@ test('every gate is still in its job', () => {
     'text-engines': ['node packages/text/bench/browser.mjs --check', 'node packages/text/tests/print-firefox.mjs']
   };
   for (const [job, commands] of Object.entries(gates)) for (const command of commands) assert.ok(jobs[job].includes(command), `${job}: ${command}`);
-  // The root suites are the chains the test, data-phase-a and text jobs run.
-  assert.match(scripts('package.json'), /"?npm --prefix packages\/data test && npm --prefix packages\/data run test:browser/);
-  assert.match(scripts('package.json'), /npm --prefix packages\/text test && npm --prefix packages\/text run test:browser/);
+  // What the three suite commands of the workflow run: the unit suite, then the browser chain.
+  assert.match(script('package.json', 'test'), /^npm run build && node --test tests\/\S+\.test\.mjs/);
+  for (const pkg of ['data', 'text']) {
+    assert.equal(script('package.json', `test:${pkg}`), `npm --prefix packages/${pkg} test && npm --prefix packages/${pkg} run test:browser`);
+    assert.equal(script(`packages/${pkg}/package.json`, 'test'), 'node --test tests/*.test.mjs', `packages/${pkg}: the unit suite takes every tests/*.test.mjs`);
+  }
 });
 
 test('every test file is run by a suite or by the workflow', () => {
-  const root = scripts('package.json'), missing = [];
-  for (const file of list('tests', name => name.endsWith('.test.mjs')))
-    if (!root.includes(file)) missing.push(file);
+  // npm test (the test job) names its files one by one; the packages' unit suites take a glob (checked above).
+  const missing = (suite, files) => files.filter(file => !new RegExp(`(^|\\s)${file.replace(/[.*/]/g, '\\$&')}(\\s|$)`).test(suite));
+  assert.deepEqual(missing(script('package.json', 'test'), list('tests', name => name.endsWith('.test.mjs'))), []);
   for (const pkg of ['data', 'text']) {
-    const own = scripts(`packages/${pkg}/package.json`);
-    assert.ok(own.includes('node --test tests/*.test.mjs'), `packages/${pkg}: the unit suite takes every tests/*.test.mjs`);
-    for (const file of list(`packages/${pkg}/tests`, name => name.endsWith('-browser.mjs')))
-      if (!own.includes(`node tests/${path.basename(file)}`) && !workflow.includes(`node ${file}`)) missing.push(file);
+    const chain = script(`packages/${pkg}/package.json`, 'test:browser');
+    const files = list(`packages/${pkg}/tests`, name => name.endsWith('-browser.mjs'));
+    assert.ok(files.length >= 14, `packages/${pkg}: ${files.length} browser scripts`);
+    assert.deepEqual(missing(chain, files.map(file => `tests/${path.basename(file)}`)), []);
   }
-  assert.deepEqual(missing, []);
+  // The rule itself (review of the CI changes): a file named only by another script, or as part of another name, is missing.
+  assert.deepEqual(missing('node --test tests/a.test.mjs tests/b.test.mjs && node tests/c-browser.mjs', ['tests/a.test.mjs', 'tests/b.test.mjs']), []);
+  assert.deepEqual(missing('node --test tests/xa.test.mjs tests/a.test.mjsx', ['tests/a.test.mjs']), ['tests/a.test.mjs']);
+  assert.deepEqual(missing(script('package.json', 'test').replace(' tests/tools.test.mjs', ''), ['tests/tools.test.mjs']), ['tests/tools.test.mjs'], 'still named by test:regression, which CI does not run');
+  assert.match(script('package.json', 'test:regression'), / tests\/tools\.test\.mjs /);
 });
 
 test('scripts that take their engines from a variable run in an engines job, which sets it for the whole job and checks it last', () => {
@@ -87,8 +95,8 @@ test('scripts that take their engines from a variable run in an engines job, whi
   assert.doesNotMatch(jobs['clipboard-engines'], /CLIPBOARD_ENGINES=\S+ node tests\/clipboard-engines\.mjs/);
   // Their Chromium run, and that of the other scripts this job runs in two engines, is in npm test and npm run test:data.
   for (const name of ['slides-clipboard', 'slides-charts-clipboard', 'slides-slide-clipboard', 'slides-tables', 'save-in-place-slides'])
-    assert.match(scripts('package.json'), new RegExp(`&& node tests/${name}\\.mjs( |"|$)`, 'm'), `npm test runs ${name} in Chromium`);
-  assert.ok(scripts('packages/data/package.json').includes('node tests/save-in-place-browser.mjs'));
+    assert.match(script('package.json', 'test'), new RegExp(`&& node tests/${name}\\.mjs( |$)`), `npm test runs ${name} in Chromium`);
+  assert.match(script('packages/data/package.json', 'test:browser'), /&& node tests\/save-in-place-browser\.mjs( |$)/);
 });
 
 test('the blind-kit score tests are left out of the Data and Text jobs only, and run in their own', () => {
