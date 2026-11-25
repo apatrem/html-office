@@ -1,0 +1,8 @@
+{
+  "name": "@html-office/data-engine-toolchain",
+  "private": true,
+  "description": "wasm-opt for ../rebuild.sh. Installed only to rebuild the engine (REBUILD.md), never by the tests.",
+  "devDependencies": {
+    "binaryen": "132.0.0"
+  }
+}

@@ -16,6 +16,9 @@ A table begins at A1 and has explicit dimensions, column types, scalar data, typ
 From the repository root:
 
 ```bash
+# The tokenizer is pinned here, with a lock file of its own, outside the install the tests use.
+npm ci --prefix packages/data/bench/storage --ignore-scripts
+
 # Fictional artifacts: writes working standard HTMLs into dist/data-storage/.
 node --expose-gc packages/data/bench/storage/assess.mjs --output packages/data/bench/storage/fictional-results.json
 

@@ -11,8 +11,6 @@
     "format:check": "prettier --check \"{model,runtime,tools,tests,bench,fixtures,acceptance}/**/*.mjs\" \"engine/manifest.json\""
   },
   "devDependencies": {
-    "binaryen": "132.0.0",
-    "gpt-tokenizer": "4.0.3",
     "prettier": "3.6.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }

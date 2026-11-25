@@ -1,0 +1,9 @@
+{
+  "name": "@html-office/data-storage-assessment",
+  "private": true,
+  "description": "Tokenizer for assess.mjs. Installed only to repeat the storage assessment (REVIEW.md), never by the tests.",
+  "type": "module",
+  "devDependencies": {
+    "gpt-tokenizer": "4.0.3"
+  }
+}
