@@ -30,7 +30,7 @@ test('the workflow has the jobs this file knows', () => {
 
 test('every gate is still in its job', () => {
   const gates = {
-    test: ['npm audit --audit-level=high', 'npm run build', 'git status --porcelain -- plugin/skills/html-slides', 'run: npm test',
+    test: ['fetch-tags: true', 'npm audit --audit-level=high', 'npm run build', 'git status --porcelain -- plugin/skills/html-slides', 'run: npm test',
       'npm --prefix tools/engine-assessment test', 'npm --prefix tools/engine-assessment run measure -- --check',
       'check.mjs plugin/skills/html-slides/examples/community-garden.html', 'check.mjs plugin/skills/html-slides/examples/catalogue.html'],
     'data-phase-a': ['npm audit --prefix packages/data --audit-level=high', 'npm audit --prefix packages/data/engine/toolchain --audit-level=high',

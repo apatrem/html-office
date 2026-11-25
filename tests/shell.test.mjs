@@ -99,12 +99,20 @@ async function setup(state) {
 // the page is read again (a change that was undone in between does not count), with its errors.
 const changes = (page, before) => page.waitForFunction(b => window.__signature() !== b, before, { timeout: 250, polling: 20 }).then(() => true, () => false);
 const closing = [];
-const settle = (o, what, before, clicked, changed, record) => closing.push((async () => {
-  await new Promise(done => setTimeout(done, Math.max(0, clicked + 250 - Date.now())));
-  record(changed && await signature(o.page) !== before);
-  if (o.errs.length) ok(false, `${what}: no JavaScript error (${o.errs.join(' | ')})`);
-  await o.ctx.close();
-})());
+function settle(o, what, before, clicked, changed, record) {
+  const task = (async () => {
+    try {
+      await new Promise(done => setTimeout(done, Math.max(0, clicked + 250 - Date.now())));
+      record(changed && await signature(o.page) !== before);
+      if (o.errs.length) ok(false, `${what}: no JavaScript error (${o.errs.join(' | ')})`);
+    } finally {
+      await o.ctx.close();
+    }
+  })();
+  // A page that cannot be read fails the sweep at verdicts(), not as an unhandled rejection meanwhile.
+  task.catch(() => {});
+  closing.push(task);
+}
 // Results are in before the next state reads them.
 const verdicts = () => Promise.all(closing.splice(0));
 const menuNames = ['File', 'Edit', 'Insert', 'Format', 'Slide', 'Arrange', 'Table', 'View', 'Help'];
@@ -173,17 +181,26 @@ const listMenu = async (page, name) => {
   ok(seen.size > 30 && inert.length === 0, `every chrome button works (${seen.size} buttons)` + (inert.length ? ': inert ' + inert.join(', ') : ''));
 }
 
-// 2a. The sweeps' own rule (review of the CI changes): a change that is undone within the 250 ms is
-// seen at once, and does not count as a working command.
+// 2a. The sweeps' own rule (review of the CI changes): a change that is seen, then undone within
+// the 250 ms, does not count as a working command; and a page that can no longer be read fails
+// the sweep when its results are collected, with its context closed.
 {
-  const o = await setup('text');
+  let o = await setup('text');
   const before = await signature(o.page);
-  await o.page.evaluate(() => { document.body.classList.add('passing'); setTimeout(() => document.body.classList.remove('passing'), 100); });
+  await o.page.evaluate(() => document.body.classList.add('passing'));
   const clicked = Date.now(), seenAtOnce = await changes(o.page, before);
+  await o.page.evaluate(() => document.body.classList.remove('passing'));
   let counted;
   settle(o, 'a change undone at once', before, clicked, seenAtOnce, worked => { counted = worked; });
   await verdicts();
   ok(seenAtOnce && counted === false, 'the sweeps do not count a change that is undone within 250 ms');
+  o = await setup('text');
+  const unreadable = await signature(o.page);
+  await o.page.close();
+  settle(o, 'a page closed meanwhile', unreadable, Date.now(), true, () => {});
+  await new Promise(done => setTimeout(done, 500)); // the rejection happens here, before anyone awaits it
+  const outcome = await verdicts().then(() => 'resolved', () => 'rejected');
+  ok(outcome === 'rejected' && browser.contexts().length === 0, `a page that cannot be read fails the sweep when results are collected, context closed (${outcome}, ${browser.contexts().length} context(s) left)`);
 }
 
 // 3. Keyboard: menu bar, menus, toolbar roving focus, focus return, shortcuts kept for the slides.

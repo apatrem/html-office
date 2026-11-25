@@ -154,9 +154,11 @@ test('the package, the plugin, the lock file and the distribution URLs carry one
  assert.equal(lock.packages[''].version,version,'package-lock.json, root package');
  assert.ok(distribution.documentationUrl.includes(`/blob/v${version}/`),`src/distribution.json documentationUrl: ${distribution.documentationUrl}`);
  assert.ok(distribution.skillDownloadUrl.includes(`/releases/download/v${version}/`),`src/distribution.json skillDownloadUrl: ${distribution.skillDownloadUrl}`);
- // Release tags are known in a full checkout (where a release is prepared and npm run release runs
- // this test); a shallow CI checkout has none and applies the second rule only.
+ // Release tags are known in a full checkout and in CI, whose test job fetches them; without them
+ // (an archive, a shallow clone) only the second rule applies. CI must have them (review of the CI
+ // changes: without tags, 0.7.3 published and never recorded would pass when 0.8.0 is prepared).
  const git=spawnSync('git',['tag','--list','v*'],{cwd:root,encoding:'utf8'}),tags=git.status===0?git.stdout.split('\n').filter(Boolean):[];
+ if(process.env.CI)assert.ok(tags.includes(`v0.7.2`),`CI has the release tags (fetch-tags in the test job of .github/workflows/test.yml): ${tags}`);
  assert.equal(releaseRecord(version,Object.keys(json('src/released-engines.json')),tags),'');
  // the rule itself: a recorded version; a release being prepared (patch, minor, major, hotfix on an older line)
  const recorded=['0.4.x','0.7.1','0.7.2','0.10.0'];
