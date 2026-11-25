@@ -182,3 +182,58 @@ test('the plugin archive check accepts the Slides skill only', () => {
     assert.doesNotMatch(text, /from the first release after/, file);
   }
 });
+
+// ---- review of 22 November 2026 (Slides defects) ----
+// A slide whose markup has no image on the first parse but an active one once serialised and
+// parsed again (mutation XSS) must not pass the inert check: an undo, a restored structure or a
+// save and reopen would make it active.
+test('the inert check refuses raw-text, template and MathML elements and markup that changes when parsed again',async()=>{
+ const {inspectHTML}=await import('../plugin/skills/html-slides/tools/validation.mjs');
+ const trusted=JSON.parse(asset('trusted-scripts.json'));
+ const slide='<section class="slide" id="s01" data-layout="default">';
+ const mxss='<math><mtext><table><mglyph><xmp><img src=x onerror=alert(1)></xmp></mglyph></table></mtext></math>';
+ const msgs=html=>inspectHTML(html,trusted).out.map(x=>x.msg);
+ const found=msgs(base.replace(slide,slide+mxss));
+ assert.ok(found.includes('Forbidden tag <xmp>'),found.join('\n'));
+ assert.ok(found.some(m=>/changes when the file is parsed again/.test(m)),found.join('\n'));
+ for(const tag of ['xmp','noembed','noframes','noscript','template','math'])
+  assert.ok(msgs(base.replace(slide,slide+`<${tag}>x</${tag}>`)).includes(`Forbidden tag <${tag}>`),tag);
+ assert.ok(msgs(base.replace(slide,slide+'<plaintext>x')).includes('Forbidden tag <plaintext>'));
+ assert.ok(msgs(base.replace(slide,slide+'<template shadowrootmode="open"><img src=x onerror=alert(1)></template>')).includes('Forbidden tag <template>'));
+ // The embedded guide is the one template allowed, in head.
+ assert.deepEqual(msgs(base),[]);
+ const r=spawnSync(process.execPath,[tool('check'),(()=>{const f=path.join(dir,'mxss.html');fs.writeFileSync(f,base.replace(slide,slide+mxss));return f;})(),'--json'],{encoding:'utf8'});
+ assert.equal(r.status,1,r.stdout+r.stderr);
+});
+test('the checker reports slide ids, detached coordinates and block elements inside p from the raw HTML',()=>{
+ const check=(name,html)=>{const f=path.join(dir,`raw-${name}.html`);fs.writeFileSync(f,html);const r=run('check',f,'--json');return {status:r.status,msgs:JSON.parse(r.stdout).out.filter(x=>x.level==='error').map(x=>x.msg)};};
+ const two=base.replace('</section>','</section><section class="slide" id="s02" data-layout="default"><h1 data-id="e5">Second</h1></section>');
+ let r=check('missing-id',two.replace(' id="s02"',''));
+ assert.equal(r.status,1);assert.ok(r.msgs.some(m=>/Slide 2 has no id/.test(m)),r.msgs.join('\n'));
+ r=check('duplicate-id',two.replace('id="s02"','id="s01"'));
+ assert.equal(r.status,1);assert.ok(r.msgs.some(m=>/Duplicate slide id "s01"/.test(m)),r.msgs.join('\n'));
+ const detached=base.replace('data-layout="default"','data-layout="default" data-detached').replace('data-id="e1"','data-id="e1" style="--x:64;--y:44;--w:1000;--h:40"');
+ r=check('detached',detached.replace('data-id="e2"','data-id="e2" style="--x:64;--y:180;--w:1000"'));
+ assert.equal(r.status,1);assert.ok(r.msgs.some(m=>/needs --x, --y, --w and --h/.test(m)),r.msgs.join('\n'));
+ assert.equal(check('detached-ok',detached.replace('data-id="e2"','data-id="e2" style="--x:64;--y:180;--w:1000;--h:40"')).status,0);
+ r=check('block-in-p',base.replace('<div class="body" data-id="e2">Text.</div>','<p class="lead" data-id="e2">Text.<div>More</div></p>'));
+ assert.equal(r.status,1);assert.ok(r.msgs.some(m=>/Block element <div> inside <p>/.test(m)),r.msgs.join('\n'));
+ // A paragraph closed by the next paragraph, or by a block, without </p> is ordinary HTML (review).
+ assert.equal(check('p-div',base.replace('<div class="body" data-id="e2">Text.</div>','<div class="body" data-id="e2"><p>Intro<div>Body</div></div>')).status,0);
+ assert.equal(check('p-p',base.replace('<div class="body" data-id="e2">Text.</div>','<p class="lead" data-id="e2">Text.<p class="body" data-id="e3">More</p>')).status,0);
+});
+test('a snapshot error carries no --allow hint that does nothing',()=>{
+ const a=path.join(dir,'dup-before.html'),b=path.join(dir,'dup-after.html');
+ fs.writeFileSync(a,base.replace('data-id="e2"','data-id="e1"'));fs.writeFileSync(b,base);
+ const r=run('check',b,'--since',a,'--json');
+ const msgs=JSON.parse(r.stdout).out.map(x=>x.msg);
+ assert.ok(msgs.some(m=>/Missing or duplicate data-id/.test(m)),msgs.join('\n'));
+ assert.ok(!msgs.some(m=>/--allow -/.test(m)),msgs.join('\n'));
+});
+test('deck.mjs pdf closes the browser when the PDF cannot be written',()=>{
+ const f=path.join(dir,'pdf-fail.html');fs.writeFileSync(f,base);
+ const target=path.join(dir,'folder.pdf');fs.mkdirSync(target,{recursive:true});
+ const r=spawnSync(process.execPath,[tool('deck'),'pdf',f,target],{encoding:'utf8',timeout:20000});
+ assert.equal(r.error?.code,undefined,'deck.mjs pdf did not exit: the browser was left open');
+ assert.equal(r.status,1,r.stdout+r.stderr);
+});

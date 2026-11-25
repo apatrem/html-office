@@ -17,8 +17,11 @@ export const DECK_FONTS = FONTS.map(([id]) => id);
 
 // ---------- safety rules: deck content never runs code or loads an external resource ----------
 // Shared by the inert checker (tools/validation.mjs) and draft restoration in the engine.
+// Raw-text, template and MathML elements are refused too: their content is parsed differently
+// once serialised, so markup that is inert when opened can become active after an undo or a save
+// (mutation XSS). The embedded guide is the one template, in head (tools/validation.mjs).
 export const ACTIVE_TAGS = ['iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'base', 'link', 'form',
-  'animate', 'set', 'animatetransform', 'animatemotion'];
+  'animate', 'set', 'animatetransform', 'animatemotion', 'xmp', 'noembed', 'noframes', 'plaintext', 'noscript', 'template', 'math'];
 // Attributes that load or send to a URL and have no use in a deck.
 const RESOURCE_ATTRS = ['srcset', 'background', 'poster', 'ping', 'action', 'formaction', 'lowsrc', 'dynsrc',
   'longdesc', 'codebase', 'archive', 'classid', 'manifest', 'icon', 'profile', 'data'];

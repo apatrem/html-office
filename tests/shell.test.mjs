@@ -276,7 +276,9 @@ const listMenu = async (page, name) => {
   await page.keyboard.press('Control+b'); // a change makes the toolbar read the table's state
   ok(errs.length === 0, 'selecting an empty table raises no error' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await page.keyboard.press('Control+z');
-  await page.reload(); await page.waitForFunction(() => window.deckEngine); await STATES.text(page);
+  // the edits above left a draft: editing waits until the offer is answered
+  await page.reload(); await page.waitForFunction(() => window.deckEngine);
+  await page.locator('.hs-banner button', { hasText: 'Discard' }).click(); await STATES.text(page);
   // tab stop follows the visible toolbar
   await page.locator('#s06').scrollIntoViewIfNeeded();
   await page.locator('#s06 > .sticker').click();

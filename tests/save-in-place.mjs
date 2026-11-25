@@ -43,6 +43,7 @@ function installFakeFiles() {
     });
   method('getFile', async function () {
     const text = await window.__fakeRead(this.fakePath);
+    if (text === null) throw new DOMException('A requested file or directory could not be found.', 'NotFoundError');
     return { text: async () => text };
   });
   // Storage that never answers, for the remembered handles only.
@@ -72,7 +73,7 @@ function installFakeFiles() {
 // A context whose pages see the fake picker and the real files under it.
 export async function fakeFileContext(browser, options = {}) {
   const context = await browser.newContext({ acceptDownloads: true, ...options });
-  await context.exposeFunction('__fakeRead', p => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : ''));
+  await context.exposeFunction('__fakeRead', p => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null));
   await context.exposeFunction('__fakeWrite', (p, text) => fs.writeFileSync(p, text));
   await context.addInitScript(installFakeFiles);
   return context;
@@ -289,6 +290,34 @@ export async function saveInPlaceScenarios(browser, product, log = console.log) 
     assert.ok(!read(elsewhere).includes(product.marker(3)));
     await context.close();
     pass('another file chosen in the picker is replaced and not remembered; a file with the opened name is remembered, and reused only while it holds the opened document');
+  }
+
+  // ---- a bound file deleted, or changed by another program: Save fails once, then asks again ----
+  {
+    const context = await fakeFileContext(browser);
+    const a = file(`${product.prefix}-lost.html`);
+    const page = await open(context, a);
+    await product.edit(page, 1);
+    await save(page, savedOpened(path.basename(a)));
+    fs.rmSync(a);
+    await product.edit(page, 2);
+    await save(page, /moved or deleted; nothing was written\. Save again to choose a file/);
+    assert.equal(read(a), null, 'nothing was written');
+    await save(page, savedOpened(path.basename(a)));
+    assert.equal((await fake(page)).picks, 2, 'the next Save opens the picker');
+    assert.ok(read(a).includes(product.marker(2)));
+    const changed = read(a) + '<!-- changed elsewhere -->';
+    fs.writeFileSync(a, changed);
+    await product.edit(page, 3);
+    await save(page, /changed externally; nothing was overwritten\. Save again to choose a file/);
+    assert.doesNotMatch(await page.locator(product.statusSelector).textContent(), /Save a copy;/);
+    assert.equal(read(a), changed, 'nothing was overwritten');
+    await save(page, savedOpened(path.basename(a)));
+    assert.equal((await fake(page)).picks, 3);
+    assert.ok(read(a).includes(product.marker(3)));
+    assert.deepEqual(page.errors, []);
+    await context.close();
+    pass('a bound file that was deleted or changed elsewhere fails one Save, and the next Save opens the picker');
   }
 
   // ---- storage that never answers does not hold up Save ----

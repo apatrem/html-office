@@ -101,9 +101,10 @@ function show() {
 }
 
 // ---------- bandeau ----------
-export function banner(text, actions = [], ms = 0) {
-  document.querySelectorAll('.hs-banner').forEach(b => b.remove());
-  const b = ui('div', 'hs-banner');
+// keep: the banner stays until one of its actions is chosen; other notices show below it.
+export function banner(text, actions = [], ms = 0, keep = false) {
+  document.querySelectorAll('.hs-banner:not(.hs-keep)').forEach(b => b.remove());
+  const b = ui('div', keep ? 'hs-banner hs-keep' : 'hs-banner');
   b.appendChild(ui('span', '', text));
   actions.forEach(([label, fn]) => {
     const btn = ui('button', '', label);
@@ -347,6 +348,7 @@ body.hs-editing main#deck > .slide.hs-focus{outline:2px solid #4F7FA3;outline-of
 .hs-clip{position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0}
 .hs-banner{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);z-index:4100;background:#0B1C2C;color:#fff;border-radius:8px;
   padding:10px 14px;font:13px/1.4 system-ui,-apple-system,Arial,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.25)}
+.hs-banner.hs-keep:has(~ .hs-banner){transform:translate(-50%,calc(-100% - 8px))}
 .hs-banner button{font:inherit;background:#fff;color:#0B1C2C;border:0;border-radius:5px;padding:4px 10px;cursor:pointer}
 .hs-chart-head{flex:none}
 .hs-unit{font-size:13px;color:var(--t2);margin:6px 0 8px}
@@ -395,6 +397,8 @@ body.hs-present main#deck > .slide:not(.hs-current){display:none}
   body.hs-editing .hs-banner{bottom:184px}
   .hs-banner{max-width:calc(100vw - 16px)}
 }
-@media print{.hs-side,.hs-banner,.hs-panel,.sh-pop,.moveable-control-box,.selecto-selection{display:none!important}
+/* edit mode pads main#deck inline (fit): print places each slide at the top left of its page */
+@media print{.hs-side,.hs-banner,.hs-panel,.sh-pop,.moveable-control-box,.selecto-selection,.hs-clip{display:none!important}
+  main#deck{padding:0!important}
   main#deck > .slide.hs-focus{outline:none !important}}
 `;

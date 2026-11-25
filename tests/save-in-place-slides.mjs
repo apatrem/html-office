@@ -40,6 +40,38 @@ const product = {
   save: page => page.keyboard.press('Control+s'),
 };
 
+// A draft of an older revision restored: Save never writes over the newer file it was opened
+// from, even when that file is remembered; the picker suggests the -recovered name (review of
+// 22 November 2026, as Text and Data).
+async function recoveredDraft(browser) {
+  const context = await fakeFileContext(browser);
+  const a = path.join(dir, 'deck-recovered-src.html');
+  fs.writeFileSync(a, source);
+  let page = await context.newPage();
+  await page.goto(pathToFileURL(a).href);
+  await product.open(page);
+  await product.edit(page, 1);
+  await product.save(page);
+  await page.waitForFunction(() => /Saved to/.test(document.querySelector('.hs-banner')?.textContent ?? ''));
+  await product.edit(page, 2); // left as a draft
+  const newer = fs.readFileSync(a, 'utf8').replace('data-footer="Footer 1"', 'data-footer="Newer elsewhere"');
+  fs.writeFileSync(a, newer);
+  await page.close({ runBeforeUnload: false });
+  page = await context.newPage();
+  await page.goto(pathToFileURL(a).href);
+  await page.waitForFunction(() => window.deckEngine);
+  await page.locator('.hs-banner button', { hasText: 'Restore older draft' }).click();
+  await product.save(page);
+  await page.waitForFunction(() => window.fakeFiles.picks === 1 || window.fakeFiles.writes > 0);
+  await page.waitForFunction(() => /Saved to|Save failed/.test(document.querySelector('.hs-banner')?.textContent ?? ''));
+  const disk = await page.evaluate(() => ({ ...window.fakeFiles }));
+  if (disk.picks !== 1 || disk.options[0].suggestedName !== 'deck-recovered-src-recovered.html')
+    throw new Error('restored older draft: ' + JSON.stringify(disk));
+  if (fs.readFileSync(a, 'utf8') !== newer) throw new Error('the newer file was overwritten');
+  await context.close();
+  console.log('PASS save in place [Slides]: a restored older draft opens the picker with the -recovered name and never replaces the newer file');
+}
+
 const engines = (process.env.SAVE_ENGINES || 'chromium').split(',');
 try {
   for (const engine of engines) {
@@ -70,6 +102,7 @@ try {
         }
         await context.close();
         console.log('PASS save in place [Slides]: a saved deck with charts is recognised as the opened document on reopening');
+        await recoveredDraft(browser);
       }
       await copyOnlyScenario(browser, { ...product, label: `Slides, ${engine}` });
     } finally {

@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { openDeck, args } from './lib.mjs';
-import { snapshot, compareSnapshots } from './validation.mjs';
+import { snapshot, compareSnapshots, structureProblems } from './validation.mjs';
 import {CONTENT_CLASSES as CLASSES, THEMES, DECK_FONTS, attributeProblem} from './format.mjs';
 
 const A = args(process.argv.slice(2));
@@ -140,6 +140,7 @@ for (const a of report.attributes) {
   if (problem) report.out.push({ level: 'error', slide: a.slide, id: a.id, msg: problem });
 }
 delete report.attributes;
+report.out.push(...structureProblems(fs.readFileSync(file, 'utf8')));
 
 // Positions preserved relative to a previous version.
 if (A.since) {
