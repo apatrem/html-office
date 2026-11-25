@@ -213,3 +213,20 @@ test('Cancel after Undo does not add the slide twice', async t => {
   await page.waitForTimeout(100);
   assert.equal(await page.evaluate(() => document.querySelectorAll('#deck > section.slide').length), 2);
 });
+
+// Review re-check (Codex): a slide added after the deletion may take the deleted slide's id; Cancel
+// must still put the deleted slide back.
+test('Cancel restores the deleted slide when a new slide took its id', async t => {
+  const file = deck('cancel-reuse', [S('s01', '<h1 data-id="e1">One</h1>'), S('s02', '<h1 data-id="e2">Two</h1>')]);
+  const page = await open(t, file);
+  await page.evaluate(() => document.querySelector('#s02').scrollIntoView());
+  await page.locator('#s02 > h1').click();
+  await slideMenu(page, 'Delete slide');
+  await page.waitForFunction(() => !document.querySelector('#s02'));
+  await page.locator('#s01 > h1').click();
+  await slideMenu(page, 'Duplicate slide');
+  await page.waitForFunction(() => document.querySelector('#s02'));
+  await page.locator('.hs-banner button', { hasText: 'Cancel' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#deck > section.slide').length === 3);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#deck > section.slide > h1')].map(h => h.textContent).sort()), ['One', 'One', 'Two']);
+});
