@@ -454,7 +454,7 @@ A recognised envelope that is malformed or over a limit aborts the paste (§1). 
 
 ### Tests
 
-`tests/slides-slide-clipboard.mjs` runs in `npm test` (Chromium) and in the `clipboard-engines` job (Chromium, Firefox, WebKit): two decks with different themes, identifiers, assets after save and reopen offline, charts with and without ECharts, notes, undo and redo, the draft, overflow, malformed, oversized and hostile envelopes, an unknown kind, and the released reader. The cases added by the cross-lineage review of the pull request are marked "review" in the file. Real pasteboards across tabs and browsers are manual ([MANUAL-CHECKS.md](../MANUAL-CHECKS.md)).
+`tests/slides-slide-clipboard.mjs` runs in `npm test` (Chromium) and in the `clipboard-engines` job (Firefox, WebKit): two decks with different themes, identifiers, assets after save and reopen offline, charts with and without ECharts, notes, undo and redo, the draft, overflow, malformed, oversized and hostile envelopes, an unknown kind, and the released reader. The cases added by the cross-lineage review of the pull request are marked "review" in the file. Real pasteboards across tabs and browsers are manual ([MANUAL-CHECKS.md](../MANUAL-CHECKS.md)).
 
 ## Alternatives considered
 

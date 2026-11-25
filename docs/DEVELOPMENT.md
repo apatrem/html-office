@@ -124,6 +124,30 @@ Add a chart in `packages/shared/charts/types/<type>.mjs` with `label`, `validate
 
 Distribution links are versioned in `src/distribution.json`; documentation and downloads must point to a compatible release. Format versioning is independent of engine versioning. Generated assets are committed so the downloaded skill can run without a build step.
 
+## Continuous integration
+
+One workflow, [`.github/workflows/test.yml`](../.github/workflows/test.yml), runs on pull requests to `main`, on pushes to `main` and on demand. A new push to a pull request cancels its previous run; a push to `main` always keeps its own. Its seven jobs run side by side:
+
+| Job | What it gates | Locally |
+| --- | --- | --- |
+| `test` | Slides and shared code in Chromium; `npm audit`; the committed Slides assets match a fresh build; the distributed examples pass the checker; the pinned engine assessment (on pull requests, only when `tools/engine-assessment/` or the workflow changes) | `npm run build && git status --short plugin/skills/html-slides`, `npm test` |
+| `data-phase-a` | Data unit and browser suites in Chromium; `npm audit` (also for the engine toolchain and the storage assessment); formatting; the committed `html-data` skill matches its sources | `npm run test:data`, `node packages/data/tools/skill.mjs --check` |
+| `data-bench` | The P&L and 50k/100k-row workloads against their limits | `npm --prefix packages/data run bench` |
+| `text` | Text unit and browser suites in Chromium; `npm audit`; formatting; the committed `html-text` skill matches its sources; the 50- and 100-page benchmark | `npm run test:text`, `node packages/text/tools/skill.mjs --check` |
+| `blind-kits` | Each blind-test kit is built and scores good and faulty answers (Data T22, Text T20); Node only, nothing installed | `node --test packages/data/tests/blind-kit.test.mjs packages/text/tests/blind-kit.test.mjs` |
+| `clipboard-engines` | The shared clipboard in Chromium, Firefox and WebKit; the Slides clipboard, table and save scripts and Data's save script in Firefox and WebKit (their Chromium run is in `test` and `data-phase-a`); the Data acceptance workbook in the three engines | `CLIPBOARD_ENGINES=… node tests/slides-clipboard.mjs`, and so on |
+| `text-engines` | Text's browser scripts and benchmark in Firefox and WebKit; print to PDF in the runner's Firefox | `TEXT_ENGINES=firefox,webkit node packages/text/tests/saving-browser.mjs`, and so on |
+
+Three rules keep a check from disappearing unnoticed; `tests/ci.test.mjs` (part of `npm test`) reads the workflow and enforces them:
+
+- **Engines.** Browser scripts take their engines from a variable and default to Chromium, so a step without its variable would still pass. The engines jobs set the variables once, for the whole job; every script gets its list from `engineList()` in [`tests/helpers/engines.mjs`](../tests/helpers/engines.mjs), which records it in CI; and the last step of each job (`node tests/helpers/engines.mjs firefox webkit`) fails if a script ran without one of them. A new script that calls `engineList()` must be added to its engines job.
+- **Test files.** Every `tests/*.test.mjs` and `*-browser.mjs` is named in a package script or in the workflow, and every gate in the table above is still in its job.
+- **Generated files and the version.** A stale Slides asset or generated skill fails its job. `tests/tools.test.mjs` checks that `package.json`, `package-lock.json`, `plugin/.claude-plugin/plugin.json` and the two URLs of `src/distribution.json` carry one version, and that `src/released-engines.json` records it or, while a release is being prepared, the version just before it.
+
+The blind-kit score tests are about 90 short tool calls per kit. They are part of `npm run test:data` and `npm run test:text` everywhere except in the `data-phase-a` and `text` jobs, which set `BLIND_KIT=own-job` and leave them to `blind-kits`.
+
+Binaryen (for `packages/data/engine/rebuild.sh`) and the tokenizer of the storage assessment are pinned in lock files of their own (`packages/data/engine/toolchain/`, `packages/data/bench/storage/`) and are installed only to rebuild the engine or repeat the assessment; `npm ci --prefix packages/data --ignore-scripts` installs about 16 MB.
+
 ## V1 limits
 
 - Direct file saving uses Chrome/Edge's file picker; Safari/Firefox download a copy. The first direct save requires choosing the target file; choosing the opened file remembers it, and later saves (also after reopening it) reuse it only while it still holds the opened document.
