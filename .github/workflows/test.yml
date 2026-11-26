@@ -15,7 +15,31 @@ concurrency:
 # tests/ci.test.mjs reads this file: the gates each job must keep, where the engine variables are
 # set, and that every action is pinned to a commit.
 jobs:
+  # Documentation-only changes (docs/** and root-level *.md, which no test or job reads) run no test job:
+  # every other job needs this one and carries its condition. A job skipped by an if: reports success, so
+  # a required check passes; a workflow-level paths-ignore would leave it pending. The script fails safe:
+  # whatever it cannot decide counts as "not documentation only".
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - id: changes
+        run: node tools/ci-changes.mjs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+
   test:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Hosted runners sometimes take 10+ minutes to install Playwright's
     # system packages; limits leave room for that on every job.
@@ -71,6 +95,10 @@ jobs:
           node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/catalogue.html
 
   data-phase-a:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -106,6 +134,10 @@ jobs:
 
   # The benchmark has a job of its own: it used to follow the Data tests and set the run's length.
   data-bench:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -140,6 +172,10 @@ jobs:
   # Each kit is built once and scored twice through the packaged skill's tools: about 90 short
   # Node processes per kit and no browser. Nothing is installed: the skills carry no dependency.
   blind-kits:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -153,6 +189,10 @@ jobs:
         run: node --test packages/data/tests/blind-kit.test.mjs packages/text/tests/blind-kit.test.mjs
 
   text:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -191,6 +231,10 @@ jobs:
           path: dist/text-bench/*.json
 
   clipboard-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Installing three browsers with their system packages can take over
     # 15 minutes on hosted runners.
@@ -239,6 +283,10 @@ jobs:
         run: node tests/helpers/engines.mjs firefox webkit
 
   text-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Installing two browsers with their system packages can take over 15 minutes on hosted runners.
     timeout-minutes: 30
@@ -297,6 +345,10 @@ jobs:
   # The benchmark (about 200 s of the 6.5-8 min of text-engines) has a job of its own: it ran after the
   # scripts above and set the run's length. Same engines, same variable, same last step.
   text-bench-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Set once for the job, not per step; the last step fails if the benchmark ran without Firefox or WebKit.

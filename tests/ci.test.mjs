@@ -26,7 +26,7 @@ const script = (file, name) => JSON.parse(read(file)).scripts[name] ?? '';
 const list = (dir, test) => fs.readdirSync(path.join(ROOT, dir)).filter(test).map(name => `${dir}/${name}`);
 
 test('the workflow has the jobs this file knows', () => {
-  assert.deepEqual(Object.keys(jobs).sort(), ['blind-kits', 'clipboard-engines', 'data-bench', 'data-phase-a', 'test', 'text', 'text-bench-engines', 'text-engines']);
+  assert.deepEqual(Object.keys(jobs).sort(), ['blind-kits', 'changes', 'clipboard-engines', 'data-bench', 'data-phase-a', 'test', 'text', 'text-bench-engines', 'text-engines']);
 });
 
 test('every gate is still in its job', () => {
@@ -169,4 +169,18 @@ test('the Data browser scripts run through the pool runner, from one explicit li
   // The three 100k-row scripts with time limits run alone, after the pool.
   assert.deepEqual([...DATA_BROWSER_SERIAL].sort(), ['conditional-edge-browser.mjs', 'data-bars-edge-browser.mjs', 'grid-browser.mjs']);
   assert.match(read('packages/data/tests/browser-pool.mjs'), /DATA_BROWSER_JOBS \?\? 3/);
+});
+
+test('every job but the detection job waits for it and skips on a documentation-only change, and nothing else is filtered', () => {
+  assert.ok(jobs.changes.includes('run: node tools/ci-changes.mjs'));
+  assert.match(jobs.changes, /\n {6}docs_only: \$\{\{ steps\.changes\.outputs\.docs_only \}\}\n/);
+  assert.doesNotMatch(jobs.changes, /\n {4}needs:/, 'the detection job needs nothing');
+  for (const [name, text] of Object.entries(jobs).filter(([name]) => name !== 'changes')) {
+    assert.match(text, /\n {4}needs: changes\n/, `${name}: needs: changes`);
+    // !cancelled(): a failed detection job must run the tests, not skip them (a skipped job reports success).
+    assert.ok(text.includes("\n    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}\n"), `${name}: the condition`);
+  }
+  // No workflow-level path filter: it would leave required checks pending on a documentation-only change.
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\njobs:\n')), /paths(-ignore)?:/);
+  assert.match(script('package.json', 'test'), /(^|\s)tests\/ci-changes\.test\.mjs(\s|$)/);
 });

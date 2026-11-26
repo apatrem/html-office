@@ -547,6 +547,14 @@ Run this in each product on a copy of its file (for example `report.html`, kept 
    - ⌘S / Ctrl+S downloads a copy. The first time in the tab, the message adds "This browser can only download copies. To save in place, open the file in Chrome or Edge."; the next copy does not repeat it.
    - The opened file is unchanged; the copy holds the edits.
 
+### CI — documentation-only pull requests skip the test jobs
+
+The skip path cannot be exercised by the pull request that adds it (that one changes code).
+
+1. After the pull request that adds `changes` is merged, open a pull request that changes only files under `docs/` and root-level `*.md` files (a one-line edit of `docs/STATUS.md` will do).
+2. On the pull request's checks: `changes` ran and passed; `test`, `data-phase-a`, `data-bench`, `blind-kits`, `text`, `clipboard-engines`, `text-engines` and `text-bench-engines` show "This check was skipped" (reported as success); the pull request is mergeable, also with branch protection requiring those checks.
+3. Add one non-documentation file (for example a comment in a `tests/*.mjs` file) to the same pull request: every job runs.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |

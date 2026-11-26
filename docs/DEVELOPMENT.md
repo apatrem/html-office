@@ -126,7 +126,7 @@ Distribution links are versioned in `src/distribution.json`; documentation and d
 
 ## Continuous integration
 
-One workflow, [`.github/workflows/test.yml`](../.github/workflows/test.yml), runs on pull requests to `main`, on pushes to `main` and on demand. A new push to a pull request cancels its previous run; a push to `main` always keeps its own. Its eight jobs run side by side:
+One workflow, [`.github/workflows/test.yml`](../.github/workflows/test.yml), runs on pull requests to `main`, on pushes to `main` and on demand. A new push to a pull request cancels its previous run; a push to `main` always keeps its own. A first job, `changes`, decides whether a pull request or push touches only `docs/**` and root-level `*.md` files (`tools/ci-changes.mjs`; no test or job reads those); if so, the eight jobs below are skipped, which GitHub reports as success, so required checks pass. Whatever it cannot decide (no base commit, an error, an empty list) runs everything, and the other jobs also run if `changes` itself fails. The eight jobs run side by side:
 
 | Job | What it gates | Locally |
 | --- | --- | --- |
