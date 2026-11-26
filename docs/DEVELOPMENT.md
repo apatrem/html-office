@@ -126,23 +126,26 @@ Distribution links are versioned in `src/distribution.json`; documentation and d
 
 ## Continuous integration
 
-One workflow, [`.github/workflows/test.yml`](../.github/workflows/test.yml), runs on pull requests to `main`, on pushes to `main` and on demand. A new push to a pull request cancels its previous run; a push to `main` always keeps its own. Its seven jobs run side by side:
+One workflow, [`.github/workflows/test.yml`](../.github/workflows/test.yml), runs on pull requests to `main`, on pushes to `main` and on demand. A new push to a pull request cancels its previous run; a push to `main` always keeps its own. Its eight jobs run side by side:
 
 | Job | What it gates | Locally |
 | --- | --- | --- |
 | `test` | Slides and shared code in Chromium; `npm audit`; the committed Slides assets match a fresh build; the distributed examples pass the checker; the pinned engine assessment (on pull requests, only when `tools/engine-assessment/` or the workflow changes) | `npm run build && git status --short plugin/skills/html-slides`, `npm test` |
-| `data-phase-a` | Data unit and browser suites in Chromium; `npm audit` (also for the engine toolchain and the storage assessment); formatting; the committed `html-data` skill matches its sources | `npm run test:data`, `node packages/data/tools/skill.mjs --check` |
+| `data-phase-a` | Data unit and browser suites in Chromium (the browser scripts three at a time, see below); `npm audit` (also for the engine toolchain and the storage assessment); formatting; the committed `html-data` skill matches its sources | `npm run test:data`, `node packages/data/tools/skill.mjs --check` |
 | `data-bench` | The P&L and 50k/100k-row workloads against their limits | `npm --prefix packages/data run bench` |
 | `text` | Text unit and browser suites in Chromium; `npm audit`; formatting; the committed `html-text` skill matches its sources; the 50- and 100-page benchmark | `npm run test:text`, `node packages/text/tools/skill.mjs --check` |
 | `blind-kits` | Each blind-test kit is built and scores good and faulty answers (Data T22, Text T20); Node only, nothing installed | `node --test packages/data/tests/blind-kit.test.mjs packages/text/tests/blind-kit.test.mjs` |
 | `clipboard-engines` | The shared clipboard in Chromium, Firefox and WebKit; the Slides clipboard, table and save scripts and Data's save script in Firefox and WebKit (their Chromium run is in `test` and `data-phase-a`); the Data acceptance workbook in the three engines | `CLIPBOARD_ENGINES=… node tests/slides-clipboard.mjs`, and so on |
-| `text-engines` | Text's browser scripts and benchmark in Firefox and WebKit; print to PDF in the runner's Firefox | `TEXT_ENGINES=firefox,webkit node packages/text/tests/saving-browser.mjs`, and so on |
+| `text-engines` | Text's browser scripts in Firefox and WebKit; print to PDF in the runner's Firefox | `TEXT_ENGINES=firefox,webkit node packages/text/tests/saving-browser.mjs`, and so on |
+| `text-bench-engines` | The 50- and 100-page benchmark in Firefox and WebKit (its own job: it took about 200 s of `text-engines`) | `TEXT_ENGINES=firefox,webkit node packages/text/bench/browser.mjs --check` |
 
 Three rules keep a check from disappearing unnoticed; `tests/ci.test.mjs` (part of `npm test`) reads the workflow and enforces them:
 
 - **Engines.** Browser scripts take their engines from a variable and default to Chromium, so a step without its variable would still pass. The engines jobs set the variables once, for the whole job; every script gets its list from `engineList()` in [`tests/helpers/engines.mjs`](../tests/helpers/engines.mjs), which records it in CI; and the last step of each job (`node tests/helpers/engines.mjs firefox webkit`) fails if a script ran without one of them. A new script that calls `engineList()` must be added to its engines job.
 - **Test files.** Every `tests/*.test.mjs` and `*-browser.mjs` is named in a package script or in the workflow, and every gate in the table above is still in its job.
 - **Generated files and the version.** A stale Slides asset or generated skill fails its job. `tests/tools.test.mjs` checks that `package.json`, `package-lock.json`, `plugin/.claude-plugin/plugin.json` and the two URLs of `src/distribution.json` carry one version, and that `src/released-engines.json` records every version that has a release tag (other than the one being published) and either this version or one it follows.
+
+**Data browser scripts.** `npm --prefix packages/data run test:browser` runs the scripts named in [`packages/data/tests/browser-pool.mjs`](../packages/data/tests/browser-pool.mjs) three at a time; each script's output is printed whole when it ends, with its status and duration, and a summary names the scripts that failed (exit code 1). `DATA_BROWSER_JOBS=n` sets how many run at once; `DATA_BROWSER_JOBS=1` runs them one after another in list order, for debugging. The three 100k-row scripts with time limits (`grid-browser.mjs`, `data-bars-edge-browser.mjs`, `conditional-edge-browser.mjs`) run alone after the pool. A new `*-browser.mjs` must be added to the list in that file (`tests/ci.test.mjs` fails otherwise); it must write only files prefixed with its own name, use no fixed port, and launch its own browser, so that scripts can run side by side.
 
 The blind-kit score tests are about 90 short tool calls per kit. They are part of `npm run test:data` and `npm run test:text` everywhere except in the `data-phase-a` and `text` jobs, which set `BLIND_KIT=own-job` and leave them to `blind-kits`.
 
