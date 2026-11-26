@@ -73,6 +73,21 @@ async function run(name) {
       page.on("pageerror", (e) => errors.push(e.message));
       await page.goto(address);
       await page.waitForFunction(() => window.htmlText);
+      // A page closed with an edit leaves a draft, and the store answers after the editor is
+      // up: the offer then opens a modal dialog over the page. Wait for the answer and decline
+      // the draft, so that every reopened page is the file as it was saved.
+      await page.waitForFunction(
+        () => window.htmlText.saving.recovery !== "opening",
+      );
+      if (
+        (await page.evaluate(() => window.htmlText.saving.recovery)) ===
+        "unresolved"
+      ) {
+        await page.click("dialog.sh-dialog button:text('Discard draft')");
+        await page.waitForFunction(
+          () => window.htmlText.saving.recovery === "ready",
+        );
+      }
       return page;
     };
     const selectText = (page, text) =>

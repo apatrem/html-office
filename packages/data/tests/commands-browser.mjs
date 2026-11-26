@@ -249,10 +249,13 @@ try {
   assert.equal(await tool("Bold").getAttribute("aria-pressed"), "true");
   await tool("Bold").click();
   await changed();
-  assert.equal(
-    await cell("C31").evaluate((el) => getComputedStyle(el).fontWeight),
-    "400",
-  );
+  // The status line still reads "changed" from the earlier edits, so the wait
+  // above can return before the grid redraws; a computed style read on a cell
+  // the redraw has just detached is "". Wait for the connected cell instead.
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#grid [data-cell="C31"]');
+    return el?.isConnected && getComputedStyle(el).fontWeight === "400";
+  });
   // Bringing row 31's header into view scrolled the grid; go back up.
   await page.locator("#grid").evaluate((el) => (el.scrollTop = 0));
   await cell("H5").waitFor();

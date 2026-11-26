@@ -11,6 +11,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { engineList, review } from './helpers/engines.mjs';
+import { SCRIPTS as DATA_BROWSER_SCRIPTS, SERIAL as DATA_BROWSER_SERIAL, problems as dataBrowserProblems } from '../packages/data/tests/browser-pool.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -25,7 +26,7 @@ const script = (file, name) => JSON.parse(read(file)).scripts[name] ?? '';
 const list = (dir, test) => fs.readdirSync(path.join(ROOT, dir)).filter(test).map(name => `${dir}/${name}`);
 
 test('the workflow has the jobs this file knows', () => {
-  assert.deepEqual(Object.keys(jobs).sort(), ['blind-kits', 'clipboard-engines', 'data-bench', 'data-phase-a', 'test', 'text', 'text-engines']);
+  assert.deepEqual(Object.keys(jobs).sort(), ['blind-kits', 'changes', 'clipboard-engines', 'data-bench', 'data-phase-a', 'test', 'text', 'text-bench-engines', 'text-engines']);
 });
 
 test('every gate is still in its job', () => {
@@ -42,7 +43,8 @@ test('every gate is still in its job', () => {
       'node packages/text/tools/skill.mjs --check', 'run: npm run test:text', 'node packages/text/bench/browser.mjs --check'],
     'clipboard-engines': ['run: node tests/clipboard-engines.mjs', 'node packages/data/acceptance/generate.mjs --out dist/data/acceptance',
       'ACCEPTANCE_DIR=dist/data/acceptance node packages/data/tests/acceptance-engines.mjs'],
-    'text-engines': ['node packages/text/bench/browser.mjs --check', 'node packages/text/tests/print-firefox.mjs']
+    'text-engines': ['node packages/text/tests/print-firefox.mjs'],
+    'text-bench-engines': ['node packages/text/bench/browser.mjs --check --output dist/text-bench/ci-results.json', 'name: text-benchmark-engines']
   };
   for (const [job, commands] of Object.entries(gates)) for (const command of commands) assert.ok(jobs[job].includes(command), `${job}: ${command}`);
   // What the three suite commands of the workflow run: the unit suite, then the browser chain.
@@ -58,7 +60,8 @@ test('every test file is run by a suite or by the workflow', () => {
   const missing = (suite, files) => files.filter(file => !new RegExp(`(^|\\s)${file.replace(/[.*/]/g, '\\$&')}(\\s|$)`).test(suite));
   assert.deepEqual(missing(script('package.json', 'test'), list('tests', name => name.endsWith('.test.mjs'))), []);
   for (const pkg of ['data', 'text']) {
-    const chain = script(`packages/${pkg}/package.json`, 'test:browser');
+    // Data runs its list through the pool runner (below); Text chains its scripts in the npm script.
+    const chain = pkg === 'data' ? DATA_BROWSER_SCRIPTS.map(name => `node tests/${name}`).join(' && ') : script(`packages/${pkg}/package.json`, 'test:browser');
     const files = list(`packages/${pkg}/tests`, name => name.endsWith('-browser.mjs'));
     assert.ok(files.length >= 14, `packages/${pkg}: ${files.length} browser scripts`);
     assert.deepEqual(missing(chain, files.map(file => `tests/${path.basename(file)}`)), []);
@@ -76,17 +79,19 @@ test('scripts that take their engines from a variable run in an engines job, whi
     .filter(file => !file.endsWith('.test.mjs') && /\bengineList\(/.test(read(file)));
   assert.ok(taking.length >= 22, `${taking.length} scripts`);
   for (const file of taking) {
-    const job = file.startsWith('packages/text/') ? 'text-engines' : 'clipboard-engines';
+    const job = file.startsWith('packages/text/bench/') ? 'text-bench-engines' : file.startsWith('packages/text/') ? 'text-engines' : 'clipboard-engines';
     assert.ok(jobs[job].includes(`node ${file}`), `${file} is not run by ${job}`);
   }
   // No script reads an engines variable on its own: it would escape the record.
   for (const file of [...list('tests', n => n.endsWith('.mjs')), ...list('packages/text/tests', n => n.endsWith('.mjs')), ...list('packages/data/tests', n => n.endsWith('.mjs'))])
     assert.doesNotMatch(read(file), /process\.env\.\w+_ENGINES/, file);
   assert.deepEqual(jobEnv('text-engines'), { TEXT_ENGINES: 'firefox,webkit' });
+  assert.deepEqual(jobEnv('text-bench-engines'), { TEXT_ENGINES: 'firefox,webkit' });
+  assert.ok(!jobs['text-engines'].includes('packages/text/bench/'), 'the benchmark runs once, in its own job');
   assert.deepEqual(jobEnv('clipboard-engines'), { SLIDES_ENGINES: 'firefox,webkit', SAVE_ENGINES: 'firefox,webkit' });
-  for (const job of ['text-engines', 'clipboard-engines']) {
+  for (const job of ['text-engines', 'text-bench-engines', 'clipboard-engines']) {
     assert.doesNotMatch(jobs[job], /^ {8,}\w+_ENGINES:/m, `${job}: no engines variable in the env: of a step`);
-    assert.match(jobs[job].trimEnd(), /\n {8}run: node tests\/helpers\/engines\.mjs firefox webkit$/, `${job}: the last step checks the engines that ran`);
+    assert.match(jobs[job].replace(/(\n *#.*|\s)+$/, ''), /\n {8}run: node tests\/helpers\/engines\.mjs firefox webkit$/, `${job}: the last step checks the engines that ran`);
   }
   // The three Slides clipboard scripts share CLIPBOARD_ENGINES with tests/clipboard-engines.mjs, which keeps
   // its three engines: the variable is on their command lines.
@@ -96,7 +101,7 @@ test('scripts that take their engines from a variable run in an engines job, whi
   // Their Chromium run, and that of the other scripts this job runs in two engines, is in npm test and npm run test:data.
   for (const name of ['slides-clipboard', 'slides-charts-clipboard', 'slides-slide-clipboard', 'slides-tables', 'save-in-place-slides'])
     assert.match(script('package.json', 'test'), new RegExp(`&& node tests/${name}\\.mjs( |$)`), `npm test runs ${name} in Chromium`);
-  assert.match(script('packages/data/package.json', 'test:browser'), /&& node tests\/save-in-place-browser\.mjs( |$)/);
+  assert.ok(DATA_BROWSER_SCRIPTS.includes('save-in-place-browser.mjs'));
 });
 
 test('the blind-kit score tests are left out of the Data and Text jobs only, and run in their own', () => {
@@ -152,4 +157,35 @@ test('the engines check fails for a script that ran without a required engine, a
   assert.match(r.stdout, /1 browser script\(s\), each in firefox and webkit\./);
   assert.equal(node(['tests/helpers/engines.mjs']).status, 2, 'no engine named');
   fs.rmSync(dir, { recursive: true });
+});
+
+test('the Data browser scripts run through the pool runner, from one explicit list that cannot fall behind the folder', () => {
+  assert.equal(script('packages/data/package.json', 'test:browser'), 'node tests/browser-pool.mjs');
+  assert.deepEqual(dataBrowserProblems(), [], 'the list and packages/data/tests agree');
+  // The rule itself: a script left out, a name that is not a file, a duplicate, a serial one not listed.
+  assert.deepEqual(dataBrowserProblems(['a-browser.mjs'], [], ['a-browser.mjs', 'b-browser.mjs', 'helper.mjs']), ['b-browser.mjs is not in SCRIPTS']);
+  assert.deepEqual(dataBrowserProblems(['a-browser.mjs', 'gone.mjs', 'a-browser.mjs'], ['x.mjs'], ['a-browser.mjs']),
+    ['gone.mjs is listed but is not in tests/', 'a-browser.mjs is listed twice', 'x.mjs is serial but not listed']);
+  // The three 100k-row scripts with time limits run alone, after the pool.
+  assert.deepEqual([...DATA_BROWSER_SERIAL].sort(), ['conditional-edge-browser.mjs', 'data-bars-edge-browser.mjs', 'grid-browser.mjs']);
+  assert.match(read('packages/data/tests/browser-pool.mjs'), /DATA_BROWSER_JOBS \?\? 3/);
+});
+
+test('every job but the detection job waits for it and skips on a documentation-only change, and nothing else is filtered', () => {
+  // The rule is read from the base commit's copy, so that a change cannot edit the rule that decides whether its tests run.
+  assert.ok(jobs.changes.includes('git show "$base:tools/ci-changes.mjs" > "$RUNNER_TEMP/ci-changes.mjs"'));
+  assert.ok(jobs.changes.includes('node "$RUNNER_TEMP/ci-changes.mjs"'));
+  assert.doesNotMatch(jobs.changes, /run: node tools\/ci-changes\.mjs/, 'not the checked-out copy');
+  assert.ok(jobs.changes.includes('echo "docs_only=false" >> "$GITHUB_OUTPUT"'), 'false first: whatever fails runs everything');
+  assert.match(jobs.changes, /FORCED: \$\{\{ github\.event\.forced \}\}/);
+  assert.match(jobs.changes, /\n {6}docs_only: \$\{\{ steps\.changes\.outputs\.docs_only \}\}\n/);
+  assert.doesNotMatch(jobs.changes, /\n {4}needs:/, 'the detection job needs nothing');
+  for (const [name, text] of Object.entries(jobs).filter(([name]) => name !== 'changes')) {
+    assert.match(text, /\n {4}needs: changes\n/, `${name}: needs: changes`);
+    // !cancelled(): a failed detection job must run the tests, not skip them (a skipped job reports success).
+    assert.ok(text.includes("\n    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}\n"), `${name}: the condition`);
+  }
+  // No workflow-level path filter: it would leave required checks pending on a documentation-only change.
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\njobs:\n')), /paths(-ignore)?:/);
+  assert.match(script('package.json', 'test'), /(^|\s)tests\/ci-changes\.test\.mjs(\s|$)/);
 });

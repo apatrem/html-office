@@ -15,7 +15,43 @@ concurrency:
 # tests/ci.test.mjs reads this file: the gates each job must keep, where the engine variables are
 # set, and that every action is pinned to a commit.
 jobs:
+  # Documentation-only changes (docs/** and root-level *.md, which no test or job reads) run no test job:
+  # every other job needs this one and carries its condition. A job skipped by an if: reports success, so
+  # a required check passes; a workflow-level paths-ignore would leave it pending. The script fails safe:
+  # whatever it cannot decide counts as "not documentation only".
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.changes.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      # The decision comes from the copy of the script in the base commit (a pull request's first parent, a push's
+      # previous tip), so that a change cannot edit the rule that decides whether its own tests run. No such
+      # copy (the pull request that adds it), no readable base or any error: everything runs.
+      - id: changes
+        run: |
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = pull_request ]; then base=HEAD^1
+          elif [ "$EVENT_NAME" = push ] && [ "$FORCED" != true ] && [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$BEFORE" =~ ^0+$ ]]; then
+            git fetch --no-tags --depth=1 origin "$BEFORE" && base="$BEFORE"
+          fi
+          if [ -n "${base:-}" ] && git show "$base:tools/ci-changes.mjs" > "$RUNNER_TEMP/ci-changes.mjs"; then
+            node "$RUNNER_TEMP/ci-changes.mjs" || true
+          fi
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
+
   test:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Hosted runners sometimes take 10+ minutes to install Playwright's
     # system packages; limits leave room for that on every job.
@@ -71,6 +107,10 @@ jobs:
           node plugin/skills/html-slides/tools/check.mjs plugin/skills/html-slides/examples/catalogue.html
 
   data-phase-a:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -106,6 +146,10 @@ jobs:
 
   # The benchmark has a job of its own: it used to follow the Data tests and set the run's length.
   data-bench:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -140,6 +184,10 @@ jobs:
   # Each kit is built once and scored twice through the packaged skill's tools: about 90 short
   # Node processes per kit and no browser. Nothing is installed: the skills carry no dependency.
   blind-kits:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -153,6 +201,10 @@ jobs:
         run: node --test packages/data/tests/blind-kit.test.mjs packages/text/tests/blind-kit.test.mjs
 
   text:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -191,6 +243,10 @@ jobs:
           path: dist/text-bench/*.json
 
   clipboard-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Installing three browsers with their system packages can take over
     # 15 minutes on hosted runners.
@@ -239,6 +295,10 @@ jobs:
         run: node tests/helpers/engines.mjs firefox webkit
 
   text-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
     runs-on: ubuntu-latest
     # Installing two browsers with their system packages can take over 15 minutes on hosted runners.
     timeout-minutes: 30
@@ -288,6 +348,40 @@ jobs:
         run: node packages/text/tests/print-browser.mjs
       - name: A document made by the skill's tools opens and edits in Firefox and WebKit (Text T18)
         run: node packages/text/tests/document-browser.mjs
+      # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
+      - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
+        run: node packages/text/tests/print-firefox.mjs
+      - name: Every browser script of this job ran in Firefox and WebKit
+        run: node tests/helpers/engines.mjs firefox webkit
+
+  # The benchmark (about 200 s of the 6.5-8 min of text-engines) has a job of its own: it ran after the
+  # scripts above and set the run's length. Same engines, same variable, same last step.
+  text-bench-engines:
+    needs: changes
+    # Skipped (reported as success, also to a required check) when only docs/** and root *.md changed;
+    # runs when the changes job failed or could not tell.
+    if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Set once for the job, not per step; the last step fails if the benchmark ran without Firefox or WebKit.
+    env:
+      TEXT_ENGINES: firefox,webkit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/text/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix packages/text --ignore-scripts
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: firefox webkit
       - name: Measure the 50- and 100-page documents in Firefox and WebKit; gate typing (Text T17)
         run: node packages/text/bench/browser.mjs --check --output dist/text-bench/ci-results.json
       - name: Retain Text benchmark results (Firefox, WebKit)
@@ -297,8 +391,5 @@ jobs:
           name: text-benchmark-engines
           retention-days: 7
           path: dist/text-bench/*.json
-      # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
-      - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
-        run: node packages/text/tests/print-firefox.mjs
       - name: Every browser script of this job ran in Firefox and WebKit
         run: node tests/helpers/engines.mjs firefox webkit
