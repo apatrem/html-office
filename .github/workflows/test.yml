@@ -103,7 +103,6 @@ jobs:
         env:
           # The blind-kit score test runs in the blind-kits job. Without this line it runs here too.
           BLIND_KIT: own-job
-          DATA_BROWSER_JOBS: 4
 
   # The benchmark has a job of its own: it used to follow the Data tests and set the run's length.
   data-bench:
