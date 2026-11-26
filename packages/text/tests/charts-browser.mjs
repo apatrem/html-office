@@ -18,8 +18,9 @@ import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
 import { ECHARTS_URL } from "../../shared/charts/echarts.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const repo = new URL("../../../", import.meta.url);
 const out = resolve(new URL("dist/text-test/", repo).pathname);
 await mkdir(out, { recursive: true });

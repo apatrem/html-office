@@ -7,6 +7,10 @@ source_dir="${1:?Pass an empty temporary source directory}"
 rust_compiler="${RUSTC:-rustc}"
 [[ "$("$rust_compiler" --version)" == 'rustc 1.95.0 '* ]] || { echo 'Rust 1.95.0 required' >&2; exit 1; }
 [[ "$(wasm-bindgen --version)" == 'wasm-bindgen 0.2.126' ]] || { echo 'wasm-bindgen 0.2.126 required' >&2; exit 1; }
+# Binaryen is pinned in engine/toolchain (its own lock file), outside the install the tests use.
+wasm_opt="$engine_dir/toolchain/node_modules/.bin/wasm-opt"
+[[ -x "$wasm_opt" ]] || { echo 'Binaryen is missing: run npm ci --prefix packages/data/engine/toolchain --ignore-scripts' >&2; exit 1; }
+[[ "$("$wasm_opt" --version)" == *'version 132'* ]] || { echo 'Binaryen 132.0.0 required' >&2; exit 1; }
 git clone --no-checkout https://github.com/ironcalc/IronCalc.git "$source_dir"
 git -C "$source_dir" checkout 297553dc3a37ec6b0f4821055220e3d26c4ac6a1
 git -C "$source_dir" apply "$engine_dir/binding-dependencies.patch"
@@ -20,7 +24,7 @@ wasm-bindgen target/wasm32-unknown-unknown/release/wasm.wasm --target web --out-
 cd "$repo_root"
 artifact_dir="$source_dir/office-artifacts"
 node packages/data/tools/bundle-engine.mjs "$source_dir/office-bindgen" "$artifact_dir/vendor"
-packages/data/node_modules/.bin/wasm-opt "$artifact_dir/vendor/ironcalc.wasm" -Oz --enable-mutable-globals --enable-nontrapping-float-to-int --enable-sign-ext --enable-bulk-memory --enable-reference-types --enable-multivalue --strip-debug --strip-producers -o "$artifact_dir/vendor/ironcalc.wasm"
+"$wasm_opt" "$artifact_dir/vendor/ironcalc.wasm" -Oz --enable-mutable-globals --enable-nontrapping-float-to-int --enable-sign-ext --enable-bulk-memory --enable-reference-types --enable-multivalue --strip-debug --strip-producers -o "$artifact_dir/vendor/ironcalc.wasm"
 node packages/data/tools/pack-engine.mjs "$artifact_dir/vendor"
 python3 "$engine_dir/audit.py" "$source_dir" "$("$rust_compiler" --print sysroot)" "$artifact_dir"
 if [[ "${2:-}" == "--check" ]]; then

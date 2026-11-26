@@ -11,8 +11,9 @@ import {
   saveInPlaceScenarios,
   copyOnlyScenario,
 } from "../../../tests/save-in-place.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
 );

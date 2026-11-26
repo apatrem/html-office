@@ -24,7 +24,8 @@ npm --prefix packages/text run format:check
 ```
 
 - Install `packages/data` and `packages/text` with `npm ci --prefix <package> --ignore-scripts`.
-- Generated assets are committed. After changing the Data runtime or shared charts, run `node packages/data/tools/skill.mjs` (`--check` verifies the committed copy).
+- Generated assets are committed, and CI fails on a stale copy. After changing the Slides engine, theme, guide or bundled tools, run `npm run build`; after changing the Data or Text runtime, tools or shared charts, run `node packages/data/tools/skill.mjs` and `node packages/text/tools/skill.mjs` (`--check` verifies the committed copy).
+- A browser script takes its engines from `engineList()` in `tests/helpers/engines.mjs`, never from `process.env` directly, and a new test file must be named in a package script or in the workflow: `tests/ci.test.mjs` checks both.
 - `tools/engine-assessment/` is a development-only measurement harness (its `gpt-tokenizer` counts are a proxy); nothing in it ships.
 
 ## Review
@@ -48,9 +49,10 @@ codex exec -s read-only -m gpt-6.1-sol \
 
 ## CI and merging
 
-- The Tests workflow runs only for pull requests targeting `main` and pushes to `main`. Stacked PRs get no CI; retargeting a PR to `main` does not start it either — push again or close and reopen the PR.
+- The Tests workflow runs only for pull requests targeting `main` and pushes to `main`. Stacked PRs get no CI; retargeting a PR to `main` does not start it either — push again or close and reopen the PR. (GitHub's `edited` trigger cannot be limited to base changes: it would also run on every title or description edit, and its skipped jobs would replace the real results.)
+- A new push to a pull request cancels that pull request's previous run; a push to `main` always keeps its run. The jobs and what each one gates are listed in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md#continuous-integration).
 - A human merges. The repository has auto-merge disabled, so `gh pr merge --auto` merges **immediately**: never use it. Merge manually after the checks are green; merges use merge commits.
-- When several approved PRs conflict with each other, merge them in the approved order into one `integration/…` branch, resolve once, run every suite locally, then open and merge one integration PR. Check that every workflow step kept its `env:` block, and regenerate the Data skill afterwards.
+- When several approved PRs conflict with each other, merge them in the approved order into one `integration/…` branch, resolve once, run every suite locally, then open and merge one integration PR. After resolving `.github/workflows/test.yml`, run `node --test tests/ci.test.mjs`: it fails if a gate left its job, if an engines job lost its job-level `env:` or its last step (which fails when a script ran without Firefox or WebKit), or if an action is no longer pinned. Then regenerate the Slides assets and the Data and Text skills (see Build and test); CI refuses stale copies.
 
 ## Writing
 

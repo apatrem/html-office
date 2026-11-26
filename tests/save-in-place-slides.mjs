@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as playwright from 'playwright';
 import { saveInPlaceScenarios, copyOnlyScenario, fakeFileContext } from './save-in-place.mjs';
 import { ASSETS, asset, setZone } from '../plugin/skills/html-slides/tools/lib.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 fs.mkdirSync(path.join(root, 'work'), { recursive: true });
@@ -72,7 +73,7 @@ async function recoveredDraft(browser) {
   console.log('PASS save in place [Slides]: a restored older draft opens the picker with the -recovered name and never replaces the newer file');
 }
 
-const engines = (process.env.SAVE_ENGINES || 'chromium').split(',');
+const engines = engineList('SAVE_ENGINES');
 try {
   for (const engine of engines) {
     const browser = await playwright[engine].launch();

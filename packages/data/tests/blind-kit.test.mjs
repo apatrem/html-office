@@ -346,7 +346,12 @@ function ordersModel({ withMembers = false } = {}) {
   return book("orders", "Orders 2026 (fictional)", sheets, extra);
 }
 
+// CI runs this test in a job of its own (blind-kits in .github/workflows/test.yml, which sets no
+// variable), beside the unit and browser suites: it is over a minute of short tool calls. The
+// data job sets BLIND_KIT=own-job to leave it out; everywhere else it runs here.
 test("score passes correct answers and names each fault of wrong ones", async (t) => {
+  if (process.env.BLIND_KIT === "own-job")
+    return t.skip("run by the blind-kits job");
   const kit = join(await mkdtemp(join(tmpdir(), "html-data-blind-")), "kit");
   t.after(() => rm(dirname(kit), { recursive: true, force: true }));
   await prepare(kit);

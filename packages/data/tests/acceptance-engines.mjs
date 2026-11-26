@@ -11,14 +11,13 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import * as playwright from "playwright";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
 const dir = process.env.ACCEPTANCE_DIR
     ? resolve(process.env.ACCEPTANCE_DIR)
     : fileURLToPath(new URL("../acceptance/output/", import.meta.url)),
   file = join(dir, "fictional-bike-rentals-offline.html"),
-  engines = (process.env.ACCEPTANCE_ENGINES ?? "chromium,firefox,webkit").split(
-    ",",
-  );
+  engines = engineList("ACCEPTANCE_ENGINES", "chromium,firefox,webkit");
 // Displayed values of the published (Base) workbook, as the grid shows them.
 const SHOWN = {
   Summary: { B4: "Base", D8: "€255.9k", D10: "€21.1k", B13: "€2,560" },

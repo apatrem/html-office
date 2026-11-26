@@ -125,6 +125,57 @@ test('checker trusts only published engines and the current build',()=>{
  assert.equal(trusted.echarts.length,1);
 });
 
+// One version wherever it is written by hand. A published engine is recorded after publication
+// (npm run record-release), so the version being prepared, or just published, may be absent from
+// src/released-engines.json. Every other published version must be there, or a later checker
+// refuses the decks made with it:
+// - every release tag (vX.Y.Z, when the checkout has tags) other than this version is recorded;
+// - this version is recorded or follows a recorded one (next patch, minor or major): without
+//   tags, two unrecorded versions in a row are still caught.
+// Review of the CI changes: the first rule catches 0.7.3 published and never recorded when 0.8.0 is
+// prepared; the second accepts a hotfix on an older line (0.7.3 with 0.7.2 and 0.10.0 recorded).
+const releaseRecord=(version,recorded,tags=[])=>{
+ const parse=v=>/^\d+\.\d+\.\d+$/.test(v)?v.split('.').map(Number):null;
+ if(!parse(version))return `"${version}" is not a major.minor.patch version`;
+ const has=v=>recorded.includes(v)||recorded.includes(v.replace(/\d+$/,'x'));
+ const forgotten=tags.map(t=>t.replace(/^v/,'')).filter(v=>parse(v)&&v!==version&&!has(v));
+ if(forgotten.length)return `${forgotten.join(', ')} was published (it has a release tag) and is not recorded: check out its tag and run "npm run record-release" (docs/DEVELOPMENT.md)`;
+ if(has(version))return '';
+ const versions=recorded.map(parse).filter(Boolean);
+ if(!versions.length)return 'no released engine is recorded';
+ const follows=versions.some(([a,b,c])=>[[a,b,c+1],[a,b+1,0],[a+1,0,0]].some(next=>next.join('.')===version));
+ return follows?'':`${version} is not recorded and does not follow a recorded version: the release before it was never recorded; run "npm run record-release" for it first (docs/DEVELOPMENT.md)`;
+};
+test('the package, the plugin, the lock file and the distribution URLs carry one version, and the previous release is recorded',()=>{
+ const json=file=>JSON.parse(fs.readFileSync(path.join(root,file),'utf8'));
+ const {version}=json('package.json'),lock=json('package-lock.json'),distribution=json('src/distribution.json');
+ assert.equal(json('plugin/.claude-plugin/plugin.json').version,version,'plugin/.claude-plugin/plugin.json');
+ assert.equal(lock.version,version,'package-lock.json');
+ assert.equal(lock.packages[''].version,version,'package-lock.json, root package');
+ assert.ok(distribution.documentationUrl.includes(`/blob/v${version}/`),`src/distribution.json documentationUrl: ${distribution.documentationUrl}`);
+ assert.ok(distribution.skillDownloadUrl.includes(`/releases/download/v${version}/`),`src/distribution.json skillDownloadUrl: ${distribution.skillDownloadUrl}`);
+ // Release tags are known in a full checkout and in CI, whose test job fetches them; without them
+ // (an archive, a shallow clone) only the second rule applies. CI must have them (review of the CI
+ // changes: without tags, 0.7.3 published and never recorded would pass when 0.8.0 is prepared).
+ const git=spawnSync('git',['tag','--list','v*'],{cwd:root,encoding:'utf8'}),tags=git.status===0?git.stdout.split('\n').filter(Boolean):[];
+ if(process.env.CI)assert.ok(tags.includes(`v0.7.2`),`CI has the release tags (fetch-tags in the test job of .github/workflows/test.yml): ${tags}`);
+ assert.equal(releaseRecord(version,Object.keys(json('src/released-engines.json')),tags),'');
+ // the rule itself: a recorded version; a release being prepared (patch, minor, major, hotfix on an older line)
+ const recorded=['0.4.x','0.7.1','0.7.2','0.10.0'];
+ for(const v of ['0.7.2','0.10.0','0.10.1','0.11.0','1.0.0','0.7.3','0.8.0','0.4.9'])assert.equal(releaseRecord(v,recorded),'',v);
+ // two unrecorded versions in a row
+ for(const v of ['0.10.2','0.12.0','0.9.0','2.0.0','0.11.1','0.7.4'])assert.match(releaseRecord(v,recorded),/is not recorded and does not follow a recorded version/,v);
+ assert.match(releaseRecord('0.8',recorded),/not a major\.minor\.patch version/);
+ assert.match(releaseRecord('0.5.0',['0.4.x']),/no released engine is recorded/);
+ // with release tags: 0.7.3 published and never recorded is caught when 0.8.0 is prepared, and from then on
+ assert.match(releaseRecord('0.8.0',['0.7.1','0.7.2'],['v0.7.1','v0.7.2','v0.7.3']),/^0\.7\.3 was published \(it has a release tag\) and is not recorded/);
+ assert.match(releaseRecord('0.8.0',['0.7.1','0.7.2','0.8.0'],['v0.7.2','v0.7.3','v0.8.0']),/^0\.7\.3 was published/);
+ // between publication and its record, the tag of this version exists and nothing is missing
+ assert.equal(releaseRecord('0.7.3',['0.7.1','0.7.2'],['v0.7.1','v0.7.2','v0.7.3']),'');
+ assert.match(releaseRecord('0.7.3',['0.7.2','0.7.3'],['v0.7.2','v0.7.3','not-a-version','v0.4.2']),/^0\.4\.2 was published/);
+ assert.equal(releaseRecord('0.7.3',['0.4.x','0.7.2','0.7.3'],['v0.7.2','v0.7.3','not-a-version','v0.4.2']),'');
+});
+
 test('CSS checks decode escapes and inspect every image candidate',()=>{
  const external=[
   String.raw`.x{background:u\72l("https://example.invalid/escaped.png")}`,

@@ -19,6 +19,7 @@ import { ASSETS, upgrade } from '../plugin/skills/html-slides/tools/lib.mjs';
 import { parseInert } from './helpers/inert-dom.mjs';
 import { readTable, MIME, ATTRIBUTE } from '../packages/shared/clipboard/index.mjs';
 import { buildWorkbook } from '../packages/data/tools/build.mjs';
+import { engineList } from './helpers/engines.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = path.join(ROOT, 'work/slides-clipboard');
@@ -122,7 +123,7 @@ async function paste(page, slide, flavours) {
 }
 
 const engines = { chromium, firefox, webkit };
-for (const name of (process.env.CLIPBOARD_ENGINES ?? 'chromium').split(',')) {
+for (const name of engineList('CLIPBOARD_ENGINES')) {
   const engine = engines[name], full = name === 'chromium';
   realPaste = full;
   const browser = await engine.launch();

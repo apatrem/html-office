@@ -15,8 +15,9 @@ import { LAYOUT_CSS, CHARTE_CSS } from "../theme/index.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { readPDF } from "./pdf.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
 );

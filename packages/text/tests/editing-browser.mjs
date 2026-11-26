@@ -12,8 +12,9 @@ import { diffLines } from "../tools/pack.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { openFile, saveFile } from "../editor/schema/document.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const out = resolve(
   new URL("../../../dist/text-test/", import.meta.url).pathname,
 );

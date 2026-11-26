@@ -7,9 +7,13 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# A new push to a pull request cancels that pull request's previous run. Every push to main and
+# every manual run has a group of its own, so a merge is never cancelled by the next one.
 concurrency:
-  group: tests-${{ github.ref }}
+  group: tests-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
+# tests/ci.test.mjs reads this file: the gates each job must keep, where the engine variables are
+# set, and that every action is pinned to a commit.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -17,10 +21,14 @@ jobs:
     # system packages; limits leave room for that on every job.
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+          # The parent commit too: a later step asks what this pull request changes.
+          fetch-depth: 2
+          # tests/tools.test.mjs checks that every released version (a v* tag) is recorded.
+          fetch-tags: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -29,8 +37,30 @@ jobs:
         with:
           browsers: chromium
       - run: npm audit --audit-level=high
+      # npm test builds before it tests, so a stale committed asset would pass unnoticed.
+      - name: Build Slides; the committed assets and bundled tools are the ones the sources give
+        run: |
+          npm run build
+          changed=$(git status --porcelain -- plugin/skills/html-slides)
+          if [ -n "$changed" ]; then
+            echo "::error title=Stale Slides assets::Run npm run build and commit plugin/skills/html-slides."
+            echo "$changed"; git diff --stat -- plugin/skills/html-slides
+            exit 1
+          fi
       - run: npm test
+      # The assessment measures its own pinned node_modules: product changes cannot move it. It
+      # runs when a pull request touches it or this workflow, and on every push to main and
+      # manual run. A diff that cannot be read counts as a change.
+      - name: Does this run change tools/engine-assessment?
+        id: assessment
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != pull_request ] || ! git diff --quiet HEAD^1 HEAD -- tools/engine-assessment .github/workflows/test.yml; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Reproduce pinned engine assessment
+        if: steps.assessment.outputs.run == 'true'
         run: |
           npm ci --prefix tools/engine-assessment --ignore-scripts
           npm --prefix tools/engine-assessment test
@@ -42,12 +72,12 @@ jobs:
 
   data-phase-a:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -59,14 +89,46 @@ jobs:
       - uses: ./.github/actions/playwright
         with:
           browsers: chromium
-      - run: npm audit --prefix packages/data --audit-level=high
+      # The engine toolchain (Binaryen) and the storage assessment's tokenizer are pinned in lock
+      # files of their own and installed only by the people who use them; they are audited here.
+      - name: Audit the Data dependencies, the engine toolchain and the storage assessment
+        run: |
+          npm audit --prefix packages/data --audit-level=high
+          npm audit --prefix packages/data/engine/toolchain --audit-level=high
+          npm audit --prefix packages/data/bench/storage --audit-level=high
       - run: npm --prefix packages/data run format:check
+      - name: The committed html-data skill is the one its sources give
+        run: node packages/data/tools/skill.mjs --check
       - run: npm run test:data
+        env:
+          # The blind-kit score test runs in the blind-kits job. Without this line it runs here too.
+          BLIND_KIT: own-job
+
+  # The benchmark has a job of its own: it used to follow the Data tests and set the run's length.
+  data-bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packages/data/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix packages/data --ignore-scripts
+      - uses: ./.github/actions/playwright
+        with:
+          browsers: chromium
       - name: Measure the P&L and 50k/100k-row browser workloads
         run: node --expose-gc packages/data/bench/browser.mjs --check --profile --output dist/data-bench/ci-results.json
       - name: Retain Data benchmark diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: data-benchmark-diagnostics
           retention-days: 7
@@ -75,14 +137,29 @@ jobs:
             dist/data-bench/browser-results.json
             dist/data-bench/profiles/*.cpuprofile
 
+  # Each kit is built once and scored twice through the packaged skill's tools: about 90 short
+  # Node processes per kit and no browser. Nothing is installed: the skills carry no dependency.
+  blind-kits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+      - name: Build the blind-test kits and score good and faulty answers (Data T22, Text T20)
+        run: node --test packages/data/tests/blind-kit.test.mjs packages/text/tests/blind-kit.test.mjs
+
   text:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -96,13 +173,18 @@ jobs:
           browsers: chromium
       - run: npm audit --prefix packages/text --audit-level=high
       - run: npm --prefix packages/text run format:check
+      - name: The committed html-text skill is the one its sources give
+        run: node packages/text/tools/skill.mjs --check
       - run: npm run test:text
+        env:
+          # The blind-kit score test runs in the blind-kits job. Without this line it runs here too.
+          BLIND_KIT: own-job
       # Medians of five warm runs after a forced garbage collection, as Data's gate (PR #73).
       - name: Measure the 50- and 100-page documents in Chromium; gate typing and editing tasks (Text T17)
         run: node packages/text/bench/browser.mjs --check --output dist/text-bench/ci-results.json
       - name: Retain Text benchmark results (Chromium)
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: text-benchmark-chromium
           retention-days: 7
@@ -113,11 +195,17 @@ jobs:
     # Installing three browsers with their system packages can take over
     # 15 minutes on hosted runners.
     timeout-minutes: 30
+    # Scripts that default to Chromium run here in the two other engines: their Chromium run is
+    # npm test (test job) or npm run test:data (data-phase-a job). Set once for the job, not per
+    # step; the last step fails if a script ran without Firefox or WebKit.
+    env:
+      SLIDES_ENGINES: firefox,webkit
+      SAVE_ENGINES: firefox,webkit
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -125,38 +213,44 @@ jobs:
       - uses: ./.github/actions/playwright
         with:
           browsers: chromium firefox webkit
+      # This script has no Chromium run elsewhere: it keeps its default of all three engines,
+      # which is why CLIPBOARD_ENGINES is written on the three commands below and not for the job.
       - name: Inert clipboard parsing and paste events in Chromium, Firefox and WebKit (ADR-013 X02a)
         run: node tests/clipboard-engines.mjs
-      - name: Slides tables through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02b)
+      - name: Slides tables through the clipboard in Firefox and WebKit (ADR-013 X02b)
         run: |
           npm run build
-          CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-clipboard.mjs
-      - name: Slides charts through the clipboard in Chromium, Firefox and WebKit (ADR-013 X02c)
-        run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-charts-clipboard.mjs
-      - name: Whole slides through the clipboard in Chromium, Firefox and WebKit (V1-01)
-        run: CLIPBOARD_ENGINES=chromium,firefox,webkit node tests/slides-slide-clipboard.mjs
-      - name: Slides table column widths in Chromium, Firefox and WebKit
-        run: SLIDES_ENGINES=chromium,firefox,webkit node tests/slides-tables.mjs
+          CLIPBOARD_ENGINES=firefox,webkit node tests/slides-clipboard.mjs
+      - name: Slides charts through the clipboard in Firefox and WebKit (ADR-013 X02c)
+        run: CLIPBOARD_ENGINES=firefox,webkit node tests/slides-charts-clipboard.mjs
+      - name: Whole slides through the clipboard in Firefox and WebKit (V1-01)
+        run: CLIPBOARD_ENGINES=firefox,webkit node tests/slides-slide-clipboard.mjs
+      - name: Slides table column widths in Firefox and WebKit
+        run: node tests/slides-tables.mjs
       - name: Save in place - Cmd/Ctrl+S downloads a copy in Firefox and WebKit (Slides, Data)
         run: |
           node tests/save-in-place-slides.mjs
           node packages/data/tests/save-in-place-browser.mjs
-        env:
-          SAVE_ENGINES: firefox,webkit
       - name: Generate the Data acceptance workbook, then read it offline in Chromium, Firefox and WebKit (Data T21)
         run: |
           node packages/data/acceptance/generate.mjs --out dist/data/acceptance
           ACCEPTANCE_DIR=dist/data/acceptance node packages/data/tests/acceptance-engines.mjs
+      - name: Every browser script of this job ran in Firefox and WebKit
+        run: node tests/helpers/engines.mjs firefox webkit
 
   text-engines:
     runs-on: ubuntu-latest
     # Installing two browsers with their system packages can take over 15 minutes on hosted runners.
     timeout-minutes: 30
+    # Set once for the job, not per step: every script defaults to Chromium, which this job does
+    # not install. The last step fails if a script ran without Firefox or WebKit.
+    env:
+      TEXT_ENGINES: firefox,webkit
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
           cache: npm
@@ -170,59 +264,35 @@ jobs:
           browsers: firefox webkit
       - name: Edit, save a copy and recover from file:// in Firefox and WebKit (Text T05)
         run: node packages/text/tests/saving-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Save in place - Cmd/Ctrl+S downloads a copy in Firefox and WebKit (Text)
         run: node packages/text/tests/save-in-place-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Edit blocks, lists, formatting and links in Firefox and WebKit (Text T06)
         run: node packages/text/tests/editing-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Numbering, contents and cross-references in Firefox and WebKit (Text T08)
         run: node packages/text/tests/numbering-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Footnotes and the notes list in Firefox and WebKit (Text T09)
         run: node packages/text/tests/footnotes-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Images, wrapping, assets, pasted and dropped images in Firefox and WebKit (Text T12, T12b)
         run: node packages/text/tests/images-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Charts, previews, the pinned library and the offline build in Firefox and WebKit (Text T11)
         run: node packages/text/tests/charts-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Comments, threads and orphan recovery in Firefox and WebKit (Text T13)
         run: node packages/text/tests/comments-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Paste, copy and import Markdown in Firefox and WebKit (Text T07)
         run: node packages/text/tests/clipboard-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Edit report tables in Firefox and WebKit (Text T10)
         run: node packages/text/tests/tables-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Markdown view and export in Firefox and WebKit (Text T15)
         run: node packages/text/tests/markdown-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Print preview and the running header in Firefox and WebKit (Text T14)
         run: node packages/text/tests/print-browser.mjs
-        env:
-          TEXT_ENGINES: firefox,webkit
+      - name: A document made by the skill's tools opens and edits in Firefox and WebKit (Text T18)
+        run: node packages/text/tests/document-browser.mjs
       - name: Measure the 50- and 100-page documents in Firefox and WebKit; gate typing (Text T17)
         run: node packages/text/bench/browser.mjs --check --output dist/text-bench/ci-results.json
-        env:
-          TEXT_ENGINES: firefox,webkit
       - name: Retain Text benchmark results (Firefox, WebKit)
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: text-benchmark-engines
           retention-days: 7
@@ -230,3 +300,5 @@ jobs:
       # Playwright's Firefox cannot print to PDF; the runner image's own Firefox prints over WebDriver BiDi.
       - name: Print to PDF in the runner's Firefox, no blank page (Text T14)
         run: node packages/text/tests/print-firefox.mjs
+      - name: Every browser script of this job ran in Firefox and WebKit
+        run: node tests/helpers/engines.mjs firefox webkit

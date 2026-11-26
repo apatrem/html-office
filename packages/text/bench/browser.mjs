@@ -23,13 +23,14 @@ import { buildEngine, buildDocument, measureFile } from "../tools/build.mjs";
 import { parseFile } from "../model/parse.mjs";
 import { validateFile } from "../model/validate.mjs";
 import { readPDF } from "../tests/pdf.mjs";
+import { engineList } from "../../../tests/helpers/engines.mjs";
 
 const args = process.argv.slice(2);
 const option = (name, fallback) => {
   const at = args.indexOf(name);
   return at >= 0 ? args[at + 1] : fallback;
 };
-const ENGINES = (process.env.TEXT_ENGINES || "chromium").split(",");
+const ENGINES = engineList("TEXT_ENGINES");
 const PAGES = option("--pages", "50,100").split(",").map(Number);
 const RUNS = Number(option("--runs", 5));
 const profiling = args.includes("--profile");

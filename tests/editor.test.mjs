@@ -80,6 +80,8 @@ for (const deck of [file, path.join(ROOT, 'plugin/skills/html-slides/examples/ca
 copyDeck(file);
 
 let { ctx, page, errs } = await open();
+// Waits for a state instead of sleeping; the assertion that follows reports a state that never came.
+const until = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 5000 }).catch(() => {});
 await page.keyboard.press('e');
 const s = Number(await page.evaluate(() => getComputedStyle(document.getElementById('deck')).getPropertyValue('--s')));
 ok(s < 1, `reduced scale for the test (${s})`);
@@ -207,14 +209,14 @@ await page.locator('#s04').scrollIntoViewIfNeeded();
 await page.locator('#s04 > .stack').click({ position: { x: 5, y: 5 } });
 await page.keyboard.press('Escape');
 await tb('Duplicate slide').click();
-await page.waitForTimeout(200);
+await until(n => { const s = [...document.querySelectorAll('main#deck > section.slide')]; return s.length === n && s[s.findIndex(x => x.id === 's04') + 1].querySelector('figure.chart.live'); }, n0 + 1);
 order = await page.evaluate(() => [...document.querySelectorAll('main#deck > section.slide')].map(s => s.id));
 const dup = order[order.indexOf('s04') + 1];
 ok(await nSlides() === n0 + 1 && await page.evaluate(id => document.querySelector('#' + id + ' figure.chart')?.classList.contains('live'), dup), `slide duplicated with its chart (${dup})`);
 const ids = await page.evaluate(() => [...document.querySelectorAll('[data-id]')].map(e => e.dataset.id));
 ok(new Set(ids).size === ids.length, 'identifiers unique after duplication');
 // thumbnails: one per slide, drag and drop to reorder
-await page.waitForTimeout(100);
+await until(n => document.querySelectorAll('.hs-side .hs-thumb').length === n, n0 + 1);
 const nThumbs = await page.locator('.hs-side .hs-thumb').count();
 ok(nThumbs === n0 + 1, `thumbnails on the left (${nThumbs})`);
 const thumbOf = id => page.locator('.hs-side .hs-thumb').nth(order.indexOf(id));
@@ -347,7 +349,7 @@ fs.copyFileSync(saved, tmp);
 ({ ctx, page, errs } = await open());
 ok(await page.evaluate(() => document.querySelector('#s05 > .body').textContent.includes('Added test.')), 'saved file reopened');
 await page.keyboard.press('p');
-await page.waitForTimeout(200);
+await until(() => [...document.querySelectorAll('main#deck > section.slide')].filter(s => getComputedStyle(s).display !== 'none').length === 1);
 const vis = await page.evaluate(() => [...document.querySelectorAll('main#deck > section.slide')].filter(s => getComputedStyle(s).display !== 'none').length);
 ok(vis === 1, 'presentation: a single slide visible');
 await page.keyboard.press('Escape');
@@ -355,7 +357,7 @@ await ctx.close();
 
 // 13. Offline: cached SVG shown
 ({ ctx, page, errs } = await open({ offline: true }));
-await page.waitForTimeout(300);
+await until(() => [...document.querySelectorAll('figure.chart')].every(f => (f.querySelector(':scope > svg.render')?.getBoundingClientRect().height || 0) > 80));
 const off = await page.evaluate(() => [...document.querySelectorAll('figure.chart')].map(f => !f.classList.contains('live') && (f.querySelector(':scope > svg.render')?.getBoundingClientRect().height || 0) > 80));
 ok(off.every(Boolean), `offline: ${off.length} charts shown from their cached SVG`);
 await ctx.close();
