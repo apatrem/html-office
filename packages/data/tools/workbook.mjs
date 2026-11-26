@@ -379,16 +379,32 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(realpathSync(resolve(process.argv[1]))).href
 ) {
-  run(process.argv.slice(2)).catch((error) => {
-    if (error instanceof Failure) {
-      console.error(
-        error.code === 2
-          ? error.errors.join("\n")
-          : `Error${error.errors.length > 1 ? "s" : ""}; nothing was written:\n${error.errors.join("\n")}`,
-      );
-      process.exit(error.code);
-    }
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
+  // A command whose promise never settles (an engine that does not start)
+  // leaves nothing to run: Node then exits with code 0, which a caller would
+  // take for success. Fail loudly instead.
+  let finished = false;
+  process.on("exit", (code) => {
+    if (finished || code !== 0) return;
+    console.error(
+      "Error: the command ended before it finished; if it loads the calculation engine, the engine did not start. Nothing was written.",
+    );
+    process.exitCode = 1;
   });
+  run(process.argv.slice(2))
+    .then(() => {
+      finished = true;
+    })
+    .catch((error) => {
+      finished = true;
+      if (error instanceof Failure) {
+        console.error(
+          error.code === 2
+            ? error.errors.join("\n")
+            : `Error${error.errors.length > 1 ? "s" : ""}; nothing was written:\n${error.errors.join("\n")}`,
+        );
+        process.exit(error.code);
+      }
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    });
 }
