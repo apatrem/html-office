@@ -172,7 +172,12 @@ test('the Data browser scripts run through the pool runner, from one explicit li
 });
 
 test('every job but the detection job waits for it and skips on a documentation-only change, and nothing else is filtered', () => {
-  assert.ok(jobs.changes.includes('run: node tools/ci-changes.mjs'));
+  // The rule is read from the base commit's copy, so that a change cannot edit the rule that decides whether its tests run.
+  assert.ok(jobs.changes.includes('git show "$base:tools/ci-changes.mjs" > "$RUNNER_TEMP/ci-changes.mjs"'));
+  assert.ok(jobs.changes.includes('node "$RUNNER_TEMP/ci-changes.mjs"'));
+  assert.doesNotMatch(jobs.changes, /run: node tools\/ci-changes\.mjs/, 'not the checked-out copy');
+  assert.ok(jobs.changes.includes('echo "docs_only=false" >> "$GITHUB_OUTPUT"'), 'false first: whatever fails runs everything');
+  assert.match(jobs.changes, /FORCED: \$\{\{ github\.event\.forced \}\}/);
   assert.match(jobs.changes, /\n {6}docs_only: \$\{\{ steps\.changes\.outputs\.docs_only \}\}\n/);
   assert.doesNotMatch(jobs.changes, /\n {4}needs:/, 'the detection job needs nothing');
   for (const [name, text] of Object.entries(jobs).filter(([name]) => name !== 'changes')) {

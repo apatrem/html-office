@@ -60,10 +60,19 @@ test('the git side: a pull request against its first parent, a push against the 
     assert.deepEqual(changedFiles('push', '0'.repeat(40)), []);
     assert.deepEqual(changedFiles('push', 'not a sha'), []);
     assert.deepEqual(changedFiles('push', undefined), []);
+    assert.deepEqual(changedFiles('pull_request', undefined, 'true'), [], 'a force push runs everything');
     // The script itself: an unusable repository gives docs_only=false and exit code 0.
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-changes-empty-'));
     const run = spawnSync(process.execPath, [path.join(cwd, 'tools/ci-changes.mjs')], { cwd: empty, encoding: 'utf8', env: { ...process.env, EVENT_NAME: 'pull_request', GITHUB_OUTPUT: '' } });
     assert.equal(run.status, 0);
     assert.match(run.stdout, /^docs_only=false$/m);
+    // The workflow runs a copy of the script from the base commit, possibly through a symbolic link: it must still run.
+    const link = path.join(os.tmpdir(), `ci-changes-link-${process.pid}`);
+    fs.symlinkSync(empty, link);
+    fs.copyFileSync(path.join(cwd, 'tools/ci-changes.mjs'), path.join(empty, 'copy.mjs'));
+    const copy = spawnSync(process.execPath, [path.join(link, 'copy.mjs')], { cwd: repo, encoding: 'utf8', env: { ...process.env, EVENT_NAME: 'pull_request', GITHUB_OUTPUT: '' } });
+    fs.rmSync(link);
+    assert.equal(copy.status, 0);
+    assert.match(copy.stdout, /^docs_only=false$/m, 'printed: the copy ran');
   } finally { process.chdir(cwd); fs.rmSync(repo, { recursive: true, force: true }); }
 });

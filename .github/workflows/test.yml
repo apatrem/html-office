@@ -29,11 +29,23 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
+      # The decision comes from the copy of the script in the base commit (a pull request's first parent, a push's
+      # previous tip), so that a change cannot edit the rule that decides whether its own tests run. No such
+      # copy (the pull request that adds it), no readable base or any error: everything runs.
       - id: changes
-        run: node tools/ci-changes.mjs
+        run: |
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = pull_request ]; then base=HEAD^1
+          elif [ "$EVENT_NAME" = push ] && [ "$FORCED" != true ] && [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$BEFORE" =~ ^0+$ ]]; then
+            git fetch --no-tags --depth=1 origin "$BEFORE" && base="$BEFORE"
+          fi
+          if [ -n "${base:-}" ] && git show "$base:tools/ci-changes.mjs" > "$RUNNER_TEMP/ci-changes.mjs"; then
+            node "$RUNNER_TEMP/ci-changes.mjs" || true
+          fi
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE: ${{ github.event.before }}
+          FORCED: ${{ github.event.forced }}
 
   test:
     needs: changes

@@ -2,9 +2,9 @@
 // "changes" job of .github/workflows/test.yml). Documentation is docs/** and root-level *.md; no test
 // or job reads either (checked: tests/ci.test.mjs keeps the rule's paths and the jobs' guard).
 // Fail safe: anything that cannot be decided is "not documentation only", and the script always exits 0.
-//   node tools/ci-changes.mjs   (EVENT_NAME, BEFORE, GITHUB_OUTPUT from the workflow; prints docs_only=true|false)
+//   node tools/ci-changes.mjs   (EVENT_NAME, BEFORE, FORCED, GITHUB_OUTPUT from the workflow, which runs the copy of this file from the base commit; prints docs_only=true|false)
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const isDocumentation = file => /^docs\/./.test(file) || /^[^/]+\.md$/.test(file);
@@ -18,8 +18,10 @@ const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer
 
 // The files changed since the base: a pull request's merge commit against its first parent (the base
 // branch), a push against the commit before it. Renames are listed as a deletion and an addition.
-export function changedFiles(event = process.env.EVENT_NAME, before = process.env.BEFORE) {
+export function changedFiles(event = process.env.EVENT_NAME, before = process.env.BEFORE, forced = process.env.FORCED) {
   let base;
+  // A force push rewrote history: the range from the old tip says nothing about what was merged.
+  if (forced === 'true') return [];
   if (event === 'pull_request') base = 'HEAD^1';
   else if (event === 'push' && /^[0-9a-f]{40}$/.test(before ?? '') && !/^0+$/.test(before)) {
     git('fetch', '--no-tags', '--depth=1', 'origin', before);
@@ -28,7 +30,8 @@ export function changedFiles(event = process.env.EVENT_NAME, before = process.en
   return git('diff', '--name-only', '--no-renames', '-z', base, 'HEAD').split('\0').filter(Boolean);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// realpath: the workflow runs a copy under RUNNER_TEMP, which may be reached through a symbolic link.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   let result = false;
   try { result = docsOnly(changedFiles()); } catch (error) { console.error(`changed files unknown, running everything: ${error.message}`); }
   const line = `docs_only=${result}`;
