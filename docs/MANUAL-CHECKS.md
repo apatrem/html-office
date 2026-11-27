@@ -564,8 +564,8 @@ The measurement itself is run by an agent ([ADR-016](decisions/016-slides-go-sto
    - Note for each application: whether the skill is found; whether Node runs; what happens at the first check (Playwright 1.62.1 and Chromium); whether a file is delivered, and whether the assistant says clearly that it is unchecked when it is; the exact error messages.
    - The result tells how large the runtime problem is for users who are not developers. It does not change the measurement.
 2. **Sample of the defect count** (after the campaign). About twenty page images drawn at random by the bench: count the defects with the written defect list, without looking at the counter's figures first. If the two counts differ clearly, say on which kinds of defect.
-3. **Judgement per subject** (after the campaign). For each of the five subjects, look at the PDFs of both formats, preferably without knowing which is which, and say which you would rather show a client, or that they are equivalent.
-4. **Sharing check** (needed for the outcome *continue*). Send one generated html-slides file to a person on another workstation through the channel you would really use. They open it, edit a text, move an element, save, and send it back; you reopen it. Note anything that blocks.
+3. **Judgement per subject** (after the campaign). For each of the five subjects, look at the three final PDFs of each format together, preferably without knowing which is which, and give one answer: html-slides, PPTX, or equivalent.
+4. **Sharing check** (needed for the outcome *continue*). Send one generated html-slides file to a person on another workstation through the channel you would really use. They open it, edit a text, move an element, save, and send it back; you reopen it. Note anything that blocks. A blocker is fixed and you repeat the check once; a second failure turns *continue* into *maintain Slides alone*.
 
 ## Log
 
