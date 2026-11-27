@@ -24,7 +24,7 @@ In short: Claude Opus 5.5 (effort High, Claude Code, a new session per run) gene
 | --- | --- | --- |
 | Release 0.7.3, so that the measurement runs on the corrected version | An agent prepares, the owner publishes | Prepared, not published |
 | Measurement kit: five briefs with their edits, defect list, bench, token cost of an edit on the example decks | An agent | Pending |
-| Pilot: one subject, one run per format; token cost of the campaign | An agent; the owner decides to launch the rest | Pending |
+| Pilot: one subject, one run per format (extra runs, not part of the campaign's results); estimated token cost of the campaign | An agent; the owner decides to launch the rest | Pending |
 | Campaign: 30 generations, 30 series of edits | An agent | Pending |
 | Defect count on page images | Codex | Pending |
 | Sample of about twenty pages, and a judgement per subject on the PDFs | The owner | Pending |
