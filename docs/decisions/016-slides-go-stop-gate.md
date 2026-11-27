@@ -74,7 +74,7 @@ Minor defects are compared per usable result: for each format, the minor defects
 
 When PPTX has no minor defect, D does not exist: html-slides with none either meets neither defect condition, and html-slides with any meets the *worse* one.
 
-The owner gives **one preference per subject**: html-slides, PPTX, or equivalent. They look at the three final PDFs of each format together, preferably without knowing which format produced which. *Equivalent* counts for neither side.
+The owner gives **one preference per subject**: html-slides, PPTX, or equivalent. For each subject they are shown three run slots per format: each final PDF that exists, and "no result" for a run that produced none. They judge the two sets, preferably without knowing which format produced which. If neither format produced a final PDF for a subject, the preference is *equivalent*. *Equivalent* counts for neither side.
 
 **Cost** (second axis): the time to obtain a usable result, and the tokens to obtain one. Each is the total over all runs of the five subjects, failed runs included, generation plus edits, divided by the number of usable runs. A format that fails one run in three is thus charged for the rerun. For time and for tokens, divide the html-slides figure by the PPTX figure; R is the larger of the two ratios, so the less favourable measure decides.
 
