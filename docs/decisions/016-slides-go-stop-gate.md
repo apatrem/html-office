@@ -1,6 +1,6 @@
 # ADR-016 — Slides go/stop gate: generation measured against PPTX
 
-Status: **accepted**, 27 November 2026. The owner settled each point below in a question-by-question session, after two external reviews of the repository made the same day. **Not run yet.**
+Status: **accepted**, 27 November 2026. The owner settled each point below in a question-by-question session, after two external reviews of the repository made the same day. Amended the same day after the cross-lineage review of PR #131: the definitions of section 6 made exact, the single retry removed, the rule for a failed sharing check added (the last two by the owner's choice). **Not run yet.**
 
 ## Context
 
@@ -38,6 +38,8 @@ The assistant's work, **not a person's time**. For each subject and each format:
 
 Each subject and format is run **three times**: one generation time proves nothing, because it varies from run to run. Every run starts from a new session (see 2), so the order of the runs does not matter.
 
+A run that fails or is cut off still counts. Its time and tokens are recorded up to the failure or the time limit, for the generation and for the edits. The kit fixes the time limit and what ends a run as a failure before the pilot, the same for both formats.
+
 ### 4. The five subjects
 
 Fictional briefs, written before any run. Each brief fixes the message of every slide and the figures, and the three later edits, so that only production is measured.
@@ -60,30 +62,35 @@ Fictional briefs, written before any run. Each brief fixes the message of every 
 
 ### 6. Reading the results
 
-A run is **usable** when its file opens, has no blocking defect and kept the scripted moves.
+A run is **usable** when the generation and the three edits both finished, and the final file opens, passes its format's own checks, has no blocking defect and kept the scripted moves after the edits. A series of edits that did not finish makes the run unusable.
 
 **Quality of html-slides against PPTX** (first axis):
 
-- **Better**: at least as many usable runs, at least 25 % fewer minor defects, and the owner does not prefer the PPTX's PDF on more subjects than the html-slides one.
-- **Worse**: fewer usable runs, or at least 25 % more minor defects, or the owner prefers the PPTX on three subjects or more.
+Minor defects are compared per usable result: for each format, the minor defects of its usable runs divided by the number of those runs. Call D the html-slides figure divided by the PPTX figure.
+
+- **Better**: at least as many usable runs, D ≤ 0.75 (at least 25 % fewer minor defects), and the owner does not prefer PPTX on more subjects than html-slides.
+- **Worse**: fewer usable runs, or D ≥ 1.25 (at least 25 % more minor defects), or the owner prefers PPTX on three subjects or more.
 - **Equivalent**: everything else.
 
-The owner judges each subject on the PDFs, preferably without knowing which format produced which.
+When PPTX has no minor defect, D does not exist: html-slides with none either meets neither defect condition, and html-slides with any meets the *worse* one.
 
-**Cost** (second axis): the time to obtain a usable result, and the tokens to obtain one. Each is the total over all runs of the five subjects divided by the number of usable runs, so a format that fails one run in three is charged for the rerun. The less favourable of the two measures is the one that counts.
+The owner gives **one preference per subject**: html-slides, PPTX, or equivalent. For each subject they are shown three run slots per format: each final PDF that exists, and "no result" for a run that produced none. They judge the two sets, preferably without knowing which format produced which. If neither format produced a final PDF for a subject, the preference is *equivalent*. *Equivalent* counts for neither side.
 
-| Quality of html-slides | Cheaper (20 % or more) | Comparable (within 20 %) | Dearer (20 % or more) |
+**Cost** (second axis): the time to obtain a usable result, and the tokens to obtain one. Each is the total over all runs of the five subjects, failed runs included, generation plus edits, divided by the number of usable runs. A format that fails one run in three is thus charged for the rerun. For time and for tokens, divide the html-slides figure by the PPTX figure; R is the larger of the two ratios, so the less favourable measure decides.
+
+| Quality of html-slides | Cheaper (R ≤ 0.80) | Comparable (0.80 < R < 1.20) | Dearer (R ≥ 1.20) |
 | --- | --- | --- | --- |
 | **Better** | Continue | Continue | Maintain Slides alone |
-| **Equivalent** | Maintain Slides alone; Continue if the gain reaches 50 % | Stop | Stop |
+| **Equivalent** | Maintain Slides alone; Continue if R ≤ 0.50 | Stop | Stop |
 | **Worse** | Stop | Stop | Stop |
+
+If a format has no usable run, it has no cost per usable result. html-slides with none: *stop*. PPTX with none and html-slides with at least one: quality is *better* and cost is *cheaper*.
 
 The middle row is deliberate: at equal quality, a format the client cannot reopen in PowerPoint must be clearly cheaper to justify itself.
 
-Two further rules:
+One further rule, **sharing**: *continue* also requires that a recipient opens and edits a generated file on another workstation without a blocker. The owner checks this by hand. If something blocks, it is fixed and the owner repeats the check once; a second failure turns *continue* into *maintain Slides alone*. Until the check is done, a grid result of *continue* stays pending.
 
-- **Sharing.** "Continue" also requires that a recipient opens and edits a generated file on another workstation without a blocker. The owner checks this by hand.
-- **One retry.** A result close to a boundary gives one retry: fix the two or three most costly defects found, rerun two subjects, then decide. Only once.
+The results are read **once**. There is no retry near a boundary: with three outcomes, *maintain Slides alone* already is the middle ground.
 
 ### 7. The three outcomes
 
@@ -97,7 +104,7 @@ Two further rules:
 
 1. **Release 0.7.3**, so that the measurement runs on the corrected version a user would receive. An agent prepares it; the owner publishes.
 2. **The measurement kit**: the five briefs with their edits, the defect list, the bench (timing, the scripted move, the conversion of `.pptx` to PDF), and the token cost of an edit on the example decks.
-3. **A pilot**: one subject, one run per format. It gives the token cost of the whole campaign and shows that the bench works. The owner then decides to launch the rest (30 generations and 30 series of edits).
+3. **A pilot**: one subject, one run per format. It shows that the bench works, and its measured cost gives an estimate of the campaign's cost, labelled as an estimate. The owner then decides to launch the campaign: 30 generations and 30 series of edits. The pilot's two runs are extra and do not enter the campaign's results.
 4. **The campaign**, the count, the owner's sample and judgement, the sharing check, and the outcome, recorded in [VALIDATION-V1.md](../VALIDATION-V1.md) and as a change of this record's status.
 
 Until the outcome, these wait: V1-02 to V1-07, the allow-list for the checker and the split of `editor.js` ([PLAN.md](../PLAN.md), ideas B-05 and B-06). One exception: a defect that blocks the measurement is fixed at once.
@@ -124,6 +131,7 @@ Its limits are known and accepted:
 | Generation time alone | A format that quickly produces a deck to redo would win wrongly |
 | One threshold on time (50 %) | At close times the outcome would be "stop" even with clearly fewer defects |
 | One weighted score | The weights are arbitrary and hide the trade-off |
+| One retry for a result close to a boundary (fix the costliest defects, rerun two subjects) | First adopted, then removed by the owner after the review of PR #131: "close", the subjects to rerun and how to combine the results were undefined, and a retry of one format alone weakens a rule fixed in advance |
 | Counting by Claude, or by the owner | A model marking its own work; or several hours on about 400 pages |
 | A second generating model (GPT) | Double the cost, and the counter would mark its own family's work |
 
