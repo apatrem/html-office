@@ -1,6 +1,6 @@
 # HTML Text V1 implementation plan
 
-Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. Text started on 25 October 2026 with T01–T03; T04–T06 followed on 27 October, T07–T13 on 28 October, T14–T19 on 29 October. T01–T19 are merged (the last on 30 October 2026); T20 is paused until a person can run it.
+Status: proposed implementation sequence, 15 October 2026. Product and architecture decisions are in the [Text V1 specification](HTML-TEXT-V1.md); [ADR-004](decisions/004-html-text-format-and-editor.md) records the format and editor rationale, and the [Office specification](HTML-OFFICE-V1.md) the family-wide constraints. Text started on 25 October 2026 with T01–T03; T04–T06 followed on 27 October, T07–T13 on 28 October, T14–T19 on 29 October. T01–T19 are merged (the last on 30 October 2026); T20 is paused until a person can run it; since 27 November 2026 it is also postponed, with every new Text feature, until the outcome of [ADR-016](decisions/016-slides-go-stop-gate.md) and a later decision to unfreeze Text (defect fixes stay allowed).
 
 ## Shared decisions since this plan
 

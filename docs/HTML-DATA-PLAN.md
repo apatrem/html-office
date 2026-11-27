@@ -1,6 +1,6 @@
 # HTML Data V1 implementation plan
 
-Status, 22 November 2026: T01–T21 are merged; only T22, the blind test and release-readiness review, remains. The owner runs it by hand ([protocol](blind-tests/DATA-T22.md)); the Data skill joins the plugin when it passes. Product decisions are in the [Office specification](HTML-OFFICE-V1.md), the architecture in [ADR-003](decisions/003-html-office-and-data-runtime.md), per-task evidence in [the progress ledger](HTML-DATA-PROGRESS.md) and the state of all products in [STATUS.md](STATUS.md). The task text below is the original plan, read with its history at the end.
+Status, 27 November 2026: T01–T21 are merged; only T22, the blind test and release-readiness review, remains. The owner runs it by hand ([protocol](blind-tests/DATA-T22.md)); the Data skill joins the plugin when it passes. Since 27 November 2026 T22 and every new Data feature are postponed until the outcome of [ADR-016](decisions/016-slides-go-stop-gate.md) and a later decision to unfreeze Data (defect fixes stay allowed). Product decisions are in the [Office specification](HTML-OFFICE-V1.md), the architecture in [ADR-003](decisions/003-html-office-and-data-runtime.md), per-task evidence in [the progress ledger](HTML-DATA-PROGRESS.md) and the state of all products in [STATUS.md](STATUS.md). The task text below is the original plan, read with its history at the end.
 
 ## Delivery rules and dependencies
 
