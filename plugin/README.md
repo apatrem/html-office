@@ -1,12 +1,12 @@
 # html-slides plugin in html-office
 
-The released plugin (0.7.2) contains the `html-slides` skill. The `html-data` (spreadsheet workbooks) and `html-text` (long documents) skills are developed in this repository's `plugin/skills/` folder but are not in the archive: they will ship in a later release, after their blind tests. The roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
+The released plugin (0.7.3) contains the `html-slides` skill. The `html-data` (spreadsheet workbooks) and `html-text` (long documents) skills are developed in this repository's `plugin/skills/` folder but are not in the archive: they will ship in a later release, after their blind tests. The roadmap is in the [html-office repository](https://github.com/apatrem/html-office) under `docs/HTML-OFFICE-V1.md`. The plugin identifier and archive filename remain `html-slides` for compatibility.
 
 A skill for creating and editing a presentation in one HTML file. The file includes semantic slides, theme variables, JSON chart data, cached SVGs, a browser editor, and a self-contained editing guide.
 
 ## Get started
 
-Download `html-slides.plugin` from the [0.7.2 release](https://github.com/apatrem/html-office/releases/tag/v0.7.2). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
+Download `html-slides.plugin` from the [0.7.3 release](https://github.com/apatrem/html-office/releases/tag/v0.7.3). It is a ZIP archive containing `.claude-plugin/plugin.json` and `skills/html-slides/`. For an agent that supports skill folders, extract it and use `skills/html-slides/SKILL.md` as the entry point. The agent needs access to the whole skill directory, including assets and tools.
 
 Ask your agent: “Create an html-slides presentation about organising a community garden.” In an environment with the required tools, it prepares the storyline, builds the HTML/PDF, checks the slides, and reviews the screenshots.
 

@@ -10,6 +10,8 @@ Release 0.7.1 keeps drafts after the download fallback, flags drafts made from a
 
 Release 0.7.2 (published on 18 November 2026) moves the Slides editor onto the shared html-office shell, adds a deck theme and body font, table column widths with border dragging, merged cells from pasted tables, copy and paste of tables across decks, Data, Text and other applications and of charts across decks and to other applications, and save in place with a remembered file in Chrome and Edge. The plugin archive ships the html-slides skill only: the html-data and html-text skills stay in the repository until their blind tests, and the release script refuses an archive holding another skill. Local verification: `npm run release` passed end to end, with all 101 regression tests, the Chromium editor and shell workflows, and the Slides clipboard, chart clipboard, save-in-place and table-width checks; zero checker errors on all 27 example slides, and the PDFs contain 9 and 18 pages.
 
+Release 0.7.3 (prepared, not yet published; 27 November 2026) carries what `main` held after 0.7.2 and changes no product behaviour in the release commit itself. For a user: Enter in a paragraph or title adds a line break instead of an invalid block; printing from edit mode gives one page per slide at the page origin; a draft offer that is not answered is no longer destroyed by a later notice, and until it is answered the editor refuses edit mode and Save; an older draft can no longer be saved over a newer remembered file, and a lost file binding recovers on the next Save; duplicate or missing slide ids are repaired and reported by the checker; the checker and the editor refuse markup that would re-parse differently after an undo, a duplicate or a restore; and a whole slide can be copied and pasted between decks (V1-01). Local verification: `npm run release` passed end to end, then `npm test` passed again on the same tree: 143 regression tests, the Chromium editor and shell workflows, and the Slides clipboard, chart clipboard, slide clipboard and table-width checks (the Firefox and WebKit runs are left to CI, as Firefox does not launch on the preparing workstation). The archive (1.0 MB) holds the `.claude-plugin`, licence and notice files and `skills/html-slides` only, and the archive check passed. `check.mjs` reports zero errors on the 27 example slides (9 and 18), and the PDFs contain 9 and 18 pages. Not verified here: publication, the download link (it works once the owner publishes), and the manual checks on other workstations.
+
 File System Access is tested with a simulated writable target; actual Chromium downloads/reopening are tested too. Direct saving on another workstation remains a manual check.
 
 ## Go/stop measurement (ADR-016)
@@ -20,9 +22,9 @@ In short: Claude Opus 5.5 (effort High, Claude Code, a new session per run) gene
 
 | Step | Who | Status |
 | --- | --- | --- |
-| Release 0.7.3, so that the measurement runs on the corrected version | An agent prepares, the owner publishes | Pending |
+| Release 0.7.3, so that the measurement runs on the corrected version | An agent prepares, the owner publishes | Prepared, not published |
 | Measurement kit: five briefs with their edits, defect list, bench, token cost of an edit on the example decks | An agent | Pending |
-| Pilot: one subject, one run per format; token cost of the campaign | An agent; the owner decides to launch the rest | Pending |
+| Pilot: one subject, one run per format (extra runs, not part of the campaign's results); estimated token cost of the campaign | An agent; the owner decides to launch the rest | Pending |
 | Campaign: 30 generations, 30 series of edits | An agent | Pending |
 | Defect count on page images | Codex | Pending |
 | Sample of about twenty pages, and a judgement per subject on the PDFs | The owner | Pending |
