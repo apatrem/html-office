@@ -1,6 +1,6 @@
 # Decision records
 
-Durable decisions of html-office, one ADR each. A record keeps the reasoning it was written with; its status line says what has happened since. Statuses below are as of 22 November 2026; the state of the work itself is in [STATUS.md](../STATUS.md).
+Durable decisions of html-office, one ADR each. A record keeps the reasoning it was written with; its status line says what has happened since. Statuses below are as of 27 November 2026; the state of the work itself is in [STATUS.md](../STATUS.md).
 
 | ADR | Decision | Product | Status |
 | --- | --- | --- | --- |
@@ -19,3 +19,4 @@ Durable decisions of html-office, one ADR each. A record keeps the reasoning it 
 | [013](013-cross-product-clipboard.md) | Cross-product clipboard | All | Accepted; implemented except X02d and X02f (Data chart pairs) |
 | [014](014-data-pivot-tables.md) | Basic editable pivot tables | Data | Implemented |
 | [015](015-data-xlsx-reader.md) | XLSX reader (SheetJS Community Edition) | Data | Accepted; implemented |
+| [016](016-slides-go-stop-gate.md) | Slides go/stop gate: generation measured against PPTX; Data and Text frozen until its outcome | All | Accepted; not run yet |

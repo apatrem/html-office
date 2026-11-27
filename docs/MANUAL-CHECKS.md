@@ -555,9 +555,22 @@ The skip path cannot be exercised by the pull request that adds it (that one cha
 2. On the pull request's checks: `changes` ran and passed; `test`, `data-phase-a`, `data-bench`, `blind-kits`, `text`, `clipboard-engines`, `text-engines` and `text-bench-engines` show "This check was skipped" (reported as success); the pull request is mergeable, also with branch protection requiring those checks.
 3. Add one non-documentation file (for example a comment in a `tests/*.mjs` file) to the same pull request: every job runs.
 
+## 9. Slides go/stop gate: the owner's part (ADR-016)
+
+The measurement itself is run by an agent ([ADR-016](decisions/016-slides-go-stop-gate.md)); results go in [VALIDATION-V1.md](VALIDATION-V1.md). These four steps need a person.
+
+1. **One hour in the desktop applications** (any time; it fixes nothing).
+   - In Claude Desktop, then in ChatGPT Desktop: install the released plugin as a user would, and ask for the example deck ("Create an html-slides presentation about organising a community garden").
+   - Note for each application: whether the skill is found; whether Node runs; what happens at the first check (Playwright 1.62.1 and Chromium); whether a file is delivered, and whether the assistant says clearly that it is unchecked when it is; the exact error messages.
+   - The result tells how large the runtime problem is for users who are not developers. It does not change the measurement.
+2. **Sample of the defect count** (after the campaign). About twenty page images drawn at random by the bench: count the defects with the written defect list, without looking at the counter's figures first. If the two counts differ clearly, say on which kinds of defect.
+3. **Judgement per subject** (after the campaign). For each of the five subjects, look at the PDFs of both formats, preferably without knowing which is which, and say which you would rather show a client, or that they are equivalent.
+4. **Sharing check** (needed for the outcome *continue*). Send one generated html-slides file to a person on another workstation through the channel you would really use. They open it, edit a text, move an element, save, and send it back; you reopen it. Note anything that blocks.
+
 ## Log
 
 | Date | Check | Browser / app | Result | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-11-10 | 1.1 Look and page (T04), on `text-example.html` and `text-report-t19.html` | Not noted | Pass, with two notes | Menus opened under the toolbar (fixed by PR #107). Tables always take the full text width: Table › Column width… sets column widths, but the table's own width cannot be set (follow-up). The first Save asking for a file is expected (1.2) |
+| 2026-11-27 | CI — documentation-only pull requests, steps 1 and 2 | GitHub Actions, PR #131 | Pass | Observed by the agent that opened the pull request, not by the owner: `changes` passed, the eight test jobs were skipped, the pull request was mergeable. Step 3 (adding a non-documentation file runs every job) was not exercised |
 | | | | | |

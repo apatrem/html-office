@@ -11,6 +11,8 @@ html-office produces single-file HTML documents that carry their content, a brow
 - Current state per product (released, merged, open, next step): [docs/STATUS.md](docs/STATUS.md). Update it in a PR that changes any of these, and fix a status sentence that contradicts `main`.
 - Several sessions and worktrees work on this repository at the same time. Run `gh pr list --state open` and `git branch -r` and look for the task ID (F01, T15, …) first. If a PR or branch already covers it, extend or review that work instead of starting again.
 - Branch from an up-to-date `main`; never commit to `main` directly.
+- **Scope is frozen until the Slides go/stop gate gives its outcome** ([ADR-016](docs/decisions/016-slides-go-stop-gate.md), 27 November 2026). Data and Text take defect fixes only; Slides takes release 0.7.3, the measurement kit and defect fixes. Do not start another feature, and do not fill a result of that measurement that a run did not produce.
+- A new product, a cross-product feature or a raised code-size ceiling needs a written decision of the owner that cites measured usage. Ask; do not anticipate it.
 
 ## Build and test
 
@@ -30,7 +32,7 @@ npm --prefix packages/text run format:check
 
 ## Review
 
-Pull requests written by one model family get an independent review from the other ("cross-lineage"). For PRs authored by Claude, the reviewer is the Codex CLI (≥ 0.163) with `gpt-6.1-sol`, read-only:
+Pull requests written by one model family get an independent review from the other ("cross-lineage") when they touch what a mistake would damage: a document format, saving and drafts, the clipboard, security and the checkers, and the tools shipped in a skill. For a pull request that changes only documentation, CI or tests, the review is optional: say in the pull request whether it was run. When in doubt, run it. For PRs authored by Claude, the reviewer is the Codex CLI (≥ 0.163) with `gpt-6.1-sol`, read-only:
 
 ```bash
 codex exec -s read-only -m gpt-6.1-sol \
