@@ -572,4 +572,5 @@ The measurement itself is run by an agent ([ADR-016](decisions/016-slides-go-sto
 | Date | Check | Browser / app | Result | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-11-10 | 1.1 Look and page (T04), on `text-example.html` and `text-report-t19.html` | Not noted | Pass, with two notes | Menus opened under the toolbar (fixed by PR #107). Tables always take the full text width: Table › Column width… sets column widths, but the table's own width cannot be set (follow-up). The first Save asking for a file is expected (1.2) |
+| 2026-11-27 | CI — documentation-only pull requests, steps 1 and 2 | GitHub Actions, PR #131 | Pass | Observed by the agent that opened the pull request, not by the owner: `changes` passed, the eight test jobs were skipped, the pull request was mergeable. Step 3 (adding a non-documentation file runs every job) was not exercised |
 | | | | | |
