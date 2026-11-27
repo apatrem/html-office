@@ -1,6 +1,6 @@
 # Blind LLM tests for Text (T20) and Data (T22)
 
-Status: kit ready, 19 November 2026; **not run**. Both tests are paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. The user confirmed every decision on 19 November 2026 (below): models, thresholds, skill source, and that the user runs the sessions and browser steps, with the evidence in the release PR.
+Status: kit ready, 19 November 2026; **not run**. Since 27 November 2026 both tests are **postponed until the Slides go/stop gate gives its outcome** ([ADR-016](../decisions/016-slides-go-stop-gate.md)); before that they were paused until a person runs them ([Text plan › T20](../HTML-TEXT-PLAN.md#t20--run-the-blind-llm-test-and-release-readiness-review), [Data plan › T22](../HTML-DATA-PLAN.md#t22--run-the-blind-llm-test-and-release-readiness-review)). The html-data and html-text skills join the plugin archive only after these tests and their release reviews pass. The user confirmed every decision on 19 November 2026 (below): models, thresholds, skill source, and that the user runs the sessions and browser steps, with the evidence in the release PR.
 
 | Document | Content |
 | --- | --- |

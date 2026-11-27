@@ -12,19 +12,51 @@ Release 0.7.2 (published on 18 November 2026) moves the Slides editor onto the s
 
 File System Access is tested with a simulated writable target; actual Chromium downloads/reopening are tested too. Direct saving on another workstation remains a manual check.
 
-## Five task comparisons
+## Go/stop measurement (ADR-016)
 
-Choose five representative tasks with fixed briefs and three later edits. Include text, charts, and free compositions. Measure all active time: planning, generation, visual correction, manual editing, LLM revision, sharing, and reopening. Track blocked/waiting time separately. Compare with the same tasks in PowerPoint.
+Since 27 November 2026 the gate before any further feature work is the measurement decided in [ADR-016](decisions/016-slides-go-stop-gate.md). It replaces the five task comparisons that timed a person against PowerPoint (kept under History below). The ADR holds the protocol and the decision grid; this section holds the results. **Every cell stays empty until a run produces it: nothing here is estimated or filled in advance.**
 
-| Task | Brief and edits | PowerPoint minutes | html-slides minutes | Net gain | Defects/evidence | Status |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | To define | — | — | — | — | Pending |
-| 2 | To define | — | — | — | — | Pending |
-| 3 | To define | — | — | — | — | Pending |
-| 4 | To define | — | — | — | — | Pending |
-| 5 | To define | — | — | — | — | Pending |
+In short: Claude Opus 5.5 (effort High, Claude Code, a new session per run) generates each subject as html-slides and as a `.pptx`, three times each, then applies three edits after a scripted move of elements. A model of the other family counts the defects on page images; the owner checks a sample and judges the PDFs.
 
-Net gain = PowerPoint time − html-slides time. Include failures and rework, not just initial generation.
+| Step | Who | Status |
+| --- | --- | --- |
+| Release 0.7.3, so that the measurement runs on the corrected version | An agent prepares, the owner publishes | Pending |
+| Measurement kit: five briefs with their edits, defect list, bench, token cost of an edit on the example decks | An agent | Pending |
+| Pilot: one subject, one run per format; token cost of the campaign | An agent; the owner decides to launch the rest | Pending |
+| Campaign: 30 generations, 30 series of edits | An agent | Pending |
+| Defect count on page images | Codex | Pending |
+| Sample of about twenty pages, and a judgement per subject on the PDFs | The owner | Pending |
+| Sharing check: a recipient opens and edits a file on another workstation | The owner | Pending |
+| Outcome: continue, maintain Slides alone, or stop | The owner | Pending |
+
+### Results per subject
+
+Times and tokens are totals over the three runs; the grid divides them by the number of usable runs.
+
+| Subject | Format | Usable runs (of 3) | Generation time | Time for the three edits | Moves kept | Blocking defects | Minor defects | Tokens | Owner's preference |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 Steering committee update | html-slides | — | — | — | — | — | — | — | — |
+| 1 Steering committee update | PPTX | — | — | — | — | — | — | — | |
+| 2 Commercial proposal | html-slides | — | — | — | — | — | — | — | — |
+| 2 Commercial proposal | PPTX | — | — | — | — | — | — | — | |
+| 3 Diagnostic | html-slides | — | — | — | — | — | — | — | — |
+| 3 Diagnostic | PPTX | — | — | — | — | — | — | — | |
+| 4 Summary for senior management | html-slides | — | — | — | — | — | — | — | — |
+| 4 Summary for senior management | PPTX | — | — | — | — | — | — | — | |
+| 5 Free-composition diagrams | html-slides | — | — | — | — | — | — | — | — |
+| 5 Free-composition diagrams | PPTX | — | — | — | — | — | — | — | |
+
+### Reading
+
+| | html-slides | PPTX | Difference |
+| --- | --- | --- | --- |
+| Usable runs (of 15) | — | — | — |
+| Minor defects | — | — | — |
+| Subjects where the owner prefers this format | — | — | — |
+| Time per usable result | — | — | — |
+| Tokens per usable result | — | — | — |
+
+Quality (better, equivalent, worse): —. Cost (cheaper, comparable, dearer): —. Sharing check: —. Outcome: **not decided**.
 
 ## Manual checks pending
 
@@ -37,4 +69,22 @@ Net gain = PowerPoint time − html-slides time. Include failures and rework, no
 - PDF comparison: fonts, sources, images, pagination.
 - Real sharing through the intended channel, documenting opening restrictions.
 - Large-deck interaction and draft storage capacity.
-- Five comparisons completed and a continue/stop decision recorded.
+- The go/stop measurement completed and its outcome recorded (above, and as a change of status of ADR-016).
+
+## History
+
+### Five task comparisons (replaced on 27 November 2026 by ADR-016)
+
+The original gate, from the plan of 10 October 2026. It was never defined or run. The owner replaced it with the measurement above, which measures the assistant's work instead of a person's time.
+
+Choose five representative tasks with fixed briefs and three later edits. Include text, charts, and free compositions. Measure all active time: planning, generation, visual correction, manual editing, LLM revision, sharing, and reopening. Track blocked/waiting time separately. Compare with the same tasks in PowerPoint.
+
+| Task | Brief and edits | PowerPoint minutes | html-slides minutes | Net gain | Defects/evidence | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | To define | — | — | — | — | Pending |
+| 2 | To define | — | — | — | — | Pending |
+| 3 | To define | — | — | — | — | Pending |
+| 4 | To define | — | — | — | — | Pending |
+| 5 | To define | — | — | — | — | Pending |
+
+Net gain = PowerPoint time − html-slides time. Include failures and rework, not just initial generation.

@@ -1,6 +1,6 @@
 # V1 plan — standalone, editable HTML presentations
 
-Status, 22 November 2026: release 0.7.2 is published ([v0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2), 18 November 2026); usage validation is pending and the approved V1 additions are mostly open (see the backlog table). The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since (all of it in 0.7.2), each item with its pull request.
+Status, 27 November 2026: release 0.7.2 is published ([v0.7.2](https://github.com/apatrem/html-office/releases/tag/v0.7.2), 18 November 2026) and 0.7.3, with the review fixes of PR #127, is the next step. The usage validation is now the go/stop measurement of [ADR-016](decisions/016-slides-go-stop-gate.md); the approved V1 additions that are still open wait for its outcome (see the backlog table). The delivered baseline below describes releases 0.7.0 and 0.7.1, then the work merged since (all of it in 0.7.2), each item with its pull request.
 
 This remains the Slides plan within the renamed html-office repository. See the [Office V1 specification](HTML-OFFICE-V1.md) and [Data implementation plan](HTML-DATA-PLAN.md) for the new workbook scope, and the [Text roadmap](HTML-OFFICE-V1.md#text-roadmap) for the planned Word alternative. The seven approved Slides additions below remain planned; an [ideas backlog](#ideas-backlog-not-approved) records candidates that are not approved.
 
@@ -37,6 +37,8 @@ Merged since 0.7.1:
 ## Approved V1 backlog
 
 The following features were approved for later V1 development: V1-01 to V1-05 on 15 October 2026, V1-06 and V1-07 on 18 October 2026. Unless the table says otherwise, they are **planned, not started**. They are product scope and acceptance goals, not frozen implementation specifications or release commitments. Development order and technical details will be settled when each feature starts.
+
+**Paused on 27 November 2026.** V1-02, V1-03, V1-05, V1-06 and V1-07 wait for the outcome of the go/stop measurement ([ADR-016](decisions/016-slides-go-stop-gate.md)): they resume only if it is *continue*.
 
 | ID | Feature | Status |
 | --- | --- | --- |
@@ -142,7 +144,7 @@ Acceptance goals:
 
 ## Ideas backlog (not approved)
 
-Recorded on 18 October 2026 from the review of the jayson-docs and jayson-editor projects and the engine stress test. These are candidates to evaluate later, **not approved scope**. Each needs its own scope decision before work starts.
+Recorded on 18 October 2026 from the review of the jayson-docs and jayson-editor projects and the engine stress test; B-05 and B-06 were added on 27 November 2026 from two external reviews, to consider after the ADR-016 outcome. These are candidates to evaluate later, **not approved scope**. Each needs its own scope decision before work starts.
 
 | ID | Idea | Notes |
 | --- | --- | --- |
@@ -150,10 +152,12 @@ Recorded on 18 October 2026 from the review of the jayson-docs and jayson-editor
 | B-02 | A private "firm context" folder for the skill | Markdown/JSON derivatives classed public, internal or confidential; assets referenced by path. Evaluate when V1-02 starts |
 | B-03 | An origin for each theme: built-in, company-approved or personal | A personal theme can be promoted after review, with a check on receipt (jayson-docs D17). Evaluate when V1-02 starts |
 | B-04 | A smaller ECharts build for all products | Selected chart types plus the SVG renderer: about 610 KB instead of 1,122 KB minified in the reproducible probe. Savings apply to the ECharts component; whole-file savings and chart coverage still need validation. Needs a versioned distribution with integrity checks. See the [engine stress test](ENGINE-STRESS-TEST.md#echarts) |
+| B-05 | An allow-list of permitted elements and attributes in the Slides content checker, instead of the list of forbidden ones | `src/format.js` refuses known active and raw-text elements (`ACTIVE_TAGS`) and `tools/validation.mjs` adds the parse–serialise–parse check, which closed the vector found on 22 November 2026; no exploit is known. An allow-list (the layouts, primitives, tables, figures, images and inline formatting of FORMAT and CATALOGUE, attributes per element, positional `style` only) would stop needing a patch for each parser quirk; `packages/text/model/format.mjs` is the stricter model to follow. Regression cases to keep: the payloads of the 22 November review, an unknown element, an `on*` attribute, a `javascript:` URL, an SVG `<animate>`, both example decks at zero errors. Deferred because changing the checker just before the measurement could refuse valid decks |
+| B-06 | Split `src/engine/editor.js` by responsibility, with a size budget for `dist/engine.js` enforced by a test | `editor.js` is 1,089 lines and `dist/engine.js` 492,875 bytes on 27 November 2026 (about 340 KB in 0.4). Suggested split: selection and Moveable, text editing, insertion, slide operations, keyboard; behaviour unchanged, bundle no larger. A restructuring with no effect for the user, so it waits for the outcome |
 
 ## Validation still required
 
-Run the context-free LLM test using only the generated HTML. Check a text change, an added slide, and chart data modification; review preservation and saved SVGs. Record five task comparisons including manual corrections, sharing, and later edits. Test file saving and reopening on another workstation and inspect PDF fidelity.
+Run the go/stop measurement of [ADR-016](decisions/016-slides-go-stop-gate.md), which replaced the five task comparisons on 27 November 2026. Run the context-free LLM test using only the generated HTML. Check a text change, an added slide, and chart data modification; review preservation and saved SVGs. Test file saving and reopening on another workstation and inspect PDF fidelity.
 
 Automated success is necessary but does not prove these usage outcomes. See [VALIDATION-V1.md](VALIDATION-V1.md).
 
