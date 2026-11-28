@@ -49,6 +49,17 @@ fs.writeFileSync(renamed, html.replaceAll(`data-id="${tableId}"`, 'data-id="e999
 check = await checkMoves(renamed, result);
 ok(check.targets[3].kept === true && check.targets[3].shapes[0].how !== 'same identifier', `the table is found again (${check.targets[3].shapes[0].how})`);
 
+// A table whose column border lies under its centre: pressing there resizes the column instead of
+// moving the table (found by the pilot of 27 November 2026). The move grabs a cell instead.
+const wide = path.join(dir, 'wide.html');
+const columns = '<colgroup><col data-width="50"><col data-width="20"><col data-width="15"><col data-width="15"></colgroup>';
+fs.writeFileSync(wide, fs.readFileSync(example, 'utf8').replace(/<table class="t w-8"([^>]*)>/, `<table class="t w-12"$1>${columns}`));
+const tableMove = await moveDeck(wide, path.join(dir, 'wide-moved.html'), { dx: -0.02, dy: -0.02, targets: [{ slide: 8, kind: 'table', label: 'a table with a border under its centre' }] });
+const t = tableMove.targets[0].shapes[0];
+ok(tableMove.targets[0].resolved && Math.abs((t.after.x - t.before.x) * SLIDE.width + 25.6) <= 2 && Math.abs(t.after.w - t.before.w) * SLIDE.width <= 2, 'the table moves and keeps its width');
+ok(fs.readFileSync(path.join(dir, 'wide-moved.html'), 'utf8').includes(columns), 'its column widths are untouched');
+ok((await checkMoves(path.join(dir, 'wide-moved.html'), tableMove)).kept === true, 'and the move is found again');
+
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(fails ? `${fails} failure(s)` : 'All checks passed');
 process.exit(fails ? 1 : 0);

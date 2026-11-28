@@ -47,13 +47,12 @@ Examples, all invented:
 
 ## A usable run
 
-As ADR-016 §6 writes it, a run is usable when its file opens, has no blocking defect and kept the scripted moves. The bench establishes the first and the third; the count establishes the second.
+ADR-016 §6 defines it: the generation and the three edits both finished, and the final file opens, passes its format's own checks, has no blocking defect and kept the scripted moves after the edits. The count establishes one of these conditions; the bench establishes the others ([README.md](README.md), "Failed runs and void runs").
 
-- **Opens.** The final file is converted to PDF without error or repair prompt by the bench's rendering (the same for every run of a format), and the PDF has at least one page. A file that does not open has no page images and no count.
-- **No blocking defect.** The count records no B1 to B5 on any page.
-- **Kept the scripted moves.** After the three edits, every element that the bench moved is still in the file, and its top-left corner is within 1.5 px (on a 1,280 px wide slide, or the same fraction of the slide's width) of where the move left it. An element whose size changed keeps its place if its corner did. The bench compares coordinates; the counter takes no part in this.
+- **No blocking defect.** The count records no B1 to B5 on any page of the result.
+- **Finished, opens, passes its own checks, kept the moves.** Established by the bench, without the counter: the sessions' own reports and time limits, the conversion to PDF, `check.mjs` or `validate.py` on the final file, and the coordinates of the moved elements (within 1.5 px on a 1,280 px wide slide of where the move left them).
 
-The checker of html-slides takes no part in the count or in usability (ADR-016 §5). The bench records, for information only, whether each file passed its own format's check at the end of the session.
+Only results that exist are counted: a run that failed has no final file, no page images and no count. The count itself never uses a format's checker (ADR-016 §5): the counter sees page images and the expected content, nothing else.
 
 ## Instructions given to the counter
 
@@ -77,3 +76,4 @@ The bench draws about twenty pages at random over all counted results, copies th
 | Date | Change |
 | --- | --- |
 | 27 November 2026 | First version, written before any run. |
+| 28 November 2026 | "A usable run" follows the amended ADR-016 §6 (both sessions finished, the format's own checks). No code, class or counting rule changed. Before any counted run. |

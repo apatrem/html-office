@@ -47,18 +47,18 @@ function measure(id) {
   return { x: (r.left - sr.left) / k, y: (r.top - sr.top) / k, w: r.width / k, h: r.height / k, detached: slide.hasAttribute('data-detached'), style: el.getAttribute('style') || '', slideId: slide.id };
 }
 
-// Runs in the page. A point of the element, in viewport pixels, where a click reaches it.
-function grabPoint(id) {
+// Runs in the page. Points of the element, in viewport pixels, where a press reaches it and starts
+// a move. In a table, the border between two columns resizes the column instead: the points are
+// the centres of cells.
+function grabPoints(id) {
   const el = document.querySelector(`main#deck > section.slide > [data-id="${id}"]`);
   el.scrollIntoView({ block: 'center', inline: 'center' });
+  const centre = node => { const r = node.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
   const r = el.getBoundingClientRect();
-  const spots = [[0.5, 0.5], [0.15, 0.2], [0.85, 0.2], [0.15, 0.8], [0.85, 0.8], [0.5, 0.1], [0.5, 0.9]];
-  for (const [fx, fy] of spots) {
-    const x = r.left + r.width * fx, y = r.top + r.height * fy;
-    const hit = document.elementFromPoint(x, y);
-    if (hit && (hit === el || el.contains(hit))) return { x, y };
-  }
-  return null;
+  const cells = [...el.querySelectorAll('th, td')];
+  const spots = cells.length ? cells.slice(0, 12).map(centre)
+    : [[0.5, 0.5], [0.15, 0.2], [0.85, 0.2], [0.15, 0.8], [0.85, 0.8], [0.5, 0.1], [0.5, 0.9]].map(([fx, fy]) => [r.left + r.width * fx, r.top + r.height * fy]);
+  return spots.filter(([x, y]) => { const hit = document.elementFromPoint(x, y); return hit && (hit === el || el.contains(hit)); }).map(([x, y]) => ({ x, y }));
 }
 
 const fraction = box => ({ x: box.x / SLIDE.width, y: box.y / SLIDE.height, w: box.w / SLIDE.width, h: box.h / SLIDE.height });
@@ -94,8 +94,9 @@ export async function moveDeck(source, destination, move) {
       taken.add(found.id);
       const dx = (target.dx ?? move.dx) * SLIDE.width, dy = (target.dy ?? move.dy) * SLIDE.height;
       const before = await page.evaluate(measure, found.id);
-      const point = await page.evaluate(grabPoint, found.id);
-      if (!point) throw new Error(`slide ${target.slide}: ${target.label} is covered by another element and cannot be grabbed`);
+      const points = await page.evaluate(grabPoints, found.id);
+      if (!points.length) throw new Error(`slide ${target.slide}: ${target.label} is covered by another element and cannot be grabbed`);
+      const point = points[0];
       // Alt: a free move, without snapping to the grid or to the guides.
       await page.mouse.move(point.x, point.y);
       await page.keyboard.down('Alt');
@@ -106,9 +107,10 @@ export async function moveDeck(source, destination, move) {
       await page.keyboard.up('Alt');
       await page.keyboard.press('Escape');
       const after = await page.evaluate(measure, found.id);
+      // No second attempt: a drag that did something else has already changed the deck.
       if (!after?.detached || !/--x:/.test(after.style)) throw new Error(`slide ${target.slide}: the editor did not detach the slide when ${target.label} was dragged`);
-      if (Math.abs(after.x - before.x - dx) > 2 || Math.abs(after.y - before.y - dy) > 2)
-        throw new Error(`slide ${target.slide}: ${target.label} moved by ${(after.x - before.x).toFixed(1)}, ${(after.y - before.y).toFixed(1)} px instead of ${dx.toFixed(1)}, ${dy.toFixed(1)}`);
+      if (Math.abs(after.x - before.x - dx) > 2 || Math.abs(after.y - before.y - dy) > 2 || Math.abs(after.w - before.w) > 2 || Math.abs(after.h - before.h) > 2)
+        throw new Error(`slide ${target.slide}: ${target.label} moved by ${(after.x - before.x).toFixed(1)}, ${(after.y - before.y).toFixed(1)} px instead of ${dx.toFixed(1)}, ${dy.toFixed(1)}, or changed size`);
       result.shapes.push({ id: found.id, slideId: found.slideId, tag: found.tag, cls: found.cls, text: found.text, chart: target.kind === 'chart', table: target.kind === 'table',
         slideTexts: found.slideTexts, before: fraction(before), after: fraction(after) });
       targets.push({ ...result, resolved: true });

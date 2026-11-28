@@ -1,38 +1,40 @@
-// The grid of ADR-016 §6 on invented inputs: every cell, every boundary. No figure here comes
-// from a run.
+// The grid of ADR-016 §6 (as amended on 27 November 2026) on invented inputs: every cell, the exact
+// boundaries 0.50, 0.75, 0.80, 1.20 and 1.25, and the zero cases. No figure here comes from a run.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeGrid, report, usable, FORMATS, SUBJECTS, RUNS_PER_CELL } from '../lib/grid.mjs';
 
-// A complete invented campaign: 15 runs per format. Totals are carried by the first run of each
-// format; `unusable` runs have one blocking defect each.
+const GOOD = { generationFinished: true, editsFinished: true, opens: true, checksPassed: true, movesKept: true, blocking: 0, minor: 0 };
+const ALL = SUBJECTS.length * RUNS_PER_CELL;
+
+// A complete invented campaign: 15 runs per format. A format's totals are carried by its first run,
+// which is always usable; its last `unusable` runs have one blocking defect each.
 function campaign({ html = {}, pptx = {}, preferences = { 1: 'equivalent', 2: 'equivalent', 3: 'equivalent', 4: 'equivalent', 5: 'equivalent' }, sharing = 'passed' } = {}) {
   const side = { 'html-slides': { minor: 40, ms: 1000, tokens: 1000, unusable: 0, ...html }, pptx: { minor: 40, ms: 1000, tokens: 1000, unusable: 0, ...pptx } };
   const runs = [];
   for (const format of FORMATS) {
     let index = 0;
     for (const subject of SUBJECTS) for (let run = 1; run <= RUNS_PER_CELL; run++) {
-      const first = index === 0;
-      const bad = index >= SUBJECTS.length * RUNS_PER_CELL - side[format].unusable;
-      runs.push({ format, subject, run, opens: true, movesKept: true, blocking: bad ? 1 : 0,
-        minor: first ? side[format].minor : 0, milliseconds: first ? side[format].ms : 0, tokens: first ? side[format].tokens : 0 });
+      const first = index === 0, bad = index >= ALL - side[format].unusable;
+      runs.push({ ...GOOD, format, subject, run, blocking: bad ? 1 : 0, minor: first ? side[format].minor : 0,
+        milliseconds: first ? side[format].ms : 0, tokens: first ? side[format].tokens : 0 });
       index++;
     }
   }
   return { runs, preferences, sharing };
 }
 const prefs = (...list) => Object.fromEntries(list.map((value, index) => [index + 1, value]));
-const better = { html: { minor: 30 } };                       // exactly 25 % fewer than 40
-const worse = { html: { minor: 50 } };                        // exactly 25 % more than 40
-const cost = (ms, tokens = ms) => ({ ms, tokens });           // PPTX stays at 1000 / 1000
+const H = 'html-slides', P = 'pptx', E = 'equivalent';
+const better = { minor: 30 };                                  // D = 0.75
+const worse = { minor: 50 };                                   // D = 1.25
+const cost = (ms, tokens = ms) => ({ ms, tokens });            // PPTX stays at 1000 / 1000
+const read = input => { const grid = computeGrid(input); return [grid.quality.value, grid.cost.value, grid.outcome]; };
 
-test('a run is usable when it opens, has no blocking defect and kept the moves', () => {
-  const run = { opens: true, blocking: 0, movesKept: true };
-  assert.equal(usable(run), true);
-  assert.equal(usable({ ...run, opens: false }), false);
-  assert.equal(usable({ ...run, blocking: 1 }), false);
-  assert.equal(usable({ ...run, movesKept: false }), false);
-  assert.equal(usable({ ...run, minor: 12 }), true, 'minor defects do not make a run unusable');
+test('a run is usable only when every condition of the ADR holds', () => {
+  assert.equal(usable(GOOD), true);
+  for (const change of [{ generationFinished: false }, { editsFinished: false }, { opens: false }, { checksPassed: false }, { blocking: 1 }, { movesKept: false }])
+    assert.equal(usable({ ...GOOD, ...change }), false, JSON.stringify(change));
+  assert.equal(usable({ ...GOOD, minor: 12 }), true, 'minor defects do not make a run unusable');
 });
 
 test('the nine cells of the grid', () => {
@@ -48,139 +50,169 @@ test('the nine cells of the grid', () => {
     [worse, cost(1200), 'worse', 'dearer', 'Stop']
   ];
   for (const [quality, money, q, c, outcome] of cells) {
-    const grid = computeGrid(campaign({ html: { ...quality.html, ...money } }));
-    assert.equal(grid.quality.value, q);
-    assert.equal(grid.cost.value, c);
-    assert.equal(grid.outcome, outcome, `${q} / ${c}`);
-    assert.equal(grid.complete, true);
+    const input = campaign({ html: { ...quality, ...money } });
+    assert.deepEqual(read(input), [q, c, outcome], `${q} / ${c}`);
+    assert.equal(computeGrid(input).complete, true);
   }
 });
 
-test('equivalent and cheaper: Continue only when the gain reaches 50 %', () => {
-  assert.equal(computeGrid(campaign({ html: cost(500) })).outcome, 'Continue', 'exactly 50 %');
-  assert.equal(computeGrid(campaign({ html: cost(501) })).outcome, 'Maintain Slides alone', 'just under 50 %');
-  assert.equal(computeGrid(campaign({ html: cost(500, 501) })).outcome, 'Maintain Slides alone', 'the gain must hold on both measures');
-  assert.equal(computeGrid(campaign({ html: { minor: 50, ...cost(100) } })).outcome, 'Stop', 'a worse quality is never bought back by the cost');
+test('R at 0.50: equivalent and cheaper becomes Continue', () => {
+  assert.equal(computeGrid(campaign({ html: cost(500) })).outcome, 'Continue', 'R = 0.50');
+  assert.equal(computeGrid(campaign({ html: cost(501) })).outcome, 'Maintain Slides alone', 'R just above 0.50');
+  assert.equal(computeGrid(campaign({ html: cost(500, 501) })).outcome, 'Maintain Slides alone', 'R is the larger ratio');
+  assert.equal(computeGrid(campaign({ html: { ...worse, ...cost(100) } })).outcome, 'Stop', 'a worse quality is never bought back by the cost');
+  assert.equal(computeGrid(campaign({ html: cost(500) })).cost.r, 0.5);
 });
 
-test('quality boundaries: 25 % fewer or more minor defects', () => {
-  const quality = minor => computeGrid(campaign({ html: { minor } })).quality.value;
-  assert.equal(quality(30), 'better', 'exactly 25 % fewer');
-  assert.equal(quality(31), 'equivalent', 'less than 25 % fewer');
-  assert.equal(quality(40), 'equivalent');
-  assert.equal(quality(49), 'equivalent', 'less than 25 % more');
-  assert.equal(quality(50), 'worse', 'exactly 25 % more');
-  assert.equal(quality(0), 'better');
+test('D at 0.75 and 1.25, with as many usable runs on both sides', () => {
+  const quality = minor => computeGrid(campaign({ html: { minor } })).quality;
+  assert.deepEqual([quality(30).value, quality(30).d], ['better', 0.75]);
+  assert.equal(quality(31).value, 'equivalent', 'D just above 0.75');
+  assert.equal(quality(40).value, 'equivalent');
+  assert.equal(quality(49).value, 'equivalent', 'D just under 1.25');
+  assert.deepEqual([quality(50).value, quality(50).d], ['worse', 1.25]);
+  assert.equal(quality(0).value, 'better', 'D = 0');
 });
 
-test('quality boundaries: no minor defect on one side or both', () => {
-  const quality = (h, p) => computeGrid(campaign({ html: { minor: h }, pptx: { minor: p } })).quality.value;
-  assert.equal(quality(0, 0), 'equivalent', 'nothing is fewer or more than nothing');
-  assert.equal(quality(1, 0), 'worse');
-  assert.equal(quality(0, 1), 'better');
-  assert.equal(quality(3, 4), 'better', '3 against 4 is exactly 25 % fewer');
-  assert.equal(quality(5, 4), 'worse', '5 against 4 is exactly 25 % more');
+test('D compares minor defects per usable result, not totals', () => {
+  // PPTX has 12 usable runs and 32 minor defects (2.667 each); html-slides has 15 usable runs.
+  const quality = minor => computeGrid(campaign({ html: { minor }, pptx: { minor: 32, unusable: 3 } })).quality;
+  assert.deepEqual([quality(30).value, quality(30).d], ['better', 0.75], '30 / 15 against 32 / 12');
+  assert.equal(quality(31).value, 'equivalent');
+  assert.equal(quality(49).value, 'equivalent');
+  assert.deepEqual([quality(50).value, quality(50).d], ['worse', 1.25], '50 / 15 against 32 / 12');
+  assert.equal(quality(40).value, 'equivalent', 'more defects in total (40 against 32), fewer per usable result than 1.25 times');
 });
 
-test('quality boundaries: usable runs', () => {
-  const grid = (h, p, extra = {}) => computeGrid(campaign({ html: { unusable: h, ...extra }, pptx: { unusable: p } }));
-  assert.equal(grid(1, 0).quality.value, 'worse', 'one usable run fewer is enough');
-  assert.equal(grid(1, 1, { minor: 30 }).quality.value, 'better', 'as many usable runs');
-  assert.equal(grid(0, 1, { minor: 30 }).quality.value, 'better', 'more usable runs');
-  assert.equal(grid(0, 1).quality.value, 'equivalent', 'more usable runs alone do not make it better');
+test('the minor defects of an unusable run are left out of D', () => {
+  const input = campaign({ html: { minor: 30, unusable: 1 }, pptx: { unusable: 1 } });
+  input.runs.find(run => run.format === H && run.blocking === 1).minor = 500;
+  const grid = computeGrid(input);
+  assert.equal(grid.formats[H].minorOfUsable, 30);
+  assert.deepEqual([grid.quality.value, grid.quality.d], ['better', 0.75]);
 });
 
-test('quality boundaries: the owner\'s preference', () => {
-  const quality = (list, html = better.html) => computeGrid(campaign({ html, preferences: prefs(...list) })).quality.value;
-  const H = 'html-slides', P = 'pptx', E = 'equivalent';
+test('PPTX without a minor defect: D does not exist', () => {
+  const quality = (h, p) => computeGrid(campaign({ html: { minor: h }, pptx: { minor: p } })).quality;
+  assert.deepEqual([quality(0, 0).value, quality(0, 0).d], ['equivalent', null], 'none on either side meets neither condition');
+  assert.equal(quality(1, 0).value, 'worse', 'any against none');
+  assert.equal(quality(0, 1).value, 'better');
+});
+
+test('usable runs: fewer is worse, as many or more is needed for better', () => {
+  const quality = (h, p, minor = 40) => computeGrid(campaign({ html: { unusable: h, minor }, pptx: { unusable: p } })).quality.value;
+  assert.equal(quality(1, 0), 'worse', 'one usable run fewer is enough');
+  assert.equal(quality(1, 0, 0), 'worse', 'whatever the defects');
+  // 14 usable runs each: D = (28 / 14) / (40 / 14) = 0.70.
+  assert.equal(quality(1, 1, 28), 'better', 'as many usable runs');
+  assert.equal(quality(0, 1, 28), 'better', 'more usable runs');
+  assert.equal(quality(0, 1), 'equivalent', 'more usable runs alone do not make it better');
+});
+
+test('the owner\'s preference, one per subject', () => {
+  const quality = (list, html = better) => computeGrid(campaign({ html, preferences: prefs(...list) })).quality.value;
   assert.equal(quality([P, P, P, H, H]), 'worse', 'PPTX preferred on three subjects');
   assert.equal(quality([P, P, P, H, H], {}), 'worse', 'whatever the defects');
-  assert.equal(quality([P, P, H, H, E]), 'better', 'as many subjects each: the PPTX is not preferred on more');
+  assert.equal(quality([P, P, H, H, E]), 'better', 'as many subjects each: PPTX is not preferred on more');
   assert.equal(quality([P, P, H, E, E]), 'equivalent', 'PPTX preferred on more subjects, fewer than three');
   assert.equal(quality([P, E, E, E, E]), 'equivalent');
-  assert.equal(quality([E, E, E, E, E]), 'better');
+  assert.equal(quality([E, E, E, E, E]), 'better', 'equivalent counts for neither side');
   assert.equal(quality([H, H, H, H, H], {}), 'equivalent', 'preference alone does not make it better');
 });
 
-test('cost boundaries: 20 % either way, on time and on tokens', () => {
+test('a subject without any final PDF has the preference equivalent', () => {
+  const input = campaign({ html: better, preferences: prefs(H, H, P, P) });
+  for (const run of input.runs.filter(r => r.subject === 5)) Object.assign(run, { opens: false, blocking: null, minor: null });
+  const grid = computeGrid(input);
+  assert.deepEqual(grid.preferences, { 'html-slides': 2, pptx: 2, equivalent: 1, missing: 0 });
+  assert.equal(grid.complete, true);
+  assert.throws(() => computeGrid({ ...input, preferences: prefs(H, H, P, P, P) }), /neither format produced a final PDF/);
+  // One PDF on either side is enough for the owner to judge: the preference is then required.
+  Object.assign(input.runs.find(r => r.subject === 5 && r.format === P), { opens: true, blocking: 1, minor: 0 });
+  assert.equal(computeGrid(input).preferences.missing, 1);
+});
+
+test('R at 0.80 and 1.20, on time and on tokens', () => {
   const value = (ms, tokens) => computeGrid(campaign({ html: cost(ms, tokens) })).cost;
-  assert.equal(value(800, 800).value, 'cheaper', 'exactly 20 % cheaper');
-  assert.equal(value(801, 800).value, 'comparable');
-  assert.equal(value(1199, 1199).value, 'comparable');
-  assert.equal(value(1200, 1000).value, 'dearer', 'exactly 20 % dearer');
+  assert.deepEqual([value(800, 800).value, value(800, 800).r], ['cheaper', 0.8]);
+  assert.equal(value(801, 800).value, 'comparable', 'R just above 0.80');
+  assert.equal(value(800, 801).value, 'comparable');
+  assert.equal(value(1199, 1199).value, 'comparable', 'R just under 1.20');
+  assert.deepEqual([value(1200, 1000).value, value(1200, 1000).r], ['dearer', 1.2]);
+  assert.equal(value(1000, 1200).value, 'dearer');
   assert.equal(value(1000, 1000).value, 'comparable');
 });
 
-test('the less favourable of time and tokens decides', () => {
+test('R is the larger of the two ratios', () => {
   const value = (ms, tokens) => computeGrid(campaign({ html: cost(ms, tokens) })).cost;
-  assert.deepEqual([value(500, 1300).value, value(500, 1300).deciding], ['dearer', 'tokens']);
-  assert.deepEqual([value(1300, 500).value, value(1300, 500).deciding], ['dearer', 'time']);
-  assert.deepEqual([value(700, 1000).value, value(700, 1000).deciding], ['comparable', 'tokens']);
-  assert.deepEqual([value(700, 790).value, value(700, 790).deciding], ['cheaper', 'tokens'], 'same class: the higher ratio is named');
+  assert.deepEqual([value(500, 1300).value, value(500, 1300).r], ['dearer', 1.3]);
+  assert.deepEqual([value(1300, 500).value, value(1300, 500).r], ['dearer', 1.3]);
+  assert.deepEqual([value(700, 1000).value, value(700, 1000).r], ['comparable', 1]);
+  assert.deepEqual([value(700, 790).value, value(700, 790).r], ['cheaper', 0.79]);
 });
 
-test('a format that fails runs is charged for them', () => {
-  // Same totals, but html-slides has 12 usable runs against 15: per usable result it costs 25 % more.
-  const grid = computeGrid(campaign({ html: { unusable: 3 }, pptx: {} }));
-  assert.equal(grid.formats['html-slides'].usable, 12);
-  assert.equal(grid.cost.value, 'dearer');
-  assert.equal(grid.cost.time.ratio, 1.25);
-  // 13 usable against 15: 15.4 % more, comparable. And the other way round.
-  assert.equal(computeGrid(campaign({ html: { unusable: 2 } })).cost.value, 'comparable');
-  assert.equal(computeGrid(campaign({ pptx: { unusable: 3 } })).cost.value, 'cheaper', '12/15 = exactly 20 % cheaper');
+test('failed runs are charged: totals over all runs, divided by the usable ones', () => {
+  // Same totals, but html-slides has 12 usable runs against 15: R = 1.25.
+  const grid = computeGrid(campaign({ html: { unusable: 3 } }));
+  assert.equal(grid.formats[H].usable, 12);
+  assert.deepEqual([grid.cost.value, grid.cost.r], ['dearer', 1.25]);
+  assert.equal(computeGrid(campaign({ html: { unusable: 2 } })).cost.value, 'comparable', '15 / 13 = 1.154');
+  const cheap = computeGrid(campaign({ pptx: { unusable: 3 } }));
+  assert.deepEqual([cheap.cost.value, cheap.cost.r], ['cheaper', 0.8], '12 / 15 = 0.80');
   assert.equal(computeGrid(campaign({ pptx: { unusable: 2 } })).cost.value, 'comparable');
-});
-
-test('no usable run', () => {
-  const none = { unusable: 15 };
-  let grid = computeGrid(campaign({ html: none }));
-  assert.deepEqual([grid.quality.value, grid.cost.value, grid.outcome], ['worse', 'dearer', 'Stop']);
-  grid = computeGrid(campaign({ pptx: none, html: { minor: 30 } }));
-  assert.deepEqual([grid.quality.value, grid.cost.value, grid.outcome], ['better', 'cheaper', 'Continue']);
-  grid = computeGrid(campaign({ html: none, pptx: none }));
-  assert.equal(grid.cost.value, null);
-  assert.equal(grid.outcome, null, 'the grid cannot be read');
-  assert.match(grid.notes.join(' '), /cannot be read/);
-});
-
-test('a file that does not open is unusable and carries no count', () => {
+  // The time and tokens of a failed run count even though its result does not.
   const input = campaign();
-  Object.assign(input.runs[0], { opens: false, blocking: null, minor: null });
-  const grid = computeGrid(input);
-  assert.equal(grid.formats['html-slides'].usable, 14);
-  assert.equal(grid.formats['html-slides'].minor, 0, 'its minor defects were never counted');
-  assert.equal(grid.formats['html-slides'].milliseconds, 1000, 'its time is still charged');
-  assert.equal(grid.quality.value, 'worse');
+  Object.assign(input.runs.find(run => run.format === H && run.run === 2), { editsFinished: false, opens: false, blocking: null, minor: null, milliseconds: 500, tokens: 0 });
+  const charged = computeGrid(input);
+  assert.deepEqual([charged.formats[H].usable, charged.formats[H].milliseconds], [14, 1500]);
 });
 
-test('a run that lost the scripted moves is unusable', () => {
-  const input = campaign();
-  input.runs[20].movesKept = false;
-  assert.equal(computeGrid(input).formats.pptx.usable, 14);
+test('a format without a usable run', () => {
+  const none = { unusable: ALL };
+  assert.deepEqual(read(campaign({ html: none })), ['worse', null, 'Stop'], 'html-slides with none: stop');
+  assert.deepEqual(read(campaign({ html: none, pptx: none })), [null, null, 'Stop'], 'neither: still stop');
+  assert.deepEqual(read(campaign({ pptx: none })), ['better', 'cheaper', 'Continue'], 'PPTX with none and html-slides with at least one');
+  assert.deepEqual(read(campaign({ pptx: none, html: { unusable: ALL - 1, minor: 500, ...cost(9000) } })), ['better', 'cheaper', 'Continue'], 'one usable run is enough');
+  assert.deepEqual(read(campaign({ pptx: none, preferences: prefs(P, P, P, P, P) })), ['better', 'cheaper', 'Continue'], 'as the ADR writes it, whatever the preference');
+  assert.match(computeGrid(campaign({ html: none })).notes.join(' '), /no usable run: Stop/);
 });
 
-test('Continue depends on the sharing check', () => {
-  const input = sharing => campaign({ html: { ...better.html, ...cost(800) }, sharing });
+test('each cause of an unusable run', () => {
+  const lose = change => { const input = campaign(); Object.assign(input.runs[1], change); return computeGrid(input).formats[H]; };
+  assert.equal(lose({ generationFinished: false, editsFinished: false, opens: false, blocking: null, minor: null }).usable, 14, 'generation cut off');
+  assert.equal(lose({ editsFinished: false }).usable, 14, 'the edits did not finish');
+  assert.equal(lose({ opens: false, blocking: null, minor: null }).usable, 14, 'the final file does not open');
+  assert.equal(lose({ checksPassed: false }).usable, 14, 'the final file fails its format\'s own checks');
+  assert.equal(lose({ blocking: 2 }).usable, 14, 'a blocking defect');
+  assert.equal(lose({ movesKept: false }).usable, 14, 'the scripted moves were lost');
+  assert.equal(lose({ opens: false, blocking: null, minor: null }).finalFiles, 14);
+});
+
+test('the sharing check', () => {
+  const input = sharing => campaign({ html: { ...better, ...cost(800) }, sharing });
   assert.equal(computeGrid(input('passed')).outcome, 'Continue');
-  let grid = computeGrid(input('not-checked'));
-  assert.equal(grid.outcome, 'Continue');
-  assert.match(grid.notes.join(' '), /sharing check/);
-  grid = computeGrid(input('failed'));
-  assert.equal(grid.cell, 'Continue');
-  assert.equal(grid.outcome, null, 'the ADR names no fallback');
-  assert.equal(computeGrid({ ...campaign({ html: cost(1200) }), sharing: 'failed' }).outcome, 'Stop', 'the other outcomes do not depend on it');
+  assert.equal(computeGrid(input('not-checked')).outcome, 'Continue (pending the sharing check)');
+  assert.equal(computeGrid(input('failed-once')).outcome, 'Continue (pending the sharing check)', 'fixed, then checked once more');
+  const twice = computeGrid(input('failed-twice'));
+  assert.deepEqual([twice.cell, twice.outcome], ['Continue', 'Maintain Slides alone']);
+  for (const sharing of ['not-checked', 'failed-once', 'failed-twice']) {
+    assert.equal(computeGrid(campaign({ html: cost(1200), sharing })).outcome, 'Stop', 'the other outcomes do not depend on it');
+    assert.equal(computeGrid(campaign({ html: { ...better, ...cost(1200) }, sharing })).outcome, 'Maintain Slides alone');
+  }
+  assert.equal(computeGrid(campaign({ html: cost(500), sharing: 'not-checked' })).outcome, 'Continue (pending the sharing check)', 'also when Continue comes from R ≤ 0.50');
 });
 
 test('incomplete data give a provisional reading', () => {
   const input = campaign();
-  const pilot = { runs: input.runs.filter(run => run.subject === 3 && run.run === 1), preferences: {}, sharing: 'not-checked' };
+  const pilot = { runs: input.runs.filter(run => run.subject === 3 && run.run === 1).map(run => ({ ...run, milliseconds: 600000, tokens: 2000000 })), preferences: {}, sharing: 'not-checked' };
   const grid = computeGrid(pilot);
   assert.equal(grid.complete, false);
   assert.equal(grid.missing.length, 28);
   assert.equal(grid.preferences.missing, 5);
   assert.match(report(grid), /Provisional reading/);
   assert.match(grid.notes.join(' '), /28 of 30 runs are missing/);
-  assert.equal(computeGrid({ ...input, preferences: prefs('pptx') }).complete, false, 'four preferences are missing');
+  assert.equal(computeGrid({ ...input, preferences: prefs(P) }).complete, false, 'four preferences are missing');
+  assert.equal(computeGrid({ runs: [], preferences: {} }).outcome, 'Stop', 'no run at all: html-slides has no usable run');
 });
 
 test('invalid records are refused', () => {
@@ -192,21 +224,26 @@ test('invalid records are refused', () => {
   assert.throws(broken({ milliseconds: 1.5 }), /whole number/);
   assert.throws(broken({ tokens: -1 }), /whole number/);
   assert.throws(broken({ movesKept: undefined }), /movesKept/);
+  assert.throws(broken({ checksPassed: null }), /checksPassed/);
+  assert.throws(broken({ generationFinished: false }), /edits cannot finish/);
+  assert.throws(broken({ milliseconds: 0 }), /no recorded time or tokens/);
   assert.throws(() => { const input = campaign(); input.runs.push({ ...input.runs[0] }); computeGrid(input); }, /duplicate run/);
   assert.throws(() => computeGrid({ ...campaign(), preferences: prefs('keynote') }), /preference/);
-  assert.throws(() => computeGrid({ ...campaign(), sharing: 'maybe' }), /sharing/);
+  assert.throws(() => computeGrid({ ...campaign(), sharing: 'failed' }), /sharing/);
 });
 
 test('large totals stay exact', () => {
-  // 20 % of 9,007,199,254,740,990 tokens is not representable as a double product.
+  // 80 % of 9,007,199,254,740,990 tokens is not reached exactly by a product of doubles.
   const big = 9007199254740990;
-  const grid = computeGrid(campaign({ html: { ms: 800, tokens: big / 5 * 4 }, pptx: { ms: 1000, tokens: big } }));
-  assert.equal(grid.cost.value, 'cheaper');
+  assert.equal(computeGrid(campaign({ html: { ms: 800, tokens: big / 5 * 4 }, pptx: { ms: 1000, tokens: big } })).cost.value, 'cheaper');
+  assert.equal(computeGrid(campaign({ html: { ms: 800, tokens: big / 5 * 4 + 2 }, pptx: { ms: 1000, tokens: big } })).cost.value, 'comparable');
 });
 
-test('the report names the axes, the cell and the outcome', () => {
-  const text = report(computeGrid(campaign({ html: { ...better.html, ...cost(1200) } })));
+test('the report names the axes, the ratios, the cell and the outcome', () => {
+  const text = report(computeGrid(campaign({ html: { ...better, ...cost(1200) } })));
   assert.match(text, /\*\*better\*\*/);
+  assert.match(text, /D = 0\.750/);
   assert.match(text, /\*\*dearer\*\*/);
+  assert.match(text, /R = 1\.200/);
   assert.match(text, /Outcome: \*\*Maintain Slides alone\*\*/);
 });

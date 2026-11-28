@@ -4,11 +4,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { usageOf, readLog, sessionEnv, stagePlugin, FORMATS, MODEL, EFFORT } from '../lib/session.mjs';
+import { usageOf, usageFromStream, usageWindows, outsideCause, readLog, sessionEnv, stagePlugin, FORMATS, MODEL, EFFORT, LIMITS, USAGE_CEILING } from '../lib/session.mjs';
 
 test('the model and effort are those of ADR-016', () => {
   assert.deepEqual([MODEL, EFFORT], ['claude-opus-5-5', 'high']);
   assert.deepEqual(Object.keys(FORMATS), ['html-slides', 'pptx']);
+});
+
+test('the time limits and the usage ceiling are those written in the README', () => {
+  assert.deepEqual(LIMITS, { generationMinutes: 45, editMinutes: 30 });
+  assert.deepEqual(USAGE_CEILING, { fiveHour: 0.8, sevenDay: 0.95 });
+  const readme = fs.readFileSync(new URL('../../../docs/gate/README.md', import.meta.url), 'utf8');
+  assert.match(readme, /Generation: 45 minutes/);
+  assert.match(readme, /three edits: 30 minutes/);
+  assert.match(readme, /80 % of the five-hour window or 95 % of the seven-day window/);
 });
 
 test('tokens are every token the models read or wrote, subagents included', () => {
@@ -38,7 +47,7 @@ test('the log gives the session\'s start, its result and the skills it invoked',
   assert.equal(read.init.model, 'claude-opus-5-5');
   assert.equal(read.result.num_turns, 3);
   assert.deepEqual([read.toolUses, read.skillsInvoked], [2, ['gate:pptx']]);
-  assert.deepEqual(readLog(path.join(dir, 'absent.jsonl')), { init: null, result: null, toolUses: 0, skillsInvoked: [] });
+  assert.deepEqual(readLog(path.join(dir, 'absent.jsonl')), { list: [], init: null, result: null, toolUses: 0, skillsInvoked: [] });
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -46,11 +55,11 @@ test('a session inherits nothing of the operator\'s Claude Code session except a
   const saved = { ...process.env };
   Object.assign(process.env, { CLAUDE_CODE_EFFORT_LEVEL: 'max', ANTHROPIC_MODEL: 'other', CLAUDECODE: '1', ANTHROPIC_API_KEY: 'k', GATE_KEEP: 'yes' });
   try {
-    const env = sessionEnv('/runs');
+    const env = sessionEnv('/bench/pilot');
     assert.deepEqual([env.CLAUDE_CODE_EFFORT_LEVEL, env.ANTHROPIC_MODEL, env.CLAUDECODE], [undefined, undefined, undefined]);
     assert.deepEqual([env.ANTHROPIC_API_KEY, env.GATE_KEEP, env.CLAUDE_CODE_DISABLE_AUTO_MEMORY, env.ENABLE_CLAUDEAI_MCP_SERVERS], ['k', 'yes', '1', 'false']);
-    assert.ok(env.PATH.startsWith('/runs/bin:/runs/pyenv/bin:'));
-    assert.equal(env.NODE_PATH, '/runs/node_modules');
+    assert.ok(env.PATH.startsWith('/bench/pyenv/bin:'), 'the bench folder is the parent of the runs folder');
+    assert.equal(env.NODE_PATH, '/bench/node_modules');
   } finally { for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]; Object.assign(process.env, saved); }
 });
 
@@ -63,4 +72,40 @@ test('the staged plugin holds the html-slides skill and nothing else', () => {
   assert.match(provenance.commit, /^[0-9a-f]{40}$/);
   assert.match(provenance.version, /^\d+\.\d+\.\d+$/);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+const call = (id, usage, extra = {}) => ({ type: 'assistant', message: { id, model: 'claude-opus-5-5', usage, content: [] }, ...extra });
+const window = (status, fiveHour, sevenDay) => ({ type: 'rate_limit_event', rate_limit_info: { status, rateLimitType: 'five_hour', isUsingOverage: false, overageStatus: 'rejected',
+  unifiedWindows: { five_hour: { utilization: fiveHour, resetsAt: 1795814400 }, seven_day: { utilization: sevenDay, resetsAt: 1796144400 } } } });
+
+test('a session cut off before its report is charged from its stream, each model call once', () => {
+  const list = [
+    call('m1', { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 1000, cache_read_input_tokens: 0 }),
+    call('m1', { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 1000, cache_read_input_tokens: 0 }),
+    call('m2', { input_tokens: 2, output_tokens: 7, cache_creation_input_tokens: 0, cache_read_input_tokens: 1010 }),
+    { type: 'user', message: { content: [] } }
+  ];
+  assert.deepEqual(usageFromStream(list).tokens, { input: 12, output: 12, cacheCreation: 1000, cacheRead: 1010, total: 2034 });
+  assert.equal(usageFromStream([]).tokens.total, 0);
+});
+
+test('the usage windows are read from the first and the last event of a session', () => {
+  const seen = usageWindows([window('allowed', 0.58, 0.32), call('m1', {}), window('allowed', 0.62, 0.33)]);
+  assert.deepEqual([seen.first.fiveHour, seen.last.fiveHour, seen.last.sevenDay, seen.last.usingOverage, seen.last.status], [0.58, 0.62, 0.33, false, 'allowed']);
+  assert.deepEqual(usageWindows([]), { first: null, last: null }, 'an API key reports no window');
+});
+
+test('a cause outside the format makes a run void; a cause inside it does not', () => {
+  const ok = { type: 'result', is_error: false };
+  const none = { list: [], result: ok, spawnError: null, timedOut: false };
+  assert.equal(outsideCause(none), null, 'a session that finished');
+  assert.equal(outsideCause({ ...none, result: null, timedOut: true }), null, 'the time limit is a failure of the run');
+  assert.equal(outsideCause({ ...none, result: { is_error: true, result: 'The model stopped: maximum output reached' } }), null, 'an error of the work itself');
+  assert.match(outsideCause({ ...none, list: [window('rejected', 1, 0.5)], result: { is_error: true, result: 'x' } }), /usage limit/);
+  assert.equal(outsideCause({ ...none, list: [window('allowed_warning', 0.9, 0.5)] }), null, 'a warning is not a limit');
+  assert.match(outsideCause({ ...none, list: [call('m1', {}, { error: 'authentication_failed' })], result: { is_error: true, result: 'Not logged in' } }), /authentication_failed/);
+  assert.match(outsideCause({ ...none, result: { is_error: true, api_error_status: 529, result: 'x' } }), /API error 529/);
+  assert.match(outsideCause({ ...none, result: { is_error: true, result: 'API Error: Connection error.' } }), /Connection error/);
+  assert.match(outsideCause({ ...none, result: null, spawnError: 'spawn claude ENOENT' }), /could not be started/);
+  assert.match(outsideCause({ ...none, result: null }), /without a report/);
 });
