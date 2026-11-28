@@ -1,6 +1,6 @@
 # ADR-016 — Slides go/stop gate: generation measured against PPTX
 
-Status: **accepted**, 27 November 2026. The owner settled each point below in a question-by-question session, after two external reviews of the repository made the same day. Amended the same day after the cross-lineage review of PR #131: the definitions of section 6 made exact, the single retry removed, the rule for a failed sharing check added (the last two by the owner's choice). **Not run yet.**
+Status: **accepted**, 27 November 2026. The owner settled each point below in a question-by-question session, after two external reviews of the repository made the same day. Amended the same day after the cross-lineage review of PR #131: the definitions of section 6 made exact, the single retry removed, the rule for a failed sharing check added (the last two by the owner's choice). Amended on 28 November 2026 after the review of the measurement kit (PR #134), by the owner's choice: void runs (section 3), and "no result" for a run that did not finish (section 6). **Not run yet.**
 
 ## Context
 
@@ -40,6 +40,8 @@ Each subject and format is run **three times**: one generation time proves nothi
 
 A run that fails or is cut off still counts. Its time and tokens are recorded up to the failure or the time limit, for the generation and for the edits. The kit fixes the time limit and what ends a run as a failure before the pilot, the same for both formats.
 
+One exception, a **void run**: a run cut off by a cause outside the format is neither usable nor failed. The causes are a closed list: the subscription's usage limit, a network outage, the measuring machine going to sleep or being shut down. A void run is recorded with its cause and the evidence for it (for example the rate-limit event in the session's log), enters no total, and is run again. Everything else that stops a run is a failure of the format and counts: the time limit, an error of the format's tools, a session that gives up.
+
 ### 4. The five subjects
 
 Fictional briefs, written before any run. Each brief fixes the message of every slide and the figures, and the three later edits, so that only production is measured.
@@ -74,7 +76,7 @@ Minor defects are compared per usable result: for each format, the minor defects
 
 When PPTX has no minor defect, D does not exist: html-slides with none either meets neither defect condition, and html-slides with any meets the *worse* one.
 
-The owner gives **one preference per subject**: html-slides, PPTX, or equivalent. For each subject they are shown three run slots per format: each final PDF that exists, and "no result" for a run that produced none. They judge the two sets, preferably without knowing which format produced which. If neither format produced a final PDF for a subject, the preference is *equivalent*. *Equivalent* counts for neither side.
+The owner gives **one preference per subject**: html-slides, PPTX, or equivalent. For each subject they are shown three run slots per format: the final PDF of each run that finished its generation and its three edits, and "no result" for a run that did not finish, even if it left a partly edited file. A half-edited deck can look correct and would hide the failure. They judge the two sets, preferably without knowing which format produced which. If neither format produced a final PDF for a subject, the preference is *equivalent*. *Equivalent* counts for neither side.
 
 **Cost** (second axis): the time to obtain a usable result, and the tokens to obtain one. Each is the total over all runs of the five subjects, failed runs included, generation plus edits, divided by the number of usable runs. A format that fails one run in three is thus charged for the rerun. For time and for tokens, divide the html-slides figure by the PPTX figure; R is the larger of the two ratios, so the less favourable measure decides.
 
