@@ -130,11 +130,22 @@ const events = file => {
 };
 
 // Usage of a session that was cut off and never wrote its report: the sum over the model calls that
-// the stream shows. Input and cache tokens are exact for the calls that started; output tokens are
-// only those announced when each answer began, so they are under-counted.
+// the stream shows. A call's input and cache tokens are known when it starts and its output tokens
+// when it ends, so only the output of the one call in progress at the cut-off is missing.
 export function usageFromStream(list) {
   const calls = new Map();
-  for (const event of list) if (event.type === 'assistant' && event.message?.id && event.message.usage) calls.set(event.message.id, { model: event.message.model ?? 'unknown', usage: event.message.usage });
+  const current = new Map();   // the call in progress, for the main loop and for each subagent
+  for (const event of list) {
+    const thread = event.parent_tool_use_id ?? 'main';
+    if (event.type === 'stream_event' && event.event?.type === 'message_start' && event.event.message?.id) {
+      current.set(thread, event.event.message.id);
+      calls.set(event.event.message.id, { model: event.event.message.model ?? 'unknown', usage: { ...event.event.message.usage } });
+    } else if (event.type === 'stream_event' && event.event?.type === 'message_delta' && event.event.usage && calls.has(current.get(thread))) {
+      Object.assign(calls.get(current.get(thread)).usage, event.event.usage);
+    } else if (event.type === 'assistant' && event.message?.id && event.message.usage && !calls.has(event.message.id)) {
+      calls.set(event.message.id, { model: event.message.model ?? 'unknown', usage: event.message.usage });
+    }
+  }
   const modelUsage = {};
   for (const { model, usage } of calls.values()) {
     const m = modelUsage[model] ??= { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0, costUSD: 0 };
@@ -177,7 +188,7 @@ export function readLog(file) {
 }
 
 const baseArgs = tools => ['-p', '--model', MODEL, '--effort', EFFORT, '--setting-sources', '', '--strict-mcp-config', '--permission-mode', 'dontAsk',
-  '--tools', tools, '--output-format', 'stream-json', '--verbose', '--no-session-persistence'];
+  '--tools', tools, '--output-format', 'stream-json', '--include-partial-messages', '--verbose', '--no-session-persistence'];
 
 // Runs one session and returns what it reports. `log` receives the stream of events.
 export function runSession({ cwd, prompt, plugin, runs, log, timeoutMinutes, tools = TOOLS }) {

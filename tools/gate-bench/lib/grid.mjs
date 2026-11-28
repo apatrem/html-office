@@ -55,7 +55,8 @@ function validate(run, index) {
 function totals(runs, format) {
   const own = runs.filter(run => run.format === format);
   const good = own.filter(usable);
-  const sum = (list, key) => list.reduce((total, run) => total + (run[key] ?? 0), 0);
+  // Sums are exact whatever their size: each recorded value is a safe integer, a total need not be.
+  const sum = (list, key) => list.reduce((total, run) => total + BigInt(run[key] ?? 0), 0n);
   return {
     runs: own.length,
     usable: good.length,
@@ -69,7 +70,7 @@ function totals(runs, format) {
 }
 
 // The ratio html-slides / PPTX of (total / usable runs), kept as two integers.
-const ratio = (html, pptx, key) => ({ left: BigInt(html[key]) * BigInt(pptx.usable), right: BigInt(pptx[key]) * BigInt(html.usable) });
+const ratio = (html, pptx, key) => ({ left: html[key] * BigInt(pptx.usable), right: pptx[key] * BigInt(html.usable) });
 const atMost = (r, num, den) => BigInt(den) * r.left <= BigInt(num) * r.right;   // ratio ≤ num/den
 const atLeast = (r, num, den) => BigInt(den) * r.left >= BigInt(num) * r.right;  // ratio ≥ num/den
 const value = r => (r.right === 0n ? null : Number(r.left) / Number(r.right));
@@ -92,7 +93,7 @@ export function computeGrid({ runs = [], preferences = {}, sharing = 'not-checke
   const html = totals(runs, 'html-slides');
   const pptx = totals(runs, 'pptx');
   for (const [name, side] of [['html-slides', html], ['PPTX', pptx]])
-    if (side.usable && (side.milliseconds === 0 || side.tokens === 0)) throw new Error(`${name} has usable runs and no recorded time or tokens`);
+    if (side.usable && (side.milliseconds === 0n || side.tokens === 0n)) throw new Error(`${name} has usable runs and no recorded time or tokens`);
   const notes = [];
 
   // ---- the owner's preference, one per subject ----
@@ -122,11 +123,11 @@ export function computeGrid({ runs = [], preferences = {}, sharing = 'not-checke
     reasons.push(quality ? `fewer usable runs (0 against ${pptx.usable})` : 'neither format has a usable run');
   } else {
     // D compares minor defects per usable result; it does not exist when PPTX has none.
-    const dRatio = ratio({ minorOfUsable: html.minorOfUsable, usable: html.usable }, { minorOfUsable: pptx.minorOfUsable, usable: pptx.usable }, 'minorOfUsable');
-    const hasD = pptx.minorOfUsable > 0;
+    const dRatio = ratio(html, pptx, 'minorOfUsable');
+    const hasD = pptx.minorOfUsable > 0n;
     d = hasD ? value(dRatio) : null;
     const fewerMinor = hasD && atMost(dRatio, 3, 4);                                  // D ≤ 0.75
-    const moreMinor = hasD ? atLeast(dRatio, 5, 4) : html.minorOfUsable > 0;          // D ≥ 1.25, or any against none
+    const moreMinor = hasD ? atLeast(dRatio, 5, 4) : html.minorOfUsable > 0n;          // D ≥ 1.25, or any against none
     if (html.usable < pptx.usable) reasons.push(`fewer usable runs (${html.usable} against ${pptx.usable})`);
     if (moreMinor) reasons.push(hasD ? `D ≥ 1.25 (${d.toFixed(3)})` : 'html-slides has minor defects and PPTX has none');
     if (prefer.pptx >= 3) reasons.push(`the owner prefers PPTX on ${prefer.pptx} subjects`);
@@ -177,8 +178,9 @@ export function computeGrid({ runs = [], preferences = {}, sharing = 'not-checke
   if (extra.length) notes.push(`Runs beyond ${RUNS_PER_CELL} per subject and format: ${extra.join(', ')}.`);
   if (prefer.missing) notes.push(`The owner's preference is missing for ${prefer.missing} subjects: the quality axis is provisional.`);
 
-  const per = (side, key) => (side.usable ? side[key] / side.usable : null);
-  const shape = side => ({ ...side, minorPerUsable: per(side, 'minorOfUsable'), millisecondsPerUsable: per(side, 'milliseconds'), tokensPerUsable: per(side, 'tokens') });
+  const per = (side, key) => (side.usable ? Number(side[key]) / side.usable : null);
+  const plain = side => Object.fromEntries(Object.entries(side).map(([key, v]) => [key, typeof v === 'bigint' ? Number(v) : v]));
+  const shape = side => ({ ...plain(side), minorPerUsable: per(side, 'minorOfUsable'), millisecondsPerUsable: per(side, 'milliseconds'), tokensPerUsable: per(side, 'tokens') });
   return {
     complete,
     missing,

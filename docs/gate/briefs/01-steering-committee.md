@@ -77,7 +77,7 @@ Line chart, title "Order-picking error rate after go-live", unit "% of order lin
 
 | Month after go-live | 0 | 1 | 2 | 3 | 4 | 5 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Wave 1 (3 sites) | 1.4 | 1.1 | 0.8 | 0.5 | 0.4 | 0.4 |
+| Wave 1 (3 sites) | 1.4 | 1.1 | 0.8 | 0.4 | 0.4 | 0.3 |
 | Wave 2 (4 sites) | 1.6 | 1.0 | 0.7 | 0.4 | | |
 
 Commentary, two points:

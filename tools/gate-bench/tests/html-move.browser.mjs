@@ -60,6 +60,13 @@ ok(tableMove.targets[0].resolved && Math.abs((t.after.x - t.before.x) * SLIDE.wi
 ok(fs.readFileSync(path.join(dir, 'wide-moved.html'), 'utf8').includes(columns), 'its column widths are untouched');
 ok((await checkMoves(path.join(dir, 'wide-moved.html'), tableMove)).kept === true, 'and the move is found again');
 
+// A file that is not a deck is the file's failure, not an error of the bench.
+const broken = path.join(dir, 'broken.html');
+fs.writeFileSync(broken, '<!doctype html><title>Not a deck</title><p>Nothing here.</p>');
+let code = null;
+try { await moveDeck(broken, path.join(dir, 'broken-moved.html'), move); } catch (error) { code = error.code; }
+ok(code === 'UNREADABLE', 'a file that is not a deck is reported as unreadable');
+
 fs.rmSync(dir, { recursive: true, force: true });
 console.log(fails ? `${fails} failure(s)` : 'All checks passed');
 process.exit(fails ? 1 : 0);

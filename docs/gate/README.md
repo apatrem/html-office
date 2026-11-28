@@ -48,14 +48,16 @@ At its limit a session is ended by the bench.
 - A session ends with an error that comes from the work itself.
 - The generation ends without `deck.html` or `deck.pptx` in its folder, or the edits end with that file gone.
 
-A failed generation ends the run: no move, no edits. A failed run has no final result: no check, no count, and "no result" in its slot when the owner judges the subject. For a session that was cut off, input and cache tokens are those of the model calls that had started; its output tokens are only those announced when each answer began, so they are slightly under-counted.
+A failed generation ends the run: no move, no edits, and "no result" in its slot when the owner judges the subject. When the edits fail, the file they left, if there is one, is still checked, rendered and counted: a final PDF that exists is shown to the owner (ADR-016 §6), and the run is unusable either way. A generated file that cannot be read at all (not a deck, not a presentation) cannot be moved: the edits run on it as it is, and its moves count as lost.
+
+A session that was cut off wrote no usage report. Its tokens are then summed from its stream of events: for each model call, what it had read when it started and what it wrote when it ended. Only the output of the one call in progress at the cut-off is missing.
 
 **A run is void** when a cause outside the format cut it off. It is recorded with its reason, set aside (`run-K.void-N`), enters no total, and is run again under the same number.
 
 - The subscription's usage limit was reached, or the login was lost.
 - The service or the network failed (an API error, a connection error).
 - The session stopped without a report before its time limit: the bench was interrupted, or the machine slept. The bench holds the machine awake during a session (`caffeinate`), which does not cover a closed lid.
-- The bench itself could not apply the scripted move because of an error of its own.
+- The bench itself could not apply the scripted move to a file that it could read, because of an error of its own.
 
 The bench recognises the first three from the session's events and the fourth from its own error. A person who knows of another outside cause declares it with `gate.mjs void … --reason "…"`.
 
@@ -105,7 +107,7 @@ node tools/gate-bench/gate.mjs doctor --runs ~/gate-bench-runs/<name>   # what i
 node tools/gate-bench/gate.mjs usage --runs ~/gate-bench-runs/<name>    # the login in use and the usage windows
 ```
 
-`run`, `pilot` and `campaign` refuse to start when something is missing.
+`run`, `pilot` and `campaign` refuse to start when something is missing, the four icon packages included.
 
 ### The PowerPoint skill's environment
 
@@ -139,7 +141,7 @@ The measuring machine's setup, for the pilot of 28 November 2026:
 
 ## Running
 
-Sessions run one after the other. `pilot` and `campaign` are resumable: a run that already has its `record.json` is skipped, and the command stops at a void run or a full usage window.
+Sessions run one after the other. `pilot` and `campaign` are resumable: a run that already has its `record.json` is skipped, and the command stops at a void run or a full usage window. A recorded run is never replaced: there is no way to run it again except by declaring it void, with a reason.
 
 ```bash
 # The pilot: one subject, one run per format, then the count and a provisional grid.
@@ -220,7 +222,7 @@ Where ADR-016 leaves a practical point open, the kit takes the plainest reading,
 | Time of a run | Wall time of the generation session plus the editing session. The usage check, the scripted move, the checks, the rendering and the count are not charged. |
 | "Passes its format's own checks" | `check.mjs` of the html-slides skill and `validate.py` of the PowerPoint skill, run by the bench on the final file. |
 | The final file "opens" | The bench's rendering gives a PDF of at least one page. |
-| A final result | Exists only when both sessions finished. A run that failed shows "no result" to the owner and is not counted. |
+| A final PDF | The rendering of the file that the editing session left, whether or not that session finished. A run whose generation failed has none. |
 | Class of each defect | One class per code; "text" and "overlap" are split by whether something can no longer be read, "missing content" by whether it is content or a secondary mention ([DEFECTS.md](DEFECTS.md)). |
 | Content added beyond the brief | Not a defect: the ADR's list counts what is missing or wrong. |
 | Defects on moved elements | Their position, and any misalignment or harmless overlap that involves them, are not counted; cut or hidden text is. |

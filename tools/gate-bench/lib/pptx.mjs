@@ -77,8 +77,8 @@ function geometry(node) {
   const xfrm = holder && child(holder, node.name === 'p:graphicFrame' ? 'p:xfrm' : 'a:xfrm');
   const off = xfrm && child(xfrm, 'a:off');
   const ext = xfrm && child(xfrm, 'a:ext');
-  if (!off || !ext) return { holder, off: null, box: null };
-  return { holder, off, box: { x: Number(off.attrs.x), y: Number(off.attrs.y), cx: Number(ext.attrs.cx), cy: Number(ext.attrs.cy) } };
+  if (!off || !ext) return { holder, xfrm: xfrm ?? null, off: null, box: null };
+  return { holder, xfrm, off, box: { x: Number(off.attrs.x), y: Number(off.attrs.y), cx: Number(ext.attrs.cx), cy: Number(ext.attrs.cy) } };
 }
 
 function describe(source, node) {
@@ -91,7 +91,7 @@ function describe(source, node) {
     node, tag: node.name, id: cNvPr?.attrs.id ?? null, name: cNvPr?.attrs.name ?? '',
     placeholder: ph ? { type: ph.attrs.type ?? 'body', idx: ph.attrs.idx ?? null } : null,
     text: textOf(source, node), chart: !!chart, table: descendants(node, 'a:tbl').length > 0,
-    picture: node.name === 'p:pic', holder: geo.holder, off: geo.off, box: geo.box, inherited: false
+    picture: node.name === 'p:pic', holder: geo.holder, xfrm: geo.xfrm, off: geo.off, box: geo.box, inherited: false
   };
 }
 
@@ -109,9 +109,9 @@ function inheritedBox(pkg, part, placeholder, depth = 0) {
   const source = parent && pkg.read(parent.target);
   if (!source) return null;
   const titles = ['title', 'ctrTitle'];
-  const same = shape => shape.placeholder && ((placeholder.idx !== null && shape.placeholder.idx === placeholder.idx)
-    || shape.placeholder.type === placeholder.type || (titles.includes(placeholder.type) && titles.includes(shape.placeholder.type)));
-  const match = shapeTree(source).find(same);
+  const shapes = shapeTree(source).filter(shape => shape.placeholder);
+  const match = (placeholder.idx !== null ? shapes.find(shape => shape.placeholder.idx === placeholder.idx) : null)
+    ?? shapes.find(shape => shape.placeholder.type === placeholder.type || (titles.includes(placeholder.type) && titles.includes(shape.placeholder.type)));
   return match?.box ?? inheritedBox(pkg, parent.target, placeholder, depth + 1);
 }
 
@@ -137,14 +137,15 @@ export function resolveTarget(shapes, target, slideArea) {
   const placed = shapes.filter(shape => shape.box);
   let anchor = null;
   if (target.kind === 'chart') {
+    // A chart object; else the slide's only picture that is not a background. Several candidates: not guessed.
     const charts = placed.filter(shape => shape.chart);
-    const pictures = placed.filter(shape => shape.picture).sort((a, b) => area(b.box) - area(a.box));
-    anchor = charts[0] ?? pictures[0] ?? null;
+    const pictures = placed.filter(shape => shape.picture && area(shape.box) < 0.6 * slideArea);
+    anchor = charts.length === 1 ? charts[0] : !charts.length && pictures.length === 1 ? pictures[0] : null;
     return anchor ? [anchor] : [];
   }
   if (target.kind === 'table') {
-    anchor = placed.find(shape => shape.table) ?? null;
-    return anchor ? [anchor] : [];
+    const tables = placed.filter(shape => shape.table);
+    return tables.length === 1 ? [tables[0]] : [];
   }
   if (target.kind !== 'text') throw new Error(`unknown target kind ${target.kind}`);
   const wanted = normalise(target.contains);
@@ -158,14 +159,23 @@ export function resolveTarget(shapes, target, slideArea) {
   return [anchor, ...(backing ? [backing] : []), ...carried];
 }
 
-function offsetEdit(shape, x, y) {
+function offsetEdit(source, shape, x, y) {
   if (shape.off) return { start: shape.off.start, end: shape.off.end, text: `<a:off x="${x}" y="${y}"/>` };
   // An inherited placeholder gets its own geometry, as PowerPoint writes it when the shape is dragged.
-  const xfrm = `<a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${shape.box.cx}" cy="${shape.box.cy}"/></a:xfrm>`;
-  const holder = shape.holder;
+  const off = `<a:off x="${x}" y="${y}"/>`, ext = `<a:ext cx="${shape.box.cx}" cy="${shape.box.cy}"/>`;
+  // An element written `<x …/>` is opened, keeping its attributes.
+  const opened = (node, content) => ({ start: node.start, end: node.end, text: `${source.slice(node.start, node.end).replace(/\s*\/>$/, '>')}${content}</${node.name}>` });
+  const holder = shape.holder, xfrm = shape.xfrm;
   if (!holder || shape.tag === 'p:graphicFrame') throw new Error(`shape ${shape.id} has no geometry to move`);
-  if (holder.selfClosing) return { start: holder.start, end: holder.end, text: `<${holder.name}>${xfrm}</${holder.name}>` };
-  return { start: holder.openEnd, end: holder.openEnd, text: xfrm };
+  if (xfrm) {
+    // A transform that only carries a rotation or a flip: it receives the offset and the size.
+    if (xfrm.selfClosing) return opened(xfrm, off + ext);
+    const hasOff = child(xfrm, 'a:off'), hasExt = child(xfrm, 'a:ext');
+    if (hasOff) return { start: hasOff.start, end: hasOff.end, text: off + (hasExt ? '' : ext) };
+    return { start: xfrm.openEnd, end: xfrm.openEnd, text: off + (hasExt ? '' : ext) };
+  }
+  const whole = `<a:xfrm>${off}${ext}</a:xfrm>`;
+  return holder.selfClosing ? opened(holder, whole) : { start: holder.openEnd, end: holder.openEnd, text: whole };
 }
 
 const record = shape => ({ part: shape.part, tag: shape.tag, id: shape.id, name: shape.name, text: shape.text, chart: shape.chart, table: shape.table });
@@ -174,8 +184,12 @@ const record = shape => ({ part: shape.part, tag: shape.tag, id: shape.id, name:
 // moved and their boxes before and after, as fractions of the slide.
 export function moveDeck(source, destination, move) {
   if (path.resolve(source) !== path.resolve(destination)) fs.copyFileSync(source, destination);
-  const pkg = openPackage(destination);
-  const outline = deckOutline(pkg);
+  let pkg, outline;
+  try {
+    pkg = openPackage(destination);
+    outline = deckOutline(pkg);
+    for (const part of outline.slides) slideShapes(pkg, part);
+  } catch (error) { throw Object.assign(new Error(`the file cannot be read as a presentation: ${error.message.split('\n')[0]}`), { code: 'UNREADABLE' }); }
   const dx = Math.round(move.dx * outline.width);
   const dy = Math.round(move.dy * outline.height);
   const edits = new Map();
@@ -192,7 +206,7 @@ export function moveDeck(source, destination, move) {
       taken.add(`${part}#${shapes.indexOf(shape)}`);
       const after = { ...shape.box, x: shape.box.x + (target.dx !== undefined ? Math.round(target.dx * outline.width) : dx), y: shape.box.y + (target.dy !== undefined ? Math.round(target.dy * outline.height) : dy) };
       if (!edits.has(part)) edits.set(part, []);
-      edits.get(part).push(offsetEdit(shape, after.x, after.y));
+      edits.get(part).push(offsetEdit(pkg.read(part), shape, after.x, after.y));
       result.shapes.push({ ...record(shape), before: fraction(shape.box, outline), after: fraction(after, outline), slideTexts: texts });
     }
     return { ...result, resolved: true };
@@ -226,6 +240,8 @@ function findAgain(deck, moved) {
     const twins = all.filter(shape => normalise(shape.text) === text);
     if (twins.length) return { shape: twins.sort((a, b) => distance(a, moved) - distance(b, moved))[0], how: 'same kind and same text' };
   }
+  // Its text and its name were both edited: the identifier alone, as for html-slides.
+  if (here.length === 1) return { shape: here[0], how: 'same identifier in the same slide part' };
   if (moved.chart || moved.table) {
     const scored = [...deck.entries()].map(([part, shapes]) => ({ part, own: shapes.filter(sameKind), score: overlap(shapes.map(shape => shape.text).filter(Boolean), moved.slideTexts ?? []) }))
       .filter(entry => entry.own.length === 1 && entry.score >= 0.5).sort((a, b) => b.score - a.score);

@@ -83,7 +83,8 @@ function requireEnvironment(runs, formats) {
   if (formats.includes('html-slides') && env.htmlSlides.playwright !== env.htmlSlides.required) problems.push(`Playwright ${env.htmlSlides.required} is not installed in this repository (npm ci)`);
   if (formats.includes('pptx')) {
     const p = env.pptx;
-    const absent = [!p.pptxgenjs && 'pptxgenjs', !p.python && 'a python with python-pptx, Pillow, lxml and defusedxml', !p.soffice && 'soffice', !p.pdftoppm && 'pdftoppm'].filter(Boolean);
+    const absent = [!p.pptxgenjs && 'pptxgenjs', ...Object.entries(p.icons).filter(([, version]) => !version).map(([name]) => name),
+      !p.python && 'a python with python-pptx, Pillow, lxml and defusedxml', !p.soffice && 'soffice', !p.pdftoppm && 'pdftoppm'].filter(Boolean);
     if (absent.length) problems.push(`the PowerPoint skill lists as preinstalled, and the sessions would not find: ${absent.join('; ')} (docs/gate/README.md, "The PowerPoint skill's environment")`);
     if (!env.rendering.powerpoint) problems.push('Microsoft PowerPoint is not installed: the bench converts .pptx to PDF with it');
   }
@@ -145,7 +146,8 @@ async function oneRun(runs, subject, format, run) {
   const folder = runFolder(runs, subject, format, run);
   const recordFile = path.join(folder, 'record.json');
   const generationFile = path.join(folder, 'generation.json');
-  if (fs.existsSync(recordFile) && !args.redo) { console.log(`subject ${subject}, ${format}, run ${run}: already recorded (--redo to run it again)`); return readJson(recordFile); }
+  // A recorded run is never replaced: every run counts (ADR-016 §3). Only a void run is run again.
+  if (fs.existsSync(recordFile)) { console.log(`subject ${subject}, ${format}, run ${run}: already recorded`); return readJson(recordFile); }
   const resume = args.resume && fs.existsSync(generationFile) && !fs.existsSync(recordFile);
   const f = FORMATS[format];
   const say = message => console.log(`[${clock()}] subject ${subject}, ${format}, run ${run}: ${message}`);
@@ -184,9 +186,15 @@ async function oneRun(runs, subject, format, run) {
     const moved = path.join(folder, 'moved', f.file);
     fs.mkdirSync(path.dirname(moved), { recursive: true });
     try { record.move = await mover(format).moveDeck(generated, moved, brief.move); }
-    catch (error) { return setAside(folder, record, `the bench could not apply the scripted move: ${error.message}`); }
+    catch (error) {
+      // A generated file that cannot be read is the run's own failure: the edits still run, on that
+      // file as it is, and the moves count as lost. Any other error is the bench's: the run is void.
+      if (error.code !== 'UNREADABLE') return setAside(folder, record, `the bench could not apply the scripted move: ${error.message}`);
+      record.move = { unreadable: error.message, targets: [] };
+      fs.copyFileSync(generated, moved);
+    }
     record.move.formatCheck = formatCheck(format, moved, runs);
-    say(`move applied to ${record.move.targets.filter(t => t.resolved).length} of ${record.move.targets.length} targets`);
+    say(record.move.unreadable ? `no move: ${record.move.unreadable}` : `move applied to ${record.move.targets.filter(t => t.resolved).length} of ${record.move.targets.length} targets`);
 
     // 3. The three edits, in another new session that is given the file and nothing else.
     stagePlugin(format, path.join(folder, 'plugin-edit'));
@@ -200,23 +208,25 @@ async function oneRun(runs, subject, format, run) {
     if (session.outsideCause) return setAside(folder, record, `edits: ${session.outsideCause}`);
     record.editsFinished = session.finished && record.edits.fileProduced;
 
-    // 4. The final file: its format's own check, the moves, the rendering.
-    if (record.editsFinished) {
+    // 4. The final file, whether or not the edits finished: its format's own check, the moves, the
+    // rendering. A final PDF that exists is shown to the owner (ADR-016 §6).
+    if (record.edits.fileProduced) {
       record.finalCheck = formatCheck(format, edited, runs);
-      if (record.move.targets.some(t => t.resolved)) {
+      if (record.move.unreadable) record.movesKept = { kept: false, applied: 0, notApplied: brief.move.targets.length, targets: [], note: record.move.unreadable };
+      else if (record.move.targets.some(t => t.resolved)) {
         try { record.movesKept = await mover(format).checkMoves(edited, record.move); }
         catch (error) { record.movesKept = { kept: false, error: error.message, applied: 0, notApplied: 0, targets: [] }; }
       } else record.movesKept = { kept: null, applied: 0, notApplied: brief.move.targets.length, targets: [] };
       const rendered = render(format, edited, path.join(folder, 'render'));
       record.render = { opens: rendered.opens, pages: rendered.pages.length, error: rendered.error ?? null };
-      record.move.renderedPages = render(format, moved, path.join(folder, 'moved/render')).pages.length;
+      if (!record.move.unreadable) record.move.renderedPages = render(format, moved, path.join(folder, 'moved/render')).pages.length;
       say(`own check: ${record.finalCheck.passed ? 'passed' : 'failed'}; moves kept: ${record.movesKept.kept}; rendering: ${rendered.opens ? rendered.pages.length + ' pages' : 'does not open (' + rendered.error + ')'}`);
     }
   }
-  // A run that failed has no final result (ADR-016 §6): no check, no count, "no result" for the owner.
-  record.finalCheck ??= { ran: false, passed: false, note: 'the run did not finish' };
-  record.render ??= { opens: false, pages: 0, error: 'the run did not finish' };
-  record.movesKept ??= { kept: false, applied: 0, notApplied: 0, targets: [], note: 'the run did not finish' };
+  // Without a file from the editing session there is no final result: "no result" for the owner.
+  record.finalCheck ??= { ran: false, passed: false, note: 'no final file' };
+  record.render ??= { opens: false, pages: 0, error: 'no final file' };
+  record.movesKept ??= { kept: false, applied: 0, notApplied: 0, targets: [], note: 'no final file' };
   // Every session is charged, failed runs included, generation plus edits (ADR-016 §6).
   record.totals = { milliseconds: generation.wallMs + (record.edits?.wallMs ?? 0), tokens: generation.tokens.total + (record.edits?.tokens.total ?? 0), costUsd: generation.costUsd + (record.edits?.costUsd ?? 0) };
   record.usageAfter = record.edits?.usageWindows.last ?? generation.usageWindows.last ?? null;
@@ -248,7 +258,7 @@ function count(runs) {
   const countsFile = path.join(runs, 'counts.json');
   const counts = fs.existsSync(countsFile) ? readJson(countsFile) : {};
   for (const code of Object.keys(key.decks).sort()) {
-    if (counts[code]?.ok && !args.redo) continue;
+    if (counts[code]?.ok) continue;
     console.log(`[${clock()}] counting ${code}`);
     counts[code] = { countedAt: new Date().toISOString(), codex: codexVersion(), ...countDeck(path.join(runs, 'count', code), { effort: args.effort && args.effort !== true ? args.effort : COUNTER.effort }) };
     writeJson(countsFile, counts);
@@ -266,7 +276,7 @@ function results(runs) {
   const rows = records(runs).map(record => {
     const counted = counts[codeOf[keyOf(record)]];
     if (record.render.opens && !counted?.ok) problems.push(`${keyOf(record)}: its final file opens but has no usable count yet`);
-    if (record.editsFinished && record.movesKept.kept === null) problems.push(`${keyOf(record)}: no target of the scripted move could be applied; a person has to decide what this run shows`);
+    if (record.movesKept.kept === null) problems.push(`${keyOf(record)}: no target of the scripted move could be applied; a person has to decide what this run shows`);
     return { subject: record.subject, format: record.format, run: record.run, generationFinished: record.generationFinished, editsFinished: record.editsFinished,
       opens: record.render.opens, checksPassed: record.finalCheck.passed === true, blocking: record.render.opens ? counted?.blocking ?? null : null,
       minor: record.render.opens ? counted?.minor ?? null : null, movesKept: record.movesKept.kept, milliseconds: record.totals.milliseconds, tokens: record.totals.tokens,
@@ -386,14 +396,13 @@ if (command === 'doctor') {
   if (!args.reason || args.reason === true) die('--reason "…" is required: what, outside the format, cut the run off');
   const record = readJson(path.join(folder, 'record.json'));
   // Its count, if it had one, goes with it.
-  for (const name of ['count-key.json', 'counts.json']) {
-    const file = path.join(runs, name);
-    if (!fs.existsSync(file)) continue;
-    const data = readJson(file), key = readJson(path.join(runs, 'count-key.json'));
-    for (const [code, k] of Object.entries(key.decks)) if (k === keyOf(record)) { if (name === 'counts.json') delete data[code]; }
-    if (name === 'counts.json') writeJson(file, data);
+  const keyFile = path.join(runs, 'count-key.json'), countsFile = path.join(runs, 'counts.json');
+  if (fs.existsSync(keyFile)) {
+    const key = readJson(keyFile), counts = fs.existsSync(countsFile) ? readJson(countsFile) : {};
+    for (const [code, k] of Object.entries(key.decks)) if (k === keyOf(record)) { delete key.decks[code]; delete counts[code]; fs.rmSync(path.join(runs, 'count', code), { recursive: true, force: true }); }
+    writeJson(keyFile, key);
+    if (fs.existsSync(countsFile)) writeJson(countsFile, counts);
   }
-  if (fs.existsSync(path.join(runs, 'count-key.json'))) { const key = readJson(path.join(runs, 'count-key.json')); for (const [code, k] of Object.entries(key.decks)) if (k === keyOf(record)) { delete key.decks[code]; fs.rmSync(path.join(runs, 'count', code), { recursive: true, force: true }); } writeJson(path.join(runs, 'count-key.json'), key); }
   setAside(folder, record, `declared by the operator: ${args.reason}`);
 } else if (command === 'count') { count(runsFolder()); }
 else if (command === 'sample') { sample(runsFolder()); }

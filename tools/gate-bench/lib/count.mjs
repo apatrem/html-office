@@ -51,15 +51,21 @@ const SCHEMA = {
 // Checks a counter's answer and totals it. Throws when the answer cannot be used as it is.
 export function tally(answer, pageCount) {
   if (!answer || !Array.isArray(answer.pages)) throw new Error('the answer has no list of pages');
-  const perPage = Array.from({ length: pageCount }, (_, index) => ({ page: index + 1, blocking: 0, minor: 0, codes: {}, defects: [] }));
+  const perPage = Array.from({ length: pageCount }, (_, index) => ({ page: index + 1, blocking: 0, minor: 0, codes: {}, defects: [], repeated: 0 }));
   const seen = new Set();
+  const words = text => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   for (const entry of answer.pages) {
     if (!Number.isInteger(entry.page) || entry.page < 1 || entry.page > pageCount) throw new Error(`the answer names page ${entry.page}, outside 1 to ${pageCount}`);
     if (seen.has(entry.page)) throw new Error(`the answer lists page ${entry.page} twice`);
     seen.add(entry.page);
+    const counted = new Set();
     for (const defect of entry.defects ?? []) {
-      if (!(defect.code in CODES)) throw new Error(`unknown defect code ${defect.code}`);
+      if (!Object.hasOwn(CODES, defect.code)) throw new Error(`unknown defect code ${defect.code}`);
       const page = perPage[entry.page - 1];
+      // One defect per element and per code (DEFECTS.md, counting rule 1): a repeated line is one defect.
+      const same = `${defect.code}|${words(defect.element)}`;
+      if (counted.has(same)) { page.repeated++; continue; }
+      counted.add(same);
       page[CODES[defect.code]]++;
       page.codes[defect.code] = (page.codes[defect.code] ?? 0) + 1;
       page.defects.push({ code: defect.code, element: String(defect.element ?? ''), seen: String(defect.seen ?? '') });

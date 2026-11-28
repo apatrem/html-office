@@ -89,6 +89,23 @@ test('a session cut off before its report is charged from its stream, each model
   assert.equal(usageFromStream([]).tokens.total, 0);
 });
 
+test('a model call still in progress at the cut-off is charged for what it had read', () => {
+  // Found by the review of #134. The stream of a real session: a start event with the input and
+  // cache tokens, then, when the answer ends, a delta event with the output tokens.
+  const start = (id, usage, thread = null) => ({ type: 'stream_event', parent_tool_use_id: thread, event: { type: 'message_start', message: { id, model: 'claude-opus-5-5', usage } } });
+  const end = (usage, thread = null) => ({ type: 'stream_event', parent_tool_use_id: thread, event: { type: 'message_delta', usage } });
+  const first = { input_tokens: 2, cache_creation_input_tokens: 1604, cache_read_input_tokens: 649, output_tokens: 4 };
+  const list = [
+    start('m1', first), call('m1', first), end({ ...first, output_tokens: 900 }),
+    start('s1', { input_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 300, output_tokens: 1 }, 'toolu_1'),
+    start('m2', { input_tokens: 10, cache_creation_input_tokens: 1000, cache_read_input_tokens: 2253, output_tokens: 1 }),
+    end({ input_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 300, output_tokens: 70 }, 'toolu_1')
+  ];
+  // m1 finished (900 output), the subagent's call s1 finished (70), m2 was cut off after its start (1).
+  assert.deepEqual(usageFromStream(list).tokens, { input: 17, output: 971, cacheCreation: 2604, cacheRead: 3202, total: 6794 });
+  assert.equal(usageFromStream([start('m9', { input_tokens: 10, cache_creation_input_tokens: 1000 })]).tokens.total, 1010, 'a session cut off during its first call');
+});
+
 test('the usage windows are read from the first and the last event of a session', () => {
   const seen = usageWindows([window('allowed', 0.58, 0.32), call('m1', {}), window('allowed', 0.62, 0.33)]);
   assert.deepEqual([seen.first.fiveHour, seen.last.fiveHour, seen.last.sevenDay, seen.last.usingOverage, seen.last.status], [0.58, 0.62, 0.33, false, 'allowed']);

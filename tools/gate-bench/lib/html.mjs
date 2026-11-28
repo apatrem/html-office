@@ -65,7 +65,8 @@ const fraction = box => ({ x: box.x / SLIDE.width, y: box.y / SLIDE.height, w: b
 
 export async function moveDeck(source, destination, move) {
   const { loadPlaywright, ASSETS, ECHARTS_URL, preflight } = await skillTools();
-  preflight(fs.readFileSync(source, 'utf8'));
+  const unreadable = error => Object.assign(new Error(`the file cannot be read as a deck: ${String(error.message).split('\n')[0]}`), { code: 'UNREADABLE' });
+  try { preflight(fs.readFileSync(source, 'utf8')); } catch (error) { throw unreadable(error); }
   const { chromium } = await loadPlaywright();
   const browser = await chromium.launch();
   try {
@@ -78,9 +79,11 @@ export async function moveDeck(source, destination, move) {
     });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
-    await page.goto(url);
-    await page.waitForFunction(() => window.deckEngine, null, { timeout: 15000 });
-    await page.evaluate(() => window.deckEngine.ready);
+    try {
+      await page.goto(url);
+      await page.waitForFunction(() => window.deckEngine, null, { timeout: 15000 });
+      await page.evaluate(() => window.deckEngine.ready);
+    } catch (error) { throw unreadable(error); }
     await page.keyboard.press('e');
     await page.waitForFunction(() => document.body.classList.contains('hs-editing'), null, { timeout: 5000 });
     const scale = Number(await page.evaluate(() => getComputedStyle(document.getElementById('deck')).getPropertyValue('--s'))) || 1;

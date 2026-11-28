@@ -168,3 +168,68 @@ test('a chart rebuilt on a renamed slide part is found by its slide', () => {
   assert.equal(check.targets[1].shapes[0].how, 'the only one of its kind on the most similar slide');
   assert.equal(check.targets[1].kept, true);
 });
+
+// ---- cases found by the cross-lineage review of pull request #134 ----
+const PIC = (id, name, x, y, cx, cy) => `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="${name}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill/><p:spPr>${xfrm(x, y, cx, cy)}</p:spPr></p:pic>`;
+const body = (idx, spPr) => `<p:sp><p:nvSpPr><p:cNvPr id="${10 + idx}" name="Body ${idx}"/><p:cNvSpPr/><p:nvPr><p:ph type="body" idx="${idx}"/></p:nvPr></p:nvSpPr>${spPr}<p:txBody><a:bodyPr/><a:p><a:r><a:t>Body number ${idx}</a:t></a:r></a:p></p:txBody></p:sp>`;
+const layoutWith = shapes => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sldLayout ${NS}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${shapes}</p:spTree></p:cSld></p:sldLayout>`;
+
+test('a placeholder inherits from the layout placeholder with the same index, not the first of its type', () => {
+  const { file } = build({
+    'ppt/slides/slide2.xml': slide(body(2, '<p:spPr/>')),
+    'ppt/slideLayouts/slideLayout1.xml': layoutWith(body(1, `<p:spPr>${xfrm(1000000, 500000, 4000000, 3000000)}</p:spPr>`) + body(2, `<p:spPr>${xfrm(7000000, 500000, 4000000, 3000000)}</p:spPr>`))
+  });
+  assert.equal(slideShapes(openPackage(file), 'ppt/slides/slide2.xml').shapes[0].box.x, 7000000);
+});
+
+test('a transform without offset is completed in place, and attributes are kept', () => {
+  const layout = layoutWith(body(1, `<p:spPr>${xfrm(1000000, 500000, 4000000, 3000000)}</p:spPr>`) + body(2, `<p:spPr>${xfrm(7000000, 500000, 4000000, 3000000)}</p:spPr>`));
+  const moving = (spPr, contains) => {
+    const { dir, file } = build({ 'ppt/slides/slide2.xml': slide(body(1, spPr)), 'ppt/slideLayouts/slideLayout1.xml': layout });
+    const moved = path.join(dir, 'moved.pptx');
+    const result = moveDeck(file, moved, { dx: 0.05, dy: 0, targets: [{ slide: 2, kind: 'text', contains, label: 'a placeholder' }] });
+    assert.equal(result.targets[0].resolved, true);
+    assert.equal(checkMoves(moved, result).kept, true);
+    return openPackage(moved).read('ppt/slides/slide2.xml');
+  };
+  const geometry = '<a:off x="1609600" y="500000"/><a:ext cx="4000000" cy="3000000"/>';
+  let source = moving('<p:spPr><a:xfrm rot="5400000"/></p:spPr>', 'Body number 1');
+  assert.ok(source.includes(`<p:spPr><a:xfrm rot="5400000">${geometry}</a:xfrm></p:spPr>`), 'a self-closing transform keeps its rotation');
+  assert.equal(source.match(/<a:xfrm/g).length, 1, 'one transform, not two');
+  source = moving('<p:spPr><a:xfrm flipH="1"></a:xfrm><a:noFill/></p:spPr>', 'Body number 1');
+  assert.ok(source.includes(`<p:spPr><a:xfrm flipH="1">${geometry}</a:xfrm><a:noFill/></p:spPr>`), 'an empty transform is filled');
+  source = moving('<p:spPr bwMode="auto"/>', 'Body number 1');
+  assert.ok(source.includes(`<p:spPr bwMode="auto"><a:xfrm>${geometry}</a:xfrm></p:spPr>`), 'a self-closing holder keeps its attributes');
+});
+
+test('a chart or a table is not guessed among several candidates', () => {
+  const target = { dx: 0.02, dy: 0.02, targets: [{ slide: 2, kind: 'chart', label: 'the chart' }] };
+  const resolved = shapes => { const { dir, file } = build({ 'ppt/slides/slide2.xml': slide(shapes) }); return moveDeck(file, path.join(dir, 'moved.pptx'), target).targets[0]; };
+  const background = PIC(20, 'Background', 0, 0, W, H), picture = PIC(21, 'Chart picture', 600000, 2000000, 5000000, 3000000);
+  assert.deepEqual(resolved(background + picture).shapes.map(shape => shape.name), ['Chart picture'], 'the chart drawn as a picture, not the page background');
+  assert.equal(resolved(background).resolved, false, 'a background alone is not a chart');
+  assert.equal(resolved(picture + PIC(22, 'Logo', 11000000, 200000, 800000, 400000)).resolved, false, 'two pictures: not guessed');
+  assert.equal(resolved(frame(23, 'Chart A', 0, 0, 100, 100, chart) + frame(24, 'Chart B', 0, 0, 100, 100, chart)).resolved, false, 'two charts: not guessed');
+  assert.deepEqual(resolved(background + picture + frame(25, 'Chart 1', 600000, 2000000, 5000000, 3000000, chart)).shapes.map(shape => shape.name), ['Chart 1'], 'a chart object wins over pictures');
+  const { dir, file } = build({ 'ppt/slides/slide2.xml': slide(frame(26, 'T1', 0, 0, 100, 100, table) + frame(27, 'T2', 0, 0, 100, 100, table)) });
+  assert.equal(moveDeck(file, path.join(dir, 'moved.pptx'), { dx: 0.02, dy: 0.02, targets: [{ slide: 2, kind: 'table', label: 'the table' }] }).targets[0].resolved, false, 'two tables: not guessed');
+});
+
+test('a shape whose text and name were both edited is found by its identifier', () => {
+  const { dir, file } = build();
+  const moved = path.join(dir, 'moved.pptx');
+  const result = moveDeck(file, moved, { dx: -0.02, dy: -0.02, targets: [{ slide: 1, kind: 'text', contains: 'Schedule: 7 sites', label: 'a message' }] });
+  const edited = path.join(dir, 'edited.pptx');
+  fs.copyFileSync(moved, edited);
+  writeParts(edited, { 'ppt/slides/slide1.xml': openPackage(edited).read('ppt/slides/slide1.xml').replace('name="Message 1"', 'name="Text 9"').replace('Schedule: 7 sites are live', 'Schedule: 8 sites are live') });
+  const check = checkMoves(edited, result);
+  assert.deepEqual([check.kept, check.targets[0].shapes[0].how], [true, 'same identifier in the same slide part']);
+});
+
+test('a file that is not a readable presentation is the file\'s failure, not an error of the bench', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-pptx-test-'));
+  fs.writeFileSync(path.join(dir, 'broken.pptx'), 'this is not a zip archive');
+  assert.throws(() => moveDeck(path.join(dir, 'broken.pptx'), path.join(dir, 'moved.pptx'), MOVE), error => error.code === 'UNREADABLE');
+  const { file } = build({ 'ppt/slides/slide2.xml': '<p:sld><p:cSld><p:spTree></p:cSld></p:sld>' });
+  assert.throws(() => moveDeck(file, path.join(dir, 'moved2.pptx'), MOVE), error => error.code === 'UNREADABLE', 'a slide part that is not well-formed');
+});

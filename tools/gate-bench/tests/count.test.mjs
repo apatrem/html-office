@@ -42,6 +42,13 @@ test('an answer that cannot be used is refused, not repaired', () => {
   assert.throws(() => tally({ pages: [page(1), page(1)] }, 1), /twice/);
   assert.throws(() => tally({ pages: [page(1, [{ code: 'X9' }])] }, 1), /unknown defect code/);
   assert.throws(() => tally({}, 1), /no list of pages/);
+  for (const code of ['toString', 'constructor', '__proto__', 'b3']) assert.throws(() => tally({ pages: [page(1, [{ code, element: 'x', seen: 'y' }])] }, 1), /unknown defect code/, code);
+});
+
+test('one defect per element and per code: a repeated line is counted once', () => {
+  const footer = { code: 'M3', element: 'Footer', seen: 'shifted' };
+  const total = tally({ pages: [{ page: 1, defects: [footer, { ...footer, element: ' footer ', seen: 'lower than on page 2' }, { ...footer, code: 'M1' }, { code: 'M3', element: 'third box', seen: 'lower' }] }, { page: 2, defects: [footer] }] }, 2);
+  assert.deepEqual([total.minor, total.pages[0].codes, total.pages[0].repeated, total.pages[1].minor], [4, { M3: 2, M1: 1 }, 1, 1]);
 });
 
 test('results are shuffled and renamed, the same way for the same seed', () => {

@@ -239,6 +239,28 @@ test('large totals stay exact', () => {
   assert.equal(computeGrid(campaign({ html: { ms: 800, tokens: big / 5 * 4 + 2 }, pptx: { ms: 1000, tokens: big } })).cost.value, 'comparable');
 });
 
+test('totals beyond the largest safe integer stay exact', () => {
+  // Found by the review of #134: every recorded value is safe, their sum is not.
+  const M = 9007199254740990;
+  const input = campaign({ html: cost(500), pptx: cost(1000) });
+  const set = (format, list) => input.runs.filter(run => run.format === format).forEach((run, index) => { run.tokens = list[index] ?? 0; });
+  set(H, [M, M, 1]); set(P, [M, M, M, M]);
+  assert.equal(computeGrid(input).outcome, 'Maintain Slides alone', '(2M + 1) / 4M is just above 0.50');
+  set(H, [M, M]);
+  assert.equal(computeGrid(input).outcome, 'Continue', '2M / 4M is exactly 0.50');
+});
+
+test('recorded costs of zero', () => {
+  const zero = (format, key) => { const input = campaign(); input.runs.filter(run => run.format === format).forEach(run => { run[key] = 0; }); return () => computeGrid(input); };
+  for (const format of FORMATS) for (const key of ['milliseconds', 'tokens']) assert.throws(zero(format, key), /no recorded time or tokens/, `${format} ${key}`);
+  // A format without a usable run may have recorded nothing: the ADR's rule for it does not use its cost.
+  const none = input => { input.runs.filter(run => run.format === P).forEach(run => Object.assign(run, { blocking: 1, milliseconds: 0, tokens: 0 })); return input; };
+  assert.deepEqual(read(none(campaign())), ['better', 'cheaper', 'Continue']);
+  const neither = campaign({ html: { unusable: ALL } });
+  neither.runs.forEach(run => Object.assign(run, { milliseconds: 0, tokens: 0 }));
+  assert.equal(computeGrid(none(neither)).outcome, 'Stop');
+});
+
 test('the report names the axes, the ratios, the cell and the outcome', () => {
   const text = report(computeGrid(campaign({ html: { ...better, ...cost(1200) } })));
   assert.match(text, /\*\*better\*\*/);
