@@ -164,19 +164,43 @@ export function usageWindows(list) {
   return { first: shape(seen[0]) ?? null, last: shape(seen[seen.length - 1]) ?? null };
 }
 
-// A cause outside the format that cut the session off: the run is then void, not failed
-// (docs/gate/README.md, "Failed runs and void runs"). Null when the session ended for its own reasons.
-const OUTSIDE = /usage limit|rate limit|limit reached|not logged in|\/login|overloaded|api error|connection error|network|socket hang up|ECONN|ETIMEDOUT|ENOTFOUND|credit balance|billing/i;
-export function outsideCause({ list, result, spawnError, timedOut }) {
-  if (spawnError) return `the claude command could not be started: ${spawnError}`;
-  const limit = list.filter(event => event.type === 'rate_limit_event').map(event => event.rate_limit_info).find(info => info && info.status && !/^allowed/.test(info.status));
-  if (limit) return `the subscription's usage limit was reached (${limit.rateLimitType ?? 'window'}: ${limit.status})`;
-  const errored = list.filter(event => event.type === 'assistant' && typeof event.error === 'string').pop();
-  if (errored && (!result || result.is_error)) return `the service reported ${errored.error}`;
-  if (result?.is_error && result.api_error_status != null) return `API error ${result.api_error_status}`;
-  if (result?.is_error && OUTSIDE.test(String(result.result ?? ''))) return `the session ended on: ${String(result.result).slice(0, 200)}`;
-  if (!result && !timedOut) return 'the session stopped without a report and before its time limit (interrupted, or the machine slept)';
+// A void run (ADR-016 §3): a run cut off by a cause outside the format. The causes are a closed list:
+// the subscription's usage limit, a network outage, the measuring machine going to sleep or being
+// shut down. Each needs its evidence. Everything else that stops a session is a failure of the run
+// and counts: the time limit, an error of the tools, a session that gives up, a lost login, an
+// error of the service. Returns { cause, evidence } or null.
+export const VOID_CAUSES = ['usage-limit', 'network', 'sleep', 'shutdown'];
+const NETWORK = /connection error|fetch failed|network|socket hang up|ECONNRESET|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|ENETUNREACH|EHOSTUNREACH/i;
+const LIMIT = /usage limit|rate limit|limit reached/i;
+export function voidCause({ list, result, sleeps = [] }) {
+  const ended = !!result && result.is_error !== true;
+  // Sleep: the system's own log shows the machine going to sleep while the session was running.
+  if (sleeps.length) return { cause: 'sleep', evidence: sleeps[0] };
+  if (ended) return null;
+  const limit = list.find(event => event.type === 'rate_limit_event' && event.rate_limit_info?.status && !/^allowed/.test(event.rate_limit_info.status));
+  if (limit) return { cause: 'usage-limit', evidence: JSON.stringify(limit.rate_limit_info) };
+  const text = String(result?.result ?? '');
+  if (result?.is_error && (result.api_error_status === 429 || LIMIT.test(text))) return { cause: 'usage-limit', evidence: `the session's result: ${text.slice(0, 200)} (API status ${result.api_error_status ?? 'none'})` };
+  // A network outage: the request never got an answer. An answer that is an error (a status code)
+  // is the service's, not the network's, and is not on the list.
+  const retry = list.filter(event => event.type === 'system' && event.subtype === 'api_retry').pop();
+  if (result?.is_error && result.api_error_status == null && NETWORK.test(text)) return { cause: 'network', evidence: `the session's result: ${text.slice(0, 200)}` };
+  if (!ended && retry && retry.error_status == null && NETWORK.test(String(retry.error ?? ''))) return { cause: 'network', evidence: JSON.stringify(retry) };
   return null;
+}
+
+// Lines of the system's power log that show the machine going to sleep between two instants (macOS).
+export function sleepsBetween(startMs, endMs, log = null) {
+  let text = log;
+  if (text === null) { const r = spawnSync('pmset', ['-g', 'log'], { encoding: 'utf8', maxBuffer: 1 << 28 }); text = r.status === 0 ? r.stdout : ''; }
+  const out = [];
+  for (const line of text.split('\n')) {
+    const match = line.match(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d) ([+-]\d\d)(\d\d) Sleep\s+(.*)$/);
+    if (!match) continue;
+    const at = Date.parse(`${match[1]}T${match[2]}${match[3]}:${match[4]}`);
+    if (at >= startMs && at <= endMs) out.push(line.replace(/\s+/g, ' ').trim().slice(0, 220));
+  }
+  return out;
 }
 
 export function readLog(file) {
@@ -219,15 +243,18 @@ export function runSession({ cwd, prompt, plugin, runs, log, timeoutMinutes, too
       fs.closeSync(out); fs.closeSync(err);
       const { list, init, result, toolUses, skillsInvoked } = readLog(log);
       const spawnError = error ? String(error.message) : null;
-      const usage = result ? usageOf(result) : usageFromStream(list);
+      // The session's own report when it carries one; else what its stream shows.
+      const reported = !!result && (Object.keys(result.modelUsage ?? {}).length > 0 || !!result.usage);
+      const usage = reported ? usageOf(result) : usageFromStream(list);
+      const endedAtMs = Date.now();
       resolve({
         startedAt, wallMs, exitCode, timedOut, timeLimitMinutes: timeoutMinutes, spawnError,
         // Finished: the session ended by itself, without an error, inside its time limit.
         finished: !!result && result.is_error !== true && !timedOut,
-        outsideCause: outsideCause({ list, result, spawnError, timedOut }),
+        void: spawnError ? null : voidCause({ list, result, sleeps: sleepsBetween(endedAtMs - wallMs, endedAtMs) }),
         reported: result ? { subtype: result.subtype, isError: result.is_error === true, numTurns: result.num_turns ?? null, durationMs: result.duration_ms ?? null, durationApiMs: result.duration_api_ms ?? null,
           permissionDenials: (result.permission_denials ?? []).length, message: typeof result.result === 'string' ? result.result.slice(0, 600) : null } : null,
-        ...usage, tokensFromStream: !result,
+        ...usage, tokensFromStream: !reported,
         usageWindows: usageWindows(list), apiKeySource: init?.apiKeySource ?? null,
         costBasis: [...new Set(Object.values(result?.modelUsage ?? {}).map(m => m.costBasis).filter(Boolean))],
         session: init ? { model: init.model, permissionMode: init.permissionMode, claudeCode: init.claude_code_version, tools: init.tools, skills: init.skills, plugins: (init.plugins ?? []).map(p => p.name), mcpServers: (init.mcp_servers ?? []).length } : null,

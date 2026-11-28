@@ -19,7 +19,7 @@ For one subject, one format and one run number, the bench does this, with no hum
 2. **Generation.** A new headless Claude Code session (`claude -p`, model `claude-opus-5-5`, effort `high`) receives the brief and one skill: `html-slides` from `plugin/skills/html-slides/` of this repository, or the assistant's own `pptx` skill. It writes `deck.html` or `deck.pptx`. The bench records wall time and the session's own usage report.
 3. **Scripted move.** The bench shifts the elements that the brief names by 2 % of the slide's width and height, up and to the left, on a copy of the file.
 4. **Three edits.** A second new session receives the moved file, the three edits and the same skill, and nothing of the first session. Time and usage are recorded the same way.
-5. **The final file.** The bench runs the format's own check on it (`check.mjs` for html-slides, the skill's `validate.py` for `.pptx`), compares the position of each moved element with where the move left it, and renders the file to a PDF and to page images.
+5. **The final file**, when both sessions finished. The bench runs the format's own check on it (`check.mjs` for html-slides, the skill's `validate.py` for `.pptx`), compares the position of each moved element with where the move left it, and renders the file to a PDF and to page images.
 
 The count (one Codex call per result), the owner's sample and the grid come after the runs.
 
@@ -45,21 +45,26 @@ At its limit a session is ended by the bench.
 **A run has failed** when one of these happens. It still counts: its time and tokens, up to the failure or the limit, enter the totals, and it is not usable.
 
 - A session reaches its time limit.
-- A session ends with an error that comes from the work itself.
+- A session ends with an error, whatever the error: of the format's tools, of the session giving up, of the service answering with an error, of a lost login.
+- A session stops without a report, or the bench is stopped while a session runs, and no cause of the list below is found.
 - The generation ends without `deck.html` or `deck.pptx` in its folder, or the edits end with that file gone.
 
-A failed generation ends the run: no move, no edits, and "no result" in its slot when the owner judges the subject. When the edits fail, the file they left, if there is one, is still checked, rendered and counted: a final PDF that exists is shown to the owner (ADR-016 §6), and the run is unusable either way. A generated file that cannot be read at all (not a deck, not a presentation) cannot be moved: the edits run on it as it is, and its moves count as lost.
+A failed generation ends the run: no move, no edits. A run that did not finish its generation and its three edits is "no result" when the owner judges the subject, even if it left a partly edited file (ADR-016 §6): that file is rendered apart, in `partial/`, for diagnosis only, and is neither shown nor counted. A generated file that cannot be read at all (not a deck, not a presentation) cannot be moved: the edits run on it as it is, and its moves count as lost.
 
 A session that was cut off wrote no usage report. Its tokens are then summed from its stream of events: for each model call, what it had read when it started and what it wrote when it ended. Only the output of the one call in progress at the cut-off is missing.
 
-**A run is void** when a cause outside the format cut it off. It is recorded with its reason, set aside (`run-K.void-N`), enters no total, and is run again under the same number.
+**A run is void** when a cause outside the format cut it off (ADR-016 §3). It is neither usable nor failed: it is recorded with its cause and the evidence for it, set aside (`run-K.void-N`), enters no total, and is run again under the same number. The causes are a closed list, and nothing else voids a run:
 
-- The subscription's usage limit was reached, or the login was lost.
-- The service or the network failed (an API error, a connection error).
-- The session stopped without a report before its time limit: the bench was interrupted, or the machine slept. The bench holds the machine awake during a session (`caffeinate`), which does not cover a closed lid.
-- The bench itself could not apply the scripted move to a file that it could read, because of an error of its own.
+| Cause | Evidence the bench keeps |
+| --- | --- |
+| The subscription's usage limit | The rate-limit event of the session's log, or the session's own error |
+| A network outage | The session's error when a request got no answer at all. An error that the service answered (a status code) is not a network outage: the run has failed |
+| The measuring machine going to sleep | The line of the system's power log (`pmset -g log`) that falls inside the session. A session that slept is void even if it then finished: its time is not a measure. The bench holds the machine awake during a session (`caffeinate`), which does not cover a closed lid |
+| The measuring machine being shut down | The machine's start time, later than the session's start, found when the bench is run again |
 
-The bench recognises the first three from the session's events and the fourth from its own error. A person who knows of another outside cause declares it with `gate.mjs void … --reason "…"`.
+The bench recognises these by itself. When it could not (an outage it did not see as such), a person declares the run void with `gate.mjs void … --cause usage-limit|network|sleep|shutdown --evidence "…"`; no other cause is accepted.
+
+An error of the bench itself is neither: when the bench cannot apply the scripted move to a file that it could read, it stops. The generation is kept, and the run continues with `--resume` once the bench is repaired.
 
 **Usage ceiling.** A run is not started when the usage check shows more than 80 % of the five-hour window or 95 % of the seven-day window in use, or an account that is using overage. `pilot` and `campaign` stop there and say when the window resets; the same command resumes them. This avoids discovering the limit in the middle of a run.
 
@@ -141,7 +146,7 @@ The measuring machine's setup, for the pilot of 28 November 2026:
 
 ## Running
 
-Sessions run one after the other. `pilot` and `campaign` are resumable: a run that already has its `record.json` is skipped, and the command stops at a void run or a full usage window. A recorded run is never replaced: there is no way to run it again except by declaring it void, with a reason.
+Sessions run one after the other. `pilot` and `campaign` are resumable: a run that already has its `record.json` is skipped, and the command stops at a void run or a full usage window. A recorded run is never replaced: only a void run is run again.
 
 ```bash
 # The pilot: one subject, one run per format, then the count and a provisional grid.
@@ -154,10 +159,10 @@ node tools/gate-bench/gate.mjs sample --runs ~/gate-bench-runs/campaign         
 node tools/gate-bench/gate.mjs sample-compare --runs ~/gate-bench-runs/campaign # after the owner has filled the form
 node tools/gate-bench/gate.mjs grid --runs ~/gate-bench-runs/campaign           # reads judgement.json if present
 
-# One run alone; --resume continues after a generation that is already recorded.
+# One run alone; --resume continues a run that the bench stopped after its generation.
 node tools/gate-bench/gate.mjs run --runs ~/gate-bench-runs/campaign --subject 2 --format pptx --run 3
-# A run that an outside cause cut off, when the bench did not see it by itself.
-node tools/gate-bench/gate.mjs void --runs ~/gate-bench-runs/campaign --subject 2 --format pptx --run 3 --reason "the lid was closed"
+# A run that a cause of the closed list cut off, when the bench did not see it by itself.
+node tools/gate-bench/gate.mjs void --runs ~/gate-bench-runs/campaign --subject 2 --format pptx --run 3 --cause network --evidence "router down from 14:02 to 14:40"
 ```
 
 The pilot's two runs are extra: they have their own runs folder and do not enter the campaign's results (ADR-016 §8).
@@ -172,7 +177,8 @@ What a runs folder holds:
 | `…/gen/`, `…/edit/` | The working folder of each session, as it left it; `gen.log.jsonl` and `edit.log.jsonl` are the sessions' event streams |
 | `…/moved/` | The file after the scripted move, and its page images (evidence of what the move did before any edit) |
 | `…/render/deck.pdf`, `…/render/pages/` | The final PDF and its page images: what is counted and what the owner judges |
-| `subject-N/<format>/run-K.void-N/` | A void run, with its reason in `record.json` |
+| `subject-N/<format>/run-K.void-N/` | A void run, with its cause and evidence in `record.json` |
+| `…/partial/` | The rendering of a partly edited file left by a run that did not finish: for diagnosis only |
 | `count/deck-xxxxx/` | What one counter sees: the pages of one result under a random name, the expected content, the instructions |
 | `count-key.json`, `counts.json` | Which result each random name is; the counter's answers and totals |
 | `sample/`, `sample-key.json` | The owner's sample, its form, and which pages were drawn |
@@ -196,7 +202,7 @@ Four steps need a person. They are described in [MANUAL-CHECKS.md §9](../MANUAL
 | --- | --- | --- |
 | One hour in the desktop applications | Nothing: it does not change the measurement | Notes |
 | Sample of the defect count | `sample/` with about twenty pages and `FORM.csv`; `sample-compare` prints both counts side by side | The form. Whether the counts "differ clearly" is the owner's judgement |
-| One preference per subject | For each format, three run slots: `subject-N/<format>/run-K/render/deck.pdf` where it exists, "no result" otherwise. To judge without knowing the format, have someone copy the PDFs under neutral names | `judgement.json`, below |
+| One preference per subject | For each format, three run slots: `subject-N/<format>/run-K/render/deck.pdf` for a run that finished, "no result" for one that did not (`results.json` says which). To judge without knowing the format, have someone copy the PDFs under neutral names | `judgement.json`, below |
 | Sharing check | A generated `deck.html` from any run | `judgement.json`, below |
 
 `judgement.json`, in the runs folder:
@@ -222,7 +228,6 @@ Where ADR-016 leaves a practical point open, the kit takes the plainest reading,
 | Time of a run | Wall time of the generation session plus the editing session. The usage check, the scripted move, the checks, the rendering and the count are not charged. |
 | "Passes its format's own checks" | `check.mjs` of the html-slides skill and `validate.py` of the PowerPoint skill, run by the bench on the final file. |
 | The final file "opens" | The bench's rendering gives a PDF of at least one page. |
-| A final PDF | The rendering of the file that the editing session left, whether or not that session finished. A run whose generation failed has none. |
 | Class of each defect | One class per code; "text" and "overlap" are split by whether something can no longer be read, "missing content" by whether it is content or a secondary mention ([DEFECTS.md](DEFECTS.md)). |
 | Content added beyond the brief | Not a defect: the ADR's list counts what is missing or wrong. |
 | Defects on moved elements | Their position, and any misalignment or harmless overlap that involves them, are not counted; cut or hidden text is. |
@@ -250,8 +255,9 @@ And those of the bench itself:
 ## Tests
 
 ```bash
-node --test tools/gate-bench/tests/*.test.mjs        # grid, briefs, .pptx move, count, session reading
+node --test tools/gate-bench/tests/*.test.mjs        # grid, briefs, .pptx move, count, session and record reading
 node tools/gate-bench/tests/html-move.browser.mjs    # the html-slides move, in Chromium
+node tools/gate-bench/tests/run-flow.browser.mjs     # one whole run with a stand-in for the claude command: finished, failed, void, interrupted
 node tools/gate-bench/edit-cost.mjs --check          # the committed token table is current
 ```
 

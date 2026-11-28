@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { usageOf, usageFromStream, usageWindows, outsideCause, readLog, sessionEnv, stagePlugin, FORMATS, MODEL, EFFORT, LIMITS, USAGE_CEILING } from '../lib/session.mjs';
+import { usageOf, usageFromStream, usageWindows, voidCause, sleepsBetween, VOID_CAUSES, readLog, sessionEnv, stagePlugin, FORMATS, MODEL, EFFORT, LIMITS, USAGE_CEILING } from '../lib/session.mjs';
 
 test('the model and effort are those of ADR-016', () => {
   assert.deepEqual([MODEL, EFFORT], ['claude-opus-5-5', 'high']);
@@ -112,17 +112,45 @@ test('the usage windows are read from the first and the last event of a session'
   assert.deepEqual(usageWindows([]), { first: null, last: null }, 'an API key reports no window');
 });
 
-test('a cause outside the format makes a run void; a cause inside it does not', () => {
+const failed = text => ({ type: 'result', is_error: true, api_error_status: null, result: text });
+const cut = { list: [], result: null };   // a session that wrote no report: cut off, or it stopped by itself
+
+test('the causes that void a run are the closed list of ADR-016, each with its evidence', () => {
+  assert.deepEqual(VOID_CAUSES, ['usage-limit', 'network', 'sleep', 'shutdown']);
+  let found = voidCause({ list: [window('rejected', 1, 0.5)], result: failed('x') });
+  assert.equal(found.cause, 'usage-limit');
+  assert.match(found.evidence, /"status":"rejected"/, 'the rate-limit event itself');
+  assert.equal(voidCause({ list: [], result: { ...failed('You have reached your usage limit'), api_error_status: 429 } }).cause, 'usage-limit');
+  found = voidCause({ list: [], result: failed('API Error: Connection error.') });
+  assert.deepEqual([found.cause, /Connection error/.test(found.evidence)], ['network', true]);
+  found = voidCause({ list: [{ type: 'system', subtype: 'api_retry', error_status: null, error: 'fetch failed: ENOTFOUND' }], result: null });
+  assert.equal(found.cause, 'network');
+  found = voidCause({ ...cut, sleeps: ["2026-11-28 07:54:04 +0100 Sleep Entering Sleep state due to 'Clamshell Sleep'"] });
+  assert.deepEqual([found.cause, /Clamshell Sleep/.test(found.evidence)], ['sleep', true]);
+});
+
+test('an unlisted cause is a failure of the run, never a void run', () => {
   const ok = { type: 'result', is_error: false };
-  const none = { list: [], result: ok, spawnError: null, timedOut: false };
-  assert.equal(outsideCause(none), null, 'a session that finished');
-  assert.equal(outsideCause({ ...none, result: null, timedOut: true }), null, 'the time limit is a failure of the run');
-  assert.equal(outsideCause({ ...none, result: { is_error: true, result: 'The model stopped: maximum output reached' } }), null, 'an error of the work itself');
-  assert.match(outsideCause({ ...none, list: [window('rejected', 1, 0.5)], result: { is_error: true, result: 'x' } }), /usage limit/);
-  assert.equal(outsideCause({ ...none, list: [window('allowed_warning', 0.9, 0.5)] }), null, 'a warning is not a limit');
-  assert.match(outsideCause({ ...none, list: [call('m1', {}, { error: 'authentication_failed' })], result: { is_error: true, result: 'Not logged in' } }), /authentication_failed/);
-  assert.match(outsideCause({ ...none, result: { is_error: true, api_error_status: 529, result: 'x' } }), /API error 529/);
-  assert.match(outsideCause({ ...none, result: { is_error: true, result: 'API Error: Connection error.' } }), /Connection error/);
-  assert.match(outsideCause({ ...none, result: null, spawnError: 'spawn claude ENOENT' }), /could not be started/);
-  assert.match(outsideCause({ ...none, result: null }), /without a report/);
+  assert.equal(voidCause({ list: [], result: ok }), null, 'a session that finished');
+  assert.equal(voidCause({ list: [window('allowed_warning', 0.9, 0.5)], result: ok }), null, 'a warning is not a limit');
+  assert.equal(voidCause({ list: [window('rejected', 1, 0.5)], result: ok }), null, 'a session that finished all the same is not void');
+  assert.equal(voidCause(cut), null, 'the time limit, or a session that stopped without a word');
+  assert.equal(voidCause({ list: [], result: failed('The model stopped: maximum output reached') }), null, 'a session that gives up');
+  assert.equal(voidCause({ list: [call('m1', {}, { error: 'authentication_failed' })], result: failed('Not logged in · Please run /login') }), null, 'a lost login is not on the list');
+  assert.equal(voidCause({ list: [], result: { ...failed('API Error: 529 overloaded'), api_error_status: 529 } }), null, 'an error answered by the service is not a network outage');
+  assert.equal(voidCause({ list: [], result: { ...failed('API Error: 500 Internal server error'), api_error_status: 500 } }), null);
+  assert.equal(voidCause({ list: [{ type: 'system', subtype: 'api_retry', error_status: 401, error: 'authentication_failed' }], result: null }), null);
+});
+
+test('the power log is read for the session\'s own minutes only', () => {
+  const log = [
+    "2026-11-28 07:54:04 +0100 Sleep               \tEntering Sleep state due to 'Maintenance Sleep':TCPKeepAlive=active Using Batt (Charge:90%) 127 secs  ",
+    '2026-11-28 07:56:11 +0100 Wake                \tWake from Deep Idle [CDNVA]',
+    "2026-11-28 09:10:00 +0100 Sleep               \tEntering Sleep state due to 'Clamshell Sleep'",
+    '2026-11-28 07:54:06 +0100 Wake Requests       \t[process=mDNSResponder]'
+  ].join('\n');
+  const at = text => Date.parse(text);
+  assert.equal(sleepsBetween(at('2026-11-28T07:50:00+01:00'), at('2026-11-28T08:00:00+01:00'), log).length, 1);
+  assert.match(sleepsBetween(at('2026-11-28T09:00:00+01:00'), at('2026-11-28T09:30:00+01:00'), log)[0], /Clamshell Sleep/);
+  assert.deepEqual(sleepsBetween(at('2026-11-28T08:00:00+01:00'), at('2026-11-28T09:00:00+01:00'), log), [], 'awake for the whole session');
 });

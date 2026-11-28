@@ -52,7 +52,7 @@ ADR-016 §6 defines it: the generation and the three edits both finished, and th
 - **No blocking defect.** The count records no B1 to B5 on any page of the result.
 - **Finished, opens, passes its own checks, kept the moves.** Established by the bench, without the counter: the sessions' own reports and time limits, the conversion to PDF, `check.mjs` or `validate.py` on the final file, and the coordinates of the moved elements (within 1.5 px on a 1,280 px wide slide of where the move left them).
 
-Only results that exist are counted: a run without a final file has no page images and no count. The count itself never uses a format's checker (ADR-016 §5): the counter sees page images and the expected content, nothing else.
+Only final results are counted: a run that did not finish its generation and its three edits has no count, even if it left a partly edited file, and neither has a void run. The count itself never uses a format's checker (ADR-016 §5): the counter sees page images and the expected content, nothing else.
 
 ## Instructions given to the counter
 

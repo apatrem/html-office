@@ -5,7 +5,7 @@
 //   node tools/gate-bench/gate.mjs run            --runs <folder> --subject 3 --format pptx [--run 1] [--resume]
 //   node tools/gate-bench/gate.mjs pilot          --runs <folder> [--subject 3]
 //   node tools/gate-bench/gate.mjs campaign       --runs <folder> [--seed 1234]
-//   node tools/gate-bench/gate.mjs void           --runs <folder> --subject 3 --format pptx --run 1 --reason "…"
+//   node tools/gate-bench/gate.mjs void           --runs <folder> --subject 3 --format pptx --run 1 --cause sleep --evidence "…"
 //   node tools/gate-bench/gate.mjs count          --runs <folder> [--effort high] [--seed 1234]
 //   node tools/gate-bench/gate.mjs sample         --runs <folder> [--pages 20] [--seed 1234]
 //   node tools/gate-bench/gate.mjs sample-compare --runs <folder>
@@ -17,12 +17,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, listBriefs, loadBrief } from './lib/briefs.mjs';
-import { FORMATS, MODEL, EFFORT, LIMITS, USAGE_CEILING, runSession, probe, stagePlugin, generationPrompt, editPrompt, claudeStatus, skillSource, sessionEnv, benchFolder } from './lib/session.mjs';
+import { FORMATS, MODEL, EFFORT, LIMITS, USAGE_CEILING, VOID_CAUSES, readLog, usageFromStream, usageWindows, voidCause, sleepsBetween, runSession, probe, stagePlugin, generationPrompt, editPrompt, claudeStatus, skillSource, sessionEnv, benchFolder } from './lib/session.mjs';
 import * as pptx from './lib/pptx.mjs';
 import * as html from './lib/html.mjs';
 import { render, renderingTools } from './lib/render.mjs';
 import { anonymise, prepareDeck, countDeck, codexVersion, random, shuffle, newSeed, CODES, COUNTER } from './lib/count.mjs';
 import { computeGrid, report, RUNS_PER_CELL } from './lib/grid.mjs';
+import { hasFinalResult, rowOf, pending } from './lib/record.mjs';
 
 const args = (argv => { const out = { _: [] }; for (let i = 0; i < argv.length; i++) { const a = argv[i]; if (a.startsWith('--')) out[a.slice(2)] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true; else out._.push(a); } return out; })(process.argv.slice(2));
 const command = args._[0];
@@ -96,11 +97,11 @@ function requireEnvironment(runs, formats) {
 async function usageLevel(runs) {
   const session = await probe(runs);
   const seen = session.usageWindows.last;
-  return { at: new Date().toISOString(), answered: session.finished, outsideCause: session.outsideCause, apiKeySource: session.apiKeySource, costBasis: session.costBasis,
+  return { at: new Date().toISOString(), answered: session.finished, void: session.void, apiKeySource: session.apiKeySource, costBasis: session.costBasis,
     costUsd: session.costUsd, tokens: session.tokens.total, windows: seen, message: session.reported?.message ?? null };
 }
 function usageAllows(level) {
-  if (!level.answered) return `the trial session did not answer (${level.outsideCause ?? level.message ?? 'no report'})`;
+  if (!level.answered) return `the trial session did not answer (${level.void?.cause ?? level.message ?? 'no report'})`;
   const w = level.windows;
   if (!w) return null;   // an API key: no window to read
   if (w.status && !/^allowed/.test(w.status)) return `the usage window is ${w.status}`;
@@ -130,13 +131,45 @@ function formatCheck(format, file, runs) {
 
 const sessionRecord = session => { const { session: seen, ...rest } = session; return { ...rest, model: seen?.model ?? null, claudeCode: seen?.claudeCode ?? null, skillsOffered: seen?.skills ?? null, tools: seen?.tools ?? null, plugins: seen?.plugins ?? null, mcpServers: seen?.mcpServers ?? null }; };
 
-// A void run enters no total and is run again: its folder is set aside with the reason.
-function setAside(folder, record, reason) {
-  record.void = { reason, at: new Date().toISOString() };
+// A void run enters no total and is run again: its folder is set aside with its cause and the
+// evidence for it. The causes are the closed list of ADR-016 §3.
+function setAside(folder, record, step, { cause, evidence }) {
+  if (!VOID_CAUSES.includes(cause)) throw new Error(`"${cause}" is not a cause that voids a run`);
+  const reason = `${step}: ${cause}`;
+  record.void = { step, cause, evidence, at: new Date().toISOString() };
   writeJson(path.join(folder, 'record.json'), record);
   let n = 1; while (fs.existsSync(`${folder}.void-${n}`)) n++;
   fs.renameSync(folder, `${folder}.void-${n}`);
-  console.log(`[${clock()}] VOID, to run again: ${reason}\n           kept in ${folder}.void-${n}`);
+  console.log(`[${clock()}] VOID, to run again: ${reason}\n           evidence: ${evidence}\n           kept in ${folder}.void-${n}`);
+  return record;
+}
+
+// A run whose folder has a session log and no record: the bench itself stopped while that session
+// was running. Nothing is thrown away. If the machine was shut down or slept meanwhile, the run is
+// void, with the evidence; otherwise it has failed and is charged with what its stream shows.
+function closeInterrupted(folder, base, step, brief) {
+  const log = path.join(folder, step === 'generation' ? 'gen.log.jsonl' : 'edit.log.jsonl');
+  const stat = fs.statSync(log);
+  const { list, init } = readLog(log);
+  const usage = usageFromStream(list);
+  const session = { startedAt: new Date(stat.birthtimeMs).toISOString(), wallMs: Math.round(stat.mtimeMs - stat.birthtimeMs), finished: false, timedOut: false, interrupted: true,
+    reported: null, ...usage, tokensFromStream: true, usageWindows: usageWindows(list), model: init?.model ?? null, claudeCode: init?.claude_code_version ?? null, fileProduced: false };
+  const record = { ...base, [step === 'generation' ? 'generation' : 'edits']: session };
+  const boot = Number((spawnSync('sysctl', ['-n', 'kern.boottime'], { encoding: 'utf8' }).stdout.match(/sec = (\d+)/) ?? [])[1] ?? 0) * 1000;
+  const sleeps = sleepsBetween(stat.birthtimeMs, stat.mtimeMs + 60000);
+  if (boot > stat.birthtimeMs) return setAside(folder, record, step, { cause: 'shutdown', evidence: `the machine started at ${new Date(boot).toISOString()}, after the session began at ${session.startedAt}` });
+  const cause = voidCause({ list, result: null, sleeps });
+  if (cause) return setAside(folder, record, step, cause);
+  record.generationFinished = step !== 'generation' && record.generation.finished && record.generation.fileProduced;
+  record.editsFinished = false;
+  record.finalCheck = { ran: false, passed: false, note: 'the run did not finish' };
+  record.render = { opens: false, pages: 0, error: 'the run did not finish' };
+  record.movesKept = { kept: false, applied: 0, notApplied: brief.move.targets.length, targets: [], note: 'the run did not finish' };
+  record.totals = { milliseconds: record.generation.wallMs + (record.edits?.wallMs ?? 0), tokens: record.generation.tokens.total + (record.edits?.tokens.total ?? 0), costUsd: 0 };
+  record.interrupted = `the bench stopped during the ${step}; no cause on the list of ADR-016 §3 was found, so the run has failed and counts`;
+  record.endedAt = new Date().toISOString();
+  writeJson(path.join(folder, 'record.json'), record);
+  console.log(`[${clock()}] ${record.interrupted}`);
   return record;
 }
 
@@ -148,8 +181,13 @@ async function oneRun(runs, subject, format, run) {
   const generationFile = path.join(folder, 'generation.json');
   // A recorded run is never replaced: every run counts (ADR-016 §3). Only a void run is run again.
   if (fs.existsSync(recordFile)) { console.log(`subject ${subject}, ${format}, run ${run}: already recorded`); return readJson(recordFile); }
-  const resume = args.resume && fs.existsSync(generationFile) && !fs.existsSync(recordFile);
   const f = FORMATS[format];
+  // What an earlier, interrupted attempt left behind is accounted for before anything else.
+  const startedEdits = fs.existsSync(path.join(folder, 'edit.log.jsonl')), startedGeneration = fs.existsSync(path.join(folder, 'gen.log.jsonl'));
+  if (startedEdits) return closeInterrupted(folder, readJson(generationFile), 'edits', brief);
+  if (startedGeneration && !fs.existsSync(generationFile)) return closeInterrupted(folder, { schema: 2, subject, format, run, requested: { model: MODEL, effort: EFFORT }, limits: LIMITS }, 'generation', brief);
+  const resume = fs.existsSync(generationFile);
+  if (resume && !args.resume) die(`subject ${subject}, ${format}, run ${run}: its generation is recorded and the run stopped before its edits. Continue it with: gate.mjs run --runs ${runs} --subject ${subject} --format ${format} --run ${run} --resume`);
   const say = message => console.log(`[${clock()}] subject ${subject}, ${format}, run ${run}: ${message}`);
 
   const level = await usageLevel(runs);
@@ -174,7 +212,8 @@ async function oneRun(runs, subject, format, run) {
     const session = await runSession({ cwd: path.join(folder, 'gen'), prompt: generationPrompt(format, brief), plugin: path.join(folder, 'plugin-gen'), runs, log: path.join(folder, 'gen.log.jsonl'), timeoutMinutes: LIMITS.generationMinutes });
     generation = record.generation = { ...sessionRecord(session), fileProduced: fs.existsSync(path.join(folder, 'gen', f.file)) };
     say(`generation ${session.finished ? 'finished' : session.timedOut ? 'cut off at its time limit' : 'did not finish'} after ${(session.wallMs / 60000).toFixed(1)} min, ${session.tokens.total.toLocaleString('en-US')} tokens`);
-    if (session.outsideCause) return setAside(folder, record, `generation: ${session.outsideCause}`);
+    if (session.spawnError) die(`the claude command could not be started: ${session.spawnError}`);
+    if (session.void) return setAside(folder, record, 'generation', session.void);
     writeJson(generationFile, record);
   }
   const generated = path.join(folder, 'gen', f.file);
@@ -188,8 +227,10 @@ async function oneRun(runs, subject, format, run) {
     try { record.move = await mover(format).moveDeck(generated, moved, brief.move); }
     catch (error) {
       // A generated file that cannot be read is the run's own failure: the edits still run, on that
-      // file as it is, and the moves count as lost. Any other error is the bench's: the run is void.
-      if (error.code !== 'UNREADABLE') return setAside(folder, record, `the bench could not apply the scripted move: ${error.message}`);
+      // file as it is, and the moves count as lost. Any other error is the bench's own. It voids
+      // nothing and fails nothing: the bench stops, and the run resumes after its generation once
+      // the bench is repaired (run … --resume).
+      if (error.code !== 'UNREADABLE') die(`the bench could not apply the scripted move to subject ${subject}, ${format}, run ${run}: ${error.message}\n       The generation is kept. Repair the bench, then: gate.mjs run --runs ${runs} --subject ${subject} --format ${format} --run ${run} --resume`);
       record.move = { unreadable: error.message, targets: [] };
       fs.copyFileSync(generated, moved);
     }
@@ -205,12 +246,18 @@ async function oneRun(runs, subject, format, run) {
     const edited = path.join(folder, 'edit', f.file);
     record.edits = { ...sessionRecord(session), fileProduced: fs.existsSync(edited) };
     say(`edits ${session.finished ? 'finished' : session.timedOut ? 'cut off at their time limit' : 'did not finish'} after ${(session.wallMs / 60000).toFixed(1)} min, ${session.tokens.total.toLocaleString('en-US')} tokens`);
-    if (session.outsideCause) return setAside(folder, record, `edits: ${session.outsideCause}`);
+    if (session.spawnError) die(`the claude command could not be started: ${session.spawnError}`);
+    if (session.void) return setAside(folder, record, 'edits', session.void);
     record.editsFinished = session.finished && record.edits.fileProduced;
 
-    // 4. The final file, whether or not the edits finished: its format's own check, the moves, the
-    // rendering. A final PDF that exists is shown to the owner (ADR-016 §6).
-    if (record.edits.fileProduced) {
+    // 4. The final file of a run that finished: its format's own check, the moves, the rendering.
+    if (!record.editsFinished && record.edits.fileProduced) {
+      // A run that did not finish is "no result", even with a partly edited file (ADR-016 §6). The
+      // file is rendered apart, for diagnosis: it is neither shown to the owner nor counted.
+      const partial = render(format, edited, path.join(folder, 'partial'));
+      record.partial = { opens: partial.opens, pages: partial.pages.length, note: 'the edits did not finish: for diagnosis only' };
+    }
+    if (record.editsFinished) {
       record.finalCheck = formatCheck(format, edited, runs);
       if (record.move.unreadable) record.movesKept = { kept: false, applied: 0, notApplied: brief.move.targets.length, targets: [], note: record.move.unreadable };
       else if (record.move.targets.some(t => t.resolved)) {
@@ -223,10 +270,10 @@ async function oneRun(runs, subject, format, run) {
       say(`own check: ${record.finalCheck.passed ? 'passed' : 'failed'}; moves kept: ${record.movesKept.kept}; rendering: ${rendered.opens ? rendered.pages.length + ' pages' : 'does not open (' + rendered.error + ')'}`);
     }
   }
-  // Without a file from the editing session there is no final result: "no result" for the owner.
-  record.finalCheck ??= { ran: false, passed: false, note: 'no final file' };
-  record.render ??= { opens: false, pages: 0, error: 'no final file' };
-  record.movesKept ??= { kept: false, applied: 0, notApplied: 0, targets: [], note: 'no final file' };
+  // A run that did not finish has no final result: "no result" for the owner, nothing to count.
+  record.finalCheck ??= { ran: false, passed: false, note: 'the run did not finish' };
+  record.render ??= { opens: false, pages: 0, error: 'the run did not finish' };
+  record.movesKept ??= { kept: false, applied: 0, notApplied: 0, targets: [], note: 'the run did not finish' };
   // Every session is charged, failed runs included, generation plus edits (ADR-016 §6).
   record.totals = { milliseconds: generation.wallMs + (record.edits?.wallMs ?? 0), tokens: generation.tokens.total + (record.edits?.tokens.total ?? 0), costUsd: generation.costUsd + (record.edits?.costUsd ?? 0) };
   record.usageAfter = record.edits?.usageWindows.last ?? generation.usageWindows.last ?? null;
@@ -245,7 +292,7 @@ const keyOf = record => `${record.subject}/${record.format}/${record.run}`;
 function count(runs) {
   const keyFile = path.join(runs, 'count-key.json');
   const key = fs.existsSync(keyFile) ? readJson(keyFile) : { seed: Number(args.seed ?? newSeed()), decks: {} };
-  const todo = records(runs).filter(record => record.render.opens && !Object.values(key.decks).includes(keyOf(record)));
+  const todo = records(runs).filter(record => hasFinalResult(record) && !Object.values(key.decks).includes(keyOf(record)));
   const pagesOf = record => { const dir = path.join(runFolder(runs, record.subject, record.format, record.run), 'render/pages'); return fs.readdirSync(dir).filter(n => n.endsWith('.png')).sort().map(n => path.join(dir, n)); };
   const taken = new Set(Object.keys(key.decks));
   for (const item of anonymise(todo.map(record => ({ record })), key.seed + taken.size)) {
@@ -272,17 +319,10 @@ function results(runs) {
   const key = fs.existsSync(path.join(runs, 'count-key.json')) ? readJson(path.join(runs, 'count-key.json')) : { decks: {} };
   const counts = fs.existsSync(path.join(runs, 'counts.json')) ? readJson(path.join(runs, 'counts.json')) : {};
   const codeOf = Object.fromEntries(Object.entries(key.decks).map(([code, k]) => [k, code]));
-  const problems = [];
-  const rows = records(runs).map(record => {
-    const counted = counts[codeOf[keyOf(record)]];
-    if (record.render.opens && !counted?.ok) problems.push(`${keyOf(record)}: its final file opens but has no usable count yet`);
-    if (record.movesKept.kept === null) problems.push(`${keyOf(record)}: no target of the scripted move could be applied; a person has to decide what this run shows`);
-    return { subject: record.subject, format: record.format, run: record.run, generationFinished: record.generationFinished, editsFinished: record.editsFinished,
-      opens: record.render.opens, checksPassed: record.finalCheck.passed === true, blocking: record.render.opens ? counted?.blocking ?? null : null,
-      minor: record.render.opens ? counted?.minor ?? null : null, movesKept: record.movesKept.kept, milliseconds: record.totals.milliseconds, tokens: record.totals.tokens,
-      generationMs: record.generation.wallMs, editsMs: record.edits?.wallMs ?? null, costUsd: record.totals.costUsd, pages: record.render.pages,
-      movesApplied: record.movesKept.applied, movesNotApplied: record.movesKept.notApplied, skill: record.skill };
-  });
+  const all = records(runs);
+  const counted = record => counts[codeOf[keyOf(record)]];
+  const problems = all.flatMap(record => pending(record, counted(record)));
+  const rows = all.map(record => rowOf(record, counted(record)));
   return { rows, problems };
 }
 
@@ -393,7 +433,8 @@ if (command === 'doctor') {
   const runs = runsFolder();
   const folder = runFolder(runs, Number(args.subject), args.format, Number(args.run));
   if (!fs.existsSync(path.join(folder, 'record.json'))) die(`${folder} has no record`);
-  if (!args.reason || args.reason === true) die('--reason "…" is required: what, outside the format, cut the run off');
+  if (!VOID_CAUSES.includes(args.cause)) die(`--cause must be one of ${VOID_CAUSES.join(', ')}: the closed list of ADR-016 §3. Anything else that stopped a run is a failure and counts.`);
+  if (!args.evidence || args.evidence === true) die('--evidence "…" is required: what shows the cause (a line of the power log, the time of the outage)');
   const record = readJson(path.join(folder, 'record.json'));
   // Its count, if it had one, goes with it.
   const keyFile = path.join(runs, 'count-key.json'), countsFile = path.join(runs, 'counts.json');
@@ -403,7 +444,7 @@ if (command === 'doctor') {
     writeJson(keyFile, key);
     if (fs.existsSync(countsFile)) writeJson(countsFile, counts);
   }
-  setAside(folder, record, `declared by the operator: ${args.reason}`);
+  setAside(folder, record, 'declared by the operator', { cause: args.cause, evidence: String(args.evidence) });
 } else if (command === 'count') { count(runsFolder()); }
 else if (command === 'sample') { sample(runsFolder()); }
 else if (command === 'sample-compare') { sampleCompare(runsFolder()); }
