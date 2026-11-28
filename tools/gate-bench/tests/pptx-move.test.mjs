@@ -208,7 +208,9 @@ test('a chart or a table is not guessed among several candidates', () => {
   const background = PIC(20, 'Background', 0, 0, W, H), picture = PIC(21, 'Chart picture', 600000, 2000000, 5000000, 3000000);
   assert.deepEqual(resolved(background + picture).shapes.map(shape => shape.name), ['Chart picture'], 'the chart drawn as a picture, not the page background');
   assert.equal(resolved(background).resolved, false, 'a background alone is not a chart');
-  assert.equal(resolved(picture + PIC(22, 'Logo', 11000000, 200000, 800000, 400000)).resolved, false, 'two pictures: not guessed');
+  assert.deepEqual(resolved(picture + PIC(22, 'Logo', 11000000, 200000, 800000, 400000)).shapes.map(shape => shape.name), ['Chart picture'], 'a chart beside a small logo');
+  assert.deepEqual(resolved(PIC(28, 'Large chart picture', 600000, 800000, 10500000, 5700000) + PIC(22, 'Logo', 11000000, 200000, 800000, 400000)).shapes.map(shape => shape.name), ['Large chart picture'], 'a chart that fills most of the slide is still the chart');
+  assert.equal(resolved(picture + PIC(29, 'Second picture', 6200000, 2000000, 5000000, 3000000)).resolved, false, 'two pictures of similar size: not guessed');
   assert.equal(resolved(frame(23, 'Chart A', 0, 0, 100, 100, chart) + frame(24, 'Chart B', 0, 0, 100, 100, chart)).resolved, false, 'two charts: not guessed');
   assert.deepEqual(resolved(background + picture + frame(25, 'Chart 1', 600000, 2000000, 5000000, 3000000, chart)).shapes.map(shape => shape.name), ['Chart 1'], 'a chart object wins over pictures');
   const { dir, file } = build({ 'ppt/slides/slide2.xml': slide(frame(26, 'T1', 0, 0, 100, 100, table) + frame(27, 'T2', 0, 0, 100, 100, table)) });
@@ -224,6 +226,20 @@ test('a shape whose text and name were both edited is found by its identifier', 
   writeParts(edited, { 'ppt/slides/slide1.xml': openPackage(edited).read('ppt/slides/slide1.xml').replace('name="Message 1"', 'name="Text 9"').replace('Schedule: 7 sites are live', 'Schedule: 8 sites are live') });
   const check = checkMoves(edited, result);
   assert.deepEqual([check.kept, check.targets[0].shapes[0].how], [true, 'same identifier in the same slide part']);
+  // The old text now sits in another shape elsewhere: the identifier still decides.
+  writeParts(edited, { 'ppt/slides/slide1.xml': openPackage(edited).read('ppt/slides/slide1.xml').replace('</p:spTree>', box(9, 'Other', xfrm(8000000, 500000, 3000000, 500000), 'Schedule: 7 sites are live') + '</p:spTree>') });
+  assert.equal(checkMoves(edited, result).kept, true);
+});
+
+test('a master\'s placeholder is matched by type, not by the slide\'s index', () => {
+  const master = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<p:sldMaster ${NS}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${body(1, `<p:spPr>${xfrm(7000000, 500000, 4000000, 3000000)}</p:spPr>`)}<p:sp><p:nvSpPr><p:cNvPr id="30" name="Date"/><p:cNvSpPr/><p:nvPr><p:ph type="dt" idx="2"/></p:nvPr></p:nvSpPr><p:spPr>${xfrm(1000000, 6000000, 2000000, 300000)}</p:spPr></p:sp></p:spTree></p:cSld></p:sldMaster>`;
+  const { file } = build({
+    'ppt/slides/slide2.xml': slide(body(2, '<p:spPr/>')),
+    'ppt/slideLayouts/slideLayout1.xml': layoutWith(body(2, '<p:spPr/>')),
+    'ppt/slideLayouts/_rels/slideLayout1.xml.rels': rels([['rId1', 'slideMaster', '../slideMasters/slideMaster1.xml']]),
+    'ppt/slideMasters/slideMaster1.xml': master
+  });
+  assert.equal(slideShapes(openPackage(file), 'ppt/slides/slide2.xml').shapes[0].box.x, 7000000, 'the body placeholder of the master, not its date placeholder');
 });
 
 test('a file that is not a readable presentation is the file\'s failure, not an error of the bench', () => {

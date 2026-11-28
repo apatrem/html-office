@@ -110,7 +110,8 @@ function inheritedBox(pkg, part, placeholder, depth = 0) {
   if (!source) return null;
   const titles = ['title', 'ctrTitle'];
   const shapes = shapeTree(source).filter(shape => shape.placeholder);
-  const match = (placeholder.idx !== null ? shapes.find(shape => shape.placeholder.idx === placeholder.idx) : null)
+  // A slide's placeholder index is the layout's; a master's placeholders are found by type.
+  const match = (depth === 0 && placeholder.idx !== null ? shapes.find(shape => shape.placeholder.idx === placeholder.idx) : null)
     ?? shapes.find(shape => shape.placeholder.type === placeholder.type || (titles.includes(placeholder.type) && titles.includes(shape.placeholder.type)));
   return match?.box ?? inheritedBox(pkg, parent.target, placeholder, depth + 1);
 }
@@ -137,10 +138,13 @@ export function resolveTarget(shapes, target, slideArea) {
   const placed = shapes.filter(shape => shape.box);
   let anchor = null;
   if (target.kind === 'chart') {
-    // A chart object; else the slide's only picture that is not a background. Several candidates: not guessed.
+    // A chart object; else a chart drawn as a picture: the slide's only picture that does not cover
+    // the page, or the largest when it is at least four times the next one (a chart beside a logo).
+    // Anything less clear is not guessed.
     const charts = placed.filter(shape => shape.chart);
-    const pictures = placed.filter(shape => shape.picture && area(shape.box) < 0.6 * slideArea);
-    anchor = charts.length === 1 ? charts[0] : !charts.length && pictures.length === 1 ? pictures[0] : null;
+    const pictures = placed.filter(shape => shape.picture && area(shape.box) < 0.95 * slideArea).sort((a, b) => area(b.box) - area(a.box));
+    const picture = pictures.length === 1 || (pictures.length > 1 && area(pictures[0].box) >= 4 * area(pictures[1].box)) ? pictures[0] : null;
+    anchor = charts.length === 1 ? charts[0] : !charts.length ? picture : null;
     return anchor ? [anchor] : [];
   }
   if (target.kind === 'table') {
@@ -225,23 +229,21 @@ function overlap(a, b) {
   return A.size + B.size === 0 ? 0 : shared / (A.size + B.size - shared);
 }
 
-// Finds a moved shape again after the edits. In order: the same shape in the same slide part; a
-// shape of the same kind with the same text anywhere; for a chart or a table, the only one of its
+// Finds a moved shape again after the edits. In order: the shape of the same kind with the same
+// identifier in the same slide part; a shape of the same kind with the same text anywhere; for a chart or a table, the only one of its
 // kind on the slide that resembles the original most.
 function findAgain(deck, moved) {
   const kind = shape => (shape.chart ? 'chart' : shape.table ? 'table' : shape.tag);
   const sameKind = shape => kind(shape) === kind(moved) && shape.box;
   const here = (deck.get(moved.part) ?? []).filter(shape => sameKind(shape) && shape.id === moved.id);
   const text = normalise(moved.text);
-  const exact = here.filter(shape => shape.name === moved.name || normalise(shape.text) === text);
-  if (exact.length === 1) return { shape: exact[0], how: 'same shape in the same slide part' };
+  // The identifier first, whatever became of the text, as on the html-slides side.
+  if (here.length === 1) return { shape: here[0], how: 'same identifier in the same slide part' };
   const all = [...deck.values()].flat().filter(sameKind);
   if (text) {
     const twins = all.filter(shape => normalise(shape.text) === text);
     if (twins.length) return { shape: twins.sort((a, b) => distance(a, moved) - distance(b, moved))[0], how: 'same kind and same text' };
   }
-  // Its text and its name were both edited: the identifier alone, as for html-slides.
-  if (here.length === 1) return { shape: here[0], how: 'same identifier in the same slide part' };
   if (moved.chart || moved.table) {
     const scored = [...deck.entries()].map(([part, shapes]) => ({ part, own: shapes.filter(sameKind), score: overlap(shapes.map(shape => shape.text).filter(Boolean), moved.slideTexts ?? []) }))
       .filter(entry => entry.own.length === 1 && entry.score >= 0.5).sort((a, b) => b.score - a.score);
